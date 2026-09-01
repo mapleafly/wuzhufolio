@@ -7,9 +7,9 @@ plugins {
 }
 
 dependencies {
-    implementation(projects.ui)
-    implementation(projects.data)
-    implementation(projects.domain)
+    implementation(project(":ui"))
+    implementation(project(":data"))
+    implementation(project(":domain"))
 
     implementation(compose.desktop.currentOs)
     implementation(libs.koin.core)

@@ -33,11 +33,23 @@
 2. **logback（EPL-2.0 / LGPL-2.1 双许可）**：双许可任选一，按 EPL-2.0 取用（弱 Copyleft，仅约束 logback 自身文件的修改），不影响 AGPL-3.0 主体。
 3. **Willena/sqlite-jdbc-crypt**：JAR Apache-2.0；运行时捆绑的 SQLCipher 为 BSD 风格许可、OpenSSL 3 为 Apache-2.0，均与 AGPL-3.0 兼容；**三平台可用性验证与锁版为 M1 T1.1 验收项**（ADR-002 风险表，P3 登记候选版本 3.53.4.0）。
 
+## 2b. 内嵌字体资源（随产品分发，P3 验收修复轮新增）
+
+> Linux/WSL 普遍无 CJK 系统字体（实测 §BT§fc-list :lang=zh§BT§ 为 0），故内嵌字库；三平台分发均自含。
+
+| 字体 | 来源 | 许可证 | AGPL-3.0 兼容 |
+|------|------|--------|----------------|
+| Noto Sans SC（可变字重 100–900） | google/fonts §BT§ofl/notosanssc§BT§ | **SIL OFL 1.1** | ✅（OFL 允许捆绑再分发；未修改字体文件本身，满足保留字体名条款） |
+| Noto Serif SC（可变字重） | google/fonts §BT§ofl/notoserifsc§BT§ | **SIL OFL 1.1** | ✅ |
+| JetBrains Mono（可变字重） | google/fonts §BT§ofl/jetbrainsmono§BT§ | **SIL OFL 1.1** | ✅ |
+
+体积注记：三字体共 ~43MB（app-image ~195MB）；P7 可用 pyftsubset 按字符集裁剪瘦身（登记 P7 优化项）。
+
 ## 3. 构建期工具（不随产品分发）
 
 | 工具 | 许可证 | 说明 |
 |------|--------|------|
-| Gradle 8.14.3 | Apache-2.0 | Wrapper 唯一真源 |
+| Gradle 8.14.4 | Apache-2.0 | Wrapper 唯一真源 |
 | Kotlin Gradle 插件 / Compose 编译器插件 | Apache-2.0 | 构建期 |
 | detekt 1.23.8 | Apache-2.0 | 静态检查 |
 | JUnit4/5 | EPL-2.0 | 仅测试 |

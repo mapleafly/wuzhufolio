@@ -23,11 +23,13 @@ export JAVA_HOME=$(mise where java)   # 或让 shell 激活 mise shims
 > 说明：`.mise.toml` 只保留 `java = "temurin-17"`。Gradle 曾以 mise 临时安装用于首次生成 Wrapper，
 > 生成后即按口径移除——日常开发一律用 `./gradlew`，不装全局 gradle。
 
+> **中文字体已内嵌**（Noto Sans/Serif SC + JetBrains Mono，OFL-1.1，见 `docs/tech/dependency-licenses.md` §2b）：无 CJK 系统字体的 Linux/WSL 也能正确渲染中文，无需安装系统字体。
+
 ## 2. 环境检查清单（新环境验收）
 
 - [ ] `mise ls` 输出含 `java temurin-17`
 - [ ] `java -version` 显示 `17.0.x` Temurin（注意 java 在 mise shims/JAVA_HOME 下解析）
-- [ ] `./gradlew build` 通过（17 项测试全绿 + detekt 零问题）
+- [ ] `./gradlew build` 通过（21 项测试全绿 + detekt 零问题）
 - [ ] `./gradlew :app:run` 启动 GUI，日志出现 `hello-chain ok | schema_version=2 | ... | market_api_key=****`（脱敏）
 - [ ] 主壳可见侧边栏五页 + 组件走查（DEV）；顶栏 ☾/☀ 切换主题即时重渲染
 
@@ -59,6 +61,6 @@ export JAVA_HOME=$(mise where java)   # 或让 shell 激活 mise shims
 | 症状 | 处理 |
 |------|------|
 | `java: command not found` | `mise install` 后激活 shims 或 `export JAVA_HOME=$(mise where java)` |
-| Gradle 版本警告（8.14.3 deprecated） | Kotlin 2.5 起最低要求 8.14.4；M0 锁 8.14.3 可忽略，升级随 P4 评估 |
+| Gradle 版本警告（<8.14.4 deprecated） | 已锁 8.14.4（Kotlin 2.5 起最低要求）；升级 Gradle 用 §BT§./gradlew wrapper --gradle-version <v>§BT§ |
 | WSLg 黑窗/GL 异常 | 见 §3 SOFTWARE_FAST |
 | 测试库冲突 | 删 `~/.wuzhufolio` 或用 `WUZHUFOLIO_DATA_DIR` 换目录 |

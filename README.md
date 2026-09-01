@@ -13,7 +13,7 @@
 ## 环境要求
 
 - JDK 17（推荐 mise 管理：`mise install`，见 `.mise.toml`）
-- Gradle 无需安装：以仓库 Wrapper 为唯一真源（`./gradlew`）
+- Gradle 无需安装：以仓库 Wrapper 为唯一真源（`./gradlew`，8.14.4）
 - 本地开发环境搭建详见 `docs/tech/dev-setup.md`
 
 ## 构建 / 运行 / 测试
@@ -50,7 +50,7 @@ docs/     PRD / 设计 / 技术方案 / 状态看板（见 AGENTS.md 目录约�
 
 ## M0 已验证口径
 
-- `./gradlew build` 绿：17 项测试全过（脱敏 / 迁移幂等 / hello 链路 / 双主题对比度 WCAG AA / 主壳 UI）。
+- `./gradlew build` 绿：21 项测试全过（脱敏 / 迁移幂等 / hello 链路 / 双主题对比度 WCAG AA / 主壳 UI）。
 - hello 链路：空界面启动 → 迁移建库 → 读设置 → 打一条脱敏日志（`~/.wuzhufolio/logs/wuzhufolio.log`）。
 - UI 基座：侧边栏五页空壳 + 「组件走查（DEV）」页，顶栏 ☾/☀ 切换明/暗主题即时重渲染。
 - 依赖许可证清单与 AGPL-3.0 兼容核验：`docs/tech/dependency-licenses.md`。

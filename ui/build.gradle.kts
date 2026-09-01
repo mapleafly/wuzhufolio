@@ -5,7 +5,7 @@ plugins {
 }
 
 dependencies {
-    implementation(projects.domain)
+    implementation(project(":domain"))
 
     implementation(compose.desktop.currentOs)
     implementation(compose.material3)
