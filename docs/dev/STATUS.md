@@ -6,7 +6,7 @@
 
 ## 当前阶段
 
-- **当前状态**：**P3 工程脚手架 ⏳ 待复核（2026-09-01 完成 M0 + 人验收 4+1 项后的修复轮：内嵌 CJK 字体修乱码、定位并修复 CI「No variants」真根因 jvmToolchain 工具链探测、Gradle 升 8.14.4、答复 Kotlin 版本、修正 huashu-design gitlink）**。人复核字体渲染与 CI 复跑通过后解锁 P4（首个模块 = M1 存储加密）。P2 ✅ 已通过；P0/P1 均已关闭。
+- **当前状态**：**P3 工程脚手架 ⏳ 待复核（2026-09-01 完成 M0 + 人验收 4+1 项后的修复轮：内嵌 CJK 字体修乱码、定位并修复 CI 真根因（.gitignore 误伤 data 模块致 CI 构建失败）、CI 三平台全绿、Gradle 升 8.14.4、答复 Kotlin 版本、修正 huashu-design gitlink）**。人复核字体渲染与 CI 复跑通过后解锁 P4（首个模块 = M1 存储加密）。P2 ✅ 已通过；P0/P1 均已关闭。
 - **推进顺序**：先桌面端，后移动端。**P1–P8 只针对桌面端或两端共同部分；移动端相关工作放到下一个版本。**（移动端相关技能/技术方案/开发待桌面端主线稳定后再启用。）
 - **前序待审核项已关闭（2026-08-30，人工启动指令）**：① 项目级安装 huashu-design；② P1 新增「设计原型图」步骤；③ P1–P8 huashu-design 用途分析--已随人工「开始执行P1」指令一并拍板（固化为 `AGENTS.md` §7.1/§7.2）。
 - **下一人工门**：**P3「验证骨架」（AGENTS.md §6）**——本地构建跑通 + CI 绿 + hello 链路与 UI 基座走查，验收方式见下方 P3 节。
@@ -187,7 +187,7 @@
 **修复轮改动**：
 
 1. **中文乱码（验收第 2 项）**：根因 = Linux/WSL 无 CJK 系统字体（`fc-list :lang=zh` 实测 0），Skiko 回退渲染为豆腐块。修复 = 内嵌 Noto Sans SC / Noto Serif SC / JetBrains Mono 可变字体（OFL-1.1，~43MB），`WzFonts.kt` 以 FontVariation 实例化字重、表格数字 Mono+Noto 回退链；`FontBundleTest` 4 项守护（加载 + CJK 字形 + wght 轴 + 克隆实例）。GUI 冒烟（SOFTWARE_FAST）无异常。字体体积瘦身登记 P7（pyftsubset）。
-2. **CI 首跑失败（遗留 1 观察项）**：三平台均 `:app:testRuntimeClasspath → Could not resolve project :data → No variants exist`。逐一证伪：类型安全访问器、Gradle 8.14.3→8.14.4、org.gradle.parallel、include 顺序、--no-configuration-cache、setup-gradle 注入的 init 脚本（本地均复现成功）。**真根因（--info 日志定位）**：`jvmToolchain(17)` 触发工具链自动探测——CI runner 预装 5 个 JDK（8/11/17/21/25），失败前日志出现逐一 `JavaProbe` 探测；探测期间 KGP 对纯 JVM 模块（domain/data）的 `runtimeElements` 变体注册被推迟 → 解析 "No variants exist"。本地仅 1 个 JDK（mise），探测瞬时完成故永不触发。**修复 = 移除 `jvmToolchain(17)`，改显式 `jvmTarget=17` + java source/target 17**（两端 JAVA_HOME 本就是 temurin-17）。推送 `6ed10fd…（本修复轮）` 后 CI 复跑验证。另修复 `.agents/skills/huashu-design` 被误当 gitlink 提交（无 .gitmodules）导致 `git submodule foreach` 报错——去嵌套 .git 后按普通文件纳入版本控制。
+2. **CI 首跑失败（遗留 1 观察项）→ 已修复，CI 三平台全绿**：三平台均 `:app:testRuntimeClasspath → Could not resolve project :data → No variants exist`。**真根因（全新克隆复现 + git ls-files 定位）**：`.gitignore` 中误写 `data/`（本想忽略运行时数据目录），把 `data` 源码模块整个忽略了——**data 模块 9 个文件从未入库**；本地因文件仍在磁盘而能构建（假绿），CI/全新克隆后 data 目录为空 → `:data` 无构建脚本 → 无插件 → 无变体 → "No variants exist"。**修复 = 移除 `data/` 条目（运行时数据在 ~/.wuzhufolio，不在仓库内）+ 补提交 data 模块**。期间曾误判的类型安全访问器/Gradle 版本/parallel/include 顺序/配置缓存/jvmToolchain 均非根因，但 Gradle 8.14.3→8.14.4、去访问器、生产者优先 include、jvmTarget 显式化作为卫生性改进保留。**CI 复跑（`ff9fd6a`）三平台全绿**（test + detekt + uber jar）。另修复 `.agents/skills/huashu-design` 被误当 gitlink（无 .gitmodules）→ 去嵌套 .git 后按普通文件入库（189 文件，node_modules 已排除）。
 3. **遗留 4 答复（Kotlin 版本）**：**维持 Kotlin 2.4.10，不升 2.5**——当前最新稳定版为 2.4.10（2.4.20 尚为 RC2，2.5.0 未发布）；CMP 1.12.0 官方口径「最新 CMP 兼容最新稳定 Kotlin」，配对 2.4.10 成立。2.5.0 正式发布且 CMP 出配套版本后，随 P4 里程碑评估升级（届时 Wrapper 最低要求 8.14.4 已满足）。
 4. **交付遗留 1**：已 `gh repo create wuzhufolio --public` 建仓并推送（`https://github.com/mapleafly/wuzhufolio`，mapleafly 账号，D1 开源口径公开）。
 
