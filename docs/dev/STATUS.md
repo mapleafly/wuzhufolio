@@ -6,10 +6,10 @@
 
 ## 当前阶段
 
-- **当前状态**：**P2 技术方案 ✅ 已通过（2026-08-31 人工拍板三项：① SQLCipher 驱动 Willena/sqlite-jdbc-crypt（P3 验证锁版，失败回退自绑 JNI）；② Flatpak 口径（本轮先 AppImage/.deb/.rpm，Flathub 并行、P7 前评估）；③ 任务优先级/顺序按 F3 垂直切片依赖图执行）**。**当前阶段 = P3 工程脚手架（进行中，待启动指令）**。P2 全部 ADR（001–006）均已转为人工拍板采纳。P0/P1 均已关闭：P1 终审输入为三轮评审报告（V1/V2/V3），F1–F13 + N1–N5 全部闭环、「单一真源 + 双主题」原则确立、48 项 Playwright 断言全绿。
+- **当前状态**：**P3 工程脚手架 ⏳ 待审核（2026-09-01 完成 M0=T0.1–T0.6 全部任务，停在人工门）**。人审核通过后解锁 P4 分模块开发（首个模块 = M1 存储加密，含 SQLCipher 三平台锁版验证与 Argon2id 基准校准）。P2 ✅ 已通过（2026-08-31 人工拍板三项）；P0/P1 均已关闭。
 - **推进顺序**：先桌面端，后移动端。**P1–P8 只针对桌面端或两端共同部分；移动端相关工作放到下一个版本。**（移动端相关技能/技术方案/开发待桌面端主线稳定后再启用。）
 - **前序待审核项已关闭（2026-08-30，人工启动指令）**：① 项目级安装 huashu-design；② P1 新增「设计原型图」步骤；③ P1–P8 huashu-design 用途分析--已随人工「开始执行P1」指令一并拍板（固化为 `AGENTS.md` §7.1/§7.2）。
-- **下一人工门**：P2 产出后的「拍板技术选型（尤其桌面端栈）与任务优先级/顺序」（AGENTS.md §6）。
+- **下一人工门**：**P3「验证骨架」（AGENTS.md §6）**——本地构建跑通 + CI 绿 + hello 链路与 UI 基座走查，验收方式见下方 P3 节。
 
 ## 阶段总览
 
@@ -18,7 +18,7 @@
 | P0 | 需求基线 | ✅ 已通过 | 见下 | 评审已通过 |
 | P1 | 产品与交互设计 | ✅ 已通过 | docs/design/（含 prototype/*.html + 截图 + 验证脚本） | 主版唯一真源（内置双主题）；登录链路已补齐；三轮评审 V1/V2/V3 问题全部闭环；2026-08-31 人工终审通过 |
 | P2 | 技术方案 | ✅ 已通过 | `docs/tech/`（architecture + 6 ADR + data-model + api-contracts + task-breakdown + P2评审报告） | 2026-08-31 人工拍板三项关闭；全部 ADR 转人工拍板采纳 |
-| P3 | 工程脚手架 | 进行中 | 代码骨架（= task-breakdown M0：T0.1–T0.6） | 2026-08-31 解锁，待启动指令 |
+| P3 | 工程脚手架 | ⏳ 待审核 | 代码骨架（app/domain/data/ui 四模块 + Gradle Wrapper + CI + dev-setup + hello 链路 + 迁移框架 + UI 基座） | 2026-09-01 完成 M0（T0.1–T0.6），停人工门 |
 | P4 | 分模块开发 | 未开始 | 代码 + `docs/dev/modules/` | |
 | P5 | 集成与联调 | 未开始 | `docs/test/integration-report.md` | |
 | P6 | 系统测试与质量 | 未开始 | `docs/test/` | |
@@ -130,6 +130,54 @@
 
 **建议的下一步**（已执行）：P2 于 2026-08-31 拍板通过；**下一步 = 人工下达 P3 启动指令**，按 task-breakdown M0（T0.1–T0.6，含 T0.6 Compose UI 基座）搭建工程脚手架。
 
+## P3 工程脚手架（⏳ 待审核--2026-09-01 完成 M0，停人工门）
+
+> 启动记录：人工原话「执行P3」（2026-09-01）。范围 = task-breakdown M0（T0.1–T0.6，P3 DoD：本地构建通过、CI 绿、hello 链路端到端可跑 + UI 基座双主题、对比度达标）。首次 git 提交 `6ed10fd`（85 文件，P0–P2 文档同期入库）。
+
+**产物清单**：
+
+- 工程骨架：`settings.gradle.kts` + `build.gradle.kts` + 四模块（`app/` 组装入口、`ui/` 主题组件主壳、`data/` 存储迁移设置、`domain/` 纯 Kotlin）+ `gradle/libs.versions.toml`（version catalog，全依赖锁版）+ `gradle/wrapper/`（Gradle 8.14.3 Wrapper 唯一真源）+ `.gitignore/.gitattributes`
+- `LICENSE` - AGPL-3.0 全文（决策 D1）
+- `docs/tech/dependency-licenses.md` - 依赖许可证清单（T0.1/N5）：19 项直接依赖 POM 实证 + 构建期工具，**全部兼容 AGPL-3.0**；注意项 2 条（argon2-jvm LGPL-3.0 动态链接合规、logback EPL-2.0/LGPL-2.1 双许可取 EPL）
+- `.mise.toml` - mise 工具链（java temurin-17；gradle 条目已按口径移除）
+- `docs/tech/dev-setup.md` - 本地开发环境搭建（mise 口径、环境检查清单 5 项、WSL2 注记：Skiko GL→SOFTWARE_FAST、托盘以实机为准、WUZHUFOLIO_DATA_DIR 隔离）
+- `.github/workflows/ci.yml` - CI 三平台矩阵（ubuntu/windows/macos）：setup-java temurin-17 + setup-gradle（wrapper 校验）→ test → detekt → createDistributable + packageUberJarForCurrentOS 冒烟 → uber jar 构件上传
+- T0.4 hello 链路：`data/.../hello/HelloChain.kt` + `domain/.../redaction/LogRedactor.kt`（脱敏器）+ `app/.../Main.kt`（Koin 组装 + Compose 窗口）
+- T0.5 迁移框架：`data/.../db/`（Migration/Migrations/Migrator/WzDatabase）——schema_version 表 + M001 settings 表（COALESCE 唯一索引，N1）+ M002 默认设置，事务化逐条执行、幂等
+- T0.6 UI 基座：`ui/.../theme/`（design-tokens 单源映射：明/暗 WzColors + 三套盈亏方案 + WzTypography）、`components/`（WzButton/WzTextField/WzTable/WzModal/WzToast/WzStatusBar）、`shell/MainShell.kt`（侧边栏五页空壳 + 顶栏 ☾/☀ 主题切换 + 状态栏）、`gallery/ComponentGallery.kt`（组件走查页）
+- 测试 17 项全绿：LogRedactorTest(5) / MigratorTest(4) / HelloChainTest(2) / ContrastTest(2) / ShellUiTest(4)
+- `README.md` - 构建/运行/测试命令与仓库结构
+
+**本次改了什么**：
+
+1. **T0.1**：以官方模板口径手工搭建 Kotlin 2.4.10 + Compose Multiplatform 1.12.0 四模块工程（官方兼容性页确认「最新 CMP 兼容最新 Kotlin」）；全部 P2 选型依赖锁进 version catalog（Exposed 1.5.0、xerial/Willena sqlite-jdbc 3.53.4.0、argon2-jvm 2.12、java-keyring 1.0.4、bcprov 1.85.2、Ktor 3.5.2、OkHttp 5.5.0、Koin 4.2.2、logback 1.6.3 等）；许可证清单 POM 实证核验。
+2. **T0.2**：CI 三平台矩阵（test + detekt + 打包冒烟 + 构件上传）；本地实测打包冒烟通过（app-image 151MB 符合 ADR-001 预估、uber jar 58MB）；安装器打包（msi/dmg/deb）与签名公证按 ADR-006 留 P7。
+3. **T0.3**：mise 装 temurin-17.0.20+101；Wrapper 8.14.3 生成后移除 mise gradle；dev-setup.md 含环境检查清单 + WSL2 注记（GL 异常→SOFTWARE_FAST 实测有效）。
+4. **T0.4**：hello 链路实测——日志行 `hello-chain ok | schema_version=2 | settings(count=4): ... | market_api_key=****`（脱敏生效，控制台+滚动文件双写）。
+5. **T0.5**：迁移框架空库初始化到 v2、重复执行幂等、唯一索引行为单测覆盖。
+6. **T0.6**：双主题 token 1:1 映射（F4 修正值）；ContrastTest 以 WCAG 公式守护两主题 7 token×2 底 ≥4.5:1；主壳五页空壳 + 走查页；ShellUiTest 覆盖导航/主题切换/走查渲染/Modal 开关。
+
+**已验证（2026-09-01，WSL2 Ubuntu 24.04 + temurin-17）**：`./gradlew clean build` 绿（编译 + 17 测试 + detekt 严格 maxIssues=0）；GUI 冒烟（WSLg + SOFTWARE_FAST）：hello 链路日志两行落盘、窗口无渲染异常驻留至 timeout；打包冒烟（createDistributable + uber jar）通过。
+
+**怎么验收**：
+
+1. `mise install && export JAVA_HOME=$(mise where java) && ./gradlew build` —— 应全绿（17 测试 + detekt）。
+2. GUI 走查：`JAVA_TOOL_OPTIONS="-Dskiko.renderApi=SOFTWARE_FAST" ./gradlew :app:run` —— 看主壳五页 + 走查页组件、顶栏 ☾ 切暗色即时重渲染、状态栏/Toast/Modal。
+3. hello 链路：查 `~/.wuzhufolio/logs/wuzhufolio.log` 含脱敏日志行（`market_api_key=****`）。
+4. 核对 `docs/tech/dependency-licenses.md` 与 `.github/workflows/ci.yml`（CI 绿需推送 GitHub 后观察——本地未建仓远端，见遗留 1）。
+5. 对照 dev-setup.md 环境检查清单 5 项逐项打勾。
+
+**遗留问题（不阻断，转 P4 注意清单）**：
+
+1. **CI 未实际跑过**：仓库尚无 GitHub 远端（本地 git 已建仓并首提交）；推送后首跑若失败按日志修（macos-latest 架构、windows bash 行为差异属低风险点）。
+2. **Exposed 连接语义踩坑记录**（P4 必读）：Exposed `Database.metadata()` 无事务时会关闭 connector() 给出的连接——WzDatabase 已改用新连接工厂；M1 单写队列落地时保持「Exposed 连接 ≠ 共享写连接」。
+3. **桌面端 focusable Popup/Dialog 脱离测试语义树**：WzModal 用 focusable=false + 手动 esc/遮罩关闭；P4 做 Modal 聚焦首字段时勿改回 focusable=true（否则 UI 测试失效）。
+4. Kotlin 2.5 起最低 Gradle 8.14.4（当前 8.14.3 有 deprecation 警告）；Exposed 1.5 为 `v1.*` 新包名（`org.jetbrains.exposed.v1`），P4 查文档注意版本匹配。
+5. Argon2id 参数初值未校准（T1.3 在 4GB 双核夹落实测，P4 首模块项）；SQLCipher 驱动三平台锁版验证在 T1.1。
+6. 侧边栏导航为纯文字骨架（无图标），P4 按原型截图补齐图标与细节视觉。
+
+**建议的下一步**：人工按上节验收 P3 → 通过后 P4 解锁，首个模块 = **M1 存储与加密**（T1.1 SQLCipher 锁版三平台验证 / T1.2 CryptoService / T1.3 KDF 基准校准 / T1.4 单写队列；M4 引擎为并行面硬前置）。
+
 ## P0 需求基线（✅ 已通过--两端 + 跨端规范全部定稿）
 
 产物清单（只读基准，不得改动）：
@@ -169,7 +217,7 @@
 
 ## 当前阻塞点
 
-- **无未关闭人工门**。P2 已于 2026-08-31 拍板通过；**P3 工程脚手架进行中，待人工下达启动指令**（M0 = T0.1–T0.6；启动后首批验证项：SQLCipher 驱动三平台锁版、Argon2id 基准校准、UI 基座双主题）。
+- **P3 待审核人工门**：P3 已于 2026-09-01 完成（M0 全任务 + 17 项测试绿 + hello 链路实测 + 打包冒烟通过），待人按 P3 节「怎么验收」验证骨架；通过后 P4（M1 存储加密）解锁。P4 首批验证项：SQLCipher 驱动三平台锁版（T1.1）、Argon2id 基准校准（T1.3）。
 
 ## 技能盘点结论（2026-08-30 更新）
 
@@ -217,3 +265,4 @@
 | 2026-08-31 | Agent | ADR-002 评审增补 + 拍板落盘，P2 关闭 | 亲和栈评审（Room KMP/Realm/SQLDelight 否决，维持现有方案）+ 严苛度评审（匹配定位，「记住我」语义整改）；三项拍板落盘（ADR-002~006 转人工拍板采纳、ADR-006 Flatpak 口径、task-breakdown 顺序拍板）；**P2 ✅ 已通过，P3 解锁进行中（待启动指令）** |
 | 2026-08-31 | 人 | 开发环境指令 | 环境 = WSL2 + Ubuntu 24.04 + DSH；安装 SDK 优先用已安装的 mise 管理 Java/Kotlin 等工具 |
 | 2026-08-31 | Agent | 环境摸底 + T0.2/T0.3 修订 | 实测：mise 2026.7.13 在用，Java/Kotlin/Gradle 均未安装，WSLg 可用；T0.3 改 mise 工具链 + 环境检查清单 + WSL2 注记，T0.2 CI JDK 对齐 temurin-17；决策 19 落档 |
+| 2026-09-01 | Agent | **执行 P3 工程脚手架** | 人下达「执行P3」；完成 M0 全任务：git 建仓首提交 6ed10fd（85 文件）、四模块 Gradle 工程 + version catalog 锁版、CI 三平台、mise/dev-setup、hello 链路脱敏实测、迁移框架 v2、UI 基座双主题 + 组件走查页；17 测试绿 + 打包冒烟通过；许可证清单全兼容 AGPL-3.0；**P3 置待审核，停在人工门** |
