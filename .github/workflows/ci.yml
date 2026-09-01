@@ -36,9 +36,11 @@ jobs:
         shell: bash
         run: ./gradlew detekt --console=plain
 
-      - name: 打包冒烟（app-image + uber jar，免安装器依赖）
+      - name: 打包冒烟（uber jar，纯 Gradle）
         shell: bash
-        run: ./gradlew :app:createDistributable :app:packageUberJarForCurrentOS --console=plain
+        # 注：createDistributable（jpackage app-image）在 win/mac runner 环境不稳定，按 ADR-006 安装器打包留 P7；
+        # CI 只验证 uber jar（应用可打包成自包含可运行 jar）
+        run: ./gradlew :app:packageUberJarForCurrentOS --console=plain
 
       - name: 上传 uber jar（冒烟产物，7 天）
         uses: actions/upload-artifact@v4
