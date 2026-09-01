@@ -13,6 +13,7 @@ dependencies {
 
     implementation(compose.desktop.currentOs)
     implementation(libs.koin.core)
+    implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.kotlinx.coroutines.swing)
     implementation(libs.slf4j.api)
     implementation(libs.logback.classic)

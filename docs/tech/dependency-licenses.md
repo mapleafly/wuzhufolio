@@ -35,13 +35,13 @@
 
 ## 2b. 内嵌字体资源（随产品分发，P3 验收修复轮新增）
 
-> Linux/WSL 普遍无 CJK 系统字体（实测 §BT§fc-list :lang=zh§BT§ 为 0），故内嵌字库；三平台分发均自含。
+> Linux/WSL 普遍无 CJK 系统字体（实测 `fc-list :lang=zh` 为 0），故内嵌字库；三平台分发均自含。
 
 | 字体 | 来源 | 许可证 | AGPL-3.0 兼容 |
 |------|------|--------|----------------|
-| Noto Sans SC（可变字重 100–900） | google/fonts §BT§ofl/notosanssc§BT§ | **SIL OFL 1.1** | ✅（OFL 允许捆绑再分发；未修改字体文件本身，满足保留字体名条款） |
-| Noto Serif SC（可变字重） | google/fonts §BT§ofl/notoserifsc§BT§ | **SIL OFL 1.1** | ✅ |
-| JetBrains Mono（可变字重） | google/fonts §BT§ofl/jetbrainsmono§BT§ | **SIL OFL 1.1** | ✅ |
+| Noto Sans SC（可变字重 100–900） | google/fonts `ofl/notosanssc` | **SIL OFL 1.1** | ✅（OFL 允许捆绑再分发；未修改字体文件本身，满足保留字体名条款） |
+| Noto Serif SC（可变字重） | google/fonts `ofl/notoserifsc` | **SIL OFL 1.1** | ✅ |
+| JetBrains Mono（可变字重） | google/fonts `ofl/jetbrainsmono` | **SIL OFL 1.1** | ✅ |
 
 体积注记：三字体共 ~43MB（app-image ~195MB）；P7 可用 pyftsubset 按字符集裁剪瘦身（登记 P7 优化项）。
 

@@ -8,7 +8,7 @@
 | 工具 | 安装方式 | 说明 |
 |------|----------|------|
 | JDK 17（Temurin） | `mise install`（读 `.mise.toml`） | 编译/运行/打包（jpackage 要求 17+） |
-| Gradle | **不安装** | 仓库内 `./gradlew` 为唯一真源，版本锁 `gradle/wrapper/gradle-wrapper.properties`（8.14.3） |
+| Gradle | **不安装** | 仓库内 `./gradlew` 为唯一真源，版本锁 `gradle/wrapper/gradle-wrapper.properties`（8.14.4） |
 | Kotlin | **不单独安装** | 由 version catalog 的 Kotlin Gradle 插件驱动（`gradle/libs.versions.toml`，2.4.10） |
 | detekt | **不需单独安装** | 由 Gradle 插件执行（`./gradlew detekt`） |
 
@@ -49,7 +49,7 @@ export JAVA_HOME=$(mise where java)   # 或让 shell 激活 mise shims
 
 - M0 无真实密钥：数据库为明文 SQLite（`~/.wuzhufolio/wuzhufolio.db`）。
 - M1 起：DB 密钥/设备密钥自动生成并写入 OS 钥匙串（javakeyring；Linux = Secret Service，ADR-002）；
-  行情/交易所 API Key 在应用内设置页录入，**绝不入库、不入库、不入库**（PRD §1.1；设置页 M5/M6 落地）。
+  行情/交易所 API Key 在应用内设置页录入后，以**设备密钥**（OS 钥匙串，与 DB 密钥同级）加密，**密文存 settings 表全局行**（key=market.coingecko_key / market.cmc_key；ADR-002 §2.1 方案甲）；**不落明文、不进 .cpro 备份、不出设备**（PRD §1.1；设置页 M5/M6 落地）。
 - 日志文件 `~/.wuzhufolio/logs/wuzhufolio.log` 已经 LogRedactor 脱敏；诊断导出前仍需人工复核（PRD §6）。
 
 ## 5. 常用命令
@@ -61,6 +61,6 @@ export JAVA_HOME=$(mise where java)   # 或让 shell 激活 mise shims
 | 症状 | 处理 |
 |------|------|
 | `java: command not found` | `mise install` 后激活 shims 或 `export JAVA_HOME=$(mise where java)` |
-| Gradle 版本警告（<8.14.4 deprecated） | 已锁 8.14.4（Kotlin 2.5 起最低要求）；升级 Gradle 用 §BT§./gradlew wrapper --gradle-version <v>§BT§ |
+| Gradle 版本警告（<8.14.4 deprecated） | 已锁 8.14.4（Kotlin 2.5 起最低要求）；升级 Gradle 用 `./gradlew wrapper --gradle-version <v>` |
 | WSLg 黑窗/GL 异常 | 见 §3 SOFTWARE_FAST |
 | 测试库冲突 | 删 `~/.wuzhufolio` 或用 `WUZHUFOLIO_DATA_DIR` 换目录 |

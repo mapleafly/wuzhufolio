@@ -6,7 +6,7 @@
 
 ## 当前阶段
 
-- **当前状态**：**P3 工程脚手架 ⏳ 待复核（2026-09-01 完成 M0 + 人验收 4+1 项后的修复轮：内嵌 CJK 字体修乱码、定位并修复 CI 真根因（.gitignore 误伤 data 模块致 CI 构建失败）、CI 三平台全绿、Gradle 升 8.14.4、答复 Kotlin 版本、修正 huashu-design gitlink）**。人复核字体渲染与 CI 复跑通过后解锁 P4（首个模块 = M1 存储加密）。P2 ✅ 已通过；P0/P1 均已关闭。
+- **当前状态**：**P3 工程脚手架 ⏳ 待复核（2026-09-01 完成 M0 + 人验收 4+1 项后的修复轮：内嵌 CJK 字体修乱码、定位并修复 CI 真根因（.gitignore 误伤 data 模块致 CI 构建失败）、CI 三平台全绿、Gradle 升 8.14.4、答复 Kotlin 版本、修正 huashu-design gitlink）**。评审闭环（2026-09-01）：人复核通过（中文渲染 ✓、Kotlin 2.4.10 维持 ✓）；Agent 评审发现项 F1/N1–N5 全部闭环（见下方「P3 评审闭环」节）；**待人确认 P3 通过并解锁 P4**（首个模块 = M1 存储加密）。P2 ✅ 已通过；P0/P1 均已关闭。
 - **推进顺序**：先桌面端，后移动端。**P1–P8 只针对桌面端或两端共同部分；移动端相关工作放到下一个版本。**（移动端相关技能/技术方案/开发待桌面端主线稳定后再启用。）
 - **前序待审核项已关闭（2026-08-30，人工启动指令）**：① 项目级安装 huashu-design；② P1 新增「设计原型图」步骤；③ P1–P8 huashu-design 用途分析--已随人工「开始执行P1」指令一并拍板（固化为 `AGENTS.md` §7.1/§7.2）。
 - **下一人工门**：**P3「验证骨架」（AGENTS.md §6）**——本地构建跑通 + CI 绿 + hello 链路与 UI 基座走查，验收方式见下方 P3 节。
@@ -18,7 +18,7 @@
 | P0 | 需求基线 | ✅ 已通过 | 见下 | 评审已通过 |
 | P1 | 产品与交互设计 | ✅ 已通过 | docs/design/（含 prototype/*.html + 截图 + 验证脚本） | 主版唯一真源（内置双主题）；登录链路已补齐；三轮评审 V1/V2/V3 问题全部闭环；2026-08-31 人工终审通过 |
 | P2 | 技术方案 | ✅ 已通过 | `docs/tech/`（architecture + 6 ADR + data-model + api-contracts + task-breakdown + P2评审报告） | 2026-08-31 人工拍板三项关闭；全部 ADR 转人工拍板采纳 |
-| P3 | 工程脚手架 | ⏳ 待复核 | 代码骨架 + CI + dev-setup + hello 链路 + 迁移框架 + UI 基座（内嵌 CJK 字体）；Gradle 8.14.4 | 2026-09-01 完成 M0 + 验收修复轮，待复核 |
+| P3 | 工程脚手架 | ⏳ 待复核 | 代码骨架 + CI + dev-setup + hello 链路 + 迁移框架 + UI 基座（内嵌 CJK 字体）；Gradle 8.14.4；P3评审报告 | 2026-09-01 完成 M0 + 验收修复轮；评审闭环 + 人复核通过，待人工确认放行 |
 | P4 | 分模块开发 | 未开始 | 代码 + `docs/dev/modules/` | |
 | P5 | 集成与联调 | 未开始 | `docs/test/integration-report.md` | |
 | P6 | 系统测试与质量 | 未开始 | `docs/test/` | |
@@ -136,12 +136,12 @@
 
 **产物清单**：
 
-- 工程骨架：`settings.gradle.kts` + `build.gradle.kts` + 四模块（`app/` 组装入口、`ui/` 主题组件主壳、`data/` 存储迁移设置、`domain/` 纯 Kotlin）+ `gradle/libs.versions.toml`（version catalog，全依赖锁版）+ `gradle/wrapper/`（Gradle 8.14.3 Wrapper 唯一真源）+ `.gitignore/.gitattributes`
+- 工程骨架：`settings.gradle.kts` + `build.gradle.kts` + 四模块（`app/` 组装入口、`ui/` 主题组件主壳、`data/` 存储迁移设置、`domain/` 纯 Kotlin）+ `gradle/libs.versions.toml`（version catalog，全依赖锁版）+ `gradle/wrapper/`（Gradle 8.14.4 Wrapper 唯一真源）+ `.gitignore/.gitattributes`
 - `LICENSE` - AGPL-3.0 全文（决策 D1）
 - `docs/tech/dependency-licenses.md` - 依赖许可证清单（T0.1/N5）：19 项直接依赖 POM 实证 + 构建期工具，**全部兼容 AGPL-3.0**；注意项 2 条（argon2-jvm LGPL-3.0 动态链接合规、logback EPL-2.0/LGPL-2.1 双许可取 EPL）
 - `.mise.toml` - mise 工具链（java temurin-17；gradle 条目已按口径移除）
 - `docs/tech/dev-setup.md` - 本地开发环境搭建（mise 口径、环境检查清单 5 项、WSL2 注记：Skiko GL→SOFTWARE_FAST、托盘以实机为准、WUZHUFOLIO_DATA_DIR 隔离）
-- `.github/workflows/ci.yml` - CI 三平台矩阵（ubuntu/windows/macos）：setup-java temurin-17 + setup-gradle（wrapper 校验）→ test → detekt → createDistributable + packageUberJarForCurrentOS 冒烟 → uber jar 构件上传
+- `.github/workflows/ci.yml` - CI 三平台矩阵（ubuntu/windows/macos）：setup-java temurin-17 + setup-gradle（wrapper 校验）→ test → detekt → packageUberJarForCurrentOS（uber jar）冒烟 → 构件上传（createDistributable 仅本地冒烟通过，安装器打包按 ADR-006 留 P7 不进 CI）
 - T0.4 hello 链路：`data/.../hello/HelloChain.kt` + `domain/.../redaction/LogRedactor.kt`（脱敏器）+ `app/.../Main.kt`（Koin 组装 + Compose 窗口）
 - T0.5 迁移框架：`data/.../db/`（Migration/Migrations/Migrator/WzDatabase）——schema_version 表 + M001 settings 表（COALESCE 唯一索引，N1）+ M002 默认设置，事务化逐条执行、幂等
 - T0.6 UI 基座：`ui/.../theme/`（design-tokens 单源映射：明/暗 WzColors + 三套盈亏方案 + WzTypography）、`components/`（WzButton/WzTextField/WzTable/WzModal/WzToast/WzStatusBar）、`shell/MainShell.kt`（侧边栏五页空壳 + 顶栏 ☾/☀ 主题切换 + 状态栏）、`gallery/ComponentGallery.kt`（组件走查页）
@@ -193,6 +193,20 @@
 4. **交付遗留 1**：已 `gh repo create wuzhufolio --public` 建仓并推送（`https://github.com/mapleafly/wuzhufolio`，mapleafly 账号，D1 开源口径公开）。
 
 **待人工复核**：① 重新跑 `JAVA_TOOL_OPTIONS="-Dskiko.renderApi=SOFTWARE_FAST" ./gradlew :app:run` 确认中文已正常（不再乱码）；② 观察 CI 复跑（`gh run watch`）；③ 确认 Kotlin 2.4.10 维持结论可接受。
+
+## P3 评审闭环（2026-09-01，Agent 评审 + 人复核）
+
+> 输入：人指令「评审P3」。Agent 产出 `docs/tech/P3评审报告.md`（有条件放行：DoD 三项独立实证 + F1 + N1–N5）。人复核结论：① 中文渲染通过 ✅ ② Kotlin 维持 2.4.10 ✅。随后按评审发现项修复闭环：
+
+1. **F1（重要）**：dev-setup.md §4 密钥口径订正——「绝不入库」→ **设备密钥加密存 settings 全局行**（key=market.coingecko_key / market.cmc_key）、不落明文、不进 .cpro 备份（对齐 ADR-002 §2.1 方案甲）。
+2. **N1**：dev-setup §1 表 Gradle 版本 8.14.3 → 8.14.4（与 wrapper.properties 一致）。
+3. **N2**：STATUS 产物清单 CI 描述对齐 ci.yml 现况（仅 uber jar 冒烟；createDistributable 本地冒烟通过、安装器打包按 ADR-006 留 P7 不进 CI）。
+4. **N3**：dev-setup §6 与 dependency-licenses §2b 的 §BT§ 转义残留清理（恢复反引号）。
+5. **N4**：编译警告清零——① app 显式补 `lifecycle-viewmodel-compose` 依赖（消除 ViewModel 超类型跨模块可见警告）；② ShellUiTest 迁移 v2 测试 API（消除 runComposeUiTest 弃用警告）。
+6. **N5**：仅登记不处理（CI 不含 createDistributable 为 ADR-006 既定口径，报告 §三已登记）。
+7. **修复验证**：`./gradlew clean build --rerun-tasks --no-build-cache` 全量 30 任务真实执行绿；21 测试 0 失败 0 错误；**编译警告 0 条**。
+
+**待人工动作**：确认 P3 通过（AGENTS.md §6「验证骨架」门禁）→ 解锁 P4（首个模块 = M1 存储加密：T1.1 SQLCipher 三平台锁版 / T1.2 CryptoService / T1.3 KDF 基准校准 / T1.4 单写队列）。
 
 ## P0 需求基线（✅ 已通过--两端 + 跨端规范全部定稿）
 
@@ -283,3 +297,4 @@
 | 2026-08-31 | Agent | 环境摸底 + T0.2/T0.3 修订 | 实测：mise 2026.7.13 在用，Java/Kotlin/Gradle 均未安装，WSLg 可用；T0.3 改 mise 工具链 + 环境检查清单 + WSL2 注记，T0.2 CI JDK 对齐 temurin-17；决策 19 落档 |
 | 2026-09-01 | Agent | **执行 P3 工程脚手架** | 人下达「执行P3」；完成 M0 全任务：git 建仓首提交 6ed10fd（85 文件）、四模块 Gradle 工程 + version catalog 锁版、CI 三平台、mise/dev-setup、hello 链路脱敏实测、迁移框架 v2、UI 基座双主题 + 组件走查页；17 测试绿 + 打包冒烟通过；许可证清单全兼容 AGPL-3.0；**P3 置待审核，停在人工门** |
 | 2026-09-01 | Agent | **P3 独立评审** | 人指令「评审P3」；产出 docs/tech/P3评审报告.md：DoD 三项独立复跑实证达成（无缓存 21 测试、全新克隆构建证实 CI 根因修复、CI 三平台绿、hello 链路 GUI 实测脱敏）；结论「有条件放行」——F1（dev-setup §4 密钥口径订正）+ N1–N5 转 P4 注意清单；人工复核项：GUI 目视中文渲染 + Kotlin 版本答复；**P3 门禁维持待复核，放行权在人工** |
+| 2026-09-01 | Agent | **P3 评审修复闭环** | 人复核通过（中文渲染 ✓、Kotlin 2.4.10 维持 ✓）；按评审 F1/N1–N5 修复：dev-setup 密钥口径订正（对齐 ADR-002 §2.1）、版本口径 8.14.4、STATUS CI 描述对齐 ci.yml、§BT§ 转义清理、编译警告清零（app 补 lifecycle 依赖 + ShellUiTest 迁 v2 API）、N5 登记；全量无缓存重跑 21 测试绿 + 警告 0；**P3 具备放行条件，待人工确认通过并解锁 P4** |
