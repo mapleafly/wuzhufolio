@@ -30,7 +30,8 @@ jobs:
 
       - name: Test（JUnit5 + Compose UI 测试，离屏渲染）
         shell: bash
-        run: ./gradlew test --console=plain --stacktrace
+        # --no-configuration-cache：隔离配置缓存（A/B）；若绿则证明 CMP 1.12 + 配置缓存在 runner 上触发变体解析竞态
+        run: ./gradlew test --no-configuration-cache --console=plain --stacktrace
 
       - name: detekt 静态检查
         shell: bash
