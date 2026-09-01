@@ -6,7 +6,7 @@
 
 ## 当前阶段
 
-- **当前状态**：**P3 工程脚手架 ⏳ 待审核（2026-09-01 完成 M0=T0.1–T0.6 全部任务，停在人工门）**。人审核通过后解锁 P4 分模块开发（首个模块 = M1 存储加密，含 SQLCipher 三平台锁版验证与 Argon2id 基准校准）。P2 ✅ 已通过（2026-08-31 人工拍板三项）；P0/P1 均已关闭。
+- **当前状态**：**P3 工程脚手架 ⏳ 待复核（2026-09-01 完成 M0 + 人验收 4+1 项后的修复轮：内嵌 CJK 字体修乱码、定位并修复 CI「No variants」真根因 jvmToolchain 工具链探测、Gradle 升 8.14.4、答复 Kotlin 版本、修正 huashu-design gitlink）**。人复核字体渲染与 CI 复跑通过后解锁 P4（首个模块 = M1 存储加密）。P2 ✅ 已通过；P0/P1 均已关闭。
 - **推进顺序**：先桌面端，后移动端。**P1–P8 只针对桌面端或两端共同部分；移动端相关工作放到下一个版本。**（移动端相关技能/技术方案/开发待桌面端主线稳定后再启用。）
 - **前序待审核项已关闭（2026-08-30，人工启动指令）**：① 项目级安装 huashu-design；② P1 新增「设计原型图」步骤；③ P1–P8 huashu-design 用途分析--已随人工「开始执行P1」指令一并拍板（固化为 `AGENTS.md` §7.1/§7.2）。
 - **下一人工门**：**P3「验证骨架」（AGENTS.md §6）**——本地构建跑通 + CI 绿 + hello 链路与 UI 基座走查，验收方式见下方 P3 节。
@@ -18,7 +18,7 @@
 | P0 | 需求基线 | ✅ 已通过 | 见下 | 评审已通过 |
 | P1 | 产品与交互设计 | ✅ 已通过 | docs/design/（含 prototype/*.html + 截图 + 验证脚本） | 主版唯一真源（内置双主题）；登录链路已补齐；三轮评审 V1/V2/V3 问题全部闭环；2026-08-31 人工终审通过 |
 | P2 | 技术方案 | ✅ 已通过 | `docs/tech/`（architecture + 6 ADR + data-model + api-contracts + task-breakdown + P2评审报告） | 2026-08-31 人工拍板三项关闭；全部 ADR 转人工拍板采纳 |
-| P3 | 工程脚手架 | ⏳ 待审核 | 代码骨架（app/domain/data/ui 四模块 + Gradle Wrapper + CI + dev-setup + hello 链路 + 迁移框架 + UI 基座） | 2026-09-01 完成 M0（T0.1–T0.6），停人工门 |
+| P3 | 工程脚手架 | ⏳ 待复核 | 代码骨架 + CI + dev-setup + hello 链路 + 迁移框架 + UI 基座（内嵌 CJK 字体）；Gradle 8.14.4 | 2026-09-01 完成 M0 + 验收修复轮，待复核 |
 | P4 | 分模块开发 | 未开始 | 代码 + `docs/dev/modules/` | |
 | P5 | 集成与联调 | 未开始 | `docs/test/integration-report.md` | |
 | P6 | 系统测试与质量 | 未开始 | `docs/test/` | |
@@ -178,6 +178,21 @@
 
 **建议的下一步**：人工按上节验收 P3 → 通过后 P4 解锁，首个模块 = **M1 存储与加密**（T1.1 SQLCipher 锁版三平台验证 / T1.2 CryptoService / T1.3 KDF 基准校准 / T1.4 单写队列；M4 引擎为并行面硬前置）。
 
+
+## P3 验收结果与修复轮（2026-09-01，人验收反馈 4+1）
+
+> 人验收（2026-09-01）结论：① build 通过 ✅ ② GUI 弹出窗口但**中文乱码** ❌ ③ hello 链路日志脱敏正确 ✅ ④ 许可证/CI 配置核对无问题 ✅。
+> 另交付遗留 1（建 GitHub 仓库推送观察 CI 首跑）。遗留 2/3/5 为 P4 注意清单（已入 P3 遗留）；遗留 4（Kotlin 版本）答复见下。
+
+**修复轮改动**：
+
+1. **中文乱码（验收第 2 项）**：根因 = Linux/WSL 无 CJK 系统字体（`fc-list :lang=zh` 实测 0），Skiko 回退渲染为豆腐块。修复 = 内嵌 Noto Sans SC / Noto Serif SC / JetBrains Mono 可变字体（OFL-1.1，~43MB），`WzFonts.kt` 以 FontVariation 实例化字重、表格数字 Mono+Noto 回退链；`FontBundleTest` 4 项守护（加载 + CJK 字形 + wght 轴 + 克隆实例）。GUI 冒烟（SOFTWARE_FAST）无异常。字体体积瘦身登记 P7（pyftsubset）。
+2. **CI 首跑失败（遗留 1 观察项）**：三平台均 `:app:testRuntimeClasspath → Could not resolve project :data → No variants exist`。逐一证伪：类型安全访问器、Gradle 8.14.3→8.14.4、org.gradle.parallel、include 顺序、--no-configuration-cache、setup-gradle 注入的 init 脚本（本地均复现成功）。**真根因（--info 日志定位）**：`jvmToolchain(17)` 触发工具链自动探测——CI runner 预装 5 个 JDK（8/11/17/21/25），失败前日志出现逐一 `JavaProbe` 探测；探测期间 KGP 对纯 JVM 模块（domain/data）的 `runtimeElements` 变体注册被推迟 → 解析 "No variants exist"。本地仅 1 个 JDK（mise），探测瞬时完成故永不触发。**修复 = 移除 `jvmToolchain(17)`，改显式 `jvmTarget=17` + java source/target 17**（两端 JAVA_HOME 本就是 temurin-17）。推送 `6ed10fd…（本修复轮）` 后 CI 复跑验证。另修复 `.agents/skills/huashu-design` 被误当 gitlink 提交（无 .gitmodules）导致 `git submodule foreach` 报错——去嵌套 .git 后按普通文件纳入版本控制。
+3. **遗留 4 答复（Kotlin 版本）**：**维持 Kotlin 2.4.10，不升 2.5**——当前最新稳定版为 2.4.10（2.4.20 尚为 RC2，2.5.0 未发布）；CMP 1.12.0 官方口径「最新 CMP 兼容最新稳定 Kotlin」，配对 2.4.10 成立。2.5.0 正式发布且 CMP 出配套版本后，随 P4 里程碑评估升级（届时 Wrapper 最低要求 8.14.4 已满足）。
+4. **交付遗留 1**：已 `gh repo create wuzhufolio --public` 建仓并推送（`https://github.com/mapleafly/wuzhufolio`，mapleafly 账号，D1 开源口径公开）。
+
+**待人工复核**：① 重新跑 `JAVA_TOOL_OPTIONS="-Dskiko.renderApi=SOFTWARE_FAST" ./gradlew :app:run` 确认中文已正常（不再乱码）；② 观察 CI 复跑（`gh run watch`）；③ 确认 Kotlin 2.4.10 维持结论可接受。
+
 ## P0 需求基线（✅ 已通过--两端 + 跨端规范全部定稿）
 
 产物清单（只读基准，不得改动）：
@@ -217,7 +232,7 @@
 
 ## 当前阻塞点
 
-- **P3 待审核人工门**：P3 已于 2026-09-01 完成（M0 全任务 + 17 项测试绿 + hello 链路实测 + 打包冒烟通过），待人按 P3 节「怎么验收」验证骨架；通过后 P4（M1 存储加密）解锁。P4 首批验证项：SQLCipher 驱动三平台锁版（T1.1）、Argon2id 基准校准（T1.3）。
+- **P3 待复核人工门**：P3 已于 2026-09-01 完成 M0（21 项测试绿）+ 人验收修复轮（字体乱码、CI 竞态、Gradle 8.14.4、Kotlin 版本答复）；待人复核「中文渲染正常 + CI 复跑绿」后 P4（M1 存储加密）解锁。P4 首批验证项：SQLCipher 三平台锁版（T1.1）、Argon2id 基准校准（T1.3）。
 
 ## 技能盘点结论（2026-08-30 更新）
 
