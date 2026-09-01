@@ -147,6 +147,7 @@
 - T0.6 UI 基座：`ui/.../theme/`（design-tokens 单源映射：明/暗 WzColors + 三套盈亏方案 + WzTypography）、`components/`（WzButton/WzTextField/WzTable/WzModal/WzToast/WzStatusBar）、`shell/MainShell.kt`（侧边栏五页空壳 + 顶栏 ☾/☀ 主题切换 + 状态栏）、`gallery/ComponentGallery.kt`（组件走查页）
 - 测试 17 项全绿：LogRedactorTest(5) / MigratorTest(4) / HelloChainTest(2) / ContrastTest(2) / ShellUiTest(4)
 - `README.md` - 构建/运行/测试命令与仓库结构
+- `docs/tech/P3评审报告.md` - **Agent 独立评审（2026-09-01）：有条件放行**——DoD 三项独立实证（无缓存全量重跑 21 测试 0 失败 / 全新克隆构建验证 CI 根因修复 / CI #33523962735 三平台绿核实 / hello 链路 GUI 实测脱敏日志）；发现项 F1（dev-setup §4 密钥口径与 ADR-002 §2.1 方案甲矛盾，放行附带条件）+ N1–N5（轻微，转 P4 注意清单）
 
 **本次改了什么**：
 
@@ -281,3 +282,4 @@
 | 2026-08-31 | 人 | 开发环境指令 | 环境 = WSL2 + Ubuntu 24.04 + DSH；安装 SDK 优先用已安装的 mise 管理 Java/Kotlin 等工具 |
 | 2026-08-31 | Agent | 环境摸底 + T0.2/T0.3 修订 | 实测：mise 2026.7.13 在用，Java/Kotlin/Gradle 均未安装，WSLg 可用；T0.3 改 mise 工具链 + 环境检查清单 + WSL2 注记，T0.2 CI JDK 对齐 temurin-17；决策 19 落档 |
 | 2026-09-01 | Agent | **执行 P3 工程脚手架** | 人下达「执行P3」；完成 M0 全任务：git 建仓首提交 6ed10fd（85 文件）、四模块 Gradle 工程 + version catalog 锁版、CI 三平台、mise/dev-setup、hello 链路脱敏实测、迁移框架 v2、UI 基座双主题 + 组件走查页；17 测试绿 + 打包冒烟通过；许可证清单全兼容 AGPL-3.0；**P3 置待审核，停在人工门** |
+| 2026-09-01 | Agent | **P3 独立评审** | 人指令「评审P3」；产出 docs/tech/P3评审报告.md：DoD 三项独立复跑实证达成（无缓存 21 测试、全新克隆构建证实 CI 根因修复、CI 三平台绿、hello 链路 GUI 实测脱敏）；结论「有条件放行」——F1（dev-setup §4 密钥口径订正）+ N1–N5 转 P4 注意清单；人工复核项：GUI 目视中文渲染 + Kotlin 版本答复；**P3 门禁维持待复核，放行权在人工** |
