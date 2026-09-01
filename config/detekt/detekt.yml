@@ -1,0 +1,46 @@
+# detekt 配置（在默认规则之上微调，T0.2/T0.6）
+# 口径：Compose 声明式代码 + design token 常量文件的噪声规则停用；其余默认规则全开（maxIssues=0 严格模式）。
+build:
+  maxIssues: 0
+
+naming:
+  active: true
+  FunctionNaming:
+    # Compose 的 @Composable 函数按大驼峰命名（官方惯例）
+    ignoreAnnotated: [ 'Composable' ]
+  TopLevelPropertyNaming:
+    ignoreAnnotated: [ 'Composable' ]
+  MatchingDeclarationName:
+    # Kotlin 惯例允许同文件归组相关小声明（如 WzColors + lightWzColors/darkWzColors）
+    active: false
+
+style:
+  active: true
+  MagicNumber:
+    # design token 色值/尺寸/延时为声明式字面量（design-tokens.md 单源映射），命名常量反而割裂单源
+    active: false
+  UnusedPrivateMember:
+    ignoreAnnotated: [ 'Preview', 'Composable' ]
+
+complexity:
+  active: true
+  CyclomaticComplexMethod:
+    # Compose 组件的 when 分支随变体自然增长，以小组件拆分约束而非圈复杂度
+    ignoreAnnotated: [ 'Composable' ]
+  LongMethod:
+    # Compose 声明式 UI 以嵌套表达，行数不反映逻辑复杂度；以小组件拆分约束
+    ignoreAnnotated: [ 'Composable' ]
+  LongParameterList:
+    # Compose 组件参数列表普遍较长，以默认值+Modifier 惯例约束
+    ignoreAnnotated: [ 'Composable' ]
+
+exceptions:
+  active: true
+  TooGenericExceptionCaught:
+    # 迁移框架边界必须 catch Exception 以保证回滚（Migrator.apply），其余代码仍应捕具体异常
+    active: false
+
+comments:
+  active: true
+  AbsentOrWrongFileLicense:
+    active: false

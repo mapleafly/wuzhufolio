@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WuZhuFolio - 本地加密资产账本（原型 · 主版 · 单一真源 · 内置明暗双主题）</title>
+<style>
+:root{ --bg:#F6F4EF; --surface:#FFFFFF; --surface2:#EDE9E1; --ink:#1E2622; --ink2:#5C655F; --ink3:#68716A; --accent:#1F5A48; --accent-ink:#F6F4EF; --gain:#17663F; --loss:#A93A37; --warn:#8A6416; --line:#D9D4CA; --hover:rgba(31,90,72,0.06); --sel:rgba(31,90,72,0.10); --shadow:0 1px 2px rgba(30,38,34,0.06),0 8px 24px rgba(30,38,34,0.07); --btn-ghost:#FFFFFF; }
+:root[data-theme="dark"]{ --bg:#151A18; --surface:#1D2421; --surface2:#27302C; --ink:#E8EAE6; --ink2:#9AA69F; --ink3:#8A938C; --accent:#D0A85C; --accent-ink:#151A18; --gain:#4CBF82; --loss:#E07873; --warn:#D0A85C; --line:#2E3733; --hover:rgba(208,168,92,0.08); --sel:rgba(208,168,92,0.14); --shadow:0 1px 2px rgba(0,0,0,0.4),0 10px 30px rgba(0,0,0,0.45); --btn-ghost:#1D2421; }
+*{ box-sizing:border-box; margin:0; padding:0; }
+html,body{ height:100%; }
+body{ font-family:-apple-system,'PingFang SC','Microsoft YaHei',system-ui,sans-serif; color:var(--ink); background:#DDD8CE; display:flex; align-items:center; justify-content:center; min-height:100vh; padding:32px; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }
+body[data-theme="dark"]{ background:#0B0E0D; }
+:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+.window{ position:relative; width:1240px; height:820px; background:var(--bg); border-radius:12px; overflow:hidden; box-shadow:0 30px 80px rgba(0,0,0,0.28),0 0 0 1px rgba(0,0,0,0.12); display:flex; flex-direction:column; }
+.titlebar{ height:40px; background:linear-gradient(to bottom,#ECEAE4,#DBD8D0); display:flex; align-items:center; padding:0 14px; position:relative; user-select:none; flex:0 0 40px; border-bottom:1px solid rgba(0,0,0,0.08); }
+body[data-theme="dark"] .titlebar{ background:linear-gradient(to bottom,#2B2B28,#1F1F1C); border-bottom:1px solid rgba(255,255,255,0.08); }
+.tlights{ display:flex; gap:8px; }
+.tlights i{ width:12px; height:12px; border-radius:50%; border:0.5px solid rgba(0,0,0,0.15); }
+.tlights i:nth-child(1){ background:#FF5F57; } .tlights i:nth-child(2){ background:#FEBC2E; } .tlights i:nth-child(3){ background:#28C840; }
+.tbtitle{ position:absolute; left:0; right:0; text-align:center; font-size:13px; color:var(--ink2); font-weight:500; pointer-events:none; letter-spacing:0.2px; }
+.tbtitle b{ color:var(--ink); font-weight:600; }
+.app{ flex:1; display:flex; min-height:0; }
+.window.gated .app{ visibility:hidden; }
+.gate{ position:absolute; top:40px; left:0; right:0; bottom:0; background:var(--bg); display:none; align-items:center; justify-content:center; z-index:30; overflow:auto; padding:24px; }
+.window.gated .gate{ display:flex; }
+.side{ width:216px; flex:0 0 216px; background:var(--surface); border-right:1px solid var(--line); display:flex; flex-direction:column; }
+.brand{ padding:18px 18px 14px; }
+.brand .logo{ font-family:'Iowan Old Style','Palatino Linotype',Georgia,'Songti SC','Noto Serif SC',serif; font-size:20px; font-weight:600; letter-spacing:-0.3px; color:var(--ink); }
+.brand .tag{ font-size:11px; color:var(--ink3); margin-top:2px; letter-spacing:0.4px; }
+.nav{ padding:6px 10px; flex:1; }
+.nav-item{ display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:7px; cursor:pointer; font-size:13.5px; color:var(--ink2); margin-bottom:2px; transition:background .12s,color .12s; width:100%; text-align:left; background:transparent; border:0; font-family:inherit; }
+.nav-item:hover{ background:var(--hover); color:var(--ink); }
+.nav-item.active{ background:var(--sel); color:var(--accent); font-weight:600; }
+.nav-item .k{ font-family:ui-monospace,'SF Mono',Consolas,monospace; font-size:11px; color:var(--ink3); width:18px; text-align:center; }
+.nav-item.active .k{ color:var(--accent); }
+.sidefoot{ padding:12px; border-top:1px solid var(--line); }
+.acct{ display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:8px; cursor:pointer; width:100%; text-align:left; background:transparent; border:0; font-family:inherit; }
+.acct:hover{ background:var(--hover); }
+.acct .ava{ width:26px; height:26px; border-radius:50%; background:var(--accent); color:var(--accent-ink); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex:0 0 26px; }
+.acct .nm{ font-size:12.5px; font-weight:600; }
+.acct .sub{ font-size:10.5px; color:var(--ink3); }
+.main{ flex:1; display:flex; flex-direction:column; min-width:0; }
+.topbar{ height:56px; flex:0 0 56px; display:flex; align-items:center; gap:10px; padding:0 20px; border-bottom:1px solid var(--line); }
+.topbar .crumb{ font-size:15px; font-weight:600; }
+.topbar .spacer{ flex:1; }
+.badge{ display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink2); background:var(--surface); border:1px solid var(--line); border-radius:20px; padding:5px 11px; }
+.badge .dot{ width:7px; height:7px; border-radius:50%; background:var(--gain); }
+.badge.warn .dot{ background:var(--warn); }
+.badge.off .dot{ background:var(--loss); }
+.iconbtn{ width:32px; height:32px; border-radius:7px; border:1px solid var(--line); background:var(--btn-ghost); color:var(--ink2); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:15px; transition:background .12s; font-family:inherit; }
+.iconbtn:hover{ background:var(--hover); color:var(--ink); }
+.btn{ display:inline-flex; align-items:center; gap:7px; height:32px; padding:0 14px; border-radius:7px; font-size:13px; cursor:pointer; border:1px solid transparent; font-family:inherit; transition:background .12s,border .12s,color .12s; }
+.btn.primary{ background:var(--accent); color:var(--accent-ink); } .btn.primary:hover{ filter:brightness(1.07); }
+.btn.ghost{ background:var(--btn-ghost); border-color:var(--line); color:var(--ink); } .btn.ghost:hover{ background:var(--hover); }
+.btn.danger{ background:transparent; border-color:var(--loss); color:var(--loss); } .btn.danger:hover{ background:rgba(169,58,55,0.08); }
+.btn.sm{ height:26px; padding:0 9px; font-size:12px; }
+.content{ flex:1; overflow:auto; padding:22px 24px; }
+.statusbar{ height:30px; flex:0 0 30px; display:flex; align-items:center; gap:14px; padding:0 20px; font-size:11px; color:var(--ink2); border-top:1px solid var(--line); background:var(--surface); }
+.statusbar .sep{ color:var(--ink3); }
+.statusbar .ok{ color:var(--gain); } .statusbar .err{ color:var(--loss); } .statusbar .warn{ color:var(--warn); }
+.watermark{ margin-left:auto; color:var(--ink3); font-style:italic; }
+h2.pg{ font-size:18px; font-weight:600; margin-bottom:4px; }
+.pg-sub{ font-size:12.5px; color:var(--ink2); margin-bottom:18px; }
+.cards{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px; }
+.card{ background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:16px; box-shadow:var(--shadow); }
+.card .label{ font-size:11.5px; color:var(--ink2); letter-spacing:0.3px; }
+.card .big{ font-family:'Iowan Old Style','Palatino Linotype',Georgia,'Songti SC','Noto Serif SC',serif; font-size:27px; font-weight:600; margin-top:7px; font-variant-numeric:tabular-nums; letter-spacing:-0.4px; }
+.card .big.sm{ font-size:21px; }
+.card .delta{ font-size:12px; margin-top:5px; font-weight:600; }
+.up{ color:var(--gain); } .down{ color:var(--loss); } .flat{ color:var(--ink2); }
+.hero{ display:grid; grid-template-columns:1.5fr 1fr; gap:14px; margin-bottom:18px; }
+.panel{ background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:18px; box-shadow:var(--shadow); position:relative; }
+.panel h3{ font-size:13px; font-weight:600; color:var(--ink2); letter-spacing:0.3px; margin-bottom:14px; }
+.donut-wrap{ display:flex; align-items:center; gap:20px; }
+.legend{ display:flex; flex-direction:column; gap:9px; flex:1; }
+.lg{ display:flex; align-items:center; gap:8px; font-size:12.5px; cursor:pointer; background:transparent; border:0; font-family:inherit; padding:0; width:100%; text-align:left; }
+.lg .sw{ width:10px; height:10px; border-radius:3px; flex:0 0 10px; }
+.lg .nm{ flex:1; color:var(--ink2); }
+.lg .val{ font-variant-numeric:tabular-nums; font-weight:600; color:var(--ink); }
+.lg .pct{ color:var(--ink3); width:52px; text-align:right; font-variant-numeric:tabular-nums; }
+.donut-pop{ position:absolute; left:118px; top:148px; transform:translate(-50%,-50%); background:var(--surface); border:1px solid var(--line); border-radius:9px; box-shadow:0 10px 34px rgba(0,0,0,0.22); padding:12px 14px; min-width:196px; z-index:10; display:none; font-size:12.5px; }
+.donut-pop.open{ display:block; }
+.poprow{ display:flex; justify-content:space-between; gap:16px; font-size:12px; color:var(--ink2); margin-top:6px; }
+.poprow b{ font-variant-numeric:tabular-nums; color:var(--ink); font-weight:600; }
+table.tbl{ width:100%; border-collapse:collapse; font-size:12.5px; }
+table.tbl th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:var(--ink3); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--line); cursor:pointer; white-space:nowrap; background:transparent; border-top:0; border-left:0; border-right:0; font-family:inherit; }
+table.tbl th:hover{ color:var(--ink); }
+table.tbl td{ padding:10px; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums; }
+table.tbl tr:hover td{ background:var(--hover); }
+table.tbl tr{ cursor:pointer; }
+.num{ font-family:ui-monospace,'SF Mono',Consolas,monospace; font-variant-numeric:tabular-nums; }
+.pill{ display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+.pill.buy{ background:rgba(23,102,63,0.10); color:var(--gain); }
+body[data-theme="dark"] .pill.buy{ background:rgba(76,191,130,0.10); }
+.pill.sell{ background:rgba(169,58,55,0.10); color:var(--loss); }
+body[data-theme="dark"] .pill.sell{ background:rgba(224,120,115,0.10); }
+.pill.dep{ background:rgba(23,102,63,0.10); color:var(--gain); }
+.pill.wd{ background:rgba(169,58,55,0.10); color:var(--loss); }
+.pill.rec{ background:rgba(138,100,22,0.10); color:var(--warn); }
+body[data-theme="dark"] .pill.rec{ background:rgba(208,168,92,0.12); }
+.pill.bad{ background:rgba(169,58,55,0.10); color:var(--loss); }
+.pill.nodata{ background:rgba(104,113,106,0.14); color:var(--ink3); }
+body[data-theme="dark"] .pill.nodata{ background:rgba(138,147,140,0.16); }
+.tag-est{ font-size:10.5px; color:var(--warn); font-weight:600; }
+.toolbar{ display:flex; gap:8px; margin-bottom:14px; align-items:center; flex-wrap:wrap; }
+.search{ height:32px; border:1px solid var(--line); border-radius:7px; padding:0 11px; font-size:12.5px; background:var(--btn-ghost); color:var(--ink); font-family:inherit; min-width:180px; }
+.select{ height:32px; border:1px solid var(--line); border-radius:7px; padding:0 9px; font-size:12.5px; background:var(--btn-ghost); color:var(--ink); font-family:inherit; }
+.empty{ text-align:center; padding:48px 0; color:var(--ink3); }
+.empty .ic{ font-size:32px; margin-bottom:8px; }
+.modal-mask{ position:fixed; inset:0; background:rgba(20,24,22,0.4); display:none; align-items:center; justify-content:center; z-index:50; }
+.modal-mask.open{ display:flex; }
+.modal{ width:560px; max-width:92vw; max-height:86vh; overflow:auto; background:var(--surface); border:1px solid var(--line); border-radius:12px; box-shadow:0 30px 90px rgba(0,0,0,0.35); }
+.modal .mhead{ padding:16px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; }
+.modal .mhead h3{ font-size:15px; font-weight:600; flex:1; }
+.modal .mclose{ cursor:pointer; color:var(--ink3); font-size:20px; line-height:1; background:none; border:0; font-family:inherit; }
+.modal .mclose:hover{ color:var(--ink); }
+.modal .mbody{ padding:20px; }
+.modal .mfoot{ padding:14px 20px; border-top:1px solid var(--line); display:flex; justify-content:flex-end; gap:8px; }
+.field{ margin-bottom:14px; }
+.field label{ display:block; font-size:12px; color:var(--ink2); margin-bottom:5px; }
+.field .inp, .field .sel{ width:100%; height:34px; border:1px solid var(--line); border-radius:7px; padding:0 10px; font-size:13px; background:var(--btn-ghost); color:var(--ink); font-family:inherit; }
+.field .inp.err{ border-color:var(--loss); }
+.field .hint{ font-size:11px; color:var(--ink3); margin-top:4px; line-height:1.7; }
+.field .err-msg{ font-size:11px; color:var(--loss); margin-top:4px; display:none; }
+.field .err-msg.show{ display:block; }
+.frow{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.totalline{ background:var(--surface2); border-radius:7px; padding:12px 14px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:baseline; }
+.totalline .l{ font-size:12px; color:var(--ink2); }
+.totalline .v{ font-family:'Iowan Old Style','Palatino Linotype',Georgia,serif; font-size:22px; font-weight:600; font-variant-numeric:tabular-nums; }
+.settings-group{ margin-bottom:22px; }
+.settings-group h3{ font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:var(--ink3); margin-bottom:4px; }
+.set-row{ display:flex; align-items:center; gap:12px; padding:12px 4px; border-bottom:1px solid var(--line); }
+.set-row .lbl{ flex:1; }
+.set-row .lbl .t{ font-size:13px; font-weight:500; }
+.set-row .lbl .d{ font-size:11.5px; color:var(--ink3); margin-top:1px; }
+.switch{ position:relative; width:38px; height:22px; background:var(--surface2); border-radius:11px; cursor:pointer; transition:background .15s; flex:0 0 38px; border:1px solid var(--line); font-family:inherit; padding:0; }
+.switch::after{ content:''; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:#fff; transition:left .15s; box-shadow:0 1px 2px rgba(0,0,0,0.2); }
+.switch.on{ background:var(--accent); } .switch.on::after{ left:18px; }
+.seg{ display:inline-flex; border:1px solid var(--line); border-radius:7px; overflow:hidden; }
+.seg button{ border:0; background:var(--btn-ghost); color:var(--ink2); font-size:12px; padding:6px 12px; cursor:pointer; font-family:inherit; }
+.seg button.on{ background:var(--accent); color:var(--accent-ink); }
+.menu{ position:absolute; background:var(--surface); border:1px solid var(--line); border-radius:9px; box-shadow:var(--shadow); min-width:180px; z-index:60; overflow:hidden; display:none; }
+.menu.open{ display:block; }
+.menu .mi{ padding:9px 14px; font-size:12.5px; cursor:pointer; display:block; width:100%; text-align:left; background:none; border:0; font-family:inherit; }
+.menu .mi:hover{ background:var(--hover); }
+.menu .mi.danger{ color:var(--loss); }
+.acctwrap{ position:relative; }
+.toast{ position:fixed; bottom:54px; right:28px; background:var(--ink); color:var(--bg); padding:11px 16px; border-radius:8px; font-size:12.5px; box-shadow:var(--shadow); opacity:0; transform:translateY(8px); transition:opacity .2s,transform .2s; z-index:100; pointer-events:none; max-width:420px; }
+.toast.show{ opacity:1; transform:translateY(0); }
+.pair-sug{ position:absolute; top:100%; left:0; right:0; background:var(--surface); border:1px solid var(--line); border-radius:7px; box-shadow:var(--shadow); max-height:180px; overflow:auto; z-index:20; display:none; margin-top:2px; }
+.pair-sug.open{ display:block; }
+.pair-sug .opt{ padding:8px 11px; font-size:12.5px; cursor:pointer; display:flex; justify-content:space-between; background:none; border:0; width:100%; font-family:inherit; text-align:left; }
+.pair-sug .opt:hover{ background:var(--hover); }
+.pair-sug .opt .dim{ color:var(--ink3); font-size:11px; }
+.kbd{ font-family:ui-monospace,Consolas,monospace; font-size:10.5px; color:var(--ink3); border:1px solid var(--line); border-radius:4px; padding:0 4px; }
+.gcard{ width:400px; max-width:94%; background:var(--surface); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); padding:26px 28px; }
+.gcard.wide{ width:660px; }
+.gbrand{ text-align:center; margin-bottom:8px; }
+.gbrand .glogo{ font-family:'Iowan Old Style','Palatino Linotype',Georgia,'Songti SC','Noto Serif SC',serif; font-size:24px; font-weight:600; letter-spacing:-0.3px; color:var(--ink); }
+.gbrand .gtag{ font-size:10.5px; color:var(--ink3); margin-top:3px; letter-spacing:0.4px; }
+.gtitle{ font-size:16px; font-weight:600; text-align:center; margin-top:8px; }
+.gsub{ font-size:12px; color:var(--ink2); text-align:center; margin:4px 0 18px; }
+.glinks{ display:flex; justify-content:space-between; margin-top:16px; }
+.glink{ background:none; border:0; color:var(--accent); font-size:12.5px; cursor:pointer; font-family:inherit; padding:4px 2px; }
+.glink:hover{ text-decoration:underline; }
+.demo-hint{ font-size:11px; color:var(--ink3); text-align:center; margin-top:14px; padding-top:12px; border-top:1px dashed var(--line); }
+.riskbox{ background:var(--surface2); border:1px solid var(--line); border-radius:7px; padding:14px 16px; font-size:13px; line-height:1.9; color:var(--ink); }
+.riskbox .rt{ font-size:11px; font-weight:700; color:var(--warn); letter-spacing:0.6px; margin-bottom:6px; }
+.ckrow{ display:flex; align-items:center; gap:8px; margin-top:14px; font-size:13px; cursor:pointer; }
+.ckrow input{ width:15px; height:15px; accent-color:var(--accent); }
+.wgrid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.wopt{ background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:16px; text-align:left; cursor:pointer; font-family:inherit; transition:border-color .12s, background .12s; }
+.wopt:hover{ border-color:var(--accent); background:var(--hover); }
+.wopt .wt{ font-size:13.5px; font-weight:600; color:var(--ink); display:flex; align-items:center; gap:8px; }
+.wopt .wd{ font-size:11.5px; color:var(--ink2); margin-top:6px; line-height:1.6; }
+.pw-meter{ display:flex; gap:4px; margin-top:6px; align-items:center; }
+.pw-meter i{ height:4px; flex:1; border-radius:2px; background:var(--line); }
+.pw-meter.s1 i:nth-child(1){ background:var(--loss); }
+.pw-meter.s2 i:nth-child(-n+2){ background:var(--warn); }
+.pw-meter.s3 i:nth-child(-n+3){ background:var(--gain); }
+.pw-meter .tx{ font-size:11px; color:var(--ink2); width:34px; text-align:right; }
+.sumbox{ background:var(--surface2); border:1px solid var(--line); border-radius:7px; padding:12px 14px; margin-bottom:14px; font-size:12px; color:var(--ink2); line-height:1.8; }
+@media (max-width:1280px){ body{ padding:12px; } .window{ width:100%; height:94vh; } }
+</style>
+</head>
+<body>
+<div class="window gated" id="win">
+  <div class="titlebar"><div class="tlights"><i></i><i></i><i></i></div><div class="tbtitle" id="tbtitle"><b>WuZhuFolio</b> · 本地加密资产账本 - 登录</div></div>
+  <div class="app">
+    <aside class="side">
+      <div class="brand"><div class="logo">WuZhuFolio</div><div class="tag">数据本地化 · 零遥测 · 开源 AGPL-3.0</div></div>
+      <nav class="nav" id="nav"></nav>
+      <div class="sidefoot"><div class="acctwrap"><button class="acct" id="acctBtn" type="button"><div class="ava" id="acctAva">A</div><div style="flex:1"><div class="nm" id="acctName">Alex</div><div class="sub">切换账户 / 登出</div></div></button><div class="menu" id="acctMenu"></div></div></div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <div class="crumb" id="crumb">仪表盘</div>
+        <div class="spacer"></div>
+        <span class="badge" id="srcBadge"><span class="dot"></span><span id="srcText">CoinGecko · 无 Key 公共 API · 09:41</span></span>
+        <button class="iconbtn" id="themeBtn" title="切换明暗主题" aria-label="切换明暗主题" type="button">☾</button>
+        <button class="btn ghost" id="refreshBtn" title="刷新行情" type="button">↻ 行情</button>
+        <button class="btn primary" id="syncBtn" title="同步交易" type="button">⟳ 同步</button>
+      </div>
+      <div class="content" id="content"></div>
+      <div class="statusbar" id="statusbar"></div>
+    </div>
+  </div>
+  <div class="gate" id="gate"></div>
+</div>
+<div class="modal-mask" id="mask"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+'use strict';
+/* ============ 主题（单一真源 · 双主题内置档位，暗色随深化自动维护） ============ */
+var THEME='light';
+var SESSION=false;
+var GATEVIEW='login';
+document.documentElement.setAttribute('data-theme', THEME);
+var themeBtn=document.getElementById('themeBtn');
+function applyTheme(t){
+  THEME=t;
+  document.documentElement.setAttribute('data-theme',t);
+  document.body.setAttribute('data-theme',t);
+  themeBtn.textContent = t==='dark' ? '☀' : '☾';
+  var ts=document.getElementById('themeSeg');
+  if(ts){ var bs=ts.querySelectorAll('button'); bs.forEach(function(b){ b.classList.toggle('on', (b.textContent.indexOf('明亮')>=0)===(t==='light')); }); }
+  /* N5 修复：主题切换即时重渲染环形图，扇区配色随主题切换（黄铜板/墨绿板） */
+  if(SESSION && document.getElementById('content') && cur==='dashboard'){ renderPage(); }
+}
+themeBtn.addEventListener('click',function(){ applyTheme(THEME==='dark'?'light':'dark'); });
+
+/* ============ 演示数据（与 PRD 附录 A 黄金用例 1 对齐；全部指标由 replay() 全量重放推导，F11） ============ */
+var FUNDS=[
+ {ty:'DEPOSIT',s:'USDT',q:100000.00,px:1.0000,t:'2026-05-01 09:00',sd:'银行入金兑换',note:'初始注资'},
+ {ty:'DEPOSIT',s:'USDC',q:3200.00,px:1.0000,t:'2026-05-05 10:30',sd:'场外兑换入金',note:''},
+ {ty:'WITHDRAWAL',s:'USDT',q:15000.00,px:1.0000,t:'2026-08-18 10:00',sd:'提现',note:''}
+];
+var TXS=[
+ {id:2,pair:'BTC/USDT',ty:'SELL',px:60000.00,q:0.50,fee:60.00,fc:'USDT',tot:30000.00,ex:'Binance',t:'2026-08-18 09:05',note:'部分止盈',rz:null},
+ {id:1,pair:'BTC/USDT',ty:'BUY',px:50000.00,q:1.00,fee:50.00,fc:'USDT',tot:50000.00,ex:'Binance',t:'2026-08-10 14:22',note:'',rz:null},
+ {id:3,pair:'ETH/USDT',ty:'BUY',px:2880.00,q:4.21,fee:12.12,fc:'USDT',tot:12124.80,ex:'Binance',t:'2026-07-02 11:40',note:'',rz:null},
+ {id:4,pair:'SOL/USDT',ty:'BUY',px:142.00,q:18.00,fee:2.56,fc:'USDT',tot:2556.00,ex:'Binance',t:'2026-06-15 16:18',note:'',rz:null},
+ {id:5,pair:'BNB/USDT',ty:'BUY',px:520.00,q:6.50,fee:3.38,fc:'USDT',tot:3380.00,ex:'Binance',t:'2026-05-20 10:00',note:'',rz:null}
+];
+var PRICES={BTC:97420.50,ETH:3412.18,USDT:1.0000,USDC:1.0000,SOL:188.75,BNB:612.40};
+var PRICES24={BTC:96620.50,ETH:3396.10,USDT:1.0000,USDC:1.0000,SOL:187.30,BNB:611.20};
+var NAMES={BTC:'Bitcoin',ETH:'Ethereum',USDT:'Tether',USDC:'USD Coin',SOL:'Solana',BNB:'BNB'};
+var STABLES={'USDT':1,'USDC':1};
+var ACCOUNTS=[{n:'Alex',cur:true},{n:'Family',cur:false}];
+var APIS=[{alias:'币安主号',ex:'Binance',key:'••••••••••••8f2A',last:'2026-08-30 09:41',st:'OK'}];
+var FEES=[{ex:'全局默认',b:0.10,s:0.10,global:true},{ex:'Binance',b:0.10,s:0.10,global:false}];
+var MARKET_CG={configured:false,key:''};
+var MARKET_CMC={configured:false,key:''};
+
+function nf(n,d){ d=(d===undefined?2:d); return n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}); }
+function usd(n){ return '$'+nf(n,2); }
+function pct(n){ return (n>=0?'+':'')+nf(n,2)+'%'; }
+function qty(n){ return nf(n,4).replace(/\.?0+$/,''); }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ============ 全量重放引擎（F11：持仓/成本/已实现/资金指标全部推导，杜绝硬编码不自洽） ============ */
+function replay(){
+  var ev=[];
+  FUNDS.forEach(function(f){ ev.push({t:f.t,f:f}); });
+  TXS.forEach(function(x){ ev.push({t:x.t,x:x}); });
+  ev.sort(function(a,b){ return a.t<b.t?-1:1; });
+  var pos={}, dep=0, wd=0;
+  function P(s){ if(!pos[s]) pos[s]={q:0,c:0}; return pos[s]; }
+  function addCoin(s,q,c){ var p=P(s); p.q+=q; p.c+=c; }
+  function takeCoin(s,q){ var p=P(s); var avg=p.q>0?p.c/p.q:0; p.q-=q; p.c-=avg*q; return avg; }
+  ev.forEach(function(e){
+    if(e.f){ var f=e.f;
+      if(f.ty==='DEPOSIT'){ addCoin(f.s,f.q,f.q*f.px); dep+=f.q*f.px; }
+      else { takeCoin(f.s,f.q); wd+=f.q*f.px; }
+    } else { var x=e.x; var pr=x.pair.split('/'); var base=pr[0], quote=pr[1];
+      var feeQ = x.fc===quote ? x.fee : x.fee*x.px; /* 非计价币种手续费按记录时行情折算（演示数据均为计价币种计费） */
+      if(x.ty==='BUY'){
+        takeCoin(quote, x.tot + (x.fc===quote?x.fee:0));
+        addCoin(base, x.q - (x.fc===base?x.fee:0), x.tot + feeQ);
+      } else {
+        var avg=takeCoin(base, x.q);
+        if(x.fc===base){ takeCoin(base, x.fee); }
+        var qIn = x.tot - (x.fc===quote?x.fee:0);
+        addCoin(quote, qIn, qIn);
+        x.rz=(x.tot - feeQ) - x.q*avg; /* 卖出逐笔已实现盈亏（黄金用例 1：+4,915） */
+      }
+    }
+  });
+  var holdings=[], tv=0, cash=0, rz=0;
+  Object.keys(pos).forEach(function(s){ var p=pos[s]; if(p.q<=1e-9){ return; }
+    var px=PRICES[s], v=p.q*px; tv+=v; if(STABLES[s]) cash+=v;
+    holdings.push({s:s,n:NAMES[s],q:p.q,avg:p.c/p.q,px:px,rz:0});
+  });
+  TXS.forEach(function(x){ if(x.ty==='SELL'&&x.rz!==null){ rz+=x.rz; var b=x.pair.split('/')[0]; holdings.forEach(function(h2){ if(h2.s===b) h2.rz+=x.rz; }); } });
+  holdings.sort(function(a,b){ return b.q*b.px - a.q*a.px; });
+  var pnl24=0, base24=0;
+  holdings.forEach(function(h2){ pnl24+=h2.q*(PRICES[h2.s]-PRICES24[h2.s]); base24+=h2.q*PRICES24[h2.s]; });
+  return {holdings:holdings,tv:tv,cash:cash,rz:rz,dep:dep,wd:wd,net:dep-wd,totalRet:tv+wd-dep,
+          roi:dep?(tv+wd-dep)/dep*100:null,pnl24:pnl24,pnl24pct:base24?pnl24/base24*100:null};
+}
+function metrics(){ return replay(); }
+function currentAcct(){ var a=null; ACCOUNTS.forEach(function(x){ if(x.cur) a=x.n; }); return a||'Alex'; }
+
+/* ============ 环形图（点击扇区高亮 + 浮窗，PRD 9.3；配色随主题切换，N5） ============ */
+var DONUT_ROWS=[], donutSel=null;
+function polar(cx,cy,r,deg){ var a=(deg-90)*Math.PI/180; return [cx+r*Math.cos(a), cy+r*Math.sin(a)]; }
+function slicePath(cx,cy,r0,r1,a0,a1){ var p0=polar(cx,cy,r1,a0),p1=polar(cx,cy,r1,a1),p2=polar(cx,cy,r0,a1),p3=polar(cx,cy,r0,a0);
+  var large=(a1-a0)>180?1:0;
+  return 'M'+p0[0].toFixed(2)+' '+p0[1].toFixed(2)+' A'+r1+' '+r1+' 0 '+large+' 1 '+p1[0].toFixed(2)+' '+p1[1].toFixed(2)+' L'+p2[0].toFixed(2)+' '+p2[1].toFixed(2)+' A'+r0+' '+r0+' 0 '+large+' 0 '+p3[0].toFixed(2)+' '+p3[1].toFixed(2)+' Z';
+}
+function donut(){
+  var m=metrics(); var TH=4000; var rows=[]; var other=0; var otherN=[];
+  m.holdings.forEach(function(h){ var v=h.q*h.px; if(v<TH){ other+=v; otherN.push(h.s); } else { rows.push({s:h.s,n:h.n,v:v,q:h.q}); } });
+  if(other>0) rows.push({s:'其他',n:'其他小额币种（'+otherN.join(' · ')+'）',v:other,q:null});
+  var total=rows.reduce(function(a,r){return a+r.v;},0);
+  var palette = (document.documentElement.getAttribute('data-theme')==='dark') ? ['#D0A85C','#6F8F6A','#9A7B4F','#7C8B80','#4CBF82','#B0895A'] : ['#1F5A48','#8A9A5B','#B08A3E','#9AA59C','#5B8A72','#C8C2B4'];
+  var cx=100,cy=100,r1=92,r0=62; var a=0; var paths=''; var legend='';
+  DONUT_ROWS=rows;
+  rows.forEach(function(r,i){ var frac=r.v/total; var a1=a+frac*360; var c=palette[i%palette.length]; r.c=c;
+    paths+='<path d="'+slicePath(cx,cy,r0,r1,a,a1)+'" fill="'+c+'" opacity="0.92" data-i="'+i+'" style="cursor:pointer;transition:opacity .12s"></path>';
+    legend+='<button class="lg" type="button" data-i="'+i+'"><span class="sw" style="background:'+c+'"></span><span class="nm">'+r.s+'</span><span class="val">'+usd(r.v)+'</span><span class="pct">'+nf(frac*100,1)+'%</span></button>';
+    a=a1;
+  });
+  var svg='<svg viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="资产分布环形图，共'+rows.length+'个分区">'+paths+'<circle cx="100" cy="100" r="46" style="fill:var(--surface);pointer-events:none"></circle><text x="100" y="96" text-anchor="middle" font-size="11" style="fill:var(--ink2);pointer-events:none">总资产</text><text x="100" y="114" text-anchor="middle" font-size="13" font-weight="600" style="fill:var(--ink);pointer-events:none">'+usd(m.tv).replace('$','')+'</text></svg>';
+  return '<div class="donut-wrap"><div>'+svg+'</div><div class="legend">'+legend+'</div></div><div class="donut-pop" id="donutPop"></div>';
+}
+function selectDonut(i){
+  donutSel=(donutSel===i)?null:i;
+  var paths=document.querySelectorAll('#donut path'); var lgs=document.querySelectorAll('#donut .lg');
+  paths.forEach(function(p,j){ p.setAttribute('opacity', donutSel===null?'0.92':(j===donutSel?'1':'0.35')); });
+  lgs.forEach(function(l,j){ l.style.opacity = donutSel===null?'1':(j===donutSel?'1':'0.5'); });
+  var pop=document.getElementById('donutPop');
+  if(donutSel===null){ if(pop) pop.classList.remove('open'); return; }
+  var r=DONUT_ROWS[donutSel]; var m=metrics();
+  if(pop){
+    pop.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:3px;background:'+r.c+'"></span><b>'+r.s+'</b><button class="mclose" aria-label="关闭浮窗" style="margin-left:auto;font-size:16px" type="button" onclick="selectDonut('+donutSel+')">×</button></div>'
+     +'<div class="poprow"><span>持有数量</span><b>'+(r.q===null?'多币种合计':qty(r.q))+'</b></div>'
+     +'<div class="poprow"><span>总资产占比</span><b>'+nf(r.v/m.tv*100,1)+'%</b></div>'
+     +'<div class="poprow"><span>持有量市值</span><b>'+usd(r.v)+'</b></div>';
+    pop.classList.add('open');
+  }
+}
+function bindDonut(){
+  var paths=document.querySelectorAll('#donut path'); var lgs=document.querySelectorAll('#donut .lg');
+  function hi(i){ paths.forEach(function(p,j){ p.setAttribute('opacity', j===i?'1':'0.35'); }); lgs.forEach(function(l,j){ l.style.opacity = j===i?'1':'0.5'; }); }
+  function reset(){ if(donutSel===null){ paths.forEach(function(p){ p.setAttribute('opacity','0.92'); }); lgs.forEach(function(l){ l.style.opacity='1'; }); } }
+  paths.forEach(function(p,i){ p.addEventListener('mouseenter',function(){ if(donutSel===null) hi(i); }); p.addEventListener('click',function(e){ e.stopPropagation(); selectDonut(i); }); });
+  lgs.forEach(function(l,i){ l.addEventListener('mouseenter',function(){ if(donutSel===null) hi(i); }); l.addEventListener('click',function(e){ e.stopPropagation(); selectDonut(i); }); });
+  var d=document.getElementById('donut');
+  if(d){ d.addEventListener('mouseleave',reset); }
+}
+
+/* ============ 页面渲染 ============ */
+var PAGES=[
+ {id:'dashboard',label:'仪表盘',k:'1',crumb:'仪表盘'},
+ {id:'portfolio',label:'资产列表',k:'2',crumb:'资产列表'},
+ {id:'transactions',label:'交易管理',k:'3',crumb:'交易管理'},
+ {id:'funds',label:'资金管理',k:'4',crumb:'资金管理'},
+ {id:'settings',label:'设置',k:'5',crumb:'设置'}
+];
+var cur='dashboard';
+function card(label,big,delta,deltaCls,sm){ return '<div class="card"><div class="label">'+label+'</div><div class="big'+(sm?' sm':'')+'">'+big+'</div>'+(delta?'<div class="delta '+deltaCls+'">'+delta+'</div>':'')+'</div>'; }
+function pageDashboard(){
+  var m=metrics();
+  var h='<h2 class="pg">仪表盘</h2><div class="pg-sub">账户 '+esc(currentAcct())+' · 全部币种持仓按现价折算 USD</div>';
+  h+='<div class="cards">';
+  h+=card('总资产净值', usd(m.tv), '', 'flat', false);
+  h+=card('24 小时盈亏', (m.pnl24>=0?'+':'')+usd(m.pnl24), pct(m.pnl24pct), m.pnl24>=0?'up':'down', false);
+  h+=card('总投资回报率 ROI', pct(m.roi), '累计增资 '+usd(m.dep), m.roi>=0?'up':'down', false);
+  h+=card('投入本金（净）', usd(m.net), '累计撤资 '+usd(m.wd), 'flat', false);
+  h+='</div>';
+  h+='<div class="cards" style="grid-template-columns:repeat(3,1fr)">';
+  h+=card('可用现金余额', usd(m.cash), 'USDT + USDC', 'flat', true);
+  h+=card('总收益', (m.totalRet>=0?'+':'')+usd(m.totalRet), '净值 + 撤资 − 增资', m.totalRet>=0?'up':'down', true);
+  h+=card('累计已实现盈亏', (m.rz>=0?'+':'')+usd(m.rz), '卖出逐笔累计', m.rz>=0?'up':'down', true);
+  h+='</div>';
+  h+='<div class="hero"><div class="panel"><h3>资产分布</h3><div id="donut">'+donut()+'</div></div>';
+  h+='<div class="panel"><h3>安全与隐私</h3><div style="font-size:12.5px;color:var(--ink2);line-height:1.7">';
+  h+='<p>✓ 数据 100% 本地存储，不上传任何服务器</p><p>✓ 零遥测 · 无第三方分析 SDK</p><p>✓ 分层密钥（DEK/KEK）+ AES-256-GCM</p><p>✓ 交易所 API 仅需只读权限</p><p>✓ 最近备份：2026-08-26 22:10</p></div>';
+  h+='<div style="margin-top:14px"><button class="btn ghost sm" type="button" onclick="openBackup()">立即备份 .cpro</button></div>';
+  h+='</div></div>';
+  return h;
+}
+var PORT_SORT={k:'v',d:-1};
+function sortTh(key,label){ var on=PORT_SORT.k===key; var arrow=on?(PORT_SORT.d===1?' ▲':' ▼'):''; return '<th onclick="portSort(\''+key+'\')" aria-sort="'+(on?(PORT_SORT.d===1?'ascending':'descending'):'none')+'" title="点击排序">'+label+arrow+'</th>'; }
+function portSort(key){ if(PORT_SORT.k===key){ PORT_SORT.d*=-1; } else { PORT_SORT.k=key; PORT_SORT.d=(key==='s')?1:-1; } renderPage(); }
+function holdingRow(h){ var v=h.q*h.px; var u=(h.px-h.avg)*h.q; var up=h.px>=h.avg; var upc=h.avg? (h.px-h.avg)/h.avg*100 : 0;
+  return '<tr tabindex="0" onclick="openCoin(\''+h.s+'\')" aria-label="查看 '+h.s+' 详情"><td><b>'+h.s+'</b> <span style="color:var(--ink3)">'+h.n+'</span></td><td class="num">'+qty(h.q)+'</td><td class="num">'+usd(h.avg)+'</td><td class="num">'+usd(h.px)+'</td><td class="num">'+usd(v)+'</td><td class="num '+(up?'up':'down')+'">'+(up?'+':'')+usd(u)+' ('+pct(upc)+')</td><td class="num">'+usd(h.rz)+'</td></tr>';
+}
+function pagePortfolio(){
+  var m=metrics();
+  var h='<h2 class="pg">资产列表</h2><div class="pg-sub">默认按市值降序 · 单击表头排序 · 单击行查看币种详情</div>';
+  h+='<div class="cards" style="grid-template-columns:repeat(3,1fr)">';
+  h+=card('总资产净值', usd(m.tv), '', 'flat', true);
+  h+=card('24 小时盈亏', (m.pnl24>=0?'+':'')+usd(m.pnl24), pct(m.pnl24pct), m.pnl24>=0?'up':'down', true);
+  h+=card('ROI', pct(m.roi), '', m.roi>=0?'up':'down', true);
+  h+='</div>';
+  var rows=m.holdings.slice();
+  var k=PORT_SORT.k, d=PORT_SORT.d;
+  rows.sort(function(a,b){
+    if(k==='s'){ return d*a.s.localeCompare(b.s); }
+    var va=(k==='v')?a.q*a.px:(k==='u')?(a.px-a.avg)*a.q:a[k];
+    var vb=(k==='v')?b.q*b.px:(k==='u')?(b.px-b.avg)*b.q:b[k];
+    return d*(va-vb);
+  });
+  h+='<div class="panel"><table class="tbl"><thead><tr>'+sortTh('s','币种')+sortTh('q','持有数量')+sortTh('avg','平均成本')+sortTh('px','当前价')+sortTh('v','总市值')+sortTh('u','总浮动盈亏')+sortTh('rz','累计已实现')+'</tr></thead><tbody>'+rows.map(holdingRow).join('')+'</tbody></table></div>';
+  return h;
+}
+function txRow(t){ var pill=t.ty==='BUY'?'buy':'sell'; var tyc=t.ty==='BUY'?'买入':'卖出';
+  return '<tr><td><input type="checkbox" class="txck" aria-label="选择交易 '+t.id+'" data-id="'+t.id+'"></td><td>'+t.pair+'</td><td><span class="pill '+pill+'">'+tyc+'</span></td><td class="num">'+usd(t.px)+'</td><td class="num">'+qty(t.q)+'</td><td class="num">'+qty(t.fee)+' '+t.fc+'</td><td class="num">'+usd(t.tot)+'</td><td>'+t.ex+'</td><td class="num">'+t.t+'</td><td>'+(t.rz!==null&&t.rz!==undefined?'<span class="num up">+'+usd(t.rz)+'</span>':'-')+'</td><td style="white-space:nowrap"><button class="btn ghost sm" type="button" onclick="event.stopPropagation();openTx('+t.id+')">编辑</button> <button class="btn ghost sm" type="button" style="color:var(--loss)" onclick="event.stopPropagation();delTx('+t.id+')">删除</button></td></tr>';
+}
+function pageTransactions(){
+  var h='<h2 class="pg">交易管理</h2><div class="pg-sub">卖出记录行显示该笔已实现盈亏</div>';
+  h+='<div class="toolbar"><button class="btn primary" type="button" onclick="openTx()">＋ 添加交易</button><button class="btn ghost" type="button" onclick="toast(\'请先勾选记录\')">修改交易</button><button class="btn ghost" type="button" onclick="toast(\'请先勾选记录\')">删除交易</button><button class="btn ghost" type="button" onclick="openCsv()">导入交易 (CSV)</button><span class="spacer" style="flex:1"></span><input class="search" placeholder="搜索币种 / 交易所" aria-label="搜索交易"><select class="select" aria-label="按类型筛选"><option>全部类型</option><option>买入</option><option>卖出</option></select></div>';
+  h+='<div class="panel"><table class="tbl"><thead><tr><th style="width:30px;cursor:default"><input type="checkbox" aria-label="全选交易"></th><th style="cursor:default">交易对</th><th style="cursor:default">类型</th><th style="cursor:default">价格</th><th style="cursor:default">数量</th><th style="cursor:default">手续费</th><th style="cursor:default">总价</th><th style="cursor:default">交易所</th><th style="cursor:default">时间</th><th style="cursor:default">已实现盈亏</th><th style="cursor:default">操作</th></tr></thead><tbody>'+TXS.map(txRow).join('')+'</tbody></table></div>';
+  return h;
+}
+var FUND_F={ty:'ALL',range:'ALL',q:''};
+function fundRow(f){ var pill=f.ty==='DEPOSIT'?'dep':(f.ty==='WITHDRAWAL'?'wd':'rec'); var tyc=f.ty==='DEPOSIT'?'增资':(f.ty==='WITHDRAWAL'?'撤资':'校准');
+  return '<tr><td><input type="checkbox" aria-label="选择资金记录"></td><td><span class="pill '+pill+'">'+tyc+'</span></td><td><b>'+f.s+'</b></td><td class="num">'+qty(f.q)+'</td><td class="num">'+usd(f.q*f.px)+'</td><td class="num">'+f.t+'</td><td>'+f.sd+'</td><td style="color:var(--ink3)">'+f.note+'</td></tr>';
+}
+function fundDaysAgo(t){ var d=new Date(t.replace(' ','T')); var now=new Date('2026-08-30T12:00'); return (now-d)/86400000; }
+function fundFilterSet(k,v){ FUND_F[k]=v; renderPage(); }
+function pageFunds(){
+  var m=metrics();
+  var h='<h2 class="pg">资金管理</h2><div class="pg-sub">增资 / 撤资 / 校准（校准差额视同系统生成资金操作）</div>';
+  h+='<div class="cards" style="grid-template-columns:repeat(2,1fr)">';
+  h+=card('可用现金余额', usd(m.cash), '现金类币种（稳定币白名单）', 'flat', true);
+  h+=card('投入本金（净）', usd(m.net), '累计增资 '+usd(m.dep)+' − 累计撤资 '+usd(m.wd), 'flat', true);
+  h+='</div>';
+  h+='<div class="toolbar"><button class="btn primary" type="button" onclick="openFund(\'DEPOSIT\')">＋ 记录增资</button><button class="btn ghost" type="button" onclick="openFund(\'WITHDRAWAL\')">－ 记录撤资</button><button class="btn ghost" type="button" onclick="toast(\'请先勾选记录\')">编辑</button><button class="btn danger" type="button" onclick="toast(\'请先勾选记录\')">删除</button><span class="spacer" style="flex:1"></span><input class="search" style="min-width:150px" placeholder="搜索币种 / 来源 / 备注" aria-label="搜索资金记录" value="'+esc(FUND_F.q)+'" oninput="fundFilterSet(\'q\',this.value)"><select class="select" aria-label="按类型筛选" onchange="fundFilterSet(\'ty\',this.value)"><option'+(FUND_F.ty==='ALL'?' selected':'')+'>全部类型</option><option'+(FUND_F.ty==='DEPOSIT'?' selected':'')+'>增资</option><option'+(FUND_F.ty==='WITHDRAWAL'?' selected':'')+'>撤资</option><option'+(FUND_F.ty==='RECON'?' selected':'')+'>校准</option></select><select class="select" aria-label="按日期筛选" onchange="fundFilterSet(\'range\',this.value)"><option'+(FUND_F.range==='ALL'?' selected':'')+'>全部时间</option><option'+(FUND_F.range==='30'?' selected':'')+'>近 30 天</option><option'+(FUND_F.range==='90'?' selected':'')+'>近 90 天</option><option'+(FUND_F.range==='OLD'?' selected':'')+'>更早</option></select></div>';
+  var rows=FUNDS.filter(function(f){
+    if(FUND_F.ty!=='ALL'&&f.ty!==FUND_F.ty) return false;
+    if(FUND_F.q){ var hit=(f.s+' '+f.sd+' '+f.note).toLowerCase().indexOf(FUND_F.q.toLowerCase())>=0; if(!hit) return false; }
+    if(FUND_F.range!=='ALL'){ var da=fundDaysAgo(f.t); if(FUND_F.range==='30'&&da>30) return false; if(FUND_F.range==='90'&&(da>90||da<=30)) return false; if(FUND_F.range==='OLD'&&da<=90) return false; }
+    return true;
+  });
+  h+='<div class="panel"><table class="tbl"><thead><tr><th style="width:30px;cursor:default"><input type="checkbox" aria-label="全选资金记录"></th><th style="cursor:default">类型</th><th style="cursor:default">币种</th><th style="cursor:default">数量</th><th style="cursor:default">折算 USD</th><th style="cursor:default">日期</th><th style="cursor:default">来源 / 去向</th><th style="cursor:default">备注</th></tr></thead><tbody>'+(rows.length?rows.map(fundRow).join(''):'<tr><td colspan="8"><div class="empty" style="padding:24px 0">暂无符合条件的记录</div></td></tr>')+'</tbody></table></div>';
+  return h;
+}
+function settingsRow(t,d,ctl){ return '<div class="set-row"><div class="lbl"><div class="t">'+t+'</div><div class="d">'+d+'</div></div>'+ctl+'</div>'; }
+function sw(on){ return '<button class="switch'+(on?' on':'')+'" type="button" role="switch" aria-checked="'+(on?'true':'false')+'" aria-label="开关" onclick="swToggle(this)"></button>'; }
+function swToggle(el){ var on=el.classList.toggle('on'); el.setAttribute('aria-checked',on?'true':'false'); }
+function seg(opts,on){ var b=''; opts.forEach(function(o){ b+='<button type="button" class="'+(o===on?'on':'')+'" onclick="segPick(this)">'+o+'</button>'; }); return '<div class="seg">'+b+'</div>'; }
+function pageSettings(){
+  var h='<h2 class="pg">设置</h2><div class="pg-sub">账户级设置与全局设置 · 切换即时生效</div>';
+  h+='<div class="panel"><div class="settings-group"><h3>通用</h3>';
+  h+=settingsRow('基础法币','计价与折算基准（默认 USD）','<select class="select" aria-label="基础法币"><option>USD</option><option>EUR</option><option>CNY</option></select>');
+  h+=settingsRow('主题（明 / 暗）','与顶栏 ☾ 快捷切换同步（PRD 6.1）','<div class="seg" id="themeSeg"><button type="button" class="'+(THEME==='light'?'on':'')+'" onclick="segPickTheme(this,\'light\')">明亮</button><button type="button" class="'+(THEME==='dark'?'on':'')+'" onclick="segPickTheme(this,\'dark\')">黑暗</button></div>');
+  h+=settingsRow('盈亏颜色方案','数值强制显示 ± 符号，颜色仅辅助','<select class="select" aria-label="盈亏颜色方案"><option>绿涨红跌（默认）</option><option>红涨绿跌</option><option>色盲友好（蓝涨橙跌）</option></select>');
+  h+=settingsRow('默认精度','金额/价格 8 位、市值/盈亏 2 位、百分比 2 位','<select class="select" aria-label="默认精度"><option>8 / 2 / 2</option><option>2 / 2 / 2</option></select>');
+  h+=settingsRow('登录页用户名枚举','关闭后用户名改为纯手动输入','<div style="text-align:right">'+sw(true)+'</div>');
+  h+=settingsRow('稳定币白名单','现金类币种判定（默认 USDT/USDC/DAI/TUSD）','<button class="btn ghost sm" type="button" onclick="toast(\'白名单：USDT · USDC · DAI · TUSD\')">查看</button>');
+  h+=settingsRow('小额币种阈值','低于阈值合计归入「其他」（当前 $4,000）','<select class="select" aria-label="小额币种阈值"><option>$1,000</option><option>$2,000</option><option selected>$4,000</option><option>$10,000</option></select>');
+  h+='</div></div>';
+  h+='<div class="panel"><div class="settings-group"><h3>网络</h3>';
+  h+=settingsRow('系统代理','自动检测并使用操作系统代理 · 当前：系统代理已启用','<div style="text-align:right">'+sw(true)+'</div>');
+  h+='</div></div>';
+  h+='<div class="panel"><div class="settings-group"><h3>托盘与后台</h3>';
+  h+=settingsRow('关闭窗口最小化到托盘','关闭主窗口默认驻留托盘','<div style="text-align:right">'+sw(true)+'</div>');
+  h+=settingsRow('开机自动启动','驻留托盘（默认关闭）','<div style="text-align:right">'+sw(false)+'</div>');
+  h+=settingsRow('同步完成 / 失败桌面通知','后台同步时发送系统通知','<div style="text-align:right">'+sw(true)+'</div>');
+  h+=settingsRow('备份提醒','距上次备份超过 30 天提示','<div style="text-align:right">'+sw(true)+'</div>');
+  h+='</div></div>';
+  h+='<div class="panel"><div class="settings-group"><h3>行情与同步</h3>';
+  h+=settingsRow('行情刷新频率','窗口可见时生效（托盘按同步间隔降频）','<select class="select" aria-label="行情刷新频率"><option selected>5 分钟</option><option>15 分钟</option><option>30 分钟</option></select>');
+  h+=settingsRow('API 同步间隔（交易数据）','交易所只读 API 增量同步','<select class="select" aria-label="API 同步间隔"><option>15 分钟</option><option selected>30 分钟</option><option>60 分钟</option></select>');
+  h+=settingsRow('行情数据源（CoinGecko API Key）', MARKET_CG.configured ? '已配置个人 Key · 专属额度约 30 次/分钟、1 万次/月' : '可选 · 未配置时使用无 Key 公共 API（约 30 次/分钟共享限流）', '<button class="btn ghost sm" type="button" onclick="openCgKey()">'+(MARKET_CG.configured ? '已配置 · ····'+MARKET_CG.key.slice(-4) : '未配置')+'</button>');
+  h+=settingsRow('行情兜底（CoinMarketCap API Key）', MARKET_CMC.configured ? '已配置 · 主源失败时兜底' : '可选 · 未配置时无兜底，保持上次价格 + 时间戳', '<button class="btn ghost sm" type="button" onclick="openCmcKey()">'+(MARKET_CMC.configured ? '已配置 · ····'+MARKET_CMC.key.slice(-4) : '未配置')+'</button>');
+  h+='</div></div>';
+  h+='<div class="panel"><div class="settings-group"><h3>日志与诊断</h3>';
+  h+=settingsRow('查看日志','本地关键操作与错误日志（账户名与金额默认脱敏）','<button class="btn ghost sm" type="button" onclick="openLogs()">查看</button>');
+  h+=settingsRow('导出日志','导出前提示检查敏感信息；密钥明文/哈希与完整响应体不落日志','<button class="btn ghost sm" type="button" onclick="toast(\'导出前请检查是否包含敏感信息（日志已自动脱敏：账户名 A*** · 金额部分遮蔽）\')">导出</button>');
+  h+=settingsRow('生成诊断报告','应用/OS 版本 · schema 版本 · 最近日志片段（已脱敏）· 调用计数','<button class="btn ghost sm" type="button" onclick="toast(\'诊断报告已生成：版本信息 + 最近日志片段（脱敏）+ 同步与行情调用计数\')">生成</button>');
+  h+='</div></div>';
+  h+='<div class="panel"><div class="settings-group"><h3>手续费 / API / 数据</h3>';
+  h+=settingsRow('手续费设置','全局与交易所费率（交易所 > 全局）','<button class="btn ghost sm" type="button" onclick="openFees()">管理</button>');
+  h+=settingsRow('API 管理','Binance 只读密钥（字段级加密存储）','<button class="btn ghost sm" type="button" onclick="openApis()">管理</button>');
+  h+=settingsRow('数据管理','备份 / 恢复 / 明文导出','<button class="btn ghost sm" type="button" onclick="openBackup()">管理</button>');
+  h+=settingsRow('关于','版本 / 隐私政策 / 行情数据源说明 / 无遥测声明','<button class="btn ghost sm" type="button" onclick="toast(\'WuZhuFolio v0.1.0 · AGPL-3.0 · 无遥测\')">查看</button>');
+  h+='</div></div>';
+  return h;
+}
+function renderStatus(){
+  var el=document.getElementById('statusbar');
+  el.innerHTML='<span class="ok">● 网络正常</span><span class="sep">|</span><span title="当前网络通过系统代理连接（PRD 4.2）">代理：系统代理</span><span class="sep">|</span><span>行情源：CoinGecko'+(MARKET_CG.configured?'（专属额度）':'（无 Key 公共 API）')+'</span><span class="sep">|</span><span>上次价格：09:41</span><span class="sep">|</span><span>同步：Binance · 成功 09:41</span><span class="watermark">演示数据 · 非真实持仓</span>';
+}
+function renderNav(){
+  var el=document.getElementById('nav'); var h='';
+  PAGES.forEach(function(p){ h+='<button class="nav-item'+(p.id===cur?' active':'')+'" type="button" onclick="go(\''+p.id+'\')"><span class="k">'+p.k+'</span><span>'+p.label+'</span></button>'; });
+  el.innerHTML=h;
+}
+function updateTb(t){ document.getElementById('tbtitle').innerHTML='<b>WuZhuFolio</b> · 本地加密资产账本 - '+(t||((PAGES.filter(function(p){return p.id===cur;})[0]||{}).crumb||'')); }
+function go(id){ cur=id; var p=PAGES.filter(function(x){return x.id===id;})[0]; document.getElementById('crumb').textContent=p.crumb; updateTb(); renderNav(); renderPage(); }
+function renderPage(){ var c=document.getElementById('content');
+  var fn={dashboard:pageDashboard,portfolio:pagePortfolio,transactions:pageTransactions,funds:pageFunds,settings:pageSettings}[cur];
+  c.innerHTML=fn?fn():'';
+  if(cur==='dashboard'){ bindDonut(); }
+}
+var toastTimer=null;
+function toast(msg){ var t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(function(){t.classList.remove('show');},2600); }
+var mask=document.getElementById('mask');
+function openModal(html){ mask.innerHTML=html; mask.classList.add('open');
+  var m=mask.querySelector('.modal');
+  if(m){ m.setAttribute('role','dialog'); m.setAttribute('aria-modal','true'); var h3=m.querySelector('h3'); if(h3){ m.setAttribute('aria-label',h3.textContent); }
+    var f=m.querySelector('input,select,textarea'); if(f){ setTimeout(function(){ f.focus(); },30); } }
+}
+function closeModal(){ mask.classList.remove('open'); mask.innerHTML=''; }
+mask.addEventListener('click',function(e){ if(e.target===mask) closeModal(); });
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){ closeModal(); if(donutSel!==null){ selectDonut(donutSel); } closeAcctMenu(); }
+  if((e.key==='Enter'||e.key===' ')&&e.target&&e.target.tagName==='TR'&&e.target.getAttribute('onclick')){ e.preventDefault(); e.target.click(); }
+});
+document.addEventListener('click',function(e){ closeAcctMenu(); var d=document.getElementById('donut'); if(d&&donutSel!==null&&!d.contains(e.target)){ selectDonut(donutSel); } });
+
+/* ============ 登录链路（F1：登录 / 账户创建含风险确认 / 初始化向导 / 忘记密码） ============ */
+function gbrand(){ return '<div class="gbrand"><div class="glogo">WuZhuFolio</div><div class="gtag">数据本地化 · 零遥测 · 开源 AGPL-3.0</div></div>'; }
+function gateLogin(){
+  var h='<div class="gcard">'+gbrand();
+  h+='<div class="gtitle">登录</div><div class="gsub">选择账户并输入密码 · 密码永不落盘</div>';
+  h+='<div class="field"><label for="lgUser">用户名</label><select class="sel" id="lgUser">'+ACCOUNTS.map(function(a){ return '<option'+(a.cur?' selected':'')+'>'+a.n+'</option>'; }).join('')+'</select><div class="hint">用户名枚举：开（可在 设置 -> 通用 关闭，关闭后改为纯手动输入）</div></div>';
+  h+='<div class="field"><label for="lgPw">密码</label><input class="inp" id="lgPw" type="password" placeholder="••••••••" autocomplete="off"><div class="err-msg" id="lgErr">请输入密码</div></div>';
+  h+='<label class="ckrow" for="lgRemember"><input type="checkbox" id="lgRemember" checked><span>记住我（仅会话令牌存入系统钥匙串，密码永不落盘）</span></label>';
+  h+='<div style="margin-top:16px"><button class="btn primary" id="lgBtn" type="button" style="width:100%;height:38px;justify-content:center" onclick="doLogin()">登录</button></div>';
+  h+='<div class="glinks"><button class="glink" type="button" onclick="showGate(\'forgot\')">忘记密码</button><button class="glink" type="button" onclick="showGate(\'create\')">创建新账户</button></div>';
+  h+='<div class="demo-hint">原型演示：输入任意密码即可登录</div></div>';
+  return h;
+}
+function doLogin(){
+  var pw=document.getElementById('lgPw'); var err=document.getElementById('lgErr');
+  if(!pw.value){ pw.classList.add('err'); err.classList.add('show'); pw.focus(); return; }
+  pw.classList.remove('err'); err.classList.remove('show');
+  var b=document.getElementById('lgBtn'); var u=document.getElementById('lgUser').value;
+  b.textContent='正在解密…'; b.disabled=true;
+  setTimeout(function(){ ACCOUNTS.forEach(function(a){ a.cur=(a.n===u); }); document.getElementById('acctName').textContent=u; document.getElementById('acctAva').textContent=u.charAt(0); renderAcctMenu(); enterShell('dashboard'); toast('已登录「'+u+'」· 数据已解密'); },600);
+}
+function pwScore(v){
+  if(!v) return 0;
+  var s=0;
+  if(v.length>=8&&/[a-zA-Z]/.test(v)&&/\d/.test(v)) s=1;
+  if(v.length>=10&&/[a-zA-Z]/.test(v)&&/\d/.test(v)&&/[^a-zA-Z0-9]/.test(v)) s=2;
+  if(v.length>=12&&/[A-Z]/.test(v)&&/[a-z]/.test(v)&&/\d/.test(v)&&/[^a-zA-Z0-9]/.test(v)) s=3;
+  return s;
+}
+function updStrength(){ var v=document.getElementById('cuPw').value; var s=pwScore(v); var m=document.getElementById('cuMeter'); m.className='pw-meter'+(s>0?' s'+s:''); m.querySelector('.tx').textContent=s===0?'':(s===1?'弱':(s===2?'中':'强')); }
+function gateCreate(){
+  var h='<div class="gcard">'+gbrand();
+  h+='<div class="gtitle">创建新账户</div><div class="gsub">密码强度校验 · 二次确认 · 风险确认</div>';
+  h+='<div class="field"><label for="cuUser">用户名</label><input class="inp" id="cuUser" placeholder="为这个投资组合命名（如 Alex）" autocomplete="off"><div class="err-msg" id="cuUserErr">请输入用户名</div></div>';
+  h+='<div class="field"><label for="cuPw">密码</label><input class="inp" id="cuPw" type="password" placeholder="••••••••" autocomplete="off" oninput="updStrength()"><div class="pw-meter" id="cuMeter"><i></i><i></i><i></i><span class="tx"></span></div><div class="hint">至少 8 位，需包含字母与数字</div><div class="err-msg" id="cuPwErr">密码需至少 8 位且包含字母与数字</div></div>';
+  h+='<div class="field"><label for="cuPw2">确认密码</label><input class="inp" id="cuPw2" type="password" placeholder="再次输入密码" autocomplete="off"><div class="err-msg" id="cuPw2Err">两次输入的密码不一致</div></div>';
+  h+='<label class="ckrow" for="cuRemember"><input type="checkbox" id="cuRemember"><span>记住我（会话令牌存入系统钥匙串）</span></label>';
+  h+='<div style="margin-top:16px"><button class="btn primary" type="button" style="width:100%;height:38px;justify-content:center" onclick="doCreate()">创建账户</button></div>';
+  h+='<div class="glinks"><span></span><button class="glink" type="button" onclick="showGate(\'login\')">返回登录</button></div>';
+  h+='</div>';
+  return h;
+}
+function doCreate(){
+  var u=document.getElementById('cuUser'), p1=document.getElementById('cuPw'), p2=document.getElementById('cuPw2');
+  var ok=true;
+  function setErr(inp,id,bad){ inp.classList.toggle('err',bad); document.getElementById(id).classList.toggle('show',bad); if(bad) ok=false; }
+  setErr(u,'cuUserErr',!u.value.trim());
+  setErr(p1,'cuPwErr',!(p1.value.length>=8&&/[a-zA-Z]/.test(p1.value)&&/\d/.test(p1.value)));
+  setErr(p2,'cuPw2Err',p2.value!==p1.value||!p2.value);
+  if(ok){ openRiskConfirm(); }
+}
+function openRiskConfirm(){
+  var h='<div class="modal" style="width:440px"><div class="mhead"><h3>风险确认</h3><button class="mclose" aria-label="关闭" type="button" onclick="closeModal()">×</button></div><div class="mbody">';
+  h+='<div class="riskbox"><div class="rt">风险提示 · 请仔细阅读</div>密码是数据的唯一钥匙，本产品不上传也不存储密码，忘记密码将无法恢复任何数据；请妥善保管密码并定期备份。</div>';
+  h+='<label class="ckrow" for="rcAgree"><input type="checkbox" id="rcAgree" onchange="document.getElementById(\'rcBtn\').disabled=!this.checked"><span>我已了解上述风险</span></label>';
+  h+='</div><div class="mfoot"><button class="btn ghost" type="button" onclick="closeModal()">取消</button><button class="btn primary" id="rcBtn" type="button" disabled onclick="confirmCreate()">确认创建</button></div></div>';
+  openModal(h);
+}
+function confirmCreate(){
+  closeModal();
+  var u=document.getElementById('cuUser').value.trim()||'Alex';
+  var known=false; ACCOUNTS.forEach(function(a){ if(a.n===u) known=true; a.cur=(a.n===u); });
+  if(!known){ ACCOUNTS.push({n:u,cur:true}); }
+  document.getElementById('acctName').textContent=u; document.getElementById('acctAva').textContent=u.charAt(0);
+  renderAcctMenu();
+  showGate('wizard');
+  toast('账户「'+u+'」已创建 · 请完成初始化');
+}
+function wopt(k,t,d,rec){ return '<button class="wopt" type="button" onclick="wizardPick(\''+k+'\')"><span class="wt">'+t+(rec?' <span class="pill rec">推荐</span>':'')+'</span><span class="wd">'+d+'</span></button>'; }
+function gateWizard(){
+  var h='<div class="gcard wide">'+gbrand();
+  h+='<div class="gtitle">欢迎使用 WuZhuFolio</div><div class="gsub">为账户「'+esc(currentAcct())+'」选择一种初始化方式 · 之后可随时在应用内继续</div>';
+  h+='<div class="wgrid">';
+  h+=wopt('manual','手动添加交易','逐条录入买入 / 卖出记录，构建初始持仓');
+  h+=wopt('csv','CSV 导入','导入交易所导出的 CSV 批量历史（可先下载标准模板）');
+  h+=wopt('api','关联交易所 API','只读密钥自动同步 · 保存后立即执行首次同步',true);
+  h+=wopt('restore','从备份恢复','从 .cpro 备份文件恢复全部数据（已创建目标账户）');
+  h+='</div>';
+  h+='<div style="text-align:center;margin-top:18px"><button class="glink" type="button" onclick="enterShell(\'dashboard\')">稍后再说，直接进入仪表盘</button></div>';
+  h+='</div>';
+  return h;
+}
+function wizardPick(k){
+  if(k==='manual'){ enterShell('transactions'); setTimeout(openTx,60); }
+  else if(k==='csv'){ enterShell('transactions'); setTimeout(openCsv,60); }
+  else if(k==='api'){ enterShell('settings'); setTimeout(openApiAdd,60); }
+  else if(k==='restore'){ enterShell('settings'); setTimeout(openRestoreWizard,60); }
+}
+function gateForgot(){
+  var h='<div class="gcard">'+gbrand();
+  h+='<div class="gtitle">忘记密码</div><div class="gsub">本地加密 · 无法在线找回</div>';
+  h+='<div class="riskbox"><div class="rt">请知悉</div>本产品无法找回密码。若记得某次备份使用的密码，可通过该备份恢复数据；否则数据不可恢复。</div>';
+  h+='<div class="hint" style="margin-top:12px;text-align:center">创建账户时已明确提示该风险 · 定期备份是唯一的数据保障</div>';
+  h+='<div style="text-align:center;margin-top:18px"><button class="glink" type="button" onclick="showGate(\'login\')">返回登录</button></div>';
+  h+='</div>';
+  return h;
+}
+function showGate(view){
+  GATEVIEW=view; SESSION=false;
+  document.getElementById('win').classList.add('gated');
+  var gate=document.getElementById('gate');
+  gate.innerHTML = view==='login'?gateLogin():(view==='create'?gateCreate():(view==='wizard'?gateWizard():gateForgot()));
+  if(view==='login'){
+    var pw=document.getElementById('lgPw');
+    pw.addEventListener('keydown',function(e){ if(e.key==='Enter') doLogin(); });
+    pw.focus();
+    updateTb('登录');
+  } else if(view==='create'){
+    var pwEl=document.getElementById('cuPw');
+    pwEl.addEventListener('input',updStrength);
+    pwEl.addEventListener('keydown',function(e){ if(e.key==='Enter') doCreate(); });
+    updateTb('创建账户');
+  } else if(view==='wizard'){ updateTb('初始化向导'); }
+  else { updateTb('忘记密码'); }
+}
+function enterShell(page){
+  SESSION=true;
+  document.getElementById('win').classList.remove('gated');
+  document.getElementById('gate').innerHTML='';
+  if(page){ go(page); } else { updateTb(); }
+}
+
+/* ============ 交易表单 ============ */
+function openTx(id){
+  var t=null; if(id!==undefined){ TXS.forEach(function(x){ if(x.id===id) t=x; }); }
+  var h='<div class="modal"><div class="mhead"><h3>'+(t?'编辑交易':'添加交易')+'</h3><button class="mclose" aria-label="关闭" type="button" onclick="closeModal()">×</button></div><div class="mbody">';
+  h+='<div class="frow"><div class="field"><label for="txEx">交易所</label><select class="sel" id="txEx"><option>Binance</option><option>手动录入</option></select></div><div class="field" style="position:relative"><label for="txPair">交易对</label><input class="inp" id="txPair" placeholder="输入 BTC / ETH 自动补全" value="'+(t?t.pair:'BTC/USDT')+'" autocomplete="off" oninput="txPairSuggest(this.value)" onfocus="txPairSuggest(this.value)" onblur="var s=this.nextElementSibling;setTimeout(function(){s.classList.remove(\'open\')},160)"><div class="pair-sug" id="txPairSug"></div><div class="hint">基于交易所 pair 注册表自动补全；目录未收录可手输并标「无行情」</div></div></div>';
+  h+='<div class="field"><label>类型</label><div class="seg" id="txType"><button type="button" class="'+(t&&t.ty==='SELL'?'':'on')+'" onclick="segPick(this)">买入</button><button type="button" class="'+(t&&t.ty==='SELL'?'on':'')+'" onclick="segPick(this)">卖出</button></div></div>';
+  h+='<div class="frow"><div class="field"><label for="txPrice">价格</label><input class="inp" id="txPrice" type="number" step="any" placeholder="0.00" value="'+(t?t.px:'97420.50')+'" oninput="calcTotal()"></div><div class="field"><label for="txQty">数量</label><input class="inp" id="txQty" type="number" step="any" placeholder="0.00" value="'+(t?t.q:'0.1')+'" oninput="calcTotal()"></div></div>';
+  h+='<div class="frow"><div class="field"><label for="txFee">手续费</label><input class="inp" id="txFee" type="number" step="any" placeholder="0.00" value="'+(t?t.fee:'')+'"></div><div class="field"><label for="txFeeCur">手续费币种</label><select class="sel" id="txFeeCur" onchange="feeCurChange(this.value)"><option value="quote">计价币种 (USDT)</option><option value="base">基础币种 (BTC)</option><option value="custom">自定义币种</option></select></div></div>';
+  h+='<div class="field" id="txFeeCurCustom" style="display:none"><label for="txFeeCur3">自定义手续费币种</label><select class="sel" id="txFeeCur3"><option>BNB - BNB（抵扣）</option><option>CRO - Cronos</option><option>KCS - KuCoin Token</option><option>OKB - OKB</option></select><div class="hint">自定义 = 既非计价币种也非基础币种的第三币种（如 BNB 抵扣手续费）</div></div>';
+  h+='<div class="field"><button class="btn ghost sm" type="button" onclick="autoFee()">自动计算手续费（交易所 > 全局费率）</button><div class="hint">Binance 买入 0.10% / 卖出 0.10%</div></div>';
+  h+='<div class="totalline"><span class="l">总价（实时）</span><span class="v" id="txTotal">$0.00</span></div>';
+  h+='<div class="frow"><div class="field"><label for="txTime">交易时间（本地时区）</label><input class="inp" id="txTime" type="datetime-local" value="2026-08-30T10:30"></div><div class="field"><label for="txNote">备注</label><input class="inp" id="txNote" placeholder="可选"></div></div>';
+  h+='</div><div class="mfoot"><button class="btn ghost" type="button" onclick="closeModal()">取消</button><button class="btn primary" type="button" onclick="saveTx()">保存</button></div></div>';
+  openModal(h); calcTotal();
+}
+function calcTotal(){ var p=parseFloat(document.getElementById('txPrice').value)||0; var q=parseFloat(document.getElementById('txQty').value)||0; document.getElementById('txTotal').textContent=usd(p*q); }
+function autoFee(){ var p=parseFloat(document.getElementById('txPrice').value)||0; var q=parseFloat(document.getElementById('txQty').value)||0; var f=p*q*0.001; document.getElementById('txFee').value=f.toFixed(4); toast('已按 Binance 费率 0.10% 计算：'+f.toFixed(4)+' USDT'); }
+function saveTx(){ closeModal(); toast('交易已保存 · 已联动持仓并重算成本'); }
+function delTx(id){ if(confirm('将删除该笔交易并重算持仓成本与盈亏，是否继续？')) toast('已删除 · 持仓已重算'); }
+var PAIRS=['BTC/USDT','BTC/USDC','ETH/USDT','ETH/BTC','SOL/USDT','BNB/USDT','BNB/BTC','USDC/USDT','ETH/USDC','SOL/USDC'];
+function txPairSuggest(v){ var box=document.getElementById('txPairSug'); if(!box) return; if(!v){ box.classList.remove('open'); box.innerHTML=''; return; } var base=v.split('/')[0].toUpperCase(); var hits=PAIRS.filter(function(p){ return p.toUpperCase().indexOf(base)>=0; }); if(!hits.length){ box.classList.remove('open'); box.innerHTML=''; return; } box.innerHTML=hits.map(function(p){ return '<button class="opt" type="button" onmousedown="pickPair(\''+p+'\')"><span>'+p+'</span><span class="dim">目录</span></button>'; }).join(''); box.classList.add('open'); }
+function pickPair(p){ var inp=document.getElementById('txPair'); if(inp) inp.value=p; var box=document.getElementById('txPairSug'); if(box){ box.classList.remove('open'); box.innerHTML=''; } }
+function feeCurChange(v){ var c=document.getElementById('txFeeCurCustom'); if(c) c.style.display = (v==='custom'?'block':'none'); }
+
+/* ============ 资金表单 ============ */
+function openFund(ty){
+  var isDep=ty==='DEPOSIT';
+  var h='<div class="modal"><div class="mhead"><h3>'+(isDep?'记录增资':'记录撤资')+'</h3><button class="mclose" aria-label="关闭" type="button" onclick="closeModal()">×</button></div><div class="mbody">';
+  h+='<div class="field"><label for="fdCoin">币种</label><select class="sel" id="fdCoin"><option value="USDT" selected>USDT - Tether（默认·基础法币对应稳定币）</option><option value="USDC">USDC - USD Coin</option><option value="DAI">DAI - Dai</option><option value="TUSD">TUSD - TrueUSD</option><option value="BTC">BTC - Bitcoin</option><option value="ETH">ETH - Ethereum</option><option value="SOL">SOL - Solana</option><option value="BNB">BNB - BNB</option></select><div class="hint">单选自币种目录（生产环境为可检索单选下拉）· 限稳定币或其他加密货币 · 法币请记录兑换后到账的稳定币</div></div>';
+  h+='<div class="frow"><div class="field"><label for="fdQty">数量</label><input class="inp" id="fdQty" type="number" step="any" placeholder="0.00" value="1000"></div><div class="field"><label for="fdDate">日期</label><input class="inp" id="fdDate" type="date" value="2026-08-30"></div></div>';
+  h+='<div class="field"><label for="fdSd">'+(isDep?'来源':'去向')+'</label><input class="inp" id="fdSd" placeholder="可选"></div>';
+  h+='<div class="field"><label for="fdNote">备注</label><input class="inp" id="fdNote" placeholder="可选"></div>';
+  h+='<div class="totalline"><span class="l">折算基础法币（记录时行情价）</span><span class="v">$1,000.00</span></div>';
+  h+='</div><div class="mfoot"><button class="btn ghost" type="button" onclick="closeModal()">取消</button><button class="btn primary" type="button" onclick="saveFund()">保存</button></div></div>';
+  openModal(h);
+}
+function saveFund(){ closeModal(); toast('资金记录已保存 · 投入本金与 ROI 已重算'); }
+
+/* ============ 币种详情 ============ */
+var COIN_S=null;
+function coinTxRow(t){ var pill=t.ty==='BUY'?'buy':'sell';
+  return '<tr><td>'+t.pair+'</td><td><span class="pill '+pill+'">'+(t.ty==='BUY'?'买入':'卖出')+'</span></td><td class="num">'+usd(t.px)+'</td><td class="num">'+qty(t.q)+'</td><td class="num">'+qty(t.fee)+' '+t.fc+'</td><td>'+t.ex+'</td><td class="num">'+t.t+'</td><td class="num">'+(t.rz!==null&&t.rz!==undefined?'<span class="up">+'+usd(t.rz)+'</span>':'-')+'</td></tr>';
+}
+function coinTxFilter(){
+  var ex=document.getElementById('cex'), ty=document.getElementById('cty'), q=document.getElementById('cq');
+  var txs=TXS.filter(function(t){ return t.pair.indexOf(COIN_S+'/')===0; });
+  if(ex&&ex.value!=='全部交易所'){ txs=txs.filter(function(t){ return t.ex===ex.value; }); }
+  if(ty&&ty.value!=='全部类型'){ txs=txs.filter(function(t){ return ty.value==='买入'?t.ty==='BUY':t.ty==='SELL'; }); }
+  if(q&&q.value){ var v=q.value.toLowerCase(); txs=txs.filter(function(t){ return t.t.toLowerCase().indexOf(v)>=0||(t.note||'').toLowerCase().indexOf(v)>=0; }); }
+  var b=document.getElementById('coinTxBody'); if(b){ b.innerHTML=txs.length?txs.map(coinTxRow).join(''):'<tr><td colspan="8"><div class="empty" style="padding:18px 0">暂无符合条件的记录</div></td></tr>'; }
+}
+function openCoin(s){
+  var m=metrics(); var h0=null; m.holdings.forEach(function(x){ if(x.s===s) h0=x; }); if(!h0) return;
+  COIN_S=s;
+  var v=h0.q*h0.px; var u=(h0.px-h0.avg)*h0.q; var up=h0.px>=h0.avg; var upc=h0.avg?(h0.px-h0.avg)/h0.avg*100:0;
+  var h='<div class="modal" style="width:680px"><div class="mhead"><h3>'+h0.s+' · '+h0.n+'</h3><button class="mclose" aria-label="关闭" type="button" onclick="closeModal()">×</button></div><div class="mbody">';
+  h+='<div class="cards" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">';
+  h+=card('持有数量', qty(h0.q), '', 'flat', true);
+  h+=card('当前持有价值', usd(v), '占总资产 '+nf(v/m.tv*100,1)+'%', 'flat', true);
+  h+=card('总浮动盈亏', (up?'+':'')+usd(u)+' ('+pct(upc)+')', '平均成本 '+usd(h0.avg), up?'up':'down', true);
+  h+=card('累计已实现盈亏', (h0.rz>=0?'+':'')+usd(h0.rz), '卖出逐笔累计', h0.rz>=0?'up':'down', true);
+  h+='</div>';
+  h+='<div class="toolbar"><button class="btn primary sm" type="button" onclick="toast(\'已以 Binance 余额校准持仓（单一数据来源）\')">以交易所余额校准持仓</button><span class="tag-est" style="margin-left:auto">单一数据来源 · Binance</span></div>';
+  h+='<div class="toolbar" style="margin-bottom:8px"><select class="select" id="cex" aria-label="按交易所筛选" onchange="coinTxFilter()"><option>全部交易所</option><option>Binance</option></select><select class="select" id="cty" aria-label="按类型筛选" onchange="coinTxFilter()"><option>全部类型</option><option>买入</option><option>卖出</option></select><input class="search" id="cq" style="min-width:150px" placeholder="搜索时间 / 备注" aria-label="搜索交易记录" oninput="coinTxFilter()"></div>';
+  var txs=TXS.filter(function(t){ return t.pair.indexOf(h0.s+'/')===0; });
+  h+='<table class="tbl"><thead><tr><th style="cursor:default">交易对</th><th style="cursor:default">类型</th><th style="cursor:default">价格</th><th style="cursor:default">数量</th><th style="cursor:default">手续费</th><th style="cursor:default">交易所</th><th style="cursor:default">时间</th><th style="cursor:default">已实现盈亏</th></tr></thead><tbody id="coinTxBody">'+txs.map(coinTxRow).join('')+'</tbody></table>';
+  h+='<h3 style="font-size:13px;color:var(--ink2);margin:16px 0 8px">校准历史</h3><div class="empty" style="padding:14px 0">暂无校准记录</div>';
+  h+='</div><div class="mfoot"><button class="btn ghost" type="button" onclick="closeModal()">关闭</button></div></div>';
+  openModal(h);
+}
+
+/* ============ CSV 导入 ============ */
+function openCsv(){
+  var h='<div class="modal"><div class="mhead"><h3>导入交易 (CSV)</h3><button class="mclose" aria-label="关闭" type="button" onclick="closeModal()">×</button></div><div class="mbody">';
+  h+='<div class="field"><label for="csvFile">CSV 文件</label><div style="display:flex;gap:8px"><input class="inp" id="csvFile" type="text" value="binance-trades-2026.csv" readonly style="flex:1"><button class="btn ghost sm" type="button" onclick="toast(\'标准模板已下载：wuzhufolio-template.csv（含字段说明）\')">下载标准模板</button></div><div class="hint">日期按 UTC 解析 · 交易对以法币计价时按 1:1 归一化（USD→USDT）</div></div>';
+  h+='<div class="totalline"><span class="l">影响摘要（解析预览）</span><span class="v">新增 128 条 · 疑似重复 3 条</span></div>';
+  h+='<table class="tbl"><thead><tr><th style="cursor:default">时间</th><th style="cursor:default">交易对</th><th style="cursor:default">类型</th><th style="cursor:default">价格</th><th style="cursor:default">数量</th><th style="cursor:default">去重</th></tr></thead><tbody>';
+  h+='<tr><td class="num">2026-08-28 08:12</td><td>ETH/USDT</td><td><span class="pill buy">买入</span></td><td class="num">$3,401.22</td><td class="num">1.5000</td><td>新</td></tr>';
+  h+='<tr><td class="num">2026-08-28 08:10</td><td>BTC/USDT</td><td><span class="pill sell">卖出</span></td><td class="num">$97,300.00</td><td class="num">0.0200</td><td><span class="pill bad">疑似重复</span></td></tr>';
+  h+='<tr><td class="num">2026-08-28 07:55</td><td>SOL/USDT</td><td><span class="pill buy">买入</span></td><td class="num">$188.10</td><td class="num">12.0000</td><td>新</td></tr>';
+  h+='</tbody></table>';
+  h+='<div class="field" style="margin-top:14px"><label>歧义 ticker 消歧</label><div class="hint">发现 1 个歧义 symbol：请确认候选（名称 / 市值 / 图标），选择结果固化到映射表、后续自动复用</div></div>';
+  h+='</div><div class="mfoot"><button class="btn ghost" type="button" onclick="closeModal()">取消</button><button class="btn primary" type="button" onclick="saveCsv()">确认导入</button></div></div>';
+  openModal(h);
+}
+function saveCsv(){ closeModal(); toast('导入完成 · 新增 127 条 · 持仓与成本已重算'); }
+
+/* ============ 账户菜单 / 切换 / 改密 / 登出 ============ */
+function renderAcctMenu(){ var m=document.getElementById('acctMenu'); var h='';
+  ACCOUNTS.forEach(function(a){ h+='<button class="mi" type="button" onclick="switchAcct(\''+a.n+'\')">'+(a.cur?'✓ ':'')+a.n+(a.cur?'（当前）':'')+'</button>'; });
+  h+='<button class="mi" type="button" onclick="openChangePw()">修改密码</button>';
+  h+='<button class="mi danger" type="button" onclick="logout()">登出</button>';
+  m.innerHTML=h;
+}
+function switchAcct(n){
+  closeAcctMenu();
+  var h='<div class="modal" style="width:380px"><div class="mhead"><h3>切换到账户「'+esc(n)+'」</h3><button class="mclose" aria-label="关闭" type="button" onclick="closeModal()">×</button></div><div class="mbody">';
+  h+='<div class="field"><label for="swPw">输入目标账户密码（严格模式）</label><input class="inp" id="swPw" type="password" placeholder="••••••••"></div>';
+  h+='<div class="hint" style="font-size:11px;color:var(--ink3)">切换将锁定当前账户并解密新账户数据，无需重启</div>';
+  h+='</div><div class="mfoot"><button class="btn ghost" type="button" onclick="closeModal()">取消</button><button class="btn primary" type="button" onclick="doSwitch(\''+n+'\')">验证并切换</button></div></div>';
+  openModal(h);
+}
+function doSwitch(n){ closeModal(); ACCOUNTS.forEach(function(a){ a.cur=(a.n===n); }); document.getElementById('acctName').textContent=n; document.getElementById('acctAva').textContent=n.charAt(0); renderAcctMenu(); renderPage(); toast('已切换到账户「'+n+'」'); }
+function openChangePw(){
+  closeAcctMenu();
+  var h='<div class="modal" style="width:400px"><div class="mhead"><h3>修改密码</h3><button class="mclose" aria-label="关闭" type="button" onclick="closeModal()">×</button></div><div class="mbody">';
+  h+='<div class="field"><label for="cpOld">原密码</label><input class="inp" id="cpOld" type="password" placeholder="••••••••"><div class="err-msg" id="cpOldErr">原密码不正确</div></div>';
+  h+='<div class="field"><label for="cpNew">新密码</label><input class="inp" id="cpNew" type="password" placeholder="至少 8 位，含字母与数字"></div>';
+  h+='<div class="field"><label for="cpNew2">确认新密码</label><input class="inp" id="cpNew2" type="password" placeholder="再次输入"></div>';
+  h+='<div class="hint">改密仅用新密码重新包裹账户密钥（KEK），数据不整体重新加密；历史备份文件仍按导出时设置的备份密码解密；改密后原「记住我」会话令牌立即失效，需重新登录。</div>';
+  h+='</div><div class="mfoot"><button class="btn ghost" type="button" onclick="closeModal()">取消</button><button class="btn primary" type="button" onclick="closeModal();toast(\'密码已修改 · 仅重新包裹 KEK · 请重新登录\')">保存</button></div></div>';
+  openModal(h);
+}
+function logout(){ closeAcctMenu(); toast('已登出 · 会话令牌已清除'); showGate('login'); }
+function closeAcctMenu(){ var m=document.getElementById('acctMenu'); if(m) m.classList.remove('open'); }
+var acctBtn=document.getElementById('acctBtn');
+acctBtn.addEventListener('click',function(e){ e.stopPropagation(); var m=document.getElementById('acctMenu'); m.classList.toggle('open'); });
+
+/* ============ 手续费 / API / 数据管理 / 行情 Key ============ */
+function openFees(){
+  var h='<div class="modal"><div class="mhead"><h3>手续费设置</h3><button class="mclose" aria-label="关闭" type="button" onclick="closeModal()">×</button></div><div class="mbody">';
+  h+='<table class="tbl"><thead><tr><th style="cursor:default">交易所</th><th style="cursor:default">买入费率</th><th style="cursor:default">卖出费率</th><th style="cursor:default"></th></tr></thead><tbody>';
+  FEES.forEach(function(f){ h+='<tr><td>'+f.ex+(f.global?' <span class="tag-est">全局默认</span>':'')+'</td><td class="num">'+f.b+'%</td><td class="num">'+f.s+'%</td><td><button class="btn ghost sm" type="button" onclick="toast(\'编辑费率规则\')">编辑</button></td></tr>'; });
+  h+='</tbody></table><div style="margin-top:12px"><button class="btn ghost sm" type="button" onclick="toast(\'添加交易所费率规则\')">＋ 添加交易所费率</button></div>';
+  h+='<div class="hint" style="font-size:11px;color:var(--ink3);margin-top:10px">匹配优先级：交易所 > 全局；交易对级费率不在 MVP 范围</div>';
+  h+='</div><div class="mfoot"><button class="btn ghost" type="button" onclick="closeModal()">关闭</button></div></div>';
+  openModal(h);
+}
+function openApis(){
+  var h='<div class="modal"><div class="mhead"><h3>API 管理</h3><button class="mclose" aria-label="关闭" type="button" onclick="closeModal()">×</button></div><div class="mbody">';
+  h+='<table class="tbl"><thead><tr><th style="cursor:default">别名</th><th style="cursor:default">交易所</th><th style="cursor:default">API Key</th><th style="cursor:default">最后同步</th><th style="cursor:default">状态</th><th style="cursor:default"></th></tr></thead><tbody>';
+  APIS.forEach(function(a){ h+='<tr><td>'+a.alias+'</td><td>'+a.ex+'</td><td class="num">'+a.key+'</td><td class="num">'+a.last+'</td><td><span class="pill dep">'+a.st+'</span></td><td><button class="btn ghost sm" type="button" onclick="openApiAdd()">编辑</button></td></tr>'; });
+  h+='</tbody></table>';
+  h+='<div style="margin-top:12px"><button class="btn primary sm" type="button" onclick="openApiAdd()">＋ 添加 API（Binance 只读）</button></div>';
+  h+='<div class="hint" style="font-size:11px;color:var(--ink3);margin-top:10px">密钥字段级加密存储（AES-256-GCM）· 同步去重键 = 交易所 + 订单号 · 仅返回最近 500 条成交，更早历史请 CSV 导入</div>';
+  h+='</div><div class="mfoot"><button class="btn ghost" type="button" onclick="closeModal()">关闭</button></div></div>';
+  openModal(h);
+}
+function openApiAdd(){
+  var h='<div class="modal"><div class="mhead"><h3>添加 API（Binance 只读）</h3><button class="mclose" aria-label="关闭" type="button" onclick="closeModal()">×</button></div><div class="mbody">';
+  h+='<div class="field"><label for="apiAlias">别名</label><input class="inp" id="apiAlias" placeholder="如：币安副号" value="币安副号"></div>';
+  h+='<div class="field"><label for="apiEx">交易所</label><select class="sel" id="apiEx"><option>Binance（MVP）</option></select></div>';
+  h+='<div class="field"><label for="apiKey">API Key</label><input class="inp" id="apiKey" type="text" placeholder="输入只读 API Key" autocomplete="off"></div>';
+  h+='<div class="field"><label for="apiSecret">Secret Key</label><input class="inp" id="apiSecret" type="password" placeholder="••••••••" autocomplete="off"></div>';
+  h+='<div class="hint" style="line-height:1.9">· 仅需要<b>只读</b>权限（创建教程：交易所 API 管理页，浏览器打开）<br>· 密钥字段级加密存储（AES-256-GCM），仅存本地、不上传<br>· 该 API 将关联当前登录账户：'+esc(currentAcct())+'</div>';
+  h+='</div><div class="mfoot"><button class="btn ghost" type="button" onclick="testApi()">测试请求</button><button class="btn ghost" type="button" onclick="closeModal()">取消</button><button class="btn primary" type="button" onclick="saveApi()">保存</button></div></div>';
+  openModal(h);
+}
+function testApi(){ toast('测试请求通过 · 已用该密钥获取账户信息（只读）'); }
+function saveApi(){
+  var alias=(document.getElementById('apiAlias').value||'新 API').trim();
+  APIS.push({alias:alias,ex:'Binance',key:'••••••••••••'+Math.random().toString(16).slice(2,6).toUpperCase(),last:'刚刚',st:'OK'});
+  closeModal(); if(cur==='settings'){ renderPage(); }
+  toast('密钥已加密保存 · 请清理系统剪贴板 · 立即执行首次同步（增量去重）…');
+}
+function openBackup(){
+  var h='<div class="modal"><div class="mhead"><h3>数据管理</h3><button class="mclose" aria-label="关闭" type="button" onclick="closeModal()">×</button></div><div class="mbody">';
+  h+='<div class="settings-group"><h3>备份</h3><div class="set-row"><div class="lbl"><div class="t">备份当前账户数据</div><div class="d">.cpro = 明文头部 + AES-256-GCM 加密载荷 · 不含账户信息</div></div><button class="btn primary sm" type="button" onclick="toast(\'请设置备份文件密码（默认填当前账户密码）\')">备份数据</button></div><div class="set-row"><div class="lbl"><div class="t">上次备份时间</div><div class="d">2026-08-26 22:10</div></div></div></div>';
+  h+='<div class="settings-group"><h3>恢复</h3><div class="set-row"><div class="lbl"><div class="t">从 .cpro 恢复</div><div class="d">显示摘要 -> 输入备份密码 -> 增量合并（默认）/ 全量覆盖</div></div><button class="btn ghost sm" type="button" onclick="openRestoreWizard()">恢复数据</button></div></div>';
+  h+='<div class="settings-group"><h3>明文导出（数据主权）</h3><div class="set-row"><div class="lbl"><div class="t">CSV 导出</div><div class="d">交易记录 / 资金流水 / 持仓汇总 · 不含 API 密钥</div></div><button class="btn ghost sm" type="button" onclick="toast(\'CSV 导出已生成（不含 API 密钥）\')">导出</button></div></div>';
+  h+='</div><div class="mfoot"><button class="btn ghost" type="button" onclick="closeModal()">关闭</button></div></div>';
+  openModal(h);
+}
+function openRestoreWizard(){
+  var h='<div class="modal" style="width:480px"><div class="mhead"><h3>从备份恢复（.cpro）</h3><button class="mclose" aria-label="关闭" type="button" onclick="closeModal()">×</button></div><div class="mbody">';
+  h+='<div class="field"><label for="rvAcct">目标账户（恢复前已创建 / 选定）</label><input class="inp" id="rvAcct" type="text" value="'+esc(currentAcct())+'" readonly><div class="hint">全新安装时先创建（或选定）目标账户，再从备份恢复，导入数据归入该账户（PRD 5.2-8 / 流程图 1）</div></div>';
+  h+='<div class="field"><label for="rvFile">备份文件</label><input class="inp" id="rvFile" type="text" value="wuzhufolio-20260826.cpro" readonly></div>';
+  h+='<div class="sumbox"><b>明文头部摘要</b><br>格式版本 cpro-1 · 应用版本 0.1.0 · 导出时间 2026-08-26 22:10<br>记录：交易 5 · 资金 3 · 校准 0 · 价格快照 412 条 · 时间范围 2026-05-01 ~ 2026-08-18</div>';
+  h+='<div class="field"><label for="rvPw">备份文件密码</label><input class="inp" id="rvPw" type="password" placeholder="••••••••"><div class="hint">独立于当前账户密码（默认填当前账户密码，可修改）· 跨设备/跨账户恢复只依赖该密码</div></div>';
+  h+='<div class="field"><label>导入方式</label><div class="seg"><button type="button" class="on" onclick="segPick(this)">增量合并（默认）</button><button type="button" onclick="segPick(this)">全量覆盖</button></div><div class="hint">增量合并：uuid / 交易所+订单号 / 模糊匹配三级去重；全量覆盖：二次确认 + 覆盖前自动生成临时备份（全局行情缓存保留）</div></div>';
+  h+='</div><div class="mfoot"><button class="btn ghost" type="button" onclick="closeModal()">取消</button><button class="btn primary" type="button" onclick="doRestore()">开始恢复</button></div></div>';
+  openModal(h);
+}
+function doRestore(){ closeModal(); toast('恢复完成 · 已触发持仓与指标的全量重放重算并刷新全部页面'); }
+function openLogs(){
+  var h='<div class="modal" style="width:560px"><div class="mhead"><h3>日志（已脱敏）</h3><button class="mclose" aria-label="关闭" type="button" onclick="closeModal()">×</button></div><div class="mbody">';
+  h+='<table class="tbl"><thead><tr><th style="cursor:default">时间</th><th style="cursor:default">操作</th><th style="cursor:default">结果</th></tr></thead><tbody>';
+  h+='<tr><td class="num">2026-08-30 09:41:02</td><td>行情刷新 · CoinGecko 批量当前价（6 币种）</td><td><span class="pill dep">成功 · 快照 +6</span></td></tr>';
+  h+='<tr><td class="num">2026-08-30 09:41:05</td><td>交易同步 · Binance · 账户 A***</td><td><span class="pill dep">成功 · 新成交 2 · 去重跳过 1</span></td></tr>';
+  h+='<tr><td class="num">2026-08-30 09:43:11</td><td>行情刷新 · CoinGecko 公共 API</td><td><span class="pill rec">429 · 已退避 32s（第 1 次）</span></td></tr>';
+  h+='<tr><td class="num">2026-08-30 10:12:40</td><td>备份导出 · wuzhufolio-20260826.cpro</td><td><span class="pill dep">成功 · 记录 8 条</span></td></tr>';
+  h+='<tr><td class="num">2026-08-30 10:15:02</td><td>登录 · 账户 A***（记住我）</td><td><span class="pill dep">成功</span></td></tr>';
+  h+='</tbody></table>';
+  h+='<div class="hint" style="margin-top:12px">轮转：本地日志与 sync_logs 各保留最近 1 万条或 90 天（先到为准），超出自动清理。密钥明文/哈希与完整响应体不落日志；账户名与金额默认脱敏（部分遮蔽）。</div>';
+  h+='</div><div class="mfoot"><button class="btn ghost" type="button" onclick="toast(\'导出前请检查是否包含敏感信息（已自动脱敏）\')">导出日志</button><button class="btn ghost" type="button" onclick="closeModal()">关闭</button></div></div>';
+  openModal(h);
+}
+function openCgKey(){
+  var cfg=MARKET_CG.configured;
+  var h='<div class="modal" style="width:460px"><div class="mhead"><h3>行情数据源 · CoinGecko API Key</h3><button class="mclose" aria-label="关闭" type="button" onclick="closeModal()">×</button></div><div class="mbody">';
+  if(cfg){ h+='<p style="font-size:12.5px;color:var(--ink2);line-height:1.8">当前已配置个人 Key（专属额度约 30 次/分钟、1 万次/月；月度额度达 80% 自动降一档并在状态栏提示）。</p>'; }
+  else { h+='<div class="field"><label for="cgKey">API Key</label><input class="inp" id="cgKey" type="password" placeholder="CG-xxxxxxxxxxxxxxxx" autocomplete="off"></div><div class="hint" style="font-size:11.5px;color:var(--ink3);line-height:1.8">不填 = 使用无 Key 公共 API（开箱即用，按 IP 共享限流约 30 次/分钟，429 频发建议注册个人 Key）。<br>免费注册：coingecko.com/api/pricing（浏览器打开）。密钥仅存本地、不上传。</div>'; }
+  h+='</div><div class="mfoot">'+(cfg?'<button class="btn danger" type="button" onclick="removeCgKey()">移除 Key</button>':'')+'<button class="btn ghost" type="button" onclick="closeModal()">取消</button>'+(cfg?'':'<button class="btn primary" type="button" onclick="saveCgKey()">保存并切换专属额度</button>')+'</div></div>';
+  openModal(h);
+}
+function saveCgKey(){ var v=document.getElementById('cgKey').value.trim(); if(!v){ toast('未填写 Key · 保持无 Key 公共 API'); closeModal(); return; } MARKET_CG.configured=true; MARKET_CG.key=v; closeModal(); document.getElementById('srcText').textContent='CoinGecko · 专属额度'; toast('已切换 CoinGecko 专属额度（约 30 次/分钟、1 万次/月）'); renderPage(); renderStatus(); }
+function removeCgKey(){ MARKET_CG.configured=false; MARKET_CG.key=''; closeModal(); document.getElementById('srcText').textContent='CoinGecko · 无 Key 公共 API'; toast('已切换回无 Key 公共 API'); renderPage(); renderStatus(); }
+function openCmcKey(){
+  var cfg=MARKET_CMC.configured;
+  var h='<div class="modal" style="width:460px"><div class="mhead"><h3>行情兜底 · CoinMarketCap API Key</h3><button class="mclose" aria-label="关闭" type="button" onclick="closeModal()">×</button></div><div class="mbody">';
+  if(cfg){ h+='<p style="font-size:12.5px;color:var(--ink2);line-height:1.8">已配置兜底 Key：主源 CoinGecko 失败（网络/超时/429/额度耗尽/币种未收录）时，按 CMC id 批量查询 quotes/latest 兜底，价格旁标注「数据源：CoinMarketCap」，主源恢复自动回落。</p>'; }
+  else { h+='<div class="field"><label for="cmcKey">API Key</label><input class="inp" id="cmcKey" type="password" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off"></div><div class="hint" style="font-size:11.5px;color:var(--ink3);line-height:1.8">可选 · 不填 = 无兜底，主源失败时保持上次价格并显示上次成功时间戳。<br>免费注册：coinmarketcap.com/api（浏览器打开）。密钥仅存本地、不上传。</div>'; }
+  h+='</div><div class="mfoot">'+(cfg?'<button class="btn danger" type="button" onclick="removeCmcKey()">移除 Key</button>':'')+'<button class="btn ghost" type="button" onclick="closeModal()">取消</button>'+(cfg?'':'<button class="btn primary" type="button" onclick="saveCmcKey()">保存</button>')+'</div></div>';
+  openModal(h);
+}
+function saveCmcKey(){ var v=document.getElementById('cmcKey').value.trim(); if(!v){ toast('未填写 Key · 无兜底'); closeModal(); return; } MARKET_CMC.configured=true; MARKET_CMC.key=v; closeModal(); toast('已配置 CoinMarketCap 兜底'); renderPage(); renderStatus(); }
+function removeCmcKey(){ MARKET_CMC.configured=false; MARKET_CMC.key=''; closeModal(); toast('已移除 CoinMarketCap 兜底'); renderPage(); renderStatus(); }
+
+/* ============ 顶栏动作 / 分段控件 ============ */
+document.getElementById('refreshBtn').addEventListener('click',function(){ var b=document.getElementById('srcBadge'); b.className='badge'; document.getElementById('srcText').textContent=(MARKET_CG.configured?'CoinGecko · 专属额度':'CoinGecko · 无 Key 公共 API')+' · 已更新 '+new Date().toTimeString().slice(0,5); toast(MARKET_CG.configured?'行情已刷新（CoinGecko 专属额度）':'行情已刷新（CoinGecko 无 Key 公共 API）'); });
+document.getElementById('syncBtn').addEventListener('click',function(){ toast('交易同步中（Binance 只读 · 增量去重）…'); });
+function segPick(btn){ var seg=btn.parentElement; var bs=seg.querySelectorAll('button'); bs.forEach(function(b){ b.classList.remove('on'); }); btn.classList.add('on'); }
+function segPickTheme(btn,t){ segPick(btn); applyTheme(t); }
+
+/* ============ 初始化 ============ */
+applyTheme(THEME); renderNav(); renderPage(); renderStatus(); renderAcctMenu(); showGate('login');
+</script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+# WuZhuFolio 开发工具链（mise 管理，T0.3）
+# 规则：JDK 用 mise；Gradle 以仓库内 Gradle Wrapper 为唯一真源（gradlew，不装全局 gradle）；Kotlin 由 Gradle 插件驱动，不单独安装。
+[tools]
+java = "temurin-17"

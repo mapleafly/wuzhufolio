@@ -1,0 +1,23 @@
+# Gradle
+.gradle/
+build/
+out/
+.kotlin/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# 本地配置与运行数据（密钥/数据库绝不入库，PRD §1.1）
+local.properties
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+logs/
+
+# OS
+.DS_Store
+Thumbs.db

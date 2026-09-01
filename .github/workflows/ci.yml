@@ -1,0 +1,48 @@
+# WuZhuFolio CI（T0.2，ADR-006 §3）
+# 三平台矩阵：test（JUnit5 + Compose UI 测试）+ detekt + 打包冒烟（app-image + uber jar）。
+# JDK 与本地 mise 口径一致：temurin-17（.mise.toml）。签名/公证为 P7（ADR-006 备注）。
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK (Temurin 17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle（含 wrapper 校验与缓存）
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Test（JUnit5 + Compose UI 测试，离屏渲染）
+        shell: bash
+        run: ./gradlew test --console=plain --stacktrace
+
+      - name: detekt 静态检查
+        shell: bash
+        run: ./gradlew detekt --console=plain
+
+      - name: 打包冒烟（app-image + uber jar，免安装器依赖）
+        shell: bash
+        run: ./gradlew :app:createDistributable :app:packageUberJarForCurrentOS --console=plain
+
+      - name: 上传 uber jar（冒烟产物，7 天）
+        uses: actions/upload-artifact@v4
+        with:
+          name: wuzhufolio-${{ matrix.os }}-uberjar
+          path: app/build/compose/jars/*.jar
+          retention-days: 7

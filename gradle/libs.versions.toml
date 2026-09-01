@@ -1,0 +1,59 @@
+# WuZhuFolio 版本目录（T0.1 唯一版本真源）
+# 选型依据：docs/tech/adr/ADR-001（技术栈）、ADR-002（存储/加密）、ADR-003（行情 HTTP）、ADR-006（构建分发）
+# 许可证清单与 AGPL-3.0 兼容核验：docs/tech/dependency-licenses.md
+[versions]
+kotlin = "2.4.10"
+compose-plugin = "1.12.0"
+coroutines = "1.11.0"
+serialization = "1.11.0"
+exposed = "1.5.0"
+sqlite-jdbc = "3.53.4.0"
+sqlite-jdbc-crypt = "3.53.4.0"   # Willena fork（SQLCipher 整库加密），M1 T1.1 起用，P3 登记锁版候选
+ktor = "3.5.2"
+okhttp = "5.5.0"
+koin = "4.2.2"
+argon2 = "2.12"
+bouncycastle = "1.85.2"
+javakeyring = "1.0.4"
+logback = "1.6.3"
+slf4j = "2.0.17"
+lifecycle = "2.11.0"
+detekt = "1.23.8"
+junit4 = "4.13.2"
+
+[libraries]
+# Kotlinx
+kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-coroutines-swing = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-swing", version.ref = "coroutines" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
+# 存储（ADR-002）：Exposed ORM + SQLite JDBC（M0 明文库）；Willena SQLCipher 驱动 M1 起用
+exposed-core = { group = "org.jetbrains.exposed", name = "exposed-core", version.ref = "exposed" }
+exposed-dao = { group = "org.jetbrains.exposed", name = "exposed-dao", version.ref = "exposed" }
+exposed-jdbc = { group = "org.jetbrains.exposed", name = "exposed-jdbc", version.ref = "exposed" }
+sqlite-jdbc = { group = "org.xerial", name = "sqlite-jdbc", version.ref = "sqlite-jdbc" }
+sqlite-jdbc-crypt = { group = "io.github.willena", name = "sqlite-jdbc", version.ref = "sqlite-jdbc-crypt" }
+# 加密与钥匙串（ADR-002），M1 起用，P3 锁版登记
+argon2-jvm = { group = "de.mkammerer", name = "argon2-jvm", version.ref = "argon2" }
+bcprov = { group = "org.bouncycastle", name = "bcprov-jdk18on", version.ref = "bouncycastle" }
+java-keyring = { group = "com.github.javakeyring", name = "java-keyring", version.ref = "javakeyring" }
+# 行情/交易所 HTTP（ADR-003/004），M5/M6 起用：Ktor client + OkHttp 引擎（系统代理 ProxySelector）
+ktor-client-core = { group = "io.ktor", name = "ktor-client-core", version.ref = "ktor" }
+ktor-client-okhttp = { group = "io.ktor", name = "ktor-client-okhttp", version.ref = "ktor" }
+ktor-client-content-negotiation = { group = "io.ktor", name = "ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+# DI 与架构（ADR-001）
+koin-core = { group = "io.insert-koin", name = "koin-core", version.ref = "koin" }
+lifecycle-viewmodel-compose = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+# 日志（PRD §6 脱敏/轮转，M0 hello 链路起用）
+slf4j-api = { group = "org.slf4j", name = "slf4j-api", version.ref = "slf4j" }
+logback-classic = { group = "ch.qos.logback", name = "logback-classic", version.ref = "logback" }
+# 测试
+junit4 = { group = "junit", name = "junit", version.ref = "junit4" }
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "compose-plugin" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
