@@ -20,13 +20,16 @@ import kotlin.test.assertTrue
 class HelloChainTest {
 
     private lateinit var db: WzDatabase
+    private lateinit var gate: com.wuzhufolio.data.db.DbGate
     private lateinit var logbackLogger: Logger
     private lateinit var appender: ListAppender<ILoggingEvent>
+    private val key: ByteArray = randomDbKey()
 
     @BeforeTest
     fun setUp() {
         val dir = Files.createTempDirectory("wuzhufolio-test")
-        db = WzDatabase(dir.resolve("test.db"))
+        db = WzDatabase(dir.resolve("test.db"), key)
+        gate = com.wuzhufolio.data.db.DbGate(db)
         logbackLogger = LoggerFactoryHolder.logger
         appender = ListAppender<ILoggingEvent>().apply { start() }
         logbackLogger.addAppender(appender)
@@ -40,7 +43,7 @@ class HelloChainTest {
 
     @Test
     fun `hello chain migrates reads settings and logs masked line`() {
-        val result = HelloChain(db, SettingsRepository(db), logbackLogger).run()
+        val result = HelloChain(db, SettingsRepository(gate), logbackLogger).run()
 
         assertEquals(2, result.schemaVersion)
         assertEquals(ThemeMode.LIGHT, result.theme)
@@ -59,7 +62,7 @@ class HelloChainTest {
 
     @Test
     fun `hello chain is re-runnable against existing database`() {
-        val repo = SettingsRepository(db)
+        val repo = SettingsRepository(gate)
         HelloChain(db, repo, logbackLogger).run()
         val second = HelloChain(db, repo, logbackLogger).run()
         assertEquals(2, second.schemaVersion)

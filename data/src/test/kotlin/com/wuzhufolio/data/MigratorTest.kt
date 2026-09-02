@@ -12,11 +12,12 @@ import kotlin.test.assertTrue
 class MigratorTest {
 
     private lateinit var db: WzDatabase
+    private val key: ByteArray = randomDbKey()
 
     @BeforeTest
     fun setUp() {
         val dir = Files.createTempDirectory("wuzhufolio-test")
-        db = WzDatabase(dir.resolve("test.db"))
+        db = WzDatabase(dir.resolve("test.db"), key)
     }
 
     @AfterTest

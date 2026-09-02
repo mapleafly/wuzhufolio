@@ -12,6 +12,7 @@ dependencies {
     implementation(project(":domain"))
 
     implementation(compose.desktop.currentOs)
+    implementation(compose.material3)
     implementation(libs.koin.core)
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.kotlinx.coroutines.swing)

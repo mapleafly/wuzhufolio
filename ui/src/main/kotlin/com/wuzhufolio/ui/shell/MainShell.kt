@@ -20,12 +20,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.wuzhufolio.domain.settings.ThemeMode
+import com.wuzhufolio.ui.components.WzButton
+import com.wuzhufolio.ui.components.WzButtonVariant
+import com.wuzhufolio.ui.components.WzModal
 import com.wuzhufolio.ui.components.WzStatusBar
 import com.wuzhufolio.ui.components.WzToastHost
 import com.wuzhufolio.ui.gallery.ComponentGallery
@@ -37,11 +42,17 @@ import com.wuzhufolio.ui.theme.WzTheme
  * 主题由 ViewModel 驱动，切换即时重渲染（单一真源 + 双主题，已决策事项 16）。
  */
 @Composable
-fun MainShell(viewModel: ShellViewModel, modifier: Modifier = Modifier) {
+fun MainShell(
+    viewModel: ShellViewModel,
+    modifier: Modifier = Modifier,
+    /** M1 T1.1：钥匙串不可用降级提示等启动安全说明（非空时弹一次模态）。 */
+    startupNotice: String? = null,
+) {
     val themeMode by viewModel.themeMode.collectAsState()
     val pnlScheme by viewModel.pnlScheme.collectAsState()
     val page by viewModel.page.collectAsState()
     val toast by viewModel.toast.collectAsState()
+    var showStartupNotice by remember { mutableStateOf(startupNotice != null) }
 
     WuzhuTheme(themeMode = themeMode, pnlScheme = pnlScheme) {
         val colors = WzTheme.colors
@@ -71,7 +82,30 @@ fun MainShell(viewModel: ShellViewModel, modifier: Modifier = Modifier) {
                 )
             }
             WzToastHost(toast = toast, onDismiss = viewModel::dismissToast)
+            if (startupNotice != null && showStartupNotice) {
+                StartupNoticeModal(notice = startupNotice) { showStartupNotice = false }
+            }
         }
+    }
+}
+
+/** 启动安全说明模态（T1.1「无钥匙串降级提示」）。 */
+@Composable
+private fun StartupNoticeModal(notice: String, onDismiss: () -> Unit) {
+    val colors = WzTheme.colors
+    WzModal(title = "安全提示", onDismiss = onDismiss, testTag = "startup-notice") {
+        Text(
+            text = notice,
+            color = colors.ink2,
+            style = WzTheme.typography.body,
+        )
+        WzButton(
+            text = "我知道了",
+            onClick = onDismiss,
+            variant = WzButtonVariant.Primary,
+            modifier = Modifier.padding(top = 16.dp).align(Alignment.End),
+            testTag = "startup-notice-ok",
+        )
     }
 }
 

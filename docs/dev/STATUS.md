@@ -6,10 +6,10 @@
 
 ## 当前阶段
 
-- **当前状态**：**P3 工程脚手架 ✅ 已通过（2026-09-01 人工「P3 通过」）**；**P4 分模块开发 ⏩ 进行中——待人工下达启动指令**，首个模块 = M1 存储与加密（T1.1–T1.4）。P0/P1/P2 均已关闭。
+- **当前状态**：**P4 分模块开发 ⏩ 进行中——M1 存储与加密 ✅ 已产出（2026-09-02）待人工审核**（首个模块人工门 = AGENTS.md §6「逐模块人工测试」）。P0–P3 均已关闭。
 - **推进顺序**：先桌面端，后移动端。**P1–P8 只针对桌面端或两端共同部分；移动端相关工作放到下一个版本。**（移动端相关技能/技术方案/开发待桌面端主线稳定后再启用。）
 - **前序待审核项已关闭（2026-08-30，人工启动指令）**：① 项目级安装 huashu-design；② P1 新增「设计原型图」步骤；③ P1–P8 huashu-design 用途分析--已随人工「开始执行P1」指令一并拍板（固化为 `AGENTS.md` §7.1/§7.2）。
-- **下一人工门**：**P4 分模块开发（AGENTS.md §6「逐模块人工测试」）**——首个模块 M1 存储与加密（T1.1 SQLCipher 三平台锁版 / T1.2 CryptoService / T1.3 Argon2id 基准校准 ≤2s / T1.4 单写队列），验收标准见 docs/tech/task-breakdown.md §3；待人工「执行P4」启动指令。
+- **下一人工门**：**M1 存储与加密人工测试**（T1.1 SQLCipher 三平台锁版 / T1.2 CryptoService / T1.3 KDF 校准 / T1.4 单写队列）——验收清单见 docs/dev/modules/M1.md §3；人工测试通过后解锁 **M2 账户与会话**（T2.1–T2.5；4GB 双核目标机 KDF 复核并入 M2 门）。
 
 ## 阶段总览
 
@@ -19,7 +19,7 @@
 | P1 | 产品与交互设计 | ✅ 已通过 | docs/design/（含 prototype/*.html + 截图 + 验证脚本） | 主版唯一真源（内置双主题）；登录链路已补齐；三轮评审 V1/V2/V3 问题全部闭环；2026-08-31 人工终审通过 |
 | P2 | 技术方案 | ✅ 已通过 | `docs/tech/`（architecture + 6 ADR + data-model + api-contracts + task-breakdown + P2评审报告） | 2026-08-31 人工拍板三项关闭；全部 ADR 转人工拍板采纳 |
 | P3 | 工程脚手架 | ✅ 已通过 | 代码骨架 + CI + dev-setup + hello 链路 + 迁移框架 + UI 基座（内嵌 CJK 字体）；Gradle 8.14.4；P3评审报告 | 2026-09-01 完成 M0 + 验收修复轮 + 评审闭环；人工「P3 通过」关闭 |
-| P4 | 分模块开发 | 进行中 | 代码 + `docs/dev/modules/` | 2026-09-01 P3 通过后解锁，待人工启动指令（首个模块 M1 存储与加密） |
+| P4 | 分模块开发 | 进行中 | 代码 + `docs/dev/modules/` | 2026-09-01 解锁；2026-09-02 M1（T1.1–T1.4）完成置**待审核**（见 M1 节）；下一模块 = M2 |
 | P5 | 集成与联调 | 未开始 | `docs/test/integration-report.md` | |
 | P6 | 系统测试与质量 | 未开始 | `docs/test/` | |
 | P7 | 发布 | 未开始 | `docs/release/` | |
@@ -208,6 +208,26 @@
 
 **关闭记录（2026-09-01）**：人工原话「**P3 通过**」——P3 关闭 ✅；P4 解锁为进行中，待人工下达启动指令（首个模块 = M1 存储与加密：T1.1 SQLCipher 三平台锁版 / T1.2 CryptoService / T1.3 KDF 基准校准 / T1.4 单写队列）。
 
+## P4 · M1 存储与加密（⏳ 待审核--2026-09-02 完成，停人工门）
+
+> 启动记录：人工原话「执行P4」（2026-09-02）。范围 = task-breakdown M1（T1.1 SQLCipher 锁版实证 / T1.2 CryptoService / T1.3 KDF 基准校准 / T1.4 单写队列）。**模块记录：docs/dev/modules/M1.md**（实现摘要 / 改动文件 / 验收清单 / 实测证据 / 遗留）。
+
+**产物清单（代码 + 测试，全量绿）**：
+
+- **T1.1 SQLCipher 整库加密（锁版 3.53.4.0 实证）**：Willena fork（org.sqlite.mc，SQLCipher 4 兼容）raw-key 连接属性注入（ADR-002/N4 口径）；WzDatabase 重构（错钥/旧库 → DatabaseKeyMismatchException 类型化）；MasterKeyStore（OS 钥匙串 javakeyring + 探针区分缺失/不可用 + 0600 文件降级 + Resolver）；无钥匙串 → MainShell 安全提示模态（startupNotice）；FatalWindow（错钥/密钥文件损坏引导）
+- **T1.2 CryptoService（domain 纯 Kotlin）**：Argon2Kdf（BouncyCastle 纯 JVM）/ KdfParams（存储串契约 + OWASP 兜底）/ KeyWrap（DEK/KEK，v1+base64）/ FieldCipher（api_keys 四列，AAD 三重隔离）/ CryptoService 门面 / Zeroization 擦除 —— 单测 17 项覆盖包解包/错钥失败/密文不相等/篡改拒绝
+- **T1.3 KDF 校准**：kdfBenchmark 夹具实测（本机 64MiB/t3/p1 ≈ 169ms）；**冻结 KdfParams.DEFAULT = m=64MiB/t=3/p=1**；4GB 双核目标机复核转 M2 门（遗留 1）
+- **T1.4 单写队列**：DbGate（Mutex 串行写 + WAL 读并行）；SettingsRepository 全部读写经闸门；并发测试（72 交错 upsert / 60 读改写计数 / 读写并行）无锁冲突
+- **接线**：AppBootstrap 启动链（钥匙串→DB→闸门→Koin）+ 双主题 UI 无回归；version catalog / dependency-licenses（新增 §1b 钥匙串传递依赖核验）同步
+- 测试合计：domain 31 + data 20（+2 钥匙串真实后端测试在无 Secret Service 环境跳过，CI win/mac 验证）+ ui 12 = **63 执行 0 失败**；detekt 0 issue；无缓存全量 30 任务绿、编译警告 0
+- GUI 冒烟实证（WSLg 隔离目录）：master.key 0600、hello/bootstrap 脱敏日志、二次启动同钥解锁幂等、降级提示模态渲染无异常
+
+**怎么验收（人工）**：① 按 docs/dev/modules/M1.md §3 验收清单逐项打勾；② GUI 复跑 `JAVA_TOOL_OPTIONS="-Dskiko.renderApi=SOFTWARE_FAST" ./gradlew :app:run`——首次启动见「安全提示」降级模态（本机无 Secret Service）与两行脱敏日志；③ 二次启动无提示直接进主壳（重启可解锁）；④ 把数据目录 master.key 内容改错一位再启动 → 见「无法解锁本地数据库」FatalWindow；⑤ 核对模块记录 §4 实测证据。
+
+**遗留问题（转 M2 注意清单，详见模块记录 §5）**：目标机 KDF 复核（≤2s）/ 三平台 CI 实证待推送观察 / M0 明文开发库不兼容（移走重生成）/ M5 设备密钥条目 / B1 恢复页随 M2/M9 / 降级模式迁回钥匙串入口（登记）。
+
+**建议的下一步**：人工审核 M1 → 通过后解锁 M2 账户与会话（T2.1–T2.5，登录链路页面按原型还原）。
+
 ## P0 需求基线（✅ 已通过--两端 + 跨端规范全部定稿）
 
 产物清单（只读基准，不得改动）：
@@ -247,7 +267,7 @@
 
 ## 当前阻塞点
 
-- **P4 待启动指令**：P3 已于 2026-09-01 人工「P3 通过」关闭 ✅；P4 解锁为进行中，待人工下达「执行P4」指令。P4 首批验证项：SQLCipher 三平台锁版（T1.1）、Argon2id 基准校准（T1.3，4GB 双核目标机 ≤2s）。
+- **P4-M1 待人工审核**：M1 存储与加密已产出（2026-09-02）并停在人工门；审核通过前不推进 M2。验收输入：docs/dev/modules/M1.md §3（验收清单）+ §4（实测证据）。
 
 ## 技能盘点结论（2026-08-30 更新）
 
@@ -299,3 +319,4 @@
 | 2026-09-01 | Agent | **P3 独立评审** | 人指令「评审P3」；产出 docs/tech/P3评审报告.md：DoD 三项独立复跑实证达成（无缓存 21 测试、全新克隆构建证实 CI 根因修复、CI 三平台绿、hello 链路 GUI 实测脱敏）；结论「有条件放行」——F1（dev-setup §4 密钥口径订正）+ N1–N5 转 P4 注意清单；人工复核项：GUI 目视中文渲染 + Kotlin 版本答复；**P3 门禁维持待复核，放行权在人工** |
 | 2026-09-01 | Agent | **P3 评审修复闭环** | 人复核通过（中文渲染 ✓、Kotlin 2.4.10 维持 ✓）；按评审 F1/N1–N5 修复：dev-setup 密钥口径订正（对齐 ADR-002 §2.1）、版本口径 8.14.4、STATUS CI 描述对齐 ci.yml、§BT§ 转义清理、编译警告清零（app 补 lifecycle 依赖 + ShellUiTest 迁 v2 API）、N5 登记；全量无缓存重跑 21 测试绿 + 警告 0；**P3 具备放行条件，待人工确认通过并解锁 P4** |
 | 2026-09-01 | 人 | **通过 P3** | 原话「P3 通过」——P3 ✅ 已通过；P4 解锁为进行中，待人工「执行P4」启动指令（首个模块 = M1 存储与加密） |
+| 2026-09-02 | Agent | **执行 P4-M1 存储与加密** | 人指令「执行P4」；完成 T1.1–T1.4：SQLCipher 锁版实证（org.sqlite.mc raw-key 注入 + WAL/busy/foreign_keys 每连接生效 + 重启解锁 + 错钥类型化）、CryptoService（BC Argon2id 纯 JVM + DEK/KEK 包解包 + 字段级 AAD 隔离 + 擦除）、KDF 基准校准（冻结 64MiB/t3/p1，目标机复核转 M2）、DbGate 单写队列（并发测试绿）、钥匙串/文件降级 + 安全提示模态 + FatalWindow；63 测试绿 + detekt 0 + 警告 0 + GUI 冒烟实证；模块记录 docs/dev/modules/M1.md；**P4 维持进行中，M1 置待审核，停人工门** |
