@@ -43,6 +43,7 @@ export JAVA_HOME=$(mise where java)   # 或让 shell 激活 mise shims
   ```
   （或安装 mesa GL 驱动后走默认 OpenGL。）
 - **托盘/通知**：WSLg 下行为不完整（无真实托盘协议）；最终以 CI 三平台 runner + 实机验证为准（M11 验收口径）。
+- **钥匙串（M1 起）**：WSL2 常有 dbus 会话但**无 Secret Service 提供方**（gnome-keyring 等未运行）→ java-keyring 报 "No available keyring backend found"，应用按设计走「0600 本地密钥文件」降级、每次启动弹「安全提示」（预期行为，M1 T1.1 验收口径）；如需验证真实钥匙串路径：`sudo apt install gnome-keyring` 后在会话中启动再跑应用。
 - **数据目录**：默认 `~/.wuzhufolio`；开发隔离用环境变量覆盖：`WUZHUFOLIO_DATA_DIR=/tmp/wzf ./gradlew :app:run`。
 
 ## 4. 密钥与安全配置

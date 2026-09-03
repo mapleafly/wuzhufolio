@@ -222,7 +222,13 @@
 - 测试合计：domain 31 + data 20（+2 钥匙串真实后端测试在无 Secret Service 环境跳过，CI win/mac 验证）+ ui 12 = **63 执行 0 失败**；detekt 0 issue；无缓存全量 30 任务绿、编译警告 0
 - GUI 冒烟实证（WSLg 隔离目录）：master.key 0600、hello/bootstrap 脱敏日志、二次启动同钥解锁幂等、降级提示模态渲染无异常
 
-**怎么验收（人工）**：① 按 docs/dev/modules/M1.md §3 验收清单逐项打勾；② GUI 复跑 `JAVA_TOOL_OPTIONS="-Dskiko.renderApi=SOFTWARE_FAST" ./gradlew :app:run`——首次启动见「安全提示」降级模态（本机无 Secret Service）与两行脱敏日志；③ 二次启动无提示直接进主壳（重启可解锁）；④ 把数据目录 master.key 内容改错一位再启动 → 见「无法解锁本地数据库」FatalWindow；⑤ 核对模块记录 §4 实测证据。
+**怎么验收（人工）**：
+0. **（仅本开发机）M0 明文库兼容前置**：M0 期明文开发库无法以新主密钥解锁属预期（遗留 3）——旧库已归档为 `~/.wuzhufolio/wuzhufolio.db.m0-plaintext-20260901.bak`（2026-09-03 处置，勿删）；若再次出现「无法解锁本地数据库」且数据目录内有旧明文 wuzhufolio.db，先移走旧库再启动。
+1. 按 docs/dev/modules/M1.md §3 验收清单逐项打勾；
+2. GUI 复跑 `JAVA_TOOL_OPTIONS="-Dskiko.renderApi=SOFTWARE_FAST" ./gradlew :app:run`：启动见「安全提示」降级模态（本机 dbus 在但无 Secret Service 提供方 → 钥匙串不可用为预期）+ 两行脱敏日志（hello-chain / bootstrap ok）；
+3. 二次启动：**降级模态仍会弹出**（FILE_FALLBACK 期间安全提示常驻，属 T1.1 语义；钥匙串恢复后自然消失）——重点核对日志为「master key loaded from degraded key file」（重启可解锁、密钥复用）；
+4. FatalWindow 两条路径（任选其一验证，验后恢复）：把 master.key 内容改成非 64 位 hex（如 0 字节/乱码）启动 → 「本地密钥文件异常」；把 master.key 换成**另一个有效的 64 位 hex 密钥**（或把数据目录 db 换成别的加密库）启动 → 「无法解锁本地数据库」；
+5. 核对模块记录 §4 实测证据（KDF 耗时表 / SQLCipher 探针 / 冒烟记录）。
 
 **遗留问题（转 M2 注意清单，详见模块记录 §5）**：目标机 KDF 复核（≤2s）/ 三平台 CI 实证待推送观察 / M0 明文开发库不兼容（移走重生成）/ M5 设备密钥条目 / B1 恢复页随 M2/M9 / 降级模式迁回钥匙串入口（登记）。
 
@@ -267,7 +273,7 @@
 
 ## 当前阻塞点
 
-- **P4-M1 待人工审核**：M1 存储与加密已产出（2026-09-02）并停在人工门；审核通过前不推进 M2。验收输入：docs/dev/modules/M1.md §3（验收清单）+ §4（实测证据）。
+- **P4-M1 待人工审核**：M1 存储与加密已产出（2026-09-02）并停在人工门；审核通过前不推进 M2。验收输入：docs/dev/modules/M1.md §3（验收清单）+ §4（实测证据）；Agent 独立评审见 docs/dev/modules/M1评审报告.md（2026-09-03：有条件通过，1 重要 F1 + 5 轻微 N1–N5，均不阻断）。
 
 ## 技能盘点结论（2026-08-30 更新）
 
@@ -320,3 +326,4 @@
 | 2026-09-01 | Agent | **P3 评审修复闭环** | 人复核通过（中文渲染 ✓、Kotlin 2.4.10 维持 ✓）；按评审 F1/N1–N5 修复：dev-setup 密钥口径订正（对齐 ADR-002 §2.1）、版本口径 8.14.4、STATUS CI 描述对齐 ci.yml、§BT§ 转义清理、编译警告清零（app 补 lifecycle 依赖 + ShellUiTest 迁 v2 API）、N5 登记；全量无缓存重跑 21 测试绿 + 警告 0；**P3 具备放行条件，待人工确认通过并解锁 P4** |
 | 2026-09-01 | 人 | **通过 P3** | 原话「P3 通过」——P3 ✅ 已通过；P4 解锁为进行中，待人工「执行P4」启动指令（首个模块 = M1 存储与加密） |
 | 2026-09-02 | Agent | **执行 P4-M1 存储与加密** | 人指令「执行P4」；完成 T1.1–T1.4：SQLCipher 锁版实证（org.sqlite.mc raw-key 注入 + WAL/busy/foreign_keys 每连接生效 + 重启解锁 + 错钥类型化）、CryptoService（BC Argon2id 纯 JVM + DEK/KEK 包解包 + 字段级 AAD 隔离 + 擦除）、KDF 基准校准（冻结 64MiB/t3/p1，目标机复核转 M2）、DbGate 单写队列（并发测试绿）、钥匙串/文件降级 + 安全提示模态 + FatalWindow；63 测试绿 + detekt 0 + 警告 0 + GUI 冒烟实证；模块记录 docs/dev/modules/M1.md；**P4 维持进行中，M1 置待审核，停人工门** |
+| 2026-09-03 | Agent | **P4-M1 独立评审** | 人指令「评审P4完成的工作」；全量通读 M1 改动（38 文件）+ 无缓存全量重跑（30 任务绿、63 测试 0 失败 2 跳过、detekt 0、警告 0）+ 需求回溯抽查 8 处全命中；产出 docs/dev/modules/M1评审报告.md——**有条件通过**：0 阻断、1 重要（F1 目标机 KDF ≤2s 未实测转 M2 门）、5 轻微（N1–N5）；**M1 门禁维持待审核，放行权在人工** |
