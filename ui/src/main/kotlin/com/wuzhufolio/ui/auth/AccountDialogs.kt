@@ -20,7 +20,6 @@ import androidx.compose.ui.unit.dp
 import com.wuzhufolio.domain.accounts.AccountSummary
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
-import com.wuzhufolio.ui.components.WzModal
 import com.wuzhufolio.ui.components.WzTextField
 import com.wuzhufolio.ui.theme.WzTheme
 
@@ -33,7 +32,7 @@ fun RiskConfirmModal(
 ) {
     var agreed by remember { mutableStateOf(false) }
     val colors = WzTheme.colors
-    WzModal(title = AuthCopy.RISK_TITLE, onDismiss = onCancel, width = 440.dp, testTag = "risk-modal") {
+    InPlaceModal(title = AuthCopy.RISK_TITLE, onDismiss = onCancel, width = 440.dp, testTag = "risk-modal") {
         BannerBox(AuthCopy.RISK_BANNER_TITLE, AuthCopy.RISK_BODY, testTag = "risk-banner")
         Row(
             modifier = Modifier
@@ -82,7 +81,7 @@ fun AccountMenuModal(
     onDismiss: () -> Unit,
 ) {
     val colors = WzTheme.colors
-    WzModal(title = AuthCopy.ACCOUNT_MENU_TITLE, onDismiss = onDismiss, width = 400.dp, testTag = "acct-menu") {
+    InPlaceModal(title = AuthCopy.ACCOUNT_MENU_TITLE, onDismiss = onDismiss, width = 400.dp, testTag = "acct-menu") {
         Column(modifier = Modifier.fillMaxWidth()) {
             accounts.forEach { account ->
                 val isCurrent = account.id == current?.id
@@ -135,7 +134,7 @@ fun SwitchAccountModal(
     onDismiss: () -> Unit,
 ) {
     var password by remember(target) { mutableStateOf("") }
-    WzModal(
+    InPlaceModal(
         title = String.format(AuthCopy.SWITCH_TITLE, target.username),
         onDismiss = onDismiss,
         width = 380.dp,
@@ -148,6 +147,7 @@ fun SwitchAccountModal(
                 label = AuthCopy.SWITCH_LABEL,
                 placeholder = AuthCopy.LOGIN_PASSWORD_PLACEHOLDER,
                 error = error,
+                isPassword = true,
                 testTag = "switch-pw",
             )
             Text(
@@ -189,7 +189,7 @@ fun ChangePasswordModal(
     var new2Error by remember { mutableStateOf<String?>(null) }
     val colors = WzTheme.colors
 
-    WzModal(title = AuthCopy.CHANGE_PW_TITLE, onDismiss = onDismiss, width = 400.dp, testTag = "change-pw-modal") {
+    InPlaceModal(title = AuthCopy.CHANGE_PW_TITLE, onDismiss = onDismiss, width = 400.dp, testTag = "change-pw-modal") {
         Column(modifier = Modifier.fillMaxWidth()) {
             WzTextField(
                 value = current,
@@ -197,6 +197,7 @@ fun ChangePasswordModal(
                 label = AuthCopy.CHANGE_PW_OLD_LABEL,
                 placeholder = AuthCopy.LOGIN_PASSWORD_PLACEHOLDER,
                 error = error, // A2 原密码不正确（来自服务层）
+                isPassword = true,
                 testTag = "change-pw-old",
             )
             WzTextField(
@@ -205,6 +206,7 @@ fun ChangePasswordModal(
                 label = "新密码",
                 placeholder = AuthCopy.CHANGE_PW_NEW_PLACEHOLDER,
                 error = newError,
+                isPassword = true,
                 testTag = "change-pw-new",
             )
             WzTextField(
@@ -213,6 +215,7 @@ fun ChangePasswordModal(
                 label = "确认新密码",
                 placeholder = AuthCopy.CHANGE_PW_NEW2_PLACEHOLDER,
                 error = new2Error,
+                isPassword = true,
                 testTag = "change-pw-new2",
             )
             Text(

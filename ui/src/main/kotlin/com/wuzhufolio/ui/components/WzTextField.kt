@@ -4,10 +4,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -26,6 +30,8 @@ fun WzTextField(
     placeholder: String = "",
     error: String? = null,
     singleLine: Boolean = true,
+    /** 密码掩码（打点显示；本产品密码一律走掩码输入，M2 验收修复）。 */
+    isPassword: Boolean = false,
     testTag: String? = null,
 ) {
     val colors = WzTheme.colors
@@ -41,6 +47,12 @@ fun WzTextField(
             placeholder = { Text(placeholder, color = colors.ink3) },
             isError = error != null,
             singleLine = singleLine,
+            visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
+            keyboardOptions = if (isPassword) {
+                KeyboardOptions(keyboardType = KeyboardType.Password)
+            } else {
+                KeyboardOptions.Default
+            },
             shape = RoundedCornerShape(7.dp),
             textStyle = WzTheme.typography.body,
             colors = OutlinedTextFieldDefaults.colors(

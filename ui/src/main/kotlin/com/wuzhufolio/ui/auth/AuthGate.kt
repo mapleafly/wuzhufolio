@@ -25,7 +25,6 @@ import com.wuzhufolio.domain.accounts.AccountService
 import com.wuzhufolio.domain.accounts.AccountSummary
 import com.wuzhufolio.domain.settings.PnlColorScheme
 import com.wuzhufolio.domain.settings.ThemeMode
-import com.wuzhufolio.ui.components.WzModal
 import com.wuzhufolio.ui.components.WzToastHost
 import com.wuzhufolio.ui.shell.MainShell
 import com.wuzhufolio.ui.shell.ShellPage
@@ -155,7 +154,7 @@ fun AuthGate(
             }
             WzToastHost(toast = state.toast, onDismiss = vm::dismissToast)
             if (showStartupNotice && startupNotice != null) {
-                WzModal(title = "安全提示", onDismiss = { showStartupNotice = false }, testTag = "startup-notice") {
+                InPlaceModal(title = "安全提示", onDismiss = { showStartupNotice = false }, testTag = "startup-notice") {
                     Text(text = startupNotice, color = colors.ink2, style = WzTheme.typography.body)
                     com.wuzhufolio.ui.components.WzButton(
                         text = "我知道了",
@@ -193,7 +192,7 @@ fun AccountChip(username: String, onClick: () -> Unit) {
 @Composable
 fun PlaceholderNoticeModal(title: String, message: String, onDismiss: () -> Unit, testTag: String) {
     val colors = WzTheme.colors
-    WzModal(title = title, onDismiss = onDismiss, width = 420.dp, testTag = testTag) {
+    InPlaceModal(title = title, onDismiss = onDismiss, width = 420.dp, testTag = testTag) {
         Text(text = message, color = colors.ink2, style = WzTheme.typography.body)
     }
 }

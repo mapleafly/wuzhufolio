@@ -75,6 +75,7 @@ fun LoginPage(
                 label = "密码",
                 placeholder = AuthCopy.LOGIN_PASSWORD_PLACEHOLDER,
                 error = passwordError,
+                isPassword = true,
                 testTag = "lg-pw",
             )
             RememberRow(AuthCopy.LOGIN_REMEMBER_LABEL, rememberMe, { rememberMe = it }, testTag = "lg-remember")
@@ -184,6 +185,7 @@ fun CreatePage(
                 label = "密码",
                 placeholder = AuthCopy.LOGIN_PASSWORD_PLACEHOLDER,
                 error = pwError,
+                isPassword = true,
                 testTag = "cu-pw",
             )
             StrengthMeter(strength, testTag = "cu-meter")
@@ -199,6 +201,7 @@ fun CreatePage(
                 label = "确认密码",
                 placeholder = AuthCopy.CREATE_PW2_PLACEHOLDER,
                 error = pw2Error,
+                isPassword = true,
                 testTag = "cu-pw2",
             )
             RememberRow(AuthCopy.CREATE_REMEMBER_LABEL, rememberMe, { rememberMe = it }, testTag = "cu-remember")
@@ -214,7 +217,7 @@ fun CreatePage(
                         pwError = AuthCopy.CREATE_PW_ERROR_WEAK
                         valid = false
                     }
-                    if (password != password2) {
+                    if (password.isEmpty() || password2.isEmpty() || password != password2) {
                         pw2Error = AuthCopy.CREATE_PW2_ERROR_MISMATCH
                         valid = false
                     }

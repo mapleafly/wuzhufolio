@@ -111,7 +111,14 @@ class AuthGateViewModel(private val service: AccountService) {
             try {
                 val session = service.login(LoginReq(username, pw, rememberMe))
                 showToast(WzToastKind.Success, String.format(AuthCopy.LOGIN_TOAST_OK, session.account.username))
-                enterShell(session, service.listAccounts())
+                _shellToPage.value = ShellPage.DASHBOARD
+                val accounts = service.listAccounts()
+                _state.value = _state.value.copy(
+                    stage = GateStage.SHELL,
+                    accounts = accounts,
+                    session = session,
+                    busyText = null,
+                )
             } catch (e: InvalidCredentialsException) {
                 _state.value = _state.value.copy(busyText = null, formError = AuthCopy.ERR_A1_LOGIN)
             } catch (t: Throwable) {
@@ -148,7 +155,12 @@ class AuthGateViewModel(private val service: AccountService) {
                 showToast(WzToastKind.Success, String.format(AuthCopy.CREATE_TOAST_OK, session.account.username))
                 val accounts = service.listAccounts()
                 _shellToPage.value = ShellPage.DASHBOARD
-                _state.value = AuthUiState(stage = GateStage.WIZARD, accounts = accounts, session = session)
+                _state.value = _state.value.copy(
+                    stage = GateStage.WIZARD,
+                    accounts = accounts,
+                    session = session,
+                    busyText = null,
+                )
             } catch (e: UsernameTakenException) {
                 _state.value = _state.value.copy(busyText = null, formError = AuthCopy.CREATE_ERROR_USERNAME_TAKEN)
             } catch (t: Throwable) {
@@ -231,7 +243,11 @@ class AuthGateViewModel(private val service: AccountService) {
                 _state.value = _state.value.copy(dialog = AccountDialog.NONE, dialogTarget = null, dialogBusy = false)
                 showToast(WzToastKind.Success, AuthCopy.CHANGE_PW_TOAST_OK)
                 // PRD 5.1-6 / ADR-002 §3：改密作废令牌 → 回登录页重新登录
-                _state.value = AuthUiState(stage = GateStage.LOGIN, accounts = service.listAccounts())
+                _state.value = _state.value.copy(
+                    stage = GateStage.LOGIN,
+                    accounts = service.listAccounts(),
+                    busyText = null,
+                )
             } catch (e: OldPasswordMismatchException) {
                 _state.value = _state.value.copy(dialogBusy = false, dialogError = AuthCopy.ERR_A2_OLD_PASSWORD)
             } catch (t: Throwable) {
@@ -252,7 +268,15 @@ class AuthGateViewModel(private val service: AccountService) {
                 // 尽力清除；内存会话已由服务层先行擦除
             }
             showToast(WzToastKind.Success, AuthCopy.LOGOUT_TOAST)
-            _state.value = AuthUiState(stage = GateStage.LOGIN, accounts = service.listAccounts())
+            _state.value = _state.value.copy(
+                stage = GateStage.LOGIN,
+                accounts = service.listAccounts(),
+                dialog = AccountDialog.NONE,
+                dialogTarget = null,
+                dialogBusy = false,
+                pendingCreate = null,
+                busyText = null,
+            )
         }
     }
 
@@ -265,7 +289,12 @@ class AuthGateViewModel(private val service: AccountService) {
     }
 
     private suspend fun enterShellQuiet(session: Session, accounts: List<AccountSummary>) {
-        _state.value = _state.value.copy(stage = GateStage.SHELL, session = session, accounts = accounts)
+        _state.value = _state.value.copy(
+            stage = GateStage.SHELL,
+            session = session,
+            accounts = accounts,
+            busyText = null,
+        )
     }
 
     private suspend fun enterShell(session: Session, accounts: List<AccountSummary>) {

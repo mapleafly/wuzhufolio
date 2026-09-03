@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,11 +23,20 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.wuzhufolio.ui.theme.WzTheme
 
@@ -189,6 +200,77 @@ fun StrengthMeter(strength: com.wuzhufolio.domain.accounts.AccountPolicy.Strengt
             }
         }
         Text(text = label, color = color, style = WzTheme.typography.caption, modifier = Modifier.padding(start = 8.dp))
+    }
+}
+
+/**
+ * 就地模态（M2 验收修复：WzModal 的 focusable=false Popup 无法接收键盘输入——
+ * 需要键盘输入的对话框（切换/改密等）改用本组件：同窗口叠加层，无独立 AWT 焦点问题，
+ * 语义树与测试仍在同一场景；Esc/遮罩/关闭按钮可关，打开自动聚焦卡片）。
+ */
+@Composable
+fun InPlaceModal(
+    title: String,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    width: Dp = 480.dp,
+    testTag: String? = null,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
+) {
+    val colors = WzTheme.colors
+    val focusRequester = remember { FocusRequester() }
+    androidx.compose.runtime.LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(colors.ink.copy(alpha = 0.28f))
+            .clickable(
+                interactionSource = androidx.compose.foundation.interaction.MutableInteractionSource(),
+                indication = null,
+                onClick = onDismiss,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = modifier
+                .width(width)
+                .clip(RoundedCornerShape(10.dp))
+                .background(colors.surface)
+                .border(1.dp, colors.line, RoundedCornerShape(10.dp))
+                .focusRequester(focusRequester)
+                .focusable()
+                .onPreviewKeyEvent { event ->
+                    if (event.key == Key.Escape && event.type == KeyEventType.KeyDown) {
+                        onDismiss()
+                        true
+                    } else {
+                        false
+                    }
+                }
+                .clickable(
+                    interactionSource = androidx.compose.foundation.interaction.MutableInteractionSource(),
+                    indication = null,
+                    onClick = {},
+                )
+                .padding(20.dp)
+                .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = title,
+                    color = colors.ink,
+                    style = WzTheme.typography.pageTitle,
+                    modifier = Modifier.weight(1f),
+                )
+                val closeTag = if (testTag != null) testTag + "-close" else null
+                Glink(text = AuthCopy.DIALOG_CLOSE, onClick = onDismiss, testTag = closeTag)
+            }
+            content()
+        }
     }
 }
 

@@ -36,7 +36,8 @@ class AuthFlowUiTest {
 
     private fun ComposeUiTest.waitFor(tag: String, timeout: Long = 4000) {
         waitUntil(conditionDescription = "waitFor:" + tag, timeoutMillis = timeout) {
-            onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+            onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() ||
+                onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
         }
     }
 
@@ -134,6 +135,7 @@ class AuthFlowUiTest {
         // 用户名枚举切换到 Family → 新密码登录 → 登出回登录页
         onNodeWithTag("lg-user").performClick()
         onNodeWithTag("lg-user-opt-Family").performClick()
+        onNodeWithTag("lg-pw").performTextClearance()
         onNodeWithTag("lg-pw").performTextInput("newPassword3C")
         onNodeWithTag("lg-btn").performClick()
         waitFor("main-shell")
@@ -142,5 +144,5 @@ class AuthFlowUiTest {
         onNodeWithTag("acct-logout", useUnmergedTree = true).performClick()
         waitFor("login-title")
         onNodeWithTag("lg-btn").assertIsDisplayed()
-    }
+   }
 }
