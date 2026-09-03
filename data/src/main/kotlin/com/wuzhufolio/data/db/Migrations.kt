@@ -89,9 +89,76 @@ object M003CreateAccounts : Migration {
     }
 }
 
+/**
+ * M004：coins 币种目录表（data-model §2.9 / PRD §10-10；全局公共表，不随账户备份导出）。
+ * 比 data-model 增列 contracts（各链合约地址 JSON）——桌面端勘误登记见模块记录 M3.md §5：
+ * PRD §10-10 注「含各链合约地址缓存」+ 消歧规则②（合约地址精确匹配）需要，移动端 SRD coins.contracts 同源。
+ */
+object M004CreateCoins : Migration {
+    override val version = 4
+    override val description = "create coins table"
+
+    override fun migrate(connection: Connection) {
+        connection.createStatement().use { st ->
+            st.executeUpdate(
+                """
+                CREATE TABLE coins (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    cg_id TEXT NOT NULL,
+                    cmc_id TEXT,
+                    symbol TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'ACTIVE',
+                    display_precision INTEGER NOT NULL DEFAULT 8,
+                    contracts TEXT NOT NULL DEFAULT '{}',
+                    updated_at TEXT NOT NULL
+                )
+                """.trimIndent(),
+            )
+            st.executeUpdate("CREATE UNIQUE INDEX idx_coins_cg_id ON coins(cg_id)")
+            st.executeUpdate("CREATE INDEX idx_coins_symbol ON coins(symbol)")
+            st.executeUpdate("CREATE INDEX idx_coins_name ON coins(name)")
+        }
+    }
+}
+
+/**
+ * M005：exchange_coin_map 交易所资产映射表（data-model §2.10 / PRD §10-11；全局公共表）。
+ * 唯一约束 (exchange, exchange_asset)；source = AUTO（自动消歧）/ MANUAL（用户确认固化，一次性决策）。
+ */
+object M005CreateExchangeCoinMap : Migration {
+    override val version = 5
+    override val description = "create exchange_coin_map table"
+
+    override fun migrate(connection: Connection) {
+        connection.createStatement().use { st ->
+            st.executeUpdate(
+                """
+                CREATE TABLE exchange_coin_map (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    exchange TEXT NOT NULL,
+                    exchange_asset TEXT NOT NULL,
+                    coin_id INTEGER NOT NULL,
+                    source TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (coin_id) REFERENCES coins(id)
+                )
+                """.trimIndent(),
+            )
+            st.executeUpdate(
+                "CREATE UNIQUE INDEX idx_exchange_coin_map_key ON exchange_coin_map(exchange, exchange_asset)",
+            )
+            st.executeUpdate("CREATE INDEX idx_exchange_coin_map_coin ON exchange_coin_map(coin_id)")
+        }
+    }
+}
+
 /** 全部迁移，按版本升序登记。新迁移只追加、不改历史。 */
 val ALL_MIGRATIONS: List<Migration> = listOf(
     M001CreateSettings,
     M002SeedDefaultSettings,
     M003CreateAccounts,
+    M004CreateCoins,
+    M005CreateExchangeCoinMap,
 )

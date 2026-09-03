@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization) // coins.contracts JSON 载荷（M3；M9 .cpro 亦将使用）
 }
 
 dependencies {
@@ -12,6 +13,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.java.keyring)   // OS 钥匙串（T1.1，DB 密钥入钥匙串）
     implementation(libs.slf4j.api)
+    implementation(libs.kotlinx.serialization.json)
 
     testImplementation(kotlin("test-junit5"))
     testImplementation(libs.logback.classic)
