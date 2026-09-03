@@ -220,7 +220,9 @@
 - **T1.4 单写队列**：DbGate（Mutex 串行写 + WAL 读并行）；SettingsRepository 全部读写经闸门；并发测试（72 交错 upsert / 60 读改写计数 / 读写并行）无锁冲突
 - **接线**：AppBootstrap 启动链（钥匙串→DB→闸门→Koin）+ 双主题 UI 无回归；version catalog / dependency-licenses（新增 §1b 钥匙串传递依赖核验）同步
 - 测试合计：domain 31 + data 20（+2 钥匙串真实后端测试在无 Secret Service 环境跳过，CI win/mac 验证）+ ui 12 = **63 执行 0 失败**；detekt 0 issue；无缓存全量 30 任务绿、编译警告 0
-- GUI 冒烟实证（WSLg 隔离目录）：master.key 0600、hello/bootstrap 脱敏日志、二次启动同钥解锁幂等、降级提示模态渲染无异常
+- GUI 冒烟实证（WSLg）：master.key 0600、hello/bootstrap 脱敏日志、二次启动同钥解锁幂等、降级提示模态渲染无异常、**主窗口驻留至手动关闭（2026-09-03 修复轮实证 rc=124）**
+
+**2026-09-03 修复轮（评审实测触发，已修复）**：主窗口不出现且进程约 2s 静默退出——根因 = main() 中 `remember { runCatching { AppBootstrap.run(logger) }.getOrElse { FatalOutcome.of(it, logger) } }` 的返回类型被推断为 **Any**（AppBootstrap.Runtime 与 Outcome.Fatal 的 LUB），`when` 的 `is Outcome.Ready` 永不命中 → 成功路径不组合任何窗口即退出（失败路径恰命中 Fatal 分支，故此前 FatalWindow 可见而主壳不可见）。修复 = 引导结果显式收敛为密封 Outcome（try/catch 包 `Outcome.Ready(...)`），分支完备；复测两连启窗口均驻留至超时（rc=124），63 测试 + detekt 绿。
 
 **怎么验收（人工）**：
 0. **（仅本开发机）M0 明文库兼容前置**：M0 期明文开发库无法以新主密钥解锁属预期（遗留 3）——旧库已归档为 `~/.wuzhufolio/wuzhufolio.db.m0-plaintext-20260901.bak`（2026-09-03 处置，勿删）；若再次出现「无法解锁本地数据库」且数据目录内有旧明文 wuzhufolio.db，先移走旧库再启动。

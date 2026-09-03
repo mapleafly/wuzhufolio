@@ -30,15 +30,22 @@ import org.slf4j.LoggerFactory
 /**
  * 应用入口（M1 起）：引导（AppBootstrap）→ 主壳；引导失败渲染致命提示窗口
  * （错钥/密钥文件损坏/钥匙串异常等）。正式 B1「从 .cpro 恢复」页面随 M2/M9 提供（interaction.md §2.1）。
+ *
+ * 2026-09-03 修复：引导结果显式收敛到密封 Outcome 后再分支——此前 runCatching.getOrElse 把
+ * 返回类型推断为 Any（Runtime 与 Outcome.Fatal 的 LUB），when 的 is Outcome.Ready 永不命中，
+ * 成功路径不组合任何窗口即静默退出（失败路径恰命中 Fatal 分支，故未暴露）。
  */
 fun main() {
     System.setProperty("wuzhufolio.logdir", AppDirs.logDir().toString())
     val logger = LoggerFactory.getLogger("wuzhufolio.bootstrap")
 
     application {
-        val outcome = remember {
-            runCatching { AppBootstrap.run(logger) }
-                .getOrElse { FatalOutcome.of(it, logger) }
+        val outcome: Outcome = remember {
+            try {
+                Outcome.Ready(AppBootstrap.run(logger))
+            } catch (t: Throwable) {
+                FatalOutcome.of(t, logger)
+            }
         }
         when (outcome) {
             is Outcome.Ready -> {
