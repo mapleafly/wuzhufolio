@@ -7,14 +7,33 @@ import java.security.SecureRandom
  *
  * 消费方：M2（账户创建/登录/改密/记住我）、M6（api_keys 凭证列落库）、M9（.cpro 解密→目标账户 DEK 重加密）。
  * 本类为纯计算（无 IO、不持有任何密钥）；密钥材料生命周期与擦除归调用方（[Zeroization]）。
+ * 门面动作随模块自然增长（M2 增会话/校验 7 项），豁免 TooManyFunctions。
  */
-class CryptoService(private val defaultParams: KdfParams = KdfParams.DEFAULT) {
+@Suppress("TooManyFunctions")
+class CryptoService(val defaultParams: KdfParams = KdfParams.DEFAULT) {
 
     /** 新账户随机盐（16 字节，存 accounts.kdf_salt）。 */
     fun newSalt(): ByteArray = randomBytes(Argon2Kdf.SALT_BYTES)
 
     /** 新账户随机 DEK（32 字节）。 */
     fun newDek(): ByteArray = randomBytes(32)
+
+    /** 「记住我」会话令牌：随机 256-bit，与密码无任何推导关系（ADR-002 §3）。 */
+    fun newSessionToken(): ByteArray = randomBytes(32)
+
+    /** 记住我：以令牌包裹 DEK（钥匙串条目值，ADR-002 §3）。 */
+    fun wrapDekForSession(dek: ByteArray, token: ByteArray, accountId: String): String =
+        KeyWrap.wrapForSession(dek, token, accountId)
+
+    /** 记住我恢复：令牌解包 DEK；失败 = 令牌作废/条目损坏。 */
+    fun unwrapDekForSession(wrapped: String, token: ByteArray, accountId: String): ByteArray =
+        KeyWrap.unwrapForSession(wrapped, token, accountId)
+
+    /** 登录快速判错校验值（accounts.password_hash）。 */
+    fun kekVerifyHash(kek: ByteArray): String = KekVerify.compute(kek)
+
+    /** 登录快速判错校验。 */
+    fun kekVerify(kek: ByteArray, storedHex: String): Boolean = KekVerify.verify(kek, storedHex)
 
     /** 密码派生 KEK（按冻结默认参数——新建账户一律用默认，ADR-002 §2）。 */
     fun deriveKek(password: CharArray, salt: ByteArray): ByteArray =

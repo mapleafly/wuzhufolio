@@ -12,7 +12,13 @@ import com.wuzhufolio.data.security.KeychainAccounts
 import com.wuzhufolio.data.security.KeychainMasterKeyStore
 import com.wuzhufolio.data.security.MasterKeyResolver
 import com.wuzhufolio.data.security.MasterKeyStore
+import com.wuzhufolio.data.accounts.ActiveSessionStore
+import com.wuzhufolio.data.accounts.AccountRepository
+import com.wuzhufolio.data.accounts.DefaultAccountService
+import com.wuzhufolio.data.security.RememberMeStore
+import com.wuzhufolio.data.security.RememberMeStoreFactory
 import com.wuzhufolio.data.settings.SettingsRepository
+import com.wuzhufolio.domain.accounts.AccountService
 import com.wuzhufolio.domain.redaction.LogRedactor
 import com.wuzhufolio.domain.settings.PnlColorScheme
 import com.wuzhufolio.domain.settings.ThemeMode
@@ -35,15 +41,27 @@ object AppBootstrap {
         val securityNotice: String?,
     )
 
-    /** 运行期装配结果：窗口关闭时 [close] 释放数据库连接与钥匙串会话。 */
+    /** 账户会话装配（M2：用例 + 记住我存储，close 释放存储后端）。 */
+    class SessionRuntime internal constructor(
+        val authService: AccountService,
+        private val rememberStore: RememberMeStore,
+    ) {
+        fun close() {
+            runCatching { rememberStore.close() }
+        }
+    }
+
+    /** 运行期装配结果：窗口关闭时 [close] 释放数据库连接/钥匙串/会话存储。 */
     class Runtime internal constructor(
         val db: WzDatabase,
         val gate: DbGate,
         val settings: SettingsRepository,
         val uiState: UiState,
+        val session: SessionRuntime,
         private val keyring: MasterKeyStore?,
     ) {
         fun close() {
+            runCatching { session.close() }
             runCatching { keyring?.close() }
             db.close()
         }
@@ -63,6 +81,13 @@ object AppBootstrap {
         }
         val gate = DbGate(db)
         val settings = SettingsRepository(gate)
+        val accountRepository = AccountRepository(gate)
+        val rememberStore = RememberMeStoreFactory.open(report.backend, AppDirs.dataDir(), logger)
+        val authService: AccountService = DefaultAccountService(
+            repository = accountRepository,
+            rememberStore = rememberStore,
+            sessions = ActiveSessionStore(),
+        )
         val hello = HelloChain(db, settings, logger).run()
 
         startKoin { modules(appModule(db, gate, settings)) }
@@ -86,6 +111,7 @@ object AppBootstrap {
                 pnlScheme = hello.pnlScheme,
                 securityNotice = securityNotice(report, keyFile),
             ),
+            session = SessionRuntime(authService = authService, rememberStore = rememberStore),
             keyring = if (report.backend == KeyStorageBackend.OS_KEYCHAIN) keyring else null,
         )
     }

@@ -61,8 +61,37 @@ object M002SeedDefaultSettings : Migration {
     }
 }
 
+/**
+ * M003：accounts 账户表（data-model §2.1 / PRD §10-4）。
+ * 密码哈希与 KDF 参数随行存储；凭证字段不在此表（api_keys 按账户 DEK 字段级加密，M6 建表）。
+ */
+object M003CreateAccounts : Migration {
+    override val version = 3
+    override val description = "create accounts table"
+
+    override fun migrate(connection: Connection) {
+        connection.createStatement().use { st ->
+            st.executeUpdate(
+                """
+                CREATE TABLE accounts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    kdf_salt TEXT NOT NULL,
+                    kdf_params TEXT NOT NULL,
+                    wrapped_dek TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+                """.trimIndent(),
+            )
+            st.executeUpdate("CREATE UNIQUE INDEX idx_accounts_username ON accounts(username)")
+        }
+    }
+}
+
 /** 全部迁移，按版本升序登记。新迁移只追加、不改历史。 */
 val ALL_MIGRATIONS: List<Migration> = listOf(
     M001CreateSettings,
     M002SeedDefaultSettings,
+    M003CreateAccounts,
 )

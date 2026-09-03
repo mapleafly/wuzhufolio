@@ -47,6 +47,8 @@ fun MainShell(
     modifier: Modifier = Modifier,
     /** M1 T1.1：钥匙串不可用降级提示等启动安全说明（非空时弹一次模态）。 */
     startupNotice: String? = null,
+    /** M2：侧边栏底部账户区（原型 acctBtn：切换账户/登出入口）。 */
+    accountArea: @Composable () -> Unit = {},
 ) {
     val themeMode by viewModel.themeMode.collectAsState()
     val pnlScheme by viewModel.pnlScheme.collectAsState()
@@ -59,7 +61,7 @@ fun MainShell(
         Box(modifier = modifier.fillMaxSize().background(colors.bg).testTag("main-shell")) {
             Column(modifier = Modifier.fillMaxSize()) {
                 Row(modifier = Modifier.weight(1f)) {
-                    Sidebar(currentPage = page, onSelect = viewModel::selectPage)
+                    Sidebar(currentPage = page, onSelect = viewModel::selectPage, accountArea = accountArea)
                     Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
                         TopBar(
                             title = page.label,
@@ -110,7 +112,11 @@ private fun StartupNoticeModal(notice: String, onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun Sidebar(currentPage: ShellPage, onSelect: (ShellPage) -> Unit) {
+private fun Sidebar(
+    currentPage: ShellPage,
+    onSelect: (ShellPage) -> Unit,
+    accountArea: @Composable () -> Unit,
+) {
     val colors = WzTheme.colors
     Column(
         modifier = Modifier
@@ -148,6 +154,7 @@ private fun Sidebar(currentPage: ShellPage, onSelect: (ShellPage) -> Unit) {
             onClick = { onSelect(ShellPage.GALLERY) },
             testTag = "nav-" + ShellPage.GALLERY.name,
         )
+        accountArea()
     }
 }
 

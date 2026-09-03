@@ -21,8 +21,7 @@ import com.wuzhufolio.data.security.MasterKeyFileException
 import com.wuzhufolio.domain.settings.ThemeMode
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
-import com.wuzhufolio.ui.shell.MainShell
-import com.wuzhufolio.ui.shell.ShellViewModel
+import com.wuzhufolio.ui.auth.AuthGate
 import com.wuzhufolio.ui.theme.WuzhuTheme
 import com.wuzhufolio.ui.theme.WzTheme
 import org.slf4j.LoggerFactory
@@ -64,15 +63,24 @@ private sealed interface Outcome {
 
 @Composable
 private fun MainWindow(runtime: AppBootstrap.Runtime, onExit: () -> Unit) {
-    val viewModel = remember { ShellViewModel(runtime.uiState.theme, runtime.uiState.pnlScheme) }
     Window(
         onCloseRequest = onExit,
         title = "WuZhuFolio",
         state = rememberWindowState(width = 1280.dp, height = 800.dp),
     ) {
-        MainShell(viewModel = viewModel, startupNotice = runtime.uiState.securityNotice)
+        AuthGate(
+            authService = runtime.session.authService,
+            themeMode = runtime.uiState.theme,
+            pnlScheme = runtime.uiState.pnlScheme,
+            usernameEnumEnabled = usernameEnumEnabled(runtime),
+            startupNotice = runtime.uiState.securityNotice,
+        )
     }
 }
+
+/** 登录页用户名枚举开关（设置 通用，默认开；M10 提供设置 UI 写入该键）。 */
+private fun usernameEnumEnabled(runtime: AppBootstrap.Runtime): Boolean =
+    runtime.settings.getGlobal("login.username.enum")?.let { it != "off" } ?: true
 
 @Composable
 private fun FatalWindow(outcome: Outcome.Fatal, onExit: () -> Unit) {

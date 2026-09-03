@@ -33,6 +33,7 @@ enum class ShellPage(val label: String) {
 class ShellViewModel(
     initialTheme: ThemeMode,
     initialPnlScheme: PnlColorScheme,
+    initialPage: ShellPage = ShellPage.DASHBOARD,
 ) : ViewModel() {
 
     private val _themeMode = MutableStateFlow(initialTheme)
@@ -41,7 +42,7 @@ class ShellViewModel(
     private val _pnlScheme = MutableStateFlow(initialPnlScheme)
     val pnlScheme: StateFlow<PnlColorScheme> = _pnlScheme.asStateFlow()
 
-    private val _page = MutableStateFlow(ShellPage.DASHBOARD)
+    private val _page = MutableStateFlow(initialPage)
     val page: StateFlow<ShellPage> = _page.asStateFlow()
 
     private val _toast = MutableStateFlow<WzToast?>(null)

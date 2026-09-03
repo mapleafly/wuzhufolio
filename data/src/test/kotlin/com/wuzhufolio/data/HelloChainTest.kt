@@ -45,7 +45,7 @@ class HelloChainTest {
     fun `hello chain migrates reads settings and logs masked line`() {
         val result = HelloChain(db, SettingsRepository(gate), logbackLogger).run()
 
-        assertEquals(2, result.schemaVersion)
+        assertEquals(3, result.schemaVersion)
         assertEquals(ThemeMode.LIGHT, result.theme)
         assertEquals(PnlColorScheme.GREEN_UP, result.pnlScheme)
         assertEquals("USD", result.settings["fiat"])
@@ -65,7 +65,7 @@ class HelloChainTest {
         val repo = SettingsRepository(gate)
         HelloChain(db, repo, logbackLogger).run()
         val second = HelloChain(db, repo, logbackLogger).run()
-        assertEquals(2, second.schemaVersion)
+        assertEquals(3, second.schemaVersion)
         assertEquals(4, second.settings.size)
     }
 }
