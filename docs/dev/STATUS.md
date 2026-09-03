@@ -230,7 +230,13 @@
 2. GUI 复跑 `JAVA_TOOL_OPTIONS="-Dskiko.renderApi=SOFTWARE_FAST" ./gradlew :app:run`：启动见「安全提示」降级模态（本机 dbus 在但无 Secret Service 提供方 → 钥匙串不可用为预期）+ 两行脱敏日志（hello-chain / bootstrap ok）；
 3. 二次启动：**降级模态仍会弹出**（FILE_FALLBACK 期间安全提示常驻，属 T1.1 语义；钥匙串恢复后自然消失）——重点核对日志为「master key loaded from degraded key file」（重启可解锁、密钥复用）；
 4. FatalWindow 两条路径（任选其一验证，验后恢复）：把 master.key 内容改成非 64 位 hex（如 0 字节/乱码）启动 → 「本地密钥文件异常」；把 master.key 换成**另一个有效的 64 位 hex 密钥**（或把数据目录 db 换成别的加密库）启动 → 「无法解锁本地数据库」；
-5. 核对模块记录 §4 实测证据（KDF 耗时表 / SQLCipher 探针 / 冒烟记录）。
+5. 核对模块记录 §4 实测证据（三组，均给出复跑命令）：
+   ① **KDF 耗时表**：`./gradlew :domain:kdfBenchmark`——本机期望 64MiB/t3/p1 ≈ 169ms（best-of-3，允许 ±30% 浮动；该行即「登录 1 次派生」预算基准，4GB 双核目标机复核为 M2 门项）；
+   ② **SQLCipher 探针**：探针为一次性临时程序（未入库），库内等价守护 = `./gradlew :data:test --tests "*SqlCipherDatabaseTest*"`（文件头非明文 / 错钥类型化 NOTADB / WAL·busy·foreign_keys / 重启解锁）；CI 三平台同套测试已绿（run 33656880538 ca6e69b、33716830925 7fff251）；
+   ③ **冒烟记录**：本验收步骤 2/3 的两次运行即为复现（窗口+降级模态+两行脱敏日志+密钥复用）；
+   另可交叉核对 docs/dev/modules/M1评审报告.md「二、独立复跑实证」（无缓存全量 30 任务绿 + 测试计数）。
+
+**人工验收进度（2026-09-03）**：步骤 0–4 已完成——① 两遍 `:app:run` 均弹主窗口 + 「安全提示」降级模态（15:18/15:20，日志 bootstrap ok + 密钥复用）；② 步骤 4 两条 FatalWindow 路径实测触发（15:26 损坏 master.key → 「本地密钥文件异常」；15:27 换有效异密钥 → 「无法解锁本地数据库」，日志见 ~/.wuzhufolio/logs）；③ 步骤 4 验后已还原原密钥 ae3046… 并复验启动健康（19:44 窗口驻留 rc=124）。**步骤 5（§4 证据核对）操作说明已内嵌本段上方步骤 5**；M1 维持待审核，待人工完成步骤 5 后给出通过结论。
 
 **遗留问题（转 M2 注意清单，详见模块记录 §5）**：目标机 KDF 复核（≤2s）/ 三平台 CI 实证待推送观察 / M0 明文开发库不兼容（移走重生成）/ M5 设备密钥条目 / B1 恢复页随 M2/M9 / 降级模式迁回钥匙串入口（登记）。
 
