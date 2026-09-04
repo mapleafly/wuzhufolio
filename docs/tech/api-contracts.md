@@ -146,6 +146,13 @@ interface SettingsService {
 }
 ```
 
+> **M4 补录（计算引擎 · domain/engine，2026-09-04，模块记录 M4.md）**：重放/指标/费率/校准为纯领域服务——
+> `ReplayEngine.replay/validateMutation`、`PortfolioCalculator.compute`、`FeeCalculator.feeFor + FeeRateResolver`、
+> `ReconciliationService.classifySources/plan`（类型与语义见 domain/engine 包 KDoc）。**事件构造层**（DB 行 →
+> LedgerEvent：币 FK → cg_id 解析、leg/fee/flow 折算价解析与 PENDING 标记）及「保存/编辑/删除 → 构造双列表
+> 调 validateMutation + 违例文案映射（REPLAY_CONFLICT / INSUFFICIENT_BALANCE / INSUFFICIENT_POSITION）」归 M7/M8；
+> 引擎数值基准 = PRD 附录 A 黄金用例 1–9、12（全绿，见模块记录 M4.md §3）。
+
 ## 4. 错误码与提示文案映射（统一异常处理）
 
 | code | 场景 | UI 文案（PRD 统一异常处理） |
@@ -172,4 +179,5 @@ interface SettingsService {
 | 行情请求/退避/额度（真实端点） | 全局说明「行情数据与时间分辨率规则」 | §5 |
 | 交易所端点/去重/500 条 | 故事 4.1、§10 注 | §1/§6 |
 | 错误码→文案 | 全局说明「统一异常处理」 | — |
+| 引擎事件化/重放/指标/费率/校准（M4） | 全局说明「成本计算规范」「持仓校准规则」、故事 7.1/6.4、附录 A | §2 |
 | 内部服务接口 | ia.md 页面清单、flows.md 状态机 | — |

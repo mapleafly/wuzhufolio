@@ -6,10 +6,10 @@
 
 ## 当前阶段
 
-- **当前状态**：**P4 分模块开发 ⏩ 进行中——M3 币种主数据 ✅ 已通过（2026-09-03 人工「T3 验收通过…确认 M3 通过」）**；下一模块 M4 计算引擎已解锁为「进行中」，待人工「执行P4-M4」启动指令。P0–P3 均已关闭。
+- **当前状态**：**P4 分模块开发 ⏩ 进行中——M4 计算引擎 ⏳ 待审核（2026-09-04 产出，停人工门）**；M1/M2/M3 均已通过。P0–P3 均已关闭。
 - **推进顺序**：先桌面端，后移动端。**P1–P8 只针对桌面端或两端共同部分；移动端相关工作放到下一个版本。**（移动端相关技能/技术方案/开发待桌面端主线稳定后再启用。）
 - **前序待审核项已关闭（2026-08-30，人工启动指令）**：① 项目级安装 huashu-design；② P1 新增「设计原型图」步骤；③ P1–P8 huashu-design 用途分析--已随人工「开始执行P1」指令一并拍板（固化为 `AGENTS.md` §7.1/§7.2）。
-- **下一人工门**：**M4 计算引擎（T4.1 ReplayEngine / T4.2 PortfolioCalculator / T4.3 FeeCalculator / T4.4 ReconciliationService）**——验收标准见 docs/tech/task-breakdown.md §3 M4 + 里程碑门槛「黄金用例 1–9、12 通过」；依赖 T1（已过）；待人工「执行P4-M4」启动指令。
+- **下一人工门**：**M4 计算引擎验收（T4.1 ReplayEngine / T4.2 PortfolioCalculator / T4.3 FeeCalculator / T4.4 ReconciliationService）**——验收标准见 task-breakdown §3 M4 + docs/dev/modules/M4.md §3/§4；里程碑门槛「黄金用例 1–9、12 通过」已全绿（190 测试 0 失败）；待人工按 M4.md §4 验收（重点：§5 规格裁决 10 条）并给出通过结论。
 
 ## 阶段总览
 
@@ -19,7 +19,7 @@
 | P1 | 产品与交互设计 | ✅ 已通过 | docs/design/（含 prototype/*.html + 截图 + 验证脚本） | 主版唯一真源（内置双主题）；登录链路已补齐；三轮评审 V1/V2/V3 问题全部闭环；2026-08-31 人工终审通过 |
 | P2 | 技术方案 | ✅ 已通过 | `docs/tech/`（architecture + 6 ADR + data-model + api-contracts + task-breakdown + P2评审报告） | 2026-08-31 人工拍板三项关闭；全部 ADR 转人工拍板采纳 |
 | P3 | 工程脚手架 | ✅ 已通过 | 代码骨架 + CI + dev-setup + hello 链路 + 迁移框架 + UI 基座（内嵌 CJK 字体）；Gradle 8.14.4；P3评审报告 | 2026-09-01 完成 M0 + 验收修复轮 + 评审闭环；人工「P3 通过」关闭 |
-| P4 | 分模块开发 | 进行中 | 代码 + `docs/dev/modules/` | M1 ✅、M2 ✅、M3 ✅（2026-09-03 人工通过）；下一模块 = M4（已解锁，待启动指令） |
+| P4 | 分模块开发 | 进行中 | 代码 + `docs/dev/modules/` | M1 ✅、M2 ✅、M3 ✅；**M4 ⏳ 待审核（2026-09-04 产出，停人工门）**；下一模块待人工验收 M4 后解锁 |
 | P5 | 集成与联调 | 未开始 | `docs/test/integration-report.md` | |
 | P6 | 系统测试与质量 | 未开始 | `docs/test/` | |
 | P7 | 发布 | 未开始 | `docs/release/` | |
@@ -284,6 +284,34 @@
 
 **建议的下一步**：人工审核 M3 → 通过后解锁 **M4 计算引擎**（T4.1–T4.4；依赖 T1；M5/M6/M7 亦依赖本模块 CoinCatalog）。
 
+## P4 · M4 计算引擎（⏳ 待审核--2026-09-04 完成，停人工门）
+
+> 启动记录：人工原话「执行P4-M4」（2026-09-04）。范围 = task-breakdown M4（T4.1 ReplayEngine / T4.2 PortfolioCalculator / T4.3 FeeCalculator / T4.4 ReconciliationService；纯领域模块，无建表/UI 改动）。**模块记录：docs/dev/modules/M4.md**（实现摘要 / 文件清单 / 验收清单 / 规格裁决 / 遗留）。
+
+**产物清单（代码 + 测试，全量绿）**：
+
+- **T4.1 ReplayEngine**：LedgerEvent 三态事件化（Trade/Fund/Anchor，折算值随事件、引擎无价格 IO）+ 全量重放（持仓/均价/已实现逐笔/累计增资撤资）+ 校准锚点强制对齐；STRICT（手动路径抛 NegativePositionException）/ LENIENT（导入路径记违例 + 持仓异常标记）两策略 + `validateMutation` 相对校验（仅拦「操作新制造」的负边界，黄金 6 修复路径不被误拦）
+- **T4.2 PortfolioCalculator**：净值（缺价不计）/可用现金（稳定币白名单，默认 USDT/USDC/DAI/TUSD，可注入）/投入本金（净）/总收益/ROI（累计增资=0 → null 显 "--"）/已实现/未实现/币种级明细
+- **T4.3 FeeCalculator**：费率优先级（交易所 > 全局，FeeRateResolver）+ 三币种基数（quote=费率×总价 / base=费率×数量 / 第三币种=总价基数按行情价折算为该币种数量）+ 缺价 null（PENDING 语义）
+- **T4.4 ReconciliationService**：单一来源判定（仅交易事件计源：Manual/CSV/Exchange；SingleExchange 可校准、Multi 隐藏入口）+ 校准差额规划（方向分派/折算值/市价前提 CalibrationPriceUnavailableException）
+- **黄金用例 1–9、12 全绿**（里程碑门槛）：①建仓/已实现 4,915、均价 50,050 ②增资撤资零盈亏 ③撤资 ROI 50% ④再增资 ROI 25% ⑤第三币种手续费（BNB 联动扣减裁决，见规格裁决 3）⑥CSV 负持仓补增资消除（含晚于卖出的补录路径）⑦调小/删除增资被校验阻止 ⑧负差额校准恒等式（总收益校准前后一致）+ 锚点不回滚 ⑨PENDING 估算→回填重算 ⑫法币交易对归一联动
+- 测试：domain 63 → **124**（engine 包新增 61：GoldenCasesTest 11 + ReplayEngineTest 22 + PortfolioCalculatorTest 10 + FeeCalculatorTest 9 + ReconciliationServiceTest 9）+ data 49 + ui 17 = **190 全绿 0 失败**；detekt 0；编译警告 0；无缓存 clean build 实测绿
+- docs/tech/api-contracts.md §3 补录引擎契约注 + 回溯行（事件构造层归 M7/M8，先例 M3）
+
+**本次改了什么**：见模块记录 §1（四任务实现摘要 + §5 规格裁决 10 条，重点：记账单位 = 基础法币且折算值事件化、第三币种手续费「联动扣减」勘误裁决、负持仓校验相对语义、单一来源仅计交易事件）。
+
+**怎么验收（人工）**：
+
+1. docs/dev/modules/M4.md §3 验收清单逐项核对（黄金用例关键数值轨迹已内嵌）；重点走读 §5 规格裁决 10 条是否认可。
+2. 复跑：`export JAVA_HOME=$(mise where java) && ./gradlew clean build detekt`（190 测试 0 失败 + detekt 0 + 警告 0）。
+3. 黄金用例聚焦：`./gradlew :domain:test --tests "com.wuzhufolio.domain.engine.GoldenCasesTest"`（11 项）；引擎全量：`--tests "com.wuzhufolio.domain.engine.*"`（61 项）。
+4. GUI 冒烟不适用（M4 纯领域、无 UI/schema 改动，M3 先例口径）。
+5. 对照 PRD 附录 A 口算核对引擎断言值。
+
+**遗留问题（转后续模块，详见模块记录 §6）**：事件构造层接线（M6/M7/M8：FK→cg_id、折算价解析、双列表 validateMutation + V5/V7/V9 文案映射）；现价注入（M5/M12）；费率 CRUD 接线（M7/M10）；校准执行流（M8，含多来源提示）；校验宽松口径 UX 复核（M8）；CI 三平台复跑回归待推送。
+
+**建议的下一步**：人工审核 M4 → 通过后解锁下一模块（建议 M5 行情链路：M7/M8 事件构造折算解析依赖 M5 快照/回填；并行面 M10/M11 亦可先行，最终由人工拍板）。
+
 ## P0 需求基线（✅ 已通过--两端 + 跨端规范全部定稿）
 
 产物清单（只读基准，不得改动）：
@@ -323,7 +351,7 @@
 
 ## 当前阻塞点
 
-- **P4-M4 待启动指令**：M3 已于 2026-09-03 人工验收通过并关闭 ✅（129 测试 0 失败、detekt 0、GUI schema=5 迁移实证）；M4 计算引擎（T4.1–T4.4）解锁为进行中，待人工「执行P4-M4」启动指令。转 M4 注意清单：M3 遗留（搜索扫描优化、status 维护/无行情归 M6、cmc_id 对齐归 M5、排名提供者归 M5、CI 三平台复跑待推送）+ M2 遗留（向导占位 M6/M7/M9、枚举开关 UI M10、顶栏/下拉/眼睛 M12）+ 4GB 目标机 KDF 复核改为 M13 前开放待办。
+- **P4-M4 待人工验收**：M4 计算引擎已于 2026-09-04 产出并置「待审核」（190 测试 0 失败、detekt 0、警告 0；**黄金用例 1–9、12 全绿**；模块记录 docs/dev/modules/M4.md——§5 规格裁决 10 条含第三币种手续费「联动扣减」勘误裁决，请人工重点走读）。验收通过后解锁下一模块（建议 M5 行情链路，见 M4.md §7）。转后续模块注意清单：M4 遗留（事件构造层接线归 M6/M7/M8、现价注入归 M5/M12、费率 CRUD 接线归 M7/M10、校准执行流归 M8、校验宽松口径复核归 M8）+ M3 遗留（搜索扫描优化、status 维护/无行情归 M6、cmc_id 对齐归 M5、排名提供者归 M5、CI 三平台复跑待推送）+ M2 遗留（向导占位 M6/M7/M9、枚举开关 UI M10、顶栏/下拉/眼睛 M12）+ 4GB 目标机 KDF 复核改为 M13 前开放待办。
 
 ## 技能盘点结论（2026-08-30 更新）
 
@@ -385,3 +413,4 @@
 | 2026-09-03 | Agent | **执行 P4-M3 币种主数据** | 人指令「执行P4-M3」；M004 coins（v4）+ M005 exchange_coin_map（v5）+ contracts 勘误列；SqlCoinCatalog（检索/目录每日缓存 upsert/cmc_id）；CoinResolver 四级消歧（上下文/合约/排名/候选）+ AUTO 固化/MANUAL 冻结复用；FiatNormalizer（USD→USDT、EUR→EURC 孪生表 + 第三币种）；129 测试 0 失败 + detekt 0 + 警告 0 + GUI schema=5 迁移实证；模块记录 docs/dev/modules/M3.md；**P4 维持进行中，M3 置待审核，停人工门** |
 | 2026-09-03 | 人 + Agent | **M3 核对②通过 + data-model 勘误回写** | 人工核对「抽查 DDL 与 data-model 一致性」通过并认可 contracts 勘误；按指令回写 data-model §2.9（contracts 列 + 溯源注记）；M3.md §3-8/§5-1 落档 |
 | 2026-09-03 | 人 | **通过 M3** | 原话「T3验收通过。1235测试通过。4未测试」+ 确认「确认 M3 通过，解锁 M4」——M3 ✅ 已通过（步骤 4 GUI 冒烟·可选未复测，Agent 冒烟证据在案不阻断）；contracts 勘误已回写 data-model §2.9；M4 计算引擎解锁为进行中，待「执行P4-M4」启动指令 |
+| 2026-09-04 | Agent | **执行 P4-M4 计算引擎** | 人指令「执行P4-M4」；domain/engine 七文件（LedgerModels/ReplayEngine/PortfolioCalculator/FeeCalculator/ReconciliationService/LedgerMath/EngineErrors）+ api-contracts §3 补录；四任务实现摘要见 docs/dev/modules/M4.md；**黄金用例 1–9、12 全绿** + 引擎语义补充测试 61 项（domain 63→124）；无缓存 clean build 190 测试 0 失败 + detekt 0 + 编译警告 0；§5 规格裁决 10 条（含第三币种手续费联动扣减勘误裁决）待人工走读；模块记录 docs/dev/modules/M4.md；**P4 维持进行中，M4 置待审核，停人工门** |
