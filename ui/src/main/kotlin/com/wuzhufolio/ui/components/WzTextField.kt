@@ -13,6 +13,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.wuzhufolio.ui.theme.WzTheme
@@ -33,6 +35,8 @@ fun WzTextField(
     /** 密码掩码（打点显示；本产品密码一律走掩码输入，M2 验收修复）。 */
     isPassword: Boolean = false,
     testTag: String? = null,
+    /** 弹窗内自动聚焦（GUI 共性约束 7.3-②：首输入框打开即聚焦，键盘立即可用）。 */
+    fieldFocusRequester: FocusRequester? = null,
 ) {
     val colors = WzTheme.colors
     Column(modifier = modifier) {
@@ -43,6 +47,7 @@ fun WzTextField(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 4.dp)
+                .then(if (fieldFocusRequester != null) Modifier.focusRequester(fieldFocusRequester) else Modifier)
                 .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
             placeholder = { Text(placeholder, color = colors.ink3) },
             isError = error != null,

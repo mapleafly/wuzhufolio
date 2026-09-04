@@ -62,12 +62,24 @@ class DefaultMarketRefreshService(
     ): MarketRefreshResult = flight.withLock {
         logger.info("market refresh started manual={}", manual)
         val keys = keyStatusOf()
+        // 目录过期则先维护；失败不阻断当前价（已有目录可继续），但原因需随结果上浮——
+        // 否则「币不在目录」路径会把限流/网络误报成「暂无行情」（GUI 验收 5/6 反馈，修复轮）
+        var directoryFailure: MarketRefreshError? = null
         if (!directoryFresh()) {
-            runCatching { refreshDirectory(keys) }
-                .onFailure { logger.warn("directory refresh failed: {}", it.message) }
+            try {
+                refreshDirectory(keys)
+            } catch (e: MarketApiException) {
+                directoryFailure = e.kind
+                logger.warn("directory refresh failed: {}", e.kind)
+            } catch (t: Throwable) {
+                directoryFailure = MarketRefreshError.Network(PriceSource.COINGECKO)
+                logger.warn("directory refresh failed: {}", t.message)
+            }
         }
         val targets = (coins.ifEmpty { MarketConfig.DEFAULT_FALLBACK_COINS }).distinct()
-        val result = fetchCurrentWithFallback(targets, fiats.ifEmpty { defaultFiats() }, keys)
+        val result = fetchCurrentWithFallback(
+            targets, fiats.ifEmpty { defaultFiats() }, keys, directoryFailure,
+        )
         last = result
         logger.info(
             "market refresh finished source={} coins={} untracked={} error={}",
@@ -95,6 +107,7 @@ class DefaultMarketRefreshService(
         targets: List<String>,
         fiats: List<String>,
         keys: MarketKeyStatus,
+        directoryFailure: MarketRefreshError? = null,
     ): MarketRefreshResult {
         val cgKey = if (keys.cgConfigured) keyStore.get(MarketConfig.KEY_CG, MarketConfig.PURPOSE_CG) else null
         val cmcKey = if (keys.cmcConfigured) keyStore.get(MarketConfig.KEY_CMC, MarketConfig.PURPOSE_CMC) else null
@@ -107,7 +120,8 @@ class DefaultMarketRefreshService(
 
         val byCg = resolveCoinIds(targets)
         if (byCg.isEmpty()) {
-            return emptyResult(targets, keys)
+            // 币集不可解析：目录刚失败（目录为空/不可达）→ 上浮真实原因，避免误报「暂无行情」
+            return emptyResult(targets, keys, directoryFailure)
         }
 
         // 主源 CG（分批；首错即停——源级故障直接转兜底）
@@ -177,9 +191,14 @@ class DefaultMarketRefreshService(
         )
     }
 
-    private fun emptyResult(targets: List<String>, keys: MarketKeyStatus) = MarketRefreshResult(
+    private fun emptyResult(
+        targets: List<String>,
+        keys: MarketKeyStatus,
+        directoryFailure: MarketRefreshError?,
+    ) = MarketRefreshResult(
         at = null, source = null, refreshedCoins = 0,
-        untracked = targets, quotaPercentUsed = quotaPercentOf(keys), error = null,
+        untracked = targets, quotaPercentUsed = quotaPercentOf(keys),
+        error = directoryFailure,
         cgConfigured = keys.cgConfigured, cmcConfigured = keys.cmcConfigured,
     )
 

@@ -2,6 +2,7 @@ package com.wuzhufolio.ui.market
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -128,6 +129,11 @@ class MarketSettingsPageUiTest {
         val settings = FakeSettings()
         setContent { MarketSettingsPage(settings, FakeRefresh()) }
         onNodeWithTag("row-cg-key-action").performClick()
+        onNodeWithTag("market-key-modal").assertIsDisplayed()
+        // 共性约束 7.3-②：打开即聚焦首输入框（键盘/IME 立即可用，无需先点按）
+        waitUntil(timeoutMillis = 2_000) {
+            runCatching { onNodeWithTag("market-key-input").assertIsFocused() }.isSuccess
+        }
         onNodeWithTag("market-key-input").performTextInput("cg-demo-key")
         onNodeWithTag("market-key-save").performClick()
         waitUntil(timeoutMillis = 2_000) { settings.status.cgConfigured }
@@ -163,5 +169,15 @@ class MarketSettingsPageUiTest {
         waitUntil(timeoutMillis = 3_000) { refresh.refreshCalls == 1 }
         onNodeWithTag("market-source-status").assertIsDisplayed()
         onNodeWithText(MarketCopy.SOURCE_CMC, substring = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun `source indicator reflects configured key before any refresh`() = runComposeUiTest {
+        val settings = FakeSettings().apply { status = MarketKeyStatus(cgConfigured = true, cmcConfigured = false) }
+        setContent { MarketSettingsPage(settings, FakeRefresh()) }
+        // 修复轮：已配置 Key（保存即生效）但尚无刷新 → 专属额度 + （尚无刷新）
+        waitUntil(timeoutMillis = 2_000) {
+            textCount(MarketCopy.SOURCE_CG_KEYED + "（尚无刷新）") >= 1
+        }
     }
 }

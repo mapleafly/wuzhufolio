@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -99,6 +100,7 @@ fun MarketSettingsPage(
                 )
             }
             SourceStatusStrip(
+                keyStatus = state.keyStatus,
                 lastRefresh = state.lastRefresh,
                 refreshBusy = state.refreshBusy,
                 onRefresh = vm::refreshNow,
@@ -227,6 +229,7 @@ private fun FrequencyRow(minutes: Int, onSelect: (Int) -> Unit) {
 /** 数据源指示 + 上次价格 + 手动刷新（原型状态栏语义的子集；全量状态栏随 M12）。 */
 @Composable
 private fun SourceStatusStrip(
+    keyStatus: MarketKeyStatus,
     lastRefresh: MarketRefreshResult?,
     refreshBusy: Boolean,
     onRefresh: () -> Unit,
@@ -238,19 +241,20 @@ private fun SourceStatusStrip(
             .padding(top = 8.dp)
             .testTag("market-source-status"),
     ) {
-        val sourceText = when (lastRefresh?.source) {
+        // 数据源指示以「当前 Key 配置」为基准（保存即生效，修复轮）；刷新注解区分从未刷新/尚未成功
+        val sourceBase = when (lastRefresh?.source) {
             PriceSource.COINMARKETCAP -> MarketCopy.SOURCE_CMC
-            null -> if (lastRefresh == null) {
-                MarketCopy.SOURCE_CG_KEYLESS + "（尚无刷新）"
-            } else {
-                MarketCopy.SOURCE_CG_KEYLESS + "（尚无成功刷新）"
-            }
-            else -> if (lastRefresh.cgConfigured) MarketCopy.SOURCE_CG_KEYED else MarketCopy.SOURCE_CG_KEYLESS
+            else -> if (keyStatus.cgConfigured) MarketCopy.SOURCE_CG_KEYED else MarketCopy.SOURCE_CG_KEYLESS
+        }
+        val refreshNote = when {
+            lastRefresh == null -> "（尚无刷新）"
+            lastRefresh.at == null -> "（尚无成功刷新）"
+            else -> ""
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(text = MarketCopy.SOURCE_PREFIX, color = colors.ink3, style = WzTheme.typography.caption)
             Text(
-                text = sourceText,
+                text = sourceBase + refreshNote,
                 color = colors.ink,
                 style = WzTheme.typography.body,
                 modifier = Modifier.padding(start = 8.dp),
@@ -312,7 +316,15 @@ private fun KeyModal(
     onClose: () -> Unit,
 ) {
     val colors = WzTheme.colors
-    WzModal(title = title, onDismiss = onClose, width = 460.dp, testTag = "market-key-modal") {
+    // GUI 共性约束 7.3-②：含输入框的弹窗打开即聚焦首输入框（键盘/IME 立即可用，无需先点按）
+    val fieldFocus = remember { FocusRequester() }
+    WzModal(
+        title = title,
+        onDismiss = onClose,
+        width = 460.dp,
+        testTag = "market-key-modal",
+        initialFocusRequester = fieldFocus,
+    ) {
         Column(modifier = Modifier.padding(top = 4.dp)) {
             Text(text = hint, color = colors.ink2, style = WzTheme.typography.caption)
             Row(
@@ -330,6 +342,7 @@ private fun KeyModal(
                 error = error,
                 modifier = Modifier.padding(top = 8.dp),
                 testTag = "market-key-input",
+                fieldFocusRequester = fieldFocus,
             )
             Row(
                 modifier = Modifier

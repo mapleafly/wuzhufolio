@@ -11,7 +11,7 @@ import java.nio.file.Files
 /**
  * M5 数据层测试环境：临时 SQLCipher 库（schema 6）+ 种子币目录（含 cmc_id）+ 快照仓库 + 设置仓库。
  */
-internal class MarketTestEnv : AutoCloseable {
+internal class MarketTestEnv(seed: Boolean = true) : AutoCloseable {
 
     val db: WzDatabase = WzDatabase(
         Files.createTempDirectory("wuzhufolio-market").resolve("market.db"),
@@ -25,7 +25,7 @@ internal class MarketTestEnv : AutoCloseable {
 
     init {
         db.migrateToLatest()
-        seedDirectory()
+        if (seed) seedDirectory()
     }
 
     fun seedDirectory(entries: List<CoinDirectoryEntry> = DEFAULT_ENTRIES) {

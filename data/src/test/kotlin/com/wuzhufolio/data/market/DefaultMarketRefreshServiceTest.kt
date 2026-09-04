@@ -188,4 +188,31 @@ class DefaultMarketRefreshServiceTest {
         assertEquals(0, cg.currentCalls)
         assertNull(result.error)
     }
+
+    // ---- 目录失败 + 币集不可解析：上浮真实原因（GUI 验收 5/6 反馈修复，避免误报「暂无行情」） ----
+
+    @Test
+    fun `directory failure with unresolvable coins surfaces the cause`() = runBlocking {
+        MarketTestEnv(seed = false).use { env ->
+            val cgFake = FakeMarketClient("cg")
+            cgFake.directoryError = MarketRefreshError.RateLimited(PriceSource.COINGECKO, keylessHint = true)
+            val service = DefaultMarketRefreshService(
+                cgClient = cgFake,
+                cmcClient = FakeMarketClient("cmc"),
+                catalog = env.catalog,
+                snapshots = env.snapshots,
+                keyStore = env.deviceStore,
+                settings = env.settings,
+                quota = SettingsQuotaLedger(env.settings),
+                rankCache = RefreshableRankProvider(),
+            )
+            val result = service.refresh(manual = true, coins = listOf("tether"), fiats = listOf("USD"))
+            val error = assertIs<MarketRefreshError.RateLimited>(result.error)
+            assertTrue(error.keylessHint, "上浮目录失败原因为限流提示（含注册个人 Key 建议）")
+            assertEquals(listOf("tether"), result.untracked)
+            assertEquals(0, result.refreshedCoins)
+            assertNull(result.at)
+            assertTrue(cgFake.directoryCalls == 1)
+        }
+    }
 }
