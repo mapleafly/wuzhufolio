@@ -75,7 +75,7 @@ data class PairInfo(val symbol: String, val baseAsset: String, val quoteAsset: S
 |------|------|------|
 | `validateCredentials()` | `GET /api/v3/account` | 签名验证密钥（PRD §9.10） |
 | `fetchBalances()` | `GET /api/v3/account` | 余额（校准数据源） |
-| `fetchTrades(symbols, since?, cursor?)` | `GET /api/v3/myTrades` | **逐 symbol**（必传）+ `limit≤500` + `fromId`/时间分页；symbol 集合与权重预算见 ADR-004 §3.1 |
+| `fetchTrades(symbol, sinceId?, limit)` | `GET /api/v3/myTrades` | **逐 symbol**（必传）+ `limit≤500` + `fromId` 增量游标（sinceId=已同步最大成交 id）；symbol 集合与权重预算见 ADR-004 §3.1（M6 实现细化） |
 | `fetchPairs()` | `GET /api/v3/exchangeInfo` | pair 注册表（公开） |
 
 认证：头 `X-MBX-APIKEY` + 查询 `timestamp`（毫秒）+ `recvWindow`（默认 5000）→ `signature=HMAC-SHA256(queryString, secret)`。
@@ -164,6 +164,16 @@ interface SettingsService {
 > 未写入=默认种子=稳定币白名单；目录解析读时清理不改写存储、损坏自愈回默认）+ `MarketQuotesService`（行 = coins 目录
 > + `price_snapshots.latest(coin, fiat)`，缺行 = 「无行情」）+ `MarketSettingsService.baseFiat()`（行情页计价）。
 > 消费方 `MarketWatchPage`（第六页 QUOTES），复用 `MarketRefreshService.refresh`（币集 = 当前列表）。回溯：D21、ia.md §2.19。
+> **M6 补录（交易所同步实现，2026-09-04，模块记录 M6.md）**：§2 契约已落地并细化为——
+> `ExchangeAdapter`（domain/exchange，凭证绑定实例；validateCredentials/fetchBalances/fetchTrades(symbol,sinceId,limit)/fetchPairs）、
+> `ExchangeError` 类型化错误（InvalidKey/RateLimited/TimestampSkew/SignatureInvalid/Network/Http/Internal）、
+> `ExchangeSyncService`（listKeys/addAndSync/testCredentials/syncNow/recentSyncLogs/syncIntervalMinutes/saveSyncIntervalMinutes）、
+> `ExchangeSyncPolicy`（余额推导 ∪ 已同步 pair 收敛 + ≤120 次调用预算分批）。数据表 M007 api_keys / M008 sync_logs /
+> M009 transactions（schema 6→9）；同步编排见 DefaultExchangeSyncService（每 key 一轮：余额→枚举→增量拉取→币解析冻结→
+> 去重写账本→sync_logs/状态）；真实端点/签名/错误映射对齐 ADR-004 §2（MockEngine 全分支绿）。
+> 实现注：sync 只写交易行（source='BINANCE API'），不覆盖本地持仓；`fetchTrades` 以已同步最大成交 id 为增量游标；
+> 币解析未命中（NotFound/Ambiguous/未收录）跳过并计数（sync_logs message 注明，目录更新/CSV 补录）。回溯：ADR-004、PRD 故事 4.1。
+
 
 ## 4. 错误码与提示文案映射（统一异常处理）
 

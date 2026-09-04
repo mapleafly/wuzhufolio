@@ -97,16 +97,14 @@ class ApiManagementViewModel(private val service: ExchangeSyncService) : ViewMod
     /** 保存（编辑 = 校验 + 覆盖重包；添加 = 校验通过落库 + 立即首次同步）。 */
     fun save(input: ApiKeyInput) {
         if (_state.value.dialogBusy) return
-        if (input.name.trim().isEmpty()) {
-            _state.update { it.copy(dialogError = ApiCopy.ERR_NAME_EMPTY) }
-            return
+        val fieldError = when {
+            input.name.trim().isEmpty() -> ApiCopy.ERR_NAME_EMPTY
+            input.apiKey.trim().isEmpty() -> ApiCopy.ERR_KEY_EMPTY
+            input.secretKey.trim().isEmpty() -> ApiCopy.ERR_SECRET_EMPTY
+            else -> null
         }
-        if (input.apiKey.trim().isEmpty()) {
-            _state.update { it.copy(dialogError = ApiCopy.ERR_KEY_EMPTY) }
-            return
-        }
-        if (input.secretKey.trim().isEmpty()) {
-            _state.update { it.copy(dialogError = ApiCopy.ERR_SECRET_EMPTY) }
+        if (fieldError != null) {
+            _state.update { it.copy(dialogError = fieldError) }
             return
         }
         _state.update { it.copy(dialogBusy = true, dialogError = null) }
@@ -114,8 +112,7 @@ class ApiManagementViewModel(private val service: ExchangeSyncService) : ViewMod
             try {
                 val result = service.addAndSync(input)
                 closeDialog()
-                toast(WzToastKind.Success, ApiCopy.SAVE_AND_SYNC_TOAST)
-                onSyncResult(result)
+                onSaveResult(result)
                 load()
             } catch (e: CredentialValidationFailed) {
                 _state.update { it.copy(dialogBusy = false, dialogError = ApiCopy.errorText(e.validation.kind)) }
@@ -165,6 +162,16 @@ class ApiManagementViewModel(private val service: ExchangeSyncService) : ViewMod
     }
 
     fun dismissToast() { _state.update { it.copy(toast = null) } }
+
+    /** 保存并首次同步完成提示（原型 saveApi toast 口径 + 结果摘要合并，单条 toast）。 */
+    private fun onSaveResult(result: ApiKeySyncResult) {
+        val error = result.error
+        if (error != null) {
+            toast(WzToastKind.Failure, ApiCopy.errorText(error))
+            return
+        }
+        toast(WzToastKind.Success, ApiCopy.SAVE_AND_SYNC_TOAST + " 结果：" + result.message)
+    }
 
     private fun onSyncResult(result: ApiKeySyncResult) {
         val error = result.error

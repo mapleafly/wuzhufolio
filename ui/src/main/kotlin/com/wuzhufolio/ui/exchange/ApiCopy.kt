@@ -47,6 +47,7 @@ object ApiCopy {
     const val TEST_PASSED = "测试请求通过 · 已用该密钥获取账户信息（只读）"
     const val SAVE_BUTTON = "保存"
     const val SAVE_AND_SYNC_TOAST = "密钥已加密保存 · 请清理系统剪贴板 · 立即执行首次同步（增量去重）…"
+    const val SAVE_AND_SYNC_RESULT = "首次同步完成 · 新增 %d"
     const val REMOVED_TOAST = "已移除 API 密钥"
     const val SYNC_DONE_TOAST = "同步完成 · 新增 %d · 去重跳过 %d"
     const val SYNC_PARTIAL_TOAST = "同步完成（部分）· 新增 %d · 剩余 %d 个交易对下轮续传"

@@ -102,9 +102,9 @@ erDiagram
 | base_coin_id | Integer | FK coins.id，保存时冻结 |
 | quote_coin_id | Integer | FK coins.id，保存时冻结 |
 | type | Enum | BUY / SELL |
-| price | Decimal | 成交价 |
-| quantity | Decimal | 数量（base） |
-| fee | Decimal | 手续费（以 fee_currency 计价） |
+| price | TEXT（十进制串） | 成交价。**M6 勘误（随 M009 落 DDL）**：同 price_snapshots.price（SQLite NUMERIC 浮点截断），账本级价格/数量/手续费一律 TEXT 十进制串（BigDecimal 精确读写）；见模块记录 M6 §5 |
+| quantity | TEXT（十进制串） | 数量（base），同上 |
+| fee | TEXT（十进制串） | 手续费（以 fee_currency 计价），同上 |
 | fee_currency | String | 手续费币种 |
 | transaction_time | Timestamp | 交易时间（UTC） |
 | notes | String | 备注 |
@@ -114,6 +114,8 @@ erDiagram
 | price_status | String | OK / PENDING |
 
 索引：account_id、transaction_time。去重键落为部分唯一索引 UNIQUE(account_id, exchange, exchange_order_id) WHERE exchange_order_id IS NOT NULL（数据库层防并发漏重，评审 N1）；无订单号走模糊匹配（时间+交易对+类型+数量+价格）。
+
+> M6 口径：API 同步导入行 source='BINANCE API'、exchange_order_id = 交易所成交 id（Binance myTrades.id，逐笔去重，部分成交 orderId 重复故不用 orderId——规格落档见模块记录 M6 §5）；pair 存展示拼接 "BASE/QUOTE"（原始 symbol 切分以 exchangeInfo 注册表为准，不靠字符串猜测）。
 
 ### 2.6 capital_flows（资金流水表）—— PRD §10-5
 
@@ -201,7 +203,7 @@ erDiagram
 | id | Integer | PK 自增 |
 | coin_id | Integer | FK coins.id |
 | fiat | String | 计价法币 |
-| price | Decimal | 价格 |
+| price | TEXT（十进制串） | 价格。**勘误回写（M5 §5 登记，人工认可随 M6 门执行）**：SQLite NUMERIC 对非整小数落 REAL 有浮点截断风险，落 TEXT 十进制串（BigDecimal 精确读写）——M006 DDL 自始即 TEXT |
 | price_source | String | COINGECKO / COINMARKETCAP |
 | recorded_at | Timestamp | UTC |
 
@@ -236,3 +238,4 @@ erDiagram
 
 - `schema_version` + 迁移脚本管理（PRD §10 末尾）；`.cpro` 内 format_version 独立（ADR-005）。
 - P4 建表严格按本节字段名与约束；字段级加密仅限 api_keys 四列（ADR-002），其余列可索引/排序。
+- M6 落地：M007 api_keys / M008 sync_logs / M009 transactions（schema 6→9）；字段级加密由账户 DEK + FieldCipher（AAD=account_id|api_key_id|column）在服务层完成，库内只存密文（模块记录 M6.md）。

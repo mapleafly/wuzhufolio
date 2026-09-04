@@ -171,18 +171,26 @@ class AuthGateViewModel(private val service: AccountService) {
         }
     }
 
-    /** 向导选择：落到主壳对应页 + 模块预告 toast（M6/M7/M9 落地后替换为真实跳转/弹窗）。 */
+    /**
+     * 向导选择：落到主壳对应页。M6 起「关联交易所 API」为真实路径（落设置页 API 管理分组，
+     * 引导提示替代模块预告）；MANUAL/CSV/RESTORE 占位预告随 M7/M9 替换。
+     */
     fun wizardPick(kind: WizardKind, pageFor: (WizardKind) -> ShellPage) {
         val session = _state.value.session ?: return
-        val module = when (kind) {
-            WizardKind.MANUAL -> AuthCopy.MODULE_MANUAL
-            WizardKind.CSV -> AuthCopy.MODULE_CSV
-            WizardKind.API -> AuthCopy.MODULE_API
-            WizardKind.RESTORE -> AuthCopy.MODULE_RESTORE
-        }
         _shellToPage.value = pageFor(kind)
         scope.launch {
-            showToast(WzToastKind.Failure, String.format(AuthCopy.WIZARD_PICK_TOAST, module))
+            when (kind) {
+                WizardKind.API -> showToast(WzToastKind.Success, AuthCopy.WIZARD_API_READY_TOAST)
+                else -> {
+                    val module = when (kind) {
+                        WizardKind.MANUAL -> AuthCopy.MODULE_MANUAL
+                        WizardKind.CSV -> AuthCopy.MODULE_CSV
+                        WizardKind.RESTORE -> AuthCopy.MODULE_RESTORE
+                        WizardKind.API -> AuthCopy.MODULE_API
+                    }
+                    showToast(WzToastKind.Failure, String.format(AuthCopy.WIZARD_PICK_TOAST, module))
+                }
+            }
             enterShellQuiet(session, service.listAccounts())
         }
     }

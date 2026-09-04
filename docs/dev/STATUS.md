@@ -6,10 +6,10 @@
 
 ## 当前阶段
 
-- **当前状态**：**P4 分模块开发 ⏩ 进行中——M5 行情链路 ✅ 已通过（2026-09-04 人工「M5通过」）**；M1–M5 均已通过（含 D21 行情页增补）。P0–P3 均已关闭。
+- **当前状态**：**P4 分模块开发 ⏩ 进行中——M6 交易所同步 ⏳ 待审核（2026-09-05 产出，停人工门）**；M1–M5 均已通过（含 D21 行情页增补）。P0–P3 均已关闭。
 - **推进顺序**：先桌面端，后移动端。**P1–P8 只针对桌面端或两端共同部分；移动端相关工作放到下一个版本。**（移动端相关技能/技术方案/开发待桌面端主线稳定后再启用。）
 - **前序待审核项已关闭（2026-08-30，人工启动指令）**：① 项目级安装 huashu-design；② P1 新增「设计原型图」步骤；③ P1–P8 huashu-design 用途分析--已随人工「开始执行P1」指令一并拍板（固化为 `AGENTS.md` §7.1/§7.2）。
-- **下一人工门**：**M6 交易所同步（T6.1–T6.4）或并行面 M10 设置与日志**——M5 已通过解锁；验收标准见 task-breakdown §3 M6/M10；依赖面：M6 依赖 T1/T3/T4（全过）、M10 依赖 T1（过）；待人工下达启动指令（建议按依赖图 M6，见 M5.md §7）。
+- **下一人工门**：**M6 交易所同步（T6.1–T6.4）验收**——M6 已产出（模块记录 docs/dev/modules/M6.md，294 执行 0 失败/298 报告）；验收标准见 task-breakdown §3 M6；通过后解锁 M7（交易管理，transactions 表已建）/ 或并行面 M10（设置日志），由人工拍板。
 
 ## 阶段总览
 
@@ -19,7 +19,7 @@
 | P1 | 产品与交互设计 | ✅ 已通过 | docs/design/（含 prototype/*.html + 截图 + 验证脚本） | 主版唯一真源（内置双主题）；登录链路已补齐；三轮评审 V1/V2/V3 问题全部闭环；2026-08-31 人工终审通过 |
 | P2 | 技术方案 | ✅ 已通过 | `docs/tech/`（architecture + 6 ADR + data-model + api-contracts + task-breakdown + P2评审报告） | 2026-08-31 人工拍板三项关闭；全部 ADR 转人工拍板采纳 |
 | P3 | 工程脚手架 | ✅ 已通过 | 代码骨架 + CI + dev-setup + hello 链路 + 迁移框架 + UI 基座（内嵌 CJK 字体）；Gradle 8.14.4；P3评审报告 | 2026-09-01 完成 M0 + 验收修复轮 + 评审闭环；人工「P3 通过」关闭 |
-| P4 | 分模块开发 | 进行中 | 代码 + `docs/dev/modules/` | M1 ✅、M2 ✅、M3 ✅、M4 ✅、**M5 ✅（2026-09-04 人工通过，含 D21 行情页增补）**；下一模块 = M6/M10（已解锁为进行中，待启动指令） |
+| P4 | 分模块开发 | 进行中 | 代码 + `docs/dev/modules/` | M1 ✅、M2 ✅、M3 ✅、M4 ✅、M5 ✅、**M6 ⏳ 待审核（2026-09-05 产出）**；下一模块 = M7/M10（M6 通过后解锁） |
 | P5 | 集成与联调 | 未开始 | `docs/test/integration-report.md` | |
 | P6 | 系统测试与质量 | 未开始 | `docs/test/` | |
 | P7 | 发布 | 未开始 | `docs/release/` | |
@@ -343,6 +343,26 @@
 
 **建议的下一步**：人工审核 M5 → 通过后解锁下一模块（建议按依赖图 **M6 交易所同步** 或并行面 **M10 设置与日志**，由人工拍板）。
 
+## P4 · M6 交易所同步（⏳ 待审核--2026-09-05 产出，停人工门）
+
+> 启动记录：人工原话「执行P4-M6」（2026-09-05）。范围 = task-breakdown M6（T6.1 BinanceAdapter · T6.2 增量同步与去重 · T6.3 sync_logs 与状态 · T6.4 API 管理页）。**模块记录：docs/dev/modules/M6.md**（实现摘要 / 文件清单 / 验收清单 / 规格落档 / 遗留）。
+
+**产物清单（代码 + 测试，全量绿）**：
+
+- **T6.1**：domain/exchange 契约（ExchangeAdapter 凭证绑定实例 + ExchangeTrade/Balance/PairInfo + ExchangeError 类型化错误 + ExchangeLimits 预算常量）+ BinanceAdapter（Ktor+OkHttp 独立客户端；X-MBX-APIKEY + 排序参数 HMAC-SHA256；/account 校验+余额、/myTrades 逐 symbol fromId 增量、/exchangeInfo、/time -1021 自动对时重试）——MockEngine 9 项全分支绿（密钥失效/429/-1021/-1022/网络/三端点载荷解析 + 签名参数断言）
+- **T6.2**：ExchangeSyncPolicy 纯规则（余额推导 ∪ 已同步 pair 收敛 + ≤120 次调用预算分批）+ DefaultExchangeSyncService（单飞；每 key 一轮：解密→余额→注册表→枚举→增量拉取（sinceId=已同步最大 id）→CoinCatalog.resolve AUTO 冻结→transactions 去重写账本→sync_logs+状态）；**M007 api_keys / M008 sync_logs / M009 transactions（schema 6→9）**，transactions 含部分唯一索引防并发漏重
+- **T6.3**：sync_logs 写读（LogRedactor 兜底 + 计数摘要 message，禁密钥/完整响应体）；api_keys.last_sync_time/status OK/FAILED；API 管理页同步中指示 + 最近同步记录
+- **T6.4**：ui/exchange ApiManagementPage + VM + ApiCopy（列表/添加弹窗（测试请求→校验→保存即首次同步）/移除/立即同步/间隔 15/30/60/同步记录）；SettingsSectionsHost 挂载（行情数据源 / API 管理 两段，默认行情保持 M5 首屏；M10 接管后移除）；向导「关联交易所 API」由占位预告改真实路径（M2 遗留替换）
+- 接线：AppBootstrap 共享 ActiveSessionStore + ExchangeServicesBundle（字段加密用账户 DEK）；Main 设置页由 MarketSettingsPage 单页改为 SettingsSectionsHost 组合
+- 测试：domain 156 + data 99 + ui 35 = **294 执行 0 失败（298 报告，4 跳过待 CI）**（exchange：domain 7 / data 17 / ui 7）+ detekt 0 + 编译警告 0；无缓存 clean build 绿
+- GUI 冒烟实证：真实 v6 开发库 → **schema=9**（M007/M008/M009 自动应用）、0 异常、窗口驻留（rc=124）；api-contracts §2/§3 + data-model §2.5/2.11/5 补录与回写
+
+**怎么验收（人工）**：① docs/dev/modules/M6.md §3 逐项打勾（重点走读 §5 规格落档 8 条：新增表编号/price TEXT 勘误回写/成交 id 去重口径/增量游标/UI 挂载偏差/别名唯一/未命中处置/两类 API 隔离）；② 复跑 `./gradlew clean build detekt`（294 执行 0 失败（298 报告，4 钥匙串真实后端跳过待 CI win/mac））；③ GUI 走查（详见模块记录 §4 步骤 4：API 管理空态→添加弹窗首输入框聚焦+键盘录入→空校验/B2 文案→保存即首次同步 toast→立即同步/间隔持久化→行情数据源分组回切）；④ 可选真实 Binance 只读 Key 冒烟（P6 联调项）。
+
+**遗留问题（转后续模块，详见模块记录 §6）**：同步定时循环宿主随 M11（15/30/60 间隔读写已备）；设置页汇合（SettingsSectionsHost 移除）随 M10；transactions 表已建（M009），M7 手动/CSV 复用 + 事件构造层接线；真实 Binance 端到端冒烟留 P5；api_keys 备份去重/DEK 重加密随 M9；CI 三平台复跑待推送。
+
+**建议的下一步**：人工审核 M6 → 通过后解锁 M7 交易管理（transactions 表已就绪）或并行面 M10 设置日志，由人工拍板。
+
 ## P0 需求基线（✅ 已通过--两端 + 跨端规范全部定稿）
 
 产物清单（只读基准，不得改动）：
@@ -388,7 +408,7 @@
 
 ## 当前阻塞点
 
-- **P4-M5 待人工复验/验收**：M5 行情链路 2026-09-04 产出，人工 GUI 验收反馈 3 项已修复（修复轮：WzModal 就地叠加 + 首输入框聚焦、目录失败原因上浮、数据源指示按当前配置；256 测试 0 失败 + detekt 0 + 警告 0）；请按 M5.md §8.3/§8.4 复验（键盘录入/刷新 toast/Key 后显示/真实 Key 刷新）并走读 §5 规格裁决 8 条；**新增 §8.5 行情页复验**：侧边栏六页 → 「行情」页默认 4 现金币行（无价 "--"）→ 「立即刷新行情」出现价格/数据源/时间 → 搜索 btc 添加 BTC（重启保留）→ 移除行 → 观察自动轮询。验收通过后解锁下一模块（建议 M6 或 M10，见 M5.md §7）。转后续模块注意清单：M5 遗留（折算解析接线归 M7、调度循环宿主归 M11、状态栏提示归 M12、设置页汇合归 M10、真实 API 冒烟留 P5）+ M4 遗留（事件构造层接线归 M6/M7/M8、费率 CRUD 接线归 M7/M10、校准执行流归 M8、校验宽松口径复核归 M8）+ M3 遗留（搜索扫描优化、status 维护归 M6、CI 三平台复跑待推送）+ M2 遗留（向导占位 M6/M7/M9、枚举开关 UI M10、顶栏/下拉/眼睛 M12）+ 4GB 目标机 KDF 复核改为 M13 前开放待办。
+- **P4-M6 待人工验收**：M6 交易所同步 2026-09-05 产出（模块记录 docs/dev/modules/M6.md，294 执行 0 失败（298 报告，4 钥匙串真实后端跳过待 CI win/mac） + detekt 0 + 警告 0 + GUI schema=9 冒烟无异常）；请按 M6.md §4 步骤验收（GUI 走查 API 管理分组：空态→添加弹窗聚焦+键盘→空校验/B2→保存即首次同步→立即同步/间隔→行情分组回切）并走读 §5 规格落档 8 条（含 price TEXT 勘误回写 data-model、设置页挂载偏差）。验收通过后解锁 M7/M10（由人工拍板）。转后续模块注意清单：M6 遗留（同步定时宿主归 M11、SettingsSectionsHost 汇合归 M10、transactions 表 M009 已建 M7 复用、真实 Binance 冒烟留 P5、api_keys 备份归 M9、CI 三平台复跑待推送）+ M5 遗留（折算解析接线归 M7、调度循环宿主归 M11、状态栏提示归 M12、真实 API 冒烟留 P5）+ M4 遗留（事件构造层接线归 M7/M8、费率 CRUD 接线归 M7/M10、校准执行流归 M8、校验宽松口径复核归 M8）+ M3 遗留（搜索扫描优化、CI 三平台复跑待推送）+ M2 遗留（手动/CSV/恢复向导占位归 M7/M9、枚举开关 UI M10、顶栏/下拉/眼睛 M12）+ 4GB 目标机 KDF 复核改为 M13 前开放待办。
 
 ## 技能盘点结论（2026-08-30 更新）
 
@@ -460,3 +480,4 @@
 | 2026-09-04 | 人 + Agent | **确立变更控制流程（§8）+ 建台账 + 回填 D21 下游** | 拍板「全做」；AGENTS.md 新增 §8（C0/C1/C2 分级 + C2 红线 + C1 DoD + mini 闭环 + Agent/DSH 约束）+ §2 目录补 decisions/与增量台账.md；新建 `docs/dev/增量台账.md` 登记 D21（C1）；回填 data-model §2.3（watch.coins）/ api-contracts §3（MarketWatch/Quotes 补录）/ task-breakdown（T5.6 + M12 页数 18→19）/ interaction §2.7（行情页异常态）；STATUS 决策 22 落档 |
 | 2026-09-04 | 人 + Agent | **变更控制硬化 + 决策归档** | 拍板「全做」；AGENTS.md §8 硬化（判定流程/轻量修改/删除工作流/影响面扫描/双向入口/amend 链/新增 §8.5/§8.6）+ §2 目录补决策索引 + 台账表头补有效需求版本；建 `docs/dev/decisions/决策索引.md` + 回溯式回填 D1/D16/D17/D18/D20 五档；STATUS 决策 23 落档 |
 | 2026-09-04 | 人 + Agent | **行情页原型补齐（提前还 M12 债）+ 文档闭环** | 拍板「提前还掉」；`wuzhufolio-light.html` 加第六页「行情」（只读列表/搜索添加/移除/手动刷新/自选持久化 localStorage）+ `prototype-verify.js` 加行情页断言（默认 4 行/搜索添加/持久化/移除）+ 设置导航索引 nth(4)→nth(5)；回填 D21 §4 / 台账（prototype ⏳→✅）/ task-breakdown（T5.6 走查验收 + T12.1 六页口径 + 行情页 UI 收尾清单） |
+| 2026-09-05 | Agent | **执行 P4-M6 交易所同步** | 人指令「执行P4-M6」；T6.1–T6.4 产物见 docs/dev/modules/M6.md（domain/exchange 契约 + BinanceAdapter 真实 API/MockEngine 全分支 + 增量去重编排 + M007 api_keys/M008 sync_logs/M009 transactions schema 6→9 + API 管理页挂载设置分组 + 向导 API 卡真实路径）；294 执行 0 失败（298 报告，4 钥匙串真实后端跳过待 CI win/mac） + detekt 0 + GUI schema=9 冒烟；§5 规格落档 8 条（含 price TEXT 勘误回写 data-model）待人工走读；模块记录 docs/dev/modules/M6.md；**P4 维持进行中，M6 置待审核，停人工门** |

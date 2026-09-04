@@ -60,6 +60,9 @@ object AuthCopy {
     const val MODULE_API = "交易所同步"
     const val MODULE_RESTORE = "数据备份恢复"
 
+    // M6：向导「关联交易所 API」已可用（不再占位预告）——落到设置页的 API 管理分组
+    const val WIZARD_API_READY_TOAST = "已进入设置 · 在「API 管理」中添加 Binance 只读密钥后将自动首次同步"
+
     // 忘记密码
     const val FORGOT_TITLE = "忘记密码"
     const val FORGOT_SUBTITLE = "本地加密 · 无法在线找回"
