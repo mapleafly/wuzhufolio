@@ -167,8 +167,9 @@ class ApiManagementViewModel(private val service: ExchangeSyncService) : ViewMod
     fun dismissToast() { _state.update { it.copy(toast = null) } }
 
     private fun onSyncResult(result: ApiKeySyncResult) {
-        if (result.error != null) {
-            toast(WzToastKind.Failure, ApiCopy.errorText(result.error))
+        val error = result.error
+        if (error != null) {
+            toast(WzToastKind.Failure, ApiCopy.errorText(error))
             return
         }
         val text = if (result.partial) {

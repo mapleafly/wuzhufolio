@@ -22,6 +22,8 @@ import com.wuzhufolio.domain.settings.ThemeMode
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
 import com.wuzhufolio.ui.auth.AuthGate
+import com.wuzhufolio.ui.exchange.ApiManagementPage
+import com.wuzhufolio.ui.exchange.SettingsSectionsHost
 import com.wuzhufolio.ui.market.MarketSettingsPage
 import com.wuzhufolio.ui.market.MarketWatchPage
 import com.wuzhufolio.ui.theme.WuzhuTheme
@@ -77,9 +79,16 @@ private fun MainWindow(runtime: AppBootstrap.Runtime, onExit: () -> Unit) {
             usernameEnumEnabled = usernameEnumEnabled(runtime),
             startupNotice = runtime.uiState.securityNotice,
             marketSettingsContent = {
-                MarketSettingsPage(
-                    settingsService = runtime.marketSettingsService,
-                    refreshService = runtime.marketRefreshService,
+                SettingsSectionsHost(
+                    marketContent = {
+                        MarketSettingsPage(
+                            settingsService = runtime.marketSettingsService,
+                            refreshService = runtime.marketRefreshService,
+                        )
+                    },
+                    apiContent = {
+                        ApiManagementPage(service = runtime.exchangeSyncService)
+                    },
                 )
             },
             watchPageContent = {

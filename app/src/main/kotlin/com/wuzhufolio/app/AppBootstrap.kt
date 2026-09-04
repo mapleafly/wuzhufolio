@@ -30,6 +30,14 @@ import com.wuzhufolio.data.market.SettingsMarketWatchService
 import com.wuzhufolio.data.market.SnapshotMarketQuotesService
 import com.wuzhufolio.data.market.SettingsQuotaLedger
 import com.wuzhufolio.data.market.newOkHttpMarketClient
+import com.wuzhufolio.data.exchange.ApiKeyRepository
+import com.wuzhufolio.data.exchange.BinanceAdapter
+import com.wuzhufolio.data.exchange.DefaultExchangeSyncService
+import com.wuzhufolio.data.exchange.ExchangeTransactionRepository
+import com.wuzhufolio.data.exchange.SyncLogRepository
+import com.wuzhufolio.data.exchange.newOkHttpExchangeClient
+import com.wuzhufolio.domain.exchange.ExchangeSyncService
+import com.wuzhufolio.domain.security.CryptoService
 import com.wuzhufolio.domain.market.MarketQuotesService
 import com.wuzhufolio.domain.market.MarketRefreshService
 import com.wuzhufolio.domain.market.MarketSettingsService
@@ -82,10 +90,13 @@ object AppBootstrap {
         /** D21：行情浏览页——自选（持久化）与报价组装。 */
         val marketWatchService: MarketWatchService,
         val marketQuotesService: MarketQuotesService,
+        /** M6：交易所同步用例（API 管理页 + 增量同步 + sync_logs/状态）。 */
+        val exchangeSyncService: ExchangeSyncService,
         private val deviceStore: DeviceSecretStore,
         private val keyring: MasterKeyStore?,
         private val deviceKeyring: MasterKeyStore?,
         private val httpClient: java.io.Closeable,
+        private val exchangeHttpClient: java.io.Closeable,
     ) {
         fun close() {
             runCatching { session.close() }
@@ -93,6 +104,7 @@ object AppBootstrap {
             runCatching { keyring?.close() }
             runCatching { deviceKeyring?.close() }
             runCatching { httpClient.close() }
+            runCatching { exchangeHttpClient.close() }
             db.close()
         }
     }
@@ -113,14 +125,16 @@ object AppBootstrap {
         val settings = SettingsRepository(gate)
         val accountRepository = AccountRepository(gate)
         val rememberStore = RememberMeStoreFactory.open(report.backend, AppDirs.dataDir(), logger)
+        val sessions = ActiveSessionStore()
         val authService: AccountService = DefaultAccountService(
             repository = accountRepository,
             rememberStore = rememberStore,
-            sessions = ActiveSessionStore(),
+            sessions = sessions,
         )
         val hello = HelloChain(db, settings, logger).run()
 
         val market = MarketServicesBundle.run(gate, settings, logger)
+        val exchange = ExchangeServicesBundle.run(gate, settings, sessions, logger)
 
         startKoin { modules(appModule(db, gate, settings)) }
 
@@ -148,10 +162,12 @@ object AppBootstrap {
             marketRefreshService = market.marketRefreshService,
             marketWatchService = market.marketWatchService,
             marketQuotesService = market.marketQuotesService,
+            exchangeSyncService = exchange.exchangeSyncService,
             deviceStore = market.deviceStore,
             keyring = if (report.backend == KeyStorageBackend.OS_KEYCHAIN) keyring else null,
             deviceKeyring = market.deviceKeyring,
             httpClient = market.httpClient,
+            exchangeHttpClient = exchange.httpClient,
         )
     }
 
@@ -208,6 +224,44 @@ object AppBootstrap {
                     deviceKeyring = if (deviceReport.backend == KeyStorageBackend.OS_KEYCHAIN) deviceKeyring else null,
                     httpClient = httpClient,
                 )
+            }
+        }
+    }
+
+    /**
+     * M6 交易所同步服务装配（T6.1–T6.3）：api_keys/sync_logs/transactions 仓库 + 币目录 + 适配器工厂。
+     * exchangeSyncService 用例供 API 管理页（ui/exchange）消费；BinanceAdapter 绑定会话内解密凭证，
+     * 字段级加密（账户 DEK）由 DefaultExchangeSyncService 内完成（ADR-002 §2）。
+     */
+    @Suppress("LongParameterList") // 装配袋（gate/设置/会话/日志），同 Runtime 释放链
+    class ExchangeServicesBundle internal constructor(
+        val exchangeSyncService: ExchangeSyncService,
+        val httpClient: java.io.Closeable,
+    ) {
+        companion object {
+            fun run(
+                gate: DbGate,
+                settings: SettingsRepository,
+                sessions: ActiveSessionStore,
+                logger: Logger,
+            ): ExchangeServicesBundle {
+                val httpClient = newOkHttpExchangeClient()
+                val adapterFactory: (com.wuzhufolio.domain.exchange.ExchangeCredentials) ->
+                com.wuzhufolio.domain.exchange.ExchangeAdapter = { credentials ->
+                    BinanceAdapter(httpClient, credentials)
+                }
+                val syncService: ExchangeSyncService = DefaultExchangeSyncService(
+                    sessions = sessions,
+                    crypto = CryptoService(),
+                    apiKeyRepository = ApiKeyRepository(gate),
+                    syncLogRepository = SyncLogRepository(gate),
+                    transactionsRepository = ExchangeTransactionRepository(gate),
+                    catalog = SqlCoinCatalog(gate),
+                    settings = settings,
+                    adapterFactory = adapterFactory,
+                    logger = logger,
+                )
+                return ExchangeServicesBundle(exchangeSyncService = syncService, httpClient = httpClient)
             }
         }
     }
