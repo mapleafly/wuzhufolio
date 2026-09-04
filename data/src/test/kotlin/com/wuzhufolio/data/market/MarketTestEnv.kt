@@ -9,7 +9,7 @@ import com.wuzhufolio.domain.catalog.CoinDirectoryEntry
 import java.nio.file.Files
 
 /**
- * M5 数据层测试环境：临时 SQLCipher 库（schema 6）+ 种子币目录（含 cmc_id）+ 快照仓库 + 设置仓库。
+ * M5 数据层测试环境：临时 SQLCipher 库（schema 9）+ 种子币目录（含 cmc_id）+ 快照仓库 + 设置仓库。
  */
 internal class MarketTestEnv(seed: Boolean = true) : AutoCloseable {
 

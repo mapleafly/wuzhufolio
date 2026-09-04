@@ -190,6 +190,114 @@ object M006CreatePriceSnapshots : Migration {
     }
 }
 
+/** M007：api_keys API 密钥表（data-model §2.2 / PRD §10-2；账户级）。凭证四列（api_key/secret_key/passphrase/extra）
+ * 由应用层按账户 DEK 字段级加密（FieldCipher v1，AAD=account_id|api_key_id|column——ADR-002 §2），
+ * 库内只存密文；last_sync_time/status 为同步编排状态（OK/FAILED）。 */
+object M007CreateApiKeys : Migration {
+    override val version = 7
+    override val description = "create api_keys table"
+
+    override fun migrate(connection: Connection) {
+        connection.createStatement().use { st ->
+            st.executeUpdate(
+                """
+                CREATE TABLE api_keys (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    account_id INTEGER NOT NULL,
+                    name TEXT NOT NULL,
+                    exchange_name TEXT NOT NULL,
+                    api_key TEXT NOT NULL,
+                    secret_key TEXT NOT NULL,
+                    passphrase TEXT,
+                    extra TEXT,
+                    last_sync_time TEXT,
+                    status TEXT NOT NULL DEFAULT 'OK',
+                    FOREIGN KEY (account_id) REFERENCES accounts(id)
+                )
+                """.trimIndent(),
+            )
+            st.executeUpdate(
+                "CREATE UNIQUE INDEX idx_api_keys_account_exchange_name ON api_keys(account_id, exchange_name, name)",
+            )
+        }
+    }
+}
+
+/** M008：sync_logs 同步日志表（data-model §2.8 / PRD §10-9；账户级）。message 只允许脱敏结果（禁密钥/完整响应体）。 */
+object M008CreateSyncLogs : Migration {
+    override val version = 8
+    override val description = "create sync_logs table"
+
+    override fun migrate(connection: Connection) {
+        connection.createStatement().use { st ->
+            st.executeUpdate(
+                """
+                CREATE TABLE sync_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    account_id INTEGER NOT NULL,
+                    api_key_id INTEGER,
+                    sync_time TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    new_trades_count INTEGER NOT NULL DEFAULT 0,
+                    message TEXT NOT NULL,
+                    FOREIGN KEY (account_id) REFERENCES accounts(id),
+                    FOREIGN KEY (api_key_id) REFERENCES api_keys(id)
+                )
+                """.trimIndent(),
+            )
+            st.executeUpdate("CREATE INDEX idx_sync_logs_account_time ON sync_logs(account_id, sync_time)")
+        }
+    }
+}
+
+/**
+ * M009：transactions 交易记录表（data-model §2.5 / PRD §10-1；账户级）。
+ * 记录口径（M4 引擎消费，模块记录 M4 §5）：base/quote_coin_id 冻结 coins 行 FK；price/quantity/fee 存 TEXT
+ * 十进制串（SQLite NUMERIC 浮点截断风险勘误，与 M006 price TEXT 同源，见模块记录 M5 §5/M6 规格落档）；
+ * 去重键 = (account_id, exchange, exchange_order_id)（exchange_order_id 非空行）——部分唯一索引防并发漏重（评审 N1）。
+ */
+object M009CreateTransactions : Migration {
+    override val version = 9
+    override val description = "create transactions table"
+
+    override fun migrate(connection: Connection) {
+        connection.createStatement().use { st ->
+            st.executeUpdate(
+                """
+                CREATE TABLE transactions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    account_id INTEGER NOT NULL,
+                    exchange TEXT NOT NULL,
+                    exchange_order_id TEXT,
+                    pair TEXT NOT NULL,
+                    base_coin_id INTEGER NOT NULL,
+                    quote_coin_id INTEGER NOT NULL,
+                    type TEXT NOT NULL,
+                    price TEXT NOT NULL,
+                    quantity TEXT NOT NULL,
+                    fee TEXT NOT NULL DEFAULT '0',
+                    fee_currency TEXT,
+                    transaction_time TEXT NOT NULL,
+                    notes TEXT,
+                    created_at TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    uuid TEXT NOT NULL,
+                    price_status TEXT NOT NULL DEFAULT 'OK',
+                    FOREIGN KEY (account_id) REFERENCES accounts(id),
+                    FOREIGN KEY (base_coin_id) REFERENCES coins(id),
+                    FOREIGN KEY (quote_coin_id) REFERENCES coins(id)
+                )
+                """.trimIndent(),
+            )
+            st.executeUpdate("CREATE INDEX idx_transactions_account_time ON transactions(account_id, transaction_time)")
+            st.executeUpdate(
+                "CREATE UNIQUE INDEX idx_transactions_dedup ON transactions(account_id, exchange, exchange_order_id)" +
+                    " WHERE exchange_order_id IS NOT NULL",
+            )
+        }
+    }
+}
+
 /** 全部迁移，按版本升序登记。新迁移只追加、不改历史。 */
 val ALL_MIGRATIONS: List<Migration> = listOf(
     M001CreateSettings,
@@ -198,4 +306,7 @@ val ALL_MIGRATIONS: List<Migration> = listOf(
     M004CreateCoins,
     M005CreateExchangeCoinMap,
     M006CreatePriceSnapshots,
+    M007CreateApiKeys,
+    M008CreateSyncLogs,
+    M009CreateTransactions,
 )

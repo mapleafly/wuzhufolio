@@ -358,7 +358,9 @@
 - `docs/prd/桌面端prd-币种标识与行情源决策分析.md`
 - `docs/prd/桌面端prd-法币方案决策分析.md`
 
-## 已决策事项
+## 已决策事项（D 系编号；全量索引见 docs/dev/decisions/决策索引.md）
+
+> 编号约定（2026-09-04 确立，AGENTS.md §8.6）：D1 开源为历史既定编号（本列表第 4 条）；D16–D22 按「D-N = 本列表第 N 条」；第 1–3、5–15 条为 P0 期事件型决策（无 D 号，权威见交接记录/评审报告/§7.2）；从 D23 起连续编号。
 
 1. **推进顺序**：先桌面端，后移动端。
 2. **P1 暂缓**：P0 需求基线收尾完成前，暂不启动 P1（产品与交互设计）。
@@ -380,7 +382,9 @@
 18. **P2 技术方案拍板通过（2026-08-31，人工）**：① SQLCipher 驱动选型 = Willena/sqlite-jdbc-crypt，P3 三平台验证并锁版，失败回退自维护 JNI 绑官方 sqlcipher（回退路径随拍板确认）；② Flatpak 口径 = 本轮先 AppImage/.deb/.rpm，Flathub manifest 并行推进、P7 前评估是否为硬门槛；③ 任务优先级/顺序 = 按 F3 垂直切片依赖图（M4 引擎先行全绿黄金用例为硬前置）。ADR-001~006 全部转为「人工拍板采纳」；ADR-002 增补 Kotlin 亲和存储栈评审（Room KMP 无桌面端 SQLCipher、Realm 违反 SQLite 约束、SQLDelight 不降低驱动风险——均否决，维持现有方案）与加密严苛度评审（匹配定位；「记住我」令牌语义整改）。**P2 关闭，P3 解锁**。
 19. **开发环境工具链 = mise（2026-08-31，人工）**：开发基准 = WSL2 + Ubuntu 24.04；SDK 优先用已安装的 mise 管理——JDK 17 = `mise use java@temurin-17`（`.mise.toml` 入库）；Gradle 以仓库 Wrapper 为唯一真源（不装全局 gradle）；Kotlin 由 Gradle 插件驱动（不单独安装）；detekt/ktlint 等 CLI 同入 `.mise.toml`；CI 用 setup-java temurin-17 对齐；GUI 冒烟走 WSLg，托盘以三平台 runner + 实机验证为准。已写入 task-breakdown T0.2/T0.3。
 20. **GUI 共性约束（2026-09-04，人工验收确立）**：M2（密码弹窗）与 M5（Key 弹窗）同根缺陷（桌面端 Popup 无法可靠接收键盘输入）→ 固化 `AGENTS.md §7.3`：弹窗一律同窗口就地叠加（WzModal 已统一，禁 Popup 承载交互）、含输入框弹窗传 initialFocusRequester 聚焦首输入框、模块验收必须含 Compose UI 测试 performTextInput+assertIsFocused 与人工键盘录入复验。
-21. **V1.9 范围增补：正式「行情」页（2026-09-04，人工拍板）**：行情刷新后无查看途径（M5 验收反馈）→ 侧边栏第六页「行情」；只读现价列表 + **持久化自选**（settings 全局行 watch.coins，默认种子 = 稳定币白名单）；搜索 coins 目录添加、移除、手动/自动刷新；无图表/交易（Out of Scope 维持）。决策档 docs/dev/decisions/D21-行情浏览页-范围增量.md；ia.md 页面清单已同步（2.19）；PRD 正文只读不改。
+21. **V1.9 范围增补：正式「行情」页（2026-09-04，人工拍板）**：行情刷新后无查看途径（M5 验收反馈）→ 侧边栏第六页「行情」；只读现价列表 + **持久化自选**（settings 全局行 watch.coins，默认种子 = 稳定币白名单）；搜索 coins 目录添加、移除、手动/自动刷新；无图表/交易（Out of Scope 维持）。决策档 docs/dev/decisions/D21-行情浏览页-范围增量.md；ia.md 页面清单已同步（2.19）；PRD 正文只读不改。**下游回填（2026-09-04，变更控制流程确立后）**：data-model §2.3（watch.coins）、api-contracts §3（MarketWatch/Quotes 补录）、task-breakdown T5.6 + M12 页数 18→19、interaction §2.7（行情页异常态）；已登记 `docs/dev/增量台账.md`（级别 C1）。prototype 已补齐（2026-09-04：第六页 + verify 断言，M12 债提前还）。
+22. **变更控制流程（2026-09-04，人工拍板「全做」）**：PRD 锁定后的变更按 **C0 勘误 / C1 增量 / C2 大修改** 分级处置——C0 不建决策档不进台账；C1 = 决策档 + 台账登记 + 下游文档回写 + 代码（DoD 五件套）；C2 = mini-P0/P1/P2 闭环（升 C2 红线五条）。**有效需求 = PRD 定稿版 + `docs/dev/增量台账.md`**；固化为 `AGENTS.md §8`。
+23. **变更控制硬化 + 决策归档（2026-09-04，人工拍板「全做」）**：§8 补判定流程 / 轻量修改 / 删除工作流 / 影响面扫描 / 双向入口 / amend 链 / 编号与有效需求版本（新增 §8.5/§8.6）；建 `docs/dev/decisions/决策索引.md`（D1–D22 全量索引 + 编号约定固化）；回溯式回填第一梯队 5 条活约束决策档（D1/D16/D17/D18/D20）。
 
 ## 当前阻塞点
 
@@ -453,3 +457,6 @@
 | 2026-09-04 | Agent | **M5 修复轮** | ① WzModal 改就地叠加层（禁 Popup）+ initialFocusRequester/fieldFocusRequester 首输入框聚焦；共性约束固化 AGENTS.md §7.3（决策 20）；② 编排上浮目录失败原因（币集不可解析时 error 置位，不再误报「暂无行情」）；③ 数据源指示改按当前 Key 配置 + （尚无刷新）注解；回归 +2 测试（编排失败上浮 / UI 聚焦断言与配置显示）；256 测试 0 失败 + detekt 0 + 警告 0；复验步骤 M5.md §8.3；**M5 维持待审核，停人工门** |
 | 2026-09-04 | Agent | **D21 行情页增补（决策 21）** | 人工拍板「正式行情页（窄版+持久化自选）」（修复轮反馈：刷新后无查看途径）；决策档 docs/dev/decisions/D21 + ia.md §2.19 同步；实现 MarketWatchService（watch.coins 全局行 JSON/上限50/默认种子=白名单/读时清理/损坏自愈）+ MarketQuotesService（latest 快照口径）+ MarketWatchPage（第六页 QUOTES：列表/搜索添加/移除/手动刷新/页面内自动轮询）+ 接线（MainShell/AuthGate/Main/Bootstrap）；data+5、ui+4 测试；267 测试 0 失败 + detekt 0 + 警告 0 + GUI 冒烟 0 异常；**M5 维持待审核，停人工门** |
 | 2026-09-04 | 人 | **通过 M5** | 原话「M5通过」——M5 ✅ 已通过（关闭）：GUI 走查（键盘录入/Key 流程/刷新 toast/真实 Demo Key）、§8.5 行情页复验（六页导航/默认 4 行/刷新出价/搜索添加持久化/移除/自动轮询）、§5 规格裁决 8 条全部认可（含 price TEXT 勘误待回写 data-model 随 M6 门执行）；M6（建议）/M10 解锁为进行中，待启动指令 |
+| 2026-09-04 | 人 + Agent | **确立变更控制流程（§8）+ 建台账 + 回填 D21 下游** | 拍板「全做」；AGENTS.md 新增 §8（C0/C1/C2 分级 + C2 红线 + C1 DoD + mini 闭环 + Agent/DSH 约束）+ §2 目录补 decisions/与增量台账.md；新建 `docs/dev/增量台账.md` 登记 D21（C1）；回填 data-model §2.3（watch.coins）/ api-contracts §3（MarketWatch/Quotes 补录）/ task-breakdown（T5.6 + M12 页数 18→19）/ interaction §2.7（行情页异常态）；STATUS 决策 22 落档 |
+| 2026-09-04 | 人 + Agent | **变更控制硬化 + 决策归档** | 拍板「全做」；AGENTS.md §8 硬化（判定流程/轻量修改/删除工作流/影响面扫描/双向入口/amend 链/新增 §8.5/§8.6）+ §2 目录补决策索引 + 台账表头补有效需求版本；建 `docs/dev/decisions/决策索引.md` + 回溯式回填 D1/D16/D17/D18/D20 五档；STATUS 决策 23 落档 |
+| 2026-09-04 | 人 + Agent | **行情页原型补齐（提前还 M12 债）+ 文档闭环** | 拍板「提前还掉」；`wuzhufolio-light.html` 加第六页「行情」（只读列表/搜索添加/移除/手动刷新/自选持久化 localStorage）+ `prototype-verify.js` 加行情页断言（默认 4 行/搜索添加/持久化/移除）+ 设置导航索引 nth(4)→nth(5)；回填 D21 §4 / 台账（prototype ⏳→✅）/ task-breakdown（T5.6 走查验收 + T12.1 六页口径 + 行情页 UI 收尾清单） |

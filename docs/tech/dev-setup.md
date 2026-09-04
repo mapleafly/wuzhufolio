@@ -31,7 +31,7 @@ export JAVA_HOME=$(mise where java)   # 或让 shell 激活 mise shims
 - [ ] `java -version` 显示 `17.0.x` Temurin（注意 java 在 mise shims/JAVA_HOME 下解析）
 - [ ] `./gradlew build` 通过（21 项测试全绿 + detekt 零问题）
 - [ ] `./gradlew :app:run` 启动 GUI，日志出现 `hello-chain ok | schema_version=2 | ... | market_api_key=****`（脱敏）
-- [ ] 主壳可见侧边栏五页 + 组件走查（DEV）；顶栏 ☾/☀ 切换主题即时重渲染
+- [ ] 主壳可见侧边栏六页（含 D21 行情页）+ 组件走查（DEV）；顶栏 ☾/☀ 切换主题即时重渲染
 
 ## 3. WSL2 注记（重要）
 

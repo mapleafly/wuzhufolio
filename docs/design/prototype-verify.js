@@ -3,6 +3,7 @@
  * 验证对象：docs/design/prototype/wuzhufolio-light.html（单一真源 · 内置明暗双主题）
  * 覆盖：登录链路 4 页（F1）、代理指示（F2）、日志与诊断（F3）、对比度两主题（F4）、
  *       a11y 基线（F5）、原型缺口（F9）、重放引擎数值自洽（F11）、环形图主题重渲染（N5）、
+ *       行情页（D21 增补：默认自选 / 搜索添加 / 持久化 / 移除）、
  *       全量回归（页面/Modal/表单计算/环形图占比/NaN 扫描/双视口溢出/零外部依赖）。
  * 运行（本机示例，Playwright 1.62.1 位于 npx 缓存）：
  *   NODE_PATH=$(find ~/.npm/_npx -maxdepth 3 -name playwright -type d | head -1)/.. \
@@ -124,8 +125,27 @@ const PROTO = 'file://' + path.resolve(__dirname, 'prototype', 'wuzhufolio-light
   T.fundsFilteredByDate = await page.locator('.panel tbody tr').count();
   await page.locator('.toolbar .select').nth(1).selectOption('全部时间');
 
-  // ===== 设置页：F8 主题行 / F2 网络 / F3 日志与诊断 / F9 API 弹窗 =====
+  // ===== D21 行情页（第六页 · 只读列表 + 持久化自选）=====
+  await page.evaluate(() => { try{ localStorage.removeItem('wuzhufolio.watch'); }catch(e){} window.WATCH = ['USDT','USDC','DAI','TUSD']; });
   await page.locator('.nav-item').nth(4).click();
+  await page.waitForTimeout(150);
+  T.quotesNav = (await page.locator('.nav-item').nth(4).textContent()).trim();
+  T.quotesDefaultRows = await page.locator('.panel tbody tr').count();          // 默认 4 现金币行（种子 = 稳定币白名单）
+  T.quotesFirstCoin = (await page.locator('.panel tbody tr').first().locator('td').first().textContent()).trim();
+  await page.locator('#watchSearch').fill('btc');
+  await page.locator('#watchSearch').dispatchEvent('input');
+  T.quotesSugCount = await page.locator('#watchSug .opt').count();
+  await page.locator('#watchSug .opt').first().dispatchEvent('mousedown');
+  await page.waitForTimeout(150);
+  T.quotesRowsAfterAdd = await page.locator('.panel tbody tr').count();         // 5
+  T.quotesBtcAdded = (await page.locator('.panel tbody').textContent()).indexOf('BTC') >= 0;
+  T.quotesPersisted = await page.evaluate(() => { try{ var v=localStorage.getItem('wuzhufolio.watch'); return v ? v.indexOf('BTC')>=0 : false; }catch(e){ return false; } });
+  await page.locator('.panel tbody tr').last().locator('button').click();       // 移除 BTC（末行）
+  await page.waitForTimeout(150);
+  T.quotesRowsAfterRemove = await page.locator('.panel tbody tr').count();      // 4
+
+  // ===== 设置页：F8 主题行 / F2 网络 / F3 日志与诊断 / F9 API 弹窗 =====
+  await page.locator('.nav-item').nth(5).click();
   await page.waitForTimeout(150);
   T.settingsGroups = await page.locator('.settings-group h3').allTextContents();
   await page.locator('#themeSeg button').nth(1).click();

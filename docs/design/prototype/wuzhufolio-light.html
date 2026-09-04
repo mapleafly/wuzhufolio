@@ -102,6 +102,10 @@ body[data-theme="dark"] .pill.rec{ background:rgba(208,168,92,0.12); }
 .pill.bad{ background:rgba(169,58,55,0.10); color:var(--loss); }
 .pill.nodata{ background:rgba(104,113,106,0.14); color:var(--ink3); }
 body[data-theme="dark"] .pill.nodata{ background:rgba(138,147,140,0.16); }
+.pill.cg{ background:rgba(23,102,63,0.10); color:var(--gain); }
+.pill.cmc{ background:rgba(138,100,22,0.10); color:var(--warn); }
+body[data-theme="dark"] .pill.cg{ background:rgba(76,191,130,0.12); }
+body[data-theme="dark"] .pill.cmc{ background:rgba(208,168,92,0.14); }
 .tag-est{ font-size:10.5px; color:var(--warn); font-weight:600; }
 .toolbar{ display:flex; gap:8px; margin-bottom:14px; align-items:center; flex-wrap:wrap; }
 .search{ height:32px; border:1px solid var(--line); border-radius:7px; padding:0 11px; font-size:12.5px; background:var(--btn-ghost); color:var(--ink); font-family:inherit; min-width:180px; }
@@ -253,6 +257,66 @@ var FEES=[{ex:'全局默认',b:0.10,s:0.10,global:true},{ex:'Binance',b:0.10,s:0
 var MARKET_CG={configured:false,key:''};
 var MARKET_CMC={configured:false,key:''};
 
+/* ============ 行情页数据（D21 增补：只读行情浏览 + 持久化自选） ============ */
+var MARKET_DIR=[
+  {s:'USDT',n:'Tether',price:1.0000,src:'COINGECKO'},
+  {s:'USDC',n:'USD Coin',price:1.0000,src:'COINGECKO'},
+  {s:'DAI',n:'Dai',price:1.0000,src:'COINGECKO'},
+  {s:'TUSD',n:'TrueUSD',price:1.0000,src:'COINGECKO'},
+  {s:'BTC',n:'Bitcoin',price:97420.50,src:'COINGECKO'},
+  {s:'ETH',n:'Ethereum',price:3412.18,src:'COINGECKO'},
+  {s:'SOL',n:'Solana',price:188.75,src:'COINMARKETCAP'},
+  {s:'BNB',n:'BNB',price:612.40,src:'COINGECKO'},
+  {s:'XRP',n:'XRP',price:2.18,src:'COINGECKO'},
+  {s:'ADA',n:'Cardano',price:0.92,src:'COINGECKO'},
+  {s:'DOGE',n:'Dogecoin',price:0.34,src:'COINGECKO'},
+  {s:'DOT',n:'Polkadot',price:null,src:null},
+  {s:'LINK',n:'Chainlink',price:24.10,src:'COINGECKO'},
+  {s:'AVAX',n:'Avalanche',price:42.30,src:'COINGECKO'}
+];
+var WATCH_SEED=['USDT','USDC','DAI','TUSD'];
+var MARKET_TS='09:41';
+function dirCoin(s){ for(var i=0;i<MARKET_DIR.length;i++){ if(MARKET_DIR[i].s===s) return MARKET_DIR[i]; } return null; }
+function loadWatch(){ try{ var v=localStorage.getItem('wuzhufolio.watch'); if(v){ var a=JSON.parse(v); if(Array.isArray(a)) return a.filter(function(s){ return dirCoin(s); }); } }catch(e){} return WATCH_SEED.slice(); }
+function saveWatch(){ try{ localStorage.setItem('wuzhufolio.watch', JSON.stringify(WATCH)); }catch(e){} }
+function resetWatch(){ WATCH=WATCH_SEED.slice(); try{ localStorage.removeItem('wuzhufolio.watch'); }catch(e){} }
+var WATCH=loadWatch();
+
+/* ============ 行情页渲染（D21 增补 · 第六页） ============ */
+function quoteSrcPill(c){ return c.src==='COINGECKO'?'<span class="pill cg">COINGECKO</span>':(c.src==='COINMARKETCAP'?'<span class="pill cmc">COINMARKETCAP</span>':'<span class="pill nodata">无行情</span>'); }
+function quoteRow(s){ var c=dirCoin(s); if(!c) return '';
+  var price=(c.price===null?'<span class="flat">--</span>':'<span class="num">'+usd(c.price)+'</span>');
+  return '<tr><td><b>'+c.s+'</b> <span style="color:var(--ink3)">'+esc(c.n)+'</span></td><td>'+price+'</td><td>'+quoteSrcPill(c)+'</td><td class="num">'+esc(MARKET_TS)+'</td><td style="white-space:nowrap"><button class="btn ghost sm" type="button" style="color:var(--loss)" onclick="removeWatch(\''+c.s+'\')">移除</button></td></tr>'; }
+function watchBlur(){ var s=document.getElementById('watchSug'); if(s){ setTimeout(function(){ s.classList.remove('open'); s.innerHTML=''; },160); } }
+function pageQuotes(){
+  var h='<h2 class="pg">行情</h2><div class="pg-sub">只读行情浏览 · 我的自选持久化（重启保留 · 上限 50）· 无交易 / 图表</div>';
+  h+='<div class="toolbar"><button class="btn primary" type="button" onclick="refreshQuotes()">↻ 立即刷新行情</button>';
+  h+='<span class="badge"><span class="dot"></span><span>数据源：CoinGecko'+(MARKET_CG.configured?' · 专属额度':' · 无 Key 公共 API')+'</span></span>';
+  h+='<span class="spacer" style="flex:1"></span>';
+  h+='<div style="position:relative"><input class="search" id="watchSearch" placeholder="搜索币种添加自选（symbol / 名称）" aria-label="搜索币种添加自选" autocomplete="off" oninput="quoteSuggest(this.value)" onfocus="quoteSuggest(this.value)" onblur="watchBlur()"><div class="pair-sug" id="watchSug"></div></div>';
+  h+='</div>';
+  h+='<div class="hint" style="font-size:11.5px;color:var(--ink3);margin:-6px 0 14px">页面可见期间按行情刷新频率自动轮询（离开页面即停）· 自选为全局展示偏好，多账户共享 · 目录已不存在的自选解析期跳过（目录恢复即重新出现）</div>';
+  h+='<div class="panel"><table class="tbl"><thead><tr><th style="cursor:default">币种</th><th style="cursor:default">现价（USD）</th><th style="cursor:default">数据源</th><th style="cursor:default">更新时间</th><th style="cursor:default">操作</th></tr></thead><tbody>'+(WATCH.length?WATCH.map(quoteRow).join(''):'<tr><td colspan="5"><div class="empty" style="padding:24px 0"><div class="ic">◌</div>暂无自选，搜索添加币种</div></td></tr>')+'</tbody></table></div>';
+  return h;
+}
+function quoteSuggest(v){
+  var box=document.getElementById('watchSug'); if(!box) return;
+  if(!v){ box.classList.remove('open'); box.innerHTML=''; return; }
+  var q=v.trim().toLowerCase(); if(!q){ box.classList.remove('open'); box.innerHTML=''; return; }
+  var hits=MARKET_DIR.filter(function(c){ return (c.s.toLowerCase().indexOf(q)>=0 || c.n.toLowerCase().indexOf(q)>=0) && WATCH.indexOf(c.s)<0; }).slice(0,8);
+  if(!hits.length){ box.classList.remove('open'); box.innerHTML=''; return; }
+  box.innerHTML=hits.map(function(c){ return '<button class="opt" type="button" onmousedown="pickWatch(\''+c.s+'\')"><span>'+c.s+' · '+esc(c.n)+'</span><span class="dim">'+(c.price===null?'无行情 · 可添加':'添加自选')+'</span></button>'; }).join('');
+  box.classList.add('open');
+}
+function pickWatch(s){ addWatch(s); var inp=document.getElementById('watchSearch'); if(inp){ inp.value=''; inp.focus(); } var box=document.getElementById('watchSug'); if(box){ box.classList.remove('open'); box.innerHTML=''; } }
+function addWatch(s){
+  if(WATCH.indexOf(s)>=0){ toast(s+' 已在自选'); return; }
+  if(WATCH.length>=50){ toast('自选已达上限（50）'); return; }
+  WATCH.push(s); saveWatch(); renderPage(); toast('已添加 '+s+' 到自选 · 重启保留');
+}
+function removeWatch(s){ WATCH=WATCH.filter(function(x){ return x!==s; }); saveWatch(); renderPage(); toast('已从自选移除 '+s); }
+function refreshQuotes(){ MARKET_TS=new Date().toTimeString().slice(0,5); renderPage(); toast('行情已刷新 · 币集 = 当前自选 '+WATCH.length+' 个'); }
+
 function nf(n,d){ d=(d===undefined?2:d); return n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}); }
 function usd(n){ return '$'+nf(n,2); }
 function pct(n){ return (n>=0?'+':'')+nf(n,2)+'%'; }
@@ -357,7 +421,8 @@ var PAGES=[
  {id:'portfolio',label:'资产列表',k:'2',crumb:'资产列表'},
  {id:'transactions',label:'交易管理',k:'3',crumb:'交易管理'},
  {id:'funds',label:'资金管理',k:'4',crumb:'资金管理'},
- {id:'settings',label:'设置',k:'5',crumb:'设置'}
+ {id:'quotes',label:'行情',k:'5',crumb:'行情'},
+ {id:'settings',label:'设置',k:'6',crumb:'设置'}
 ];
 var cur='dashboard';
 function card(label,big,delta,deltaCls,sm){ return '<div class="card"><div class="label">'+label+'</div><div class="big'+(sm?' sm':'')+'">'+big+'</div>'+(delta?'<div class="delta '+deltaCls+'">'+delta+'</div>':'')+'</div>'; }
@@ -494,7 +559,7 @@ function renderNav(){
 function updateTb(t){ document.getElementById('tbtitle').innerHTML='<b>WuZhuFolio</b> · 本地加密资产账本 - '+(t||((PAGES.filter(function(p){return p.id===cur;})[0]||{}).crumb||'')); }
 function go(id){ cur=id; var p=PAGES.filter(function(x){return x.id===id;})[0]; document.getElementById('crumb').textContent=p.crumb; updateTb(); renderNav(); renderPage(); }
 function renderPage(){ var c=document.getElementById('content');
-  var fn={dashboard:pageDashboard,portfolio:pagePortfolio,transactions:pageTransactions,funds:pageFunds,settings:pageSettings}[cur];
+  var fn={dashboard:pageDashboard,portfolio:pagePortfolio,transactions:pageTransactions,funds:pageFunds,quotes:pageQuotes,settings:pageSettings}[cur];
   c.innerHTML=fn?fn():'';
   if(cur==='dashboard'){ bindDonut(); }
 }
@@ -845,7 +910,7 @@ function saveCmcKey(){ var v=document.getElementById('cmcKey').value.trim(); if(
 function removeCmcKey(){ MARKET_CMC.configured=false; MARKET_CMC.key=''; closeModal(); toast('已移除 CoinMarketCap 兜底'); renderPage(); renderStatus(); }
 
 /* ============ 顶栏动作 / 分段控件 ============ */
-document.getElementById('refreshBtn').addEventListener('click',function(){ var b=document.getElementById('srcBadge'); b.className='badge'; document.getElementById('srcText').textContent=(MARKET_CG.configured?'CoinGecko · 专属额度':'CoinGecko · 无 Key 公共 API')+' · 已更新 '+new Date().toTimeString().slice(0,5); toast(MARKET_CG.configured?'行情已刷新（CoinGecko 专属额度）':'行情已刷新（CoinGecko 无 Key 公共 API）'); });
+document.getElementById('refreshBtn').addEventListener('click',function(){ var b=document.getElementById('srcBadge'); b.className='badge'; document.getElementById('srcText').textContent=(MARKET_CG.configured?'CoinGecko · 专属额度':'CoinGecko · 无 Key 公共 API')+' · 已更新 '+new Date().toTimeString().slice(0,5); if(cur==='quotes'){ MARKET_TS=new Date().toTimeString().slice(0,5); renderPage(); } toast(MARKET_CG.configured?'行情已刷新（CoinGecko 专属额度）':'行情已刷新（CoinGecko 无 Key 公共 API）'); });
 document.getElementById('syncBtn').addEventListener('click',function(){ toast('交易同步中（Binance 只读 · 增量去重）…'); });
 function segPick(btn){ var seg=btn.parentElement; var bs=seg.querySelectorAll('button'); bs.forEach(function(b){ b.classList.remove('on'); }); btn.classList.add('on'); }
 function segPickTheme(btn,t){ segPick(btn); applyTheme(t); }

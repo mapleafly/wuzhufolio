@@ -158,6 +158,12 @@ interface SettingsService {
 > + DefaultMarketHistoryBackfillService + PriceSnapshotRepository（M006 schema v6）+ DefaultMarketSettingsService
 > （设备密钥方案甲，market.coingecko_key/market.cmc_key 全局行）；错误模型 MarketRefreshError 已落地
 > （MockEngine 全分支绿）。消费方接线见模块记录 M5.md §6：M7 折算解析、M11 调度宿主、M12 状态栏。
+>
+> **D21 补录（行情浏览页 · C1 范围增量，2026-09-04，决策 docs/dev/decisions/D21-行情浏览页-范围增量.md）**：
+> `MarketWatchService`（`listWatch`/`add`/`remove`/`seed`——settings 全局行 `watch.coins` JSON [cg_id]，上限 50，
+> 未写入=默认种子=稳定币白名单；目录解析读时清理不改写存储、损坏自愈回默认）+ `MarketQuotesService`（行 = coins 目录
+> + `price_snapshots.latest(coin, fiat)`，缺行 = 「无行情」）+ `MarketSettingsService.baseFiat()`（行情页计价）。
+> 消费方 `MarketWatchPage`（第六页 QUOTES），复用 `MarketRefreshService.refresh`（币集 = 当前列表）。回溯：D21、ia.md §2.19。
 
 ## 4. 错误码与提示文案映射（统一异常处理）
 

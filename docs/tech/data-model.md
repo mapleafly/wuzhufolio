@@ -75,7 +75,7 @@ erDiagram
 | key | String | 设置项名 |
 | value | String | 设置项值 |
 
-唯一约束：表达式唯一索引 UNIQUE(COALESCE(account_id, 0), key)——SQLite 中 NULL 参与 UNIQUE 视为互不相等，普通 UNIQUE(account_id, key) 对全局设置（account_id NULL）不生效（评审 N1）。账户级备份按 key 覆盖（备份优先）。**行情平台 Key（CG/CMC）**：存本表**全局行**（account_id NULL，key=market.coingecko_key / market.cmc_key），按**设备密钥**加密（非账户 DEK，ADR-002 §2.1 方案甲）；**不随 .cpro 备份导出**，恢复后在设置中重新配置（ADR-005 §3）。
+唯一约束：表达式唯一索引 UNIQUE(COALESCE(account_id, 0), key)——SQLite 中 NULL 参与 UNIQUE 视为互不相等，普通 UNIQUE(account_id, key) 对全局设置（account_id NULL）不生效（评审 N1）。账户级备份按 key 覆盖（备份优先）。**行情平台 Key（CG/CMC）**：存本表**全局行**（account_id NULL，key=market.coingecko_key / market.cmc_key），按**设备密钥**加密（非账户 DEK，ADR-002 §2.1 方案甲）；**不随 .cpro 备份导出**，恢复后在设置中重新配置（ADR-005 §3）。**行情自选（watch.coins，决策 D21）**：亦存本表**全局行**（account_id NULL，key=watch.coins，value=JSON 数组 [cg_id]，上限 50；未写入=默认种子=稳定币白名单 USDT/USDC/DAI/TUSD）。属**展示偏好**（与 theme/fiat 同层，多账户共享），非财务数据，**不随 .cpro 备份导出**（D21 §2 归属口径）。
 
 ### 2.4 fee_rules（手续费费率规则表）—— PRD §10-7
 
