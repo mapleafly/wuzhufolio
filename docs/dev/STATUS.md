@@ -277,6 +277,8 @@
 
 **怎么验收（人工）**：① docs/dev/modules/M3.md §3 逐项打勾（Agent 已自动验 7 项，人工走查 T3 验收标准与代码）；② 复跑 ./gradlew build detekt（129 测试 0 失败 + detekt 0）；③ 抽查 DDL 与 data-model §2.9/2.10 一致性（contracts 勘误见模块记录 §5）；④ 可选 GUI 冒烟看 schema=5。
 
+**人工核对进展（2026-09-03）**：验收第②项「抽查 DDL 与 data-model 一致性」通过——逐字段对照无未登记差异；唯一差异 contracts 勘误获人工认可，**已回写 data-model §2.9**（M004 落列；回溯 PRD §10-10 注 / 移动端 SRD §14；登记 M3.md §3-8/§5-1）。M3 维持「待审核」——T3 验收标准逐条/代码走查/整体放行待人工终审。
+
 **遗留（转后续模块，详见模块记录 §6）**：搜索全表扫描优化（FTS/前缀，M5 实测后评估）；目录 status 维护与「无行情」策略归 M6；cmc_id 对齐归 M5；MarketRankProvider 真实实现归 M5；别名/专有资产规则归 M6；CI 三平台复跑待推送；FiatNormalizer 设置化归 M10。
 
 **建议的下一步**：人工审核 M3 → 通过后解锁 **M4 计算引擎**（T4.1–T4.4；依赖 T1；M5/M6/M7 亦依赖本模块 CoinCatalog）。
@@ -380,3 +382,4 @@
 | 2026-09-03 | 人 | **通过 M2** | 原话「M2 通过」——M2 ✅ 已通过；M3 币种主数据解锁为进行中，待人工「执行P4-M3」启动指令（T3.1–T3.3） |
 | 2026-09-03 | Agent | **P4-M1 独立评审** | 人指令「评审P4完成的工作」；全量通读 M1 改动（38 文件）+ 无缓存全量重跑（30 任务绿、63 测试 0 失败 2 跳过、detekt 0、警告 0）+ 需求回溯抽查 8 处全命中；产出 docs/dev/modules/M1评审报告.md——**有条件通过**：0 阻断、1 重要（F1 目标机 KDF ≤2s 未实测转 M2 门）、5 轻微（N1–N5）；**M1 门禁维持待审核，放行权在人工** |
 | 2026-09-03 | Agent | **执行 P4-M3 币种主数据** | 人指令「执行P4-M3」；M004 coins（v4）+ M005 exchange_coin_map（v5）+ contracts 勘误列；SqlCoinCatalog（检索/目录每日缓存 upsert/cmc_id）；CoinResolver 四级消歧（上下文/合约/排名/候选）+ AUTO 固化/MANUAL 冻结复用；FiatNormalizer（USD→USDT、EUR→EURC 孪生表 + 第三币种）；129 测试 0 失败 + detekt 0 + 警告 0 + GUI schema=5 迁移实证；模块记录 docs/dev/modules/M3.md；**P4 维持进行中，M3 置待审核，停人工门** |
+| 2026-09-03 | 人 + Agent | **M3 核对②通过 + data-model 勘误回写** | 人工核对「抽查 DDL 与 data-model 一致性」通过并认可 contracts 勘误；按指令回写 data-model §2.9（contracts 列 + 溯源注记）；M3.md §3-8/§5-1 落档；M3 维持待审核（其余验收项待人工终审） |

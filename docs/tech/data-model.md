@@ -176,9 +176,10 @@ erDiagram
 | name | String | 名称 |
 | status | String | ACTIVE / DELISTED / UNTRACKED |
 | display_precision | Integer | 价格展示精度 |
+| contracts | String(JSON) | 各链合约地址（平台 -> 合约地址 JSON；消歧规则② 用）。**M3 勘误回写（2026-09-03，人工认可）**——PRD §10-10 注「含各链合约地址缓存」未列字段、消歧② 需要，桌面 M004 已落列；移动端 SRD §14 coins.contracts 同源；登记见 docs/dev/modules/M3.md §5-1 |
 | updated_at | Timestamp | 目录刷新时间 |
 
-来源 CoinGecko /coins/list（每日）+ CMC /cryptocurrency/map；全局公共、不随备份导出。
+来源 CoinGecko /coins/list（每日，合约地址经 include_platform=true 缓存于 contracts 列）+ CMC /cryptocurrency/map（cmc_id）；全局公共、不随备份导出。
 
 ### 2.10 exchange_coin_map（交易所资产映射表，全局）—— PRD §10-11
 
