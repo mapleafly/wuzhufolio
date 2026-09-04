@@ -152,6 +152,12 @@ interface SettingsService {
 > LedgerEvent：币 FK → cg_id 解析、leg/fee/flow 折算价解析与 PENDING 标记）及「保存/编辑/删除 → 构造双列表
 > 调 validateMutation + 违例文案映射（REPLAY_CONFLICT / INSUFFICIENT_BALANCE / INSUFFICIENT_POSITION）」归 M7/M8；
 > 引擎数值基准 = PRD 附录 A 黄金用例 1–9、12（全绿，见模块记录 M4.md §3）。
+>
+> **M5 补录（行情链路实现，2026-09-04，模块记录 M5.md）**：§1 真实端点已实现——Ktor + OkHttp 引擎（ProxySelector），
+> CoingeckoMarketClient / CmcMarketClient + DefaultMarketRefreshService（两级编排/单飞/目录每日一次/额度账本）
+> + DefaultMarketHistoryBackfillService + PriceSnapshotRepository（M006 schema v6）+ DefaultMarketSettingsService
+> （设备密钥方案甲，market.coingecko_key/market.cmc_key 全局行）；错误模型 MarketRefreshError 已落地
+> （MockEngine 全分支绿）。消费方接线见模块记录 M5.md §6：M7 折算解析、M11 调度宿主、M12 状态栏。
 
 ## 4. 错误码与提示文案映射（统一异常处理）
 
@@ -180,4 +186,5 @@ interface SettingsService {
 | 交易所端点/去重/500 条 | 故事 4.1、§10 注 | §1/§6 |
 | 错误码→文案 | 全局说明「统一异常处理」 | — |
 | 引擎事件化/重放/指标/费率/校准（M4） | 全局说明「成本计算规范」「持仓校准规则」、故事 7.1/6.4、附录 A | §2 |
+| 行情客户端/快照/24h/回填/额度（M5） | 故事 3.2、全局说明「行情数据与时间分辨率规则」、§7.2 模块 6.1 | §5 |
 | 内部服务接口 | ia.md 页面清单、flows.md 状态机 | — |

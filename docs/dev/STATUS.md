@@ -6,10 +6,10 @@
 
 ## 当前阶段
 
-- **当前状态**：**P4 分模块开发 ⏩ 进行中——M4 计算引擎 ✅ 已通过（2026-09-04 人工裁决关闭：「M4.md §5 规格裁决 按建议的来执行。其他未决项按建议执行」）**；M1–M4 均已通过。P0–P3 均已关闭。
+- **当前状态**：**P4 分模块开发 ⏩ 进行中——M5 行情链路 ⏳ 待审核（2026-09-04 产出，停人工门）**；M1–M4 均已通过。P0–P3 均已关闭。
 - **推进顺序**：先桌面端，后移动端。**P1–P8 只针对桌面端或两端共同部分；移动端相关工作放到下一个版本。**（移动端相关技能/技术方案/开发待桌面端主线稳定后再启用。）
 - **前序待审核项已关闭（2026-08-30，人工启动指令）**：① 项目级安装 huashu-design；② P1 新增「设计原型图」步骤；③ P1–P8 huashu-design 用途分析--已随人工「开始执行P1」指令一并拍板（固化为 `AGENTS.md` §7.1/§7.2）。
-- **下一人工门**：**M5 行情链路（T5.1–T5.5，按建议解锁）**——验收标准见 task-breakdown §3 M5；依赖 T1（过）、T3（过）、T0.6（过）；建议顺序 M5 优先（M7/M8 事件构造折算解析依赖 M5 快照/回填产物）；待人工「执行P4-M5」启动指令。
+- **下一人工门**：**M5 行情链路验收（T5.1–T5.5）**——验收标准见 task-breakdown §3 M5 + docs/dev/modules/M5.md §3/§4；里程碑门槛「行情 mock 全分支绿；两类 API 隔离验证」已达成（254 测试 0 失败）；待人工按 M5.md §4 验收（重点：§5 规格裁决——price TEXT 勘误、调度宿主归 M11、UI 偏差 4 条）并给出通过结论。
 
 ## 阶段总览
 
@@ -19,7 +19,7 @@
 | P1 | 产品与交互设计 | ✅ 已通过 | docs/design/（含 prototype/*.html + 截图 + 验证脚本） | 主版唯一真源（内置双主题）；登录链路已补齐；三轮评审 V1/V2/V3 问题全部闭环；2026-08-31 人工终审通过 |
 | P2 | 技术方案 | ✅ 已通过 | `docs/tech/`（architecture + 6 ADR + data-model + api-contracts + task-breakdown + P2评审报告） | 2026-08-31 人工拍板三项关闭；全部 ADR 转人工拍板采纳 |
 | P3 | 工程脚手架 | ✅ 已通过 | 代码骨架 + CI + dev-setup + hello 链路 + 迁移框架 + UI 基座（内嵌 CJK 字体）；Gradle 8.14.4；P3评审报告 | 2026-09-01 完成 M0 + 验收修复轮 + 评审闭环；人工「P3 通过」关闭 |
-| P4 | 分模块开发 | 进行中 | 代码 + `docs/dev/modules/` | M1 ✅、M2 ✅、M3 ✅、**M4 ✅（2026-09-04 人工裁决通过）**；下一模块 = M5 行情链路（已解锁为进行中，待启动指令） |
+| P4 | 分模块开发 | 进行中 | 代码 + `docs/dev/modules/` | M1 ✅、M2 ✅、M3 ✅、M4 ✅；**M5 ⏳ 待审核（2026-09-04 产出，停人工门）**；下一模块待人工验收 M5 后解锁 |
 | P5 | 集成与联调 | 未开始 | `docs/test/integration-report.md` | |
 | P6 | 系统测试与质量 | 未开始 | `docs/test/` | |
 | P7 | 发布 | 未开始 | `docs/release/` | |
@@ -313,6 +313,34 @@
 
 **建议的下一步**：人工审核 M4 → 通过后解锁下一模块（建议 M5 行情链路：M7/M8 事件构造折算解析依赖 M5 快照/回填；并行面 M10/M11 亦可先行，最终由人工拍板）。
 
+## P4 · M5 行情链路（⏳ 待审核--2026-09-04 完成，停人工门）
+
+> 启动记录：人工原话「执行P4-M5」（2026-09-04）。范围 = task-breakdown M5（T5.1 MarketDataClient（CG/CMC 真实 API）· T5.2 价格快照 · T5.3 24h 盈亏与历史回填 · T5.4 行情调度 · T5.5 行情 Key 设置 UI）。**模块记录：docs/dev/modules/M5.md**（实现摘要 / 文件清单 / 验收清单 / 规格裁决 / 遗留）。
+
+**产物清单（代码 + 测试，全量绿）**：
+
+- **T5.1**：domain/market 契约（MarketDataClient 六端点 + 类型化错误）+ CoingeckoMarketClient/CmcMarketClient（Ktor + OkHttp 引擎，真实端点/头/参数对齐 ADR-003）+ DefaultMarketRefreshService 两级编排（主源失败/缺席 → CMC 兜底 → 保持上次价格；单飞；目录每日一次 + CMC map 对齐 + 市值榜 4×250 预缓存——M3 遗留 3/4 关闭）
+- **T5.2**：**M006 price_snapshots（schema 6）**：price TEXT 十进制（SQLite NUMERIC 浮点截断风险勘误，待人工认可回写 data-model §2.11）+ SqlUtc 固定毫秒时间文本 + PriceSnapshotRepository（同小时末条 upsert/批量/桶查询/nearestBefore/90 天降采样保日线，幂等）+ PriceResolution 纯规则
+- **T5.3**：TwentyFourHour（固定数量回算 + 覆盖 N/M + "--" + 异源标注，**黄金用例 11 数值通过**）+ DefaultMarketHistoryBackfillService（区间合并 + 桶级幂等 + 429 指数退避单次重试 + HISTORY 计数；回填后空洞可解析 = 「PENDING 消除」后端就绪，事件构造接线归 M7）
+- **T5.4**：RefreshCadence（5/15/30 · 托盘降频 · 额度 80% 降一档）+ QuotaPolicy/SettingsQuotaLedger（月额 10,000、仅个人 Key 模式计数、跨月归零、损坏自愈）+ RateBackoff（1s→60s）；**调度循环宿主（窗口可见性/托盘）归 M11**（裁决 §5-5）；状态栏展示归 M12（文案键就绪）
+- **T5.5**：方案甲落地——设备密钥条目 device.key（同 DB 密钥降级口径）+ DeviceSecretCipher（AAD purpose）+ 密文存 settings 全局行（market.coingecko_key/market.cmc_key，不进 .cpro）；设置页「行情数据源」分组（原型逐字文案：频率分段选择/CG/CMC 行/Key 弹窗（保存并切换专属额度/移除/注册链接）/数据源指示/上次价格/立即刷新 + 429·额度提示可达）挂载 SETTINGS 页（M10 整页接管）
+- 测试：**254 全绿 0 失败**（domain 149 = +25 纯规则含黄金 11/DeviceSecretCipher；data 82 = +33 MockEngine+编排+快照+回填+设置；ui 23 = +6 UI 走查）；detekt 0；编译警告 0；无缓存 clean build 绿
+- GUI 冒烟实证：真实 v5 开发库 → **schema=6**（M006 自动应用）、device.key 0600、bootstrap 0 异常、窗口驻留（rc=124）；api-contracts §1/§3 补录实现注
+
+**本次改了什么**：见模块记录 §1（五任务摘要 + §5 规格裁决 8 条，重点：price TEXT 勘误、SqlUtc 时间口径、快照读取口径（24h 桶行配对/nearestBefore 归 M7）、调度宿主拆分、UI 偏差 4 条）。
+
+**怎么验收（人工）**：
+
+1. docs/dev/modules/M5.md §3 验收清单逐项核对；重点走读 §5 规格裁决。
+2. 复跑：`export JAVA_HOME=$(mise where java) && ./gradlew clean build detekt`（254 测试 0 失败 + detekt 0 + 警告 0）。
+3. 聚焦：`:data:test --tests "com.wuzhufolio.data.market.*"`（33 项）；`:ui:test --tests "com.wuzhufolio.ui.market.*"`（6 项）；domain market（19）+ DeviceSecretCipherTest（6）。
+4. GUI 走查（详见模块记录 §4 步骤 4 六项：行状态/弹窗空校验/保存即生效/移除/立即刷新提示/频率持久化）。
+5. 可选真实 API 冒烟（联网 + 免费 Demo Key）：刷新后日志「market refresh finished source=…」佐证快照落库。
+
+**遗留问题（转后续模块，详见模块记录 §6）**：事件构造折算解析接线（M7）；调度循环宿主（M11）；状态栏数据源/额度提示（M12）；设置页汇合与下拉/尾号/链接打磨（M10/M12）；真实网络端到端冒烟（P5）；压缩任务执行点接入 M11。
+
+**建议的下一步**：人工审核 M5 → 通过后解锁下一模块（建议按依赖图 **M6 交易所同步** 或并行面 **M10 设置与日志**，由人工拍板）。
+
 ## P0 需求基线（✅ 已通过--两端 + 跨端规范全部定稿）
 
 产物清单（只读基准，不得改动）：
@@ -352,7 +380,7 @@
 
 ## 当前阻塞点
 
-- **P4-M5 待启动指令**：M4 已于 2026-09-04 人工裁决通过并关闭 ✅（190 测试 0 失败、detekt 0、警告 0；黄金用例 1–9、12 全绿；§5 规格裁决 10 条按建议采纳）；M5 行情链路（T5.1–T5.5）按建议解锁为进行中，待人工「执行P4-M5」启动指令。转 M5 注意清单：M4 遗留（事件构造层接线归 M6/M7/M8、现价注入归 M5/M12、费率 CRUD 接线归 M7/M10、校准执行流归 M8、校验宽松口径复核归 M8）+ M3 遗留（搜索扫描优化、status 维护/无行情归 M6、cmc_id 对齐归 M5、排名提供者归 M5、CI 三平台复跑待推送）+ M2 遗留（向导占位 M6/M7/M9、枚举开关 UI M10、顶栏/下拉/眼睛 M12）+ 4GB 目标机 KDF 复核改为 M13 前开放待办。
+- **P4-M5 待人工验收**：M5 行情链路已于 2026-09-04 产出并置「待审核」（254 测试 0 失败、detekt 0、警告 0；MockEngine 全分支绿 + 两类 API 隔离实证；模块记录 docs/dev/modules/M5.md——§5 规格裁决 8 条含 price TEXT 勘误，请人工重点走读）。验收通过后解锁下一模块（建议 M6 或 M10，见 M5.md §7）。转后续模块注意清单：M5 遗留（折算解析接线归 M7、调度循环宿主归 M11、状态栏提示归 M12、设置页汇合归 M10、真实 API 冒烟留 P5）+ M4 遗留（事件构造层接线归 M6/M7/M8、费率 CRUD 接线归 M7/M10、校准执行流归 M8、校验宽松口径复核归 M8）+ M3 遗留（搜索扫描优化、status 维护归 M6、CI 三平台复跑待推送）+ M2 遗留（向导占位 M6/M7/M9、枚举开关 UI M10、顶栏/下拉/眼睛 M12）+ 4GB 目标机 KDF 复核改为 M13 前开放待办。
 
 ## 技能盘点结论（2026-08-30 更新）
 
@@ -416,3 +444,4 @@
 | 2026-09-03 | 人 | **通过 M3** | 原话「T3验收通过。1235测试通过。4未测试」+ 确认「确认 M3 通过，解锁 M4」——M3 ✅ 已通过（步骤 4 GUI 冒烟·可选未复测，Agent 冒烟证据在案不阻断）；contracts 勘误已回写 data-model §2.9；M4 计算引擎解锁为进行中，待「执行P4-M4」启动指令 |
 | 2026-09-04 | Agent | **执行 P4-M4 计算引擎** | 人指令「执行P4-M4」；domain/engine 七文件（LedgerModels/ReplayEngine/PortfolioCalculator/FeeCalculator/ReconciliationService/LedgerMath/EngineErrors）+ api-contracts §3 补录；四任务实现摘要见 docs/dev/modules/M4.md；**黄金用例 1–9、12 全绿** + 引擎语义补充测试 61 项（domain 63→124）；无缓存 clean build 190 测试 0 失败 + detekt 0 + 编译警告 0；§5 规格裁决 10 条（含第三币种手续费联动扣减勘误裁决）待人工走读；模块记录 docs/dev/modules/M4.md；**P4 维持进行中，M4 置待审核，停人工门** |
 | 2026-09-04 | 人 | **通过 M4** | 原话「M4.md §5 规格裁决 按建议的来执行。其他未决项按建议执行」——§5 规格裁决 10 条全部按建议采纳生效（代码已按裁决实现）；M4 ✅ 已通过；未决项按建议执行（遗留路由 M5–M9、校验宽松口径复核归 M8、下一步解锁）；M5 行情链路解锁为进行中，待「执行P4-M5」启动指令 |
+| 2026-09-04 | Agent | **执行 P4-M5 行情链路** | 人指令「执行P4-M5」；T5.1–T5.5 产物见 docs/dev/modules/M5.md（domain/market 契约与纯规则 + data 客户端/编排/快照 M006/回填/额度/设备密钥方案甲 + ui 行情分组 + AppBootstrap 装配）；**黄金用例 11 通过** + MockEngine 全分支绿 + 两类 API 隔离实证；254 测试 0 失败（domain 149/data 82/ui 23）+ detekt 0 + 编译警告 0；GUI schema=6 + device.key 0600 实证；§5 规格裁决 8 条（含 price TEXT 勘误、调度宿主归 M11）待人工走读；模块记录 docs/dev/modules/M5.md；**P4 维持进行中，M5 置待审核，停人工门** |

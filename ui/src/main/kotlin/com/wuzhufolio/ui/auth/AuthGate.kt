@@ -44,6 +44,8 @@ fun AuthGate(
     usernameEnumEnabled: Boolean,
     /** M1：钥匙串降级等启动安全说明（非空弹一次）。 */
     startupNotice: String? = null,
+    /** M5：设置页内容（行情数据源分组；null = 占位页）。 */
+    marketSettingsContent: (@Composable () -> Unit)? = null,
 ) {
     val vm = remember { AuthGateViewModel(authService).also { it.start() } }
     DisposableEffect(vm) {
@@ -109,6 +111,7 @@ fun AuthGate(
                                     onClick = vm::openAccountMenu,
                                 )
                             },
+                            settingsPageContent = marketSettingsContent,
                         )
                     }
                 }

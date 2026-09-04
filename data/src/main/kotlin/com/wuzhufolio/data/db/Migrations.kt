@@ -154,6 +154,42 @@ object M005CreateExchangeCoinMap : Migration {
     }
 }
 
+/**
+ * M006：price_snapshots 价格快照表（data-model §2.11 / PRD §10-6；全局公共表，随备份打包降采样数据）。
+ *
+ * - 每 (coin_id, fiat) 每小时至多一条（应用层同小时取末条 upsert，经单写队列串行保证——评审 N1 口径）；
+ * - price 存 TEXT（Decimal 十进制字符串）：SQLite NUMERIC 对非整小数落 REAL（IEEE 双精度，
+ *   15–17 位有效数字），账本级价格精度（8 位小数 + 24h/折算推导）不允许浮点截断——TEXT 精确无损。
+ *   **勘误登记：data-model §2.11 price 类型 NUMERIC → TEXT（十进制串），登记见 docs/dev/modules/M5.md §5**；
+ * - recorded_at 为 UTC Instant.toString()（同全库时间口径）；降采样按 domain PriceResolution 规则执行
+ *   （近 90 天小时级、更早仅整点日线行；存储层提供 compact）。
+ */
+object M006CreatePriceSnapshots : Migration {
+    override val version = 6
+    override val description = "create price_snapshots table"
+
+    override fun migrate(connection: Connection) {
+        connection.createStatement().use { st ->
+            st.executeUpdate(
+                """
+                CREATE TABLE price_snapshots (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    coin_id INTEGER NOT NULL,
+                    fiat TEXT NOT NULL,
+                    price TEXT NOT NULL,
+                    price_source TEXT NOT NULL,
+                    recorded_at TEXT NOT NULL,
+                    FOREIGN KEY (coin_id) REFERENCES coins(id)
+                )
+                """.trimIndent(),
+            )
+            st.executeUpdate(
+                "CREATE INDEX idx_price_snapshots_lookup ON price_snapshots(coin_id, fiat, recorded_at)",
+            )
+        }
+    }
+}
+
 /** 全部迁移，按版本升序登记。新迁移只追加、不改历史。 */
 val ALL_MIGRATIONS: List<Migration> = listOf(
     M001CreateSettings,
@@ -161,4 +197,5 @@ val ALL_MIGRATIONS: List<Migration> = listOf(
     M003CreateAccounts,
     M004CreateCoins,
     M005CreateExchangeCoinMap,
+    M006CreatePriceSnapshots,
 )

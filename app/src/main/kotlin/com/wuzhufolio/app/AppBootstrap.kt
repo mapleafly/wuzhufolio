@@ -18,6 +18,18 @@ import com.wuzhufolio.data.accounts.DefaultAccountService
 import com.wuzhufolio.data.security.RememberMeStore
 import com.wuzhufolio.data.security.RememberMeStoreFactory
 import com.wuzhufolio.data.settings.SettingsRepository
+import com.wuzhufolio.data.catalog.SqlCoinCatalog
+import com.wuzhufolio.data.market.CmcMarketClient
+import com.wuzhufolio.data.market.CoingeckoMarketClient
+import com.wuzhufolio.data.market.DefaultMarketRefreshService
+import com.wuzhufolio.data.market.DefaultMarketSettingsService
+import com.wuzhufolio.data.market.DeviceSecretStore
+import com.wuzhufolio.data.market.PriceSnapshotRepository
+import com.wuzhufolio.data.market.RefreshableRankProvider
+import com.wuzhufolio.data.market.SettingsQuotaLedger
+import com.wuzhufolio.data.market.newOkHttpMarketClient
+import com.wuzhufolio.domain.market.MarketRefreshService
+import com.wuzhufolio.domain.market.MarketSettingsService
 import com.wuzhufolio.domain.accounts.AccountService
 import com.wuzhufolio.domain.redaction.LogRedactor
 import com.wuzhufolio.domain.settings.PnlColorScheme
@@ -51,18 +63,29 @@ object AppBootstrap {
         }
     }
 
-    /** 运行期装配结果：窗口关闭时 [close] 释放数据库连接/钥匙串/会话存储。 */
+    /** 运行期装配结果：窗口关闭时 [close] 释放数据库连接/钥匙串/会话存储/行情服务。 */
+    @Suppress("LongParameterList") // 运行期装配袋（db/gate/设置/会话/行情三件/四资源句柄），窗口生命周期统一释放点
     class Runtime internal constructor(
         val db: WzDatabase,
         val gate: DbGate,
         val settings: SettingsRepository,
         val uiState: UiState,
         val session: SessionRuntime,
+        /** M5：行情 Key 设置用例（T5.5，设备密钥加密全局行）。 */
+        val marketSettingsService: MarketSettingsService,
+        /** M5：行情刷新编排（T5.1/T5.4，主源→兜底 + 目录维护 + 额度计数）。 */
+        val marketRefreshService: MarketRefreshService,
+        private val deviceStore: DeviceSecretStore,
         private val keyring: MasterKeyStore?,
+        private val deviceKeyring: MasterKeyStore?,
+        private val httpClient: java.io.Closeable,
     ) {
         fun close() {
             runCatching { session.close() }
+            runCatching { deviceStore.close() } // 设备密钥零化（ADR-002 §2）
             runCatching { keyring?.close() }
+            runCatching { deviceKeyring?.close() }
+            runCatching { httpClient.close() }
             db.close()
         }
     }
@@ -90,6 +113,8 @@ object AppBootstrap {
         )
         val hello = HelloChain(db, settings, logger).run()
 
+        val market = MarketServicesBundle.run(gate, settings, logger)
+
         startKoin { modules(appModule(db, gate, settings)) }
 
         logger.info(
@@ -112,8 +137,61 @@ object AppBootstrap {
                 securityNotice = securityNotice(report, keyFile),
             ),
             session = SessionRuntime(authService = authService, rememberStore = rememberStore),
+            marketSettingsService = market.marketSettingsService,
+            marketRefreshService = market.marketRefreshService,
+            deviceStore = market.deviceStore,
             keyring = if (report.backend == KeyStorageBackend.OS_KEYCHAIN) keyring else null,
+            deviceKeyring = market.deviceKeyring,
+            httpClient = market.httpClient,
         )
+    }
+
+    /**
+     * M5 行情服务装配（T5.1–T5.5）：设备密钥（方案甲）→ 目录/快照/额度 → 编排与 Key 设置用例。
+     * deviceKeyring 仅在 OS 钥匙串后端时由 Runtime 持有关闭；降级文件后端立即释放。
+     */
+    class MarketServicesBundle internal constructor(
+        val marketSettingsService: MarketSettingsService,
+        val marketRefreshService: MarketRefreshService,
+        val deviceStore: DeviceSecretStore,
+        val deviceKeyring: MasterKeyStore?,
+        val httpClient: java.io.Closeable,
+    ) {
+        companion object {
+            fun run(gate: DbGate, settings: SettingsRepository, logger: Logger): MarketServicesBundle {
+                val deviceKeyring: MasterKeyStore =
+                    KeychainMasterKeyStore(KeychainAccounts.SERVICE, KeychainAccounts.DEVICE_KEY)
+                val deviceReport: KeyStorageReport =
+                    MasterKeyResolver.obtainMasterKey(
+                        deviceKeyring,
+                        FileMasterKeyStore(AppDirs.dataDir().resolve("device.key")),
+                        logger,
+                    )
+                val deviceStore = DeviceSecretStore(deviceReport.key, settings, logger)
+                val catalog = SqlCoinCatalog(gate)
+                val rankCache = RefreshableRankProvider()
+                val httpClient = newOkHttpMarketClient()
+                val marketRefreshService: MarketRefreshService = DefaultMarketRefreshService(
+                    cgClient = CoingeckoMarketClient(httpClient),
+                    cmcClient = CmcMarketClient(httpClient),
+                    catalog = catalog,
+                    snapshots = PriceSnapshotRepository(gate),
+                    keyStore = deviceStore,
+                    settings = settings,
+                    quota = SettingsQuotaLedger(settings),
+                    rankCache = rankCache,
+                    logger = logger,
+                )
+                val marketSettingsService: MarketSettingsService = DefaultMarketSettingsService(deviceStore, settings)
+                return MarketServicesBundle(
+                    marketSettingsService = marketSettingsService,
+                    marketRefreshService = marketRefreshService,
+                    deviceStore = deviceStore,
+                    deviceKeyring = if (deviceReport.backend == KeyStorageBackend.OS_KEYCHAIN) deviceKeyring else null,
+                    httpClient = httpClient,
+                )
+            }
+        }
     }
 
     private fun securityNotice(report: KeyStorageReport, keyFile: Path): String? =

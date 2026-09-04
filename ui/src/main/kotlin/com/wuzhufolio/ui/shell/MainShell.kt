@@ -49,6 +49,8 @@ fun MainShell(
     startupNotice: String? = null,
     /** M2：侧边栏底部账户区（原型 acctBtn：切换账户/登出入口）。 */
     accountArea: @Composable () -> Unit = {},
+    /** M5：设置页内容（行情数据源分组宿主；null = 占位页，M10 整页接管后移除回退）。 */
+    settingsPageContent: (@Composable () -> Unit)? = null,
 ) {
     val themeMode by viewModel.themeMode.collectAsState()
     val pnlScheme by viewModel.pnlScheme.collectAsState()
@@ -71,6 +73,17 @@ fun MainShell(
                         Box(modifier = Modifier.weight(1f)) {
                             when (page) {
                                 ShellPage.GALLERY -> ComponentGallery(viewModel)
+                                ShellPage.SETTINGS -> if (settingsPageContent != null) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .testTag("page-" + page.name),
+                                    ) {
+                                        settingsPageContent()
+                                    }
+                                } else {
+                                    PlaceholderPage(page)
+                                }
                                 else -> PlaceholderPage(page)
                             }
                         }

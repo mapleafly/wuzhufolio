@@ -19,6 +19,9 @@ object KeychainAccounts {
     /** 整库主密钥（T1.1）。 */
     const val DB_KEY = "db.master-key"
 
+    /** 设备密钥（M5 起：行情平台 Key 等应用级秘密按本密钥加密，ADR-002 §2.1 方案甲）。 */
+    const val DEVICE_KEY = "device.key"
+
     /** 后端健康探针条目（区分「条目缺失」与「后端不可用」，见 KeychainMasterKeyStore）。 */
     internal const val PROBE = "backend.probe"
 }

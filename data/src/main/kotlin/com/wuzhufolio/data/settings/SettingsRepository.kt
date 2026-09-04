@@ -8,6 +8,7 @@ import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import java.time.Instant
 
 /** settings 表映射（DDL 由迁移管理，见 M001；此处仅作查询映射）。 */
@@ -29,6 +30,11 @@ class SettingsRepository(private val gate: DbGate) {
         SettingsTable.selectAll()
             .where { SettingsTable.accountId.isNull() }
             .associate { it[SettingsTable.key] to it[SettingsTable.value] }
+    }
+
+    /** 删除单个全局设置（行情 Key 移除等，M5 起用）；幂等。 */
+    fun deleteGlobal(key: String) = gate.writeBlocking {
+        SettingsTable.deleteWhere { (SettingsTable.key eq key) and SettingsTable.accountId.isNull() }
     }
 
     /** 读取单个全局设置，不存在返回 null。 */

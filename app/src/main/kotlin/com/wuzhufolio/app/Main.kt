@@ -22,6 +22,7 @@ import com.wuzhufolio.domain.settings.ThemeMode
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
 import com.wuzhufolio.ui.auth.AuthGate
+import com.wuzhufolio.ui.market.MarketSettingsPage
 import com.wuzhufolio.ui.theme.WuzhuTheme
 import com.wuzhufolio.ui.theme.WzTheme
 import org.slf4j.LoggerFactory
@@ -74,6 +75,12 @@ private fun MainWindow(runtime: AppBootstrap.Runtime, onExit: () -> Unit) {
             pnlScheme = runtime.uiState.pnlScheme,
             usernameEnumEnabled = usernameEnumEnabled(runtime),
             startupNotice = runtime.uiState.securityNotice,
+            marketSettingsContent = {
+                MarketSettingsPage(
+                    settingsService = runtime.marketSettingsService,
+                    refreshService = runtime.marketRefreshService,
+                )
+            },
         )
     }
 }

@@ -74,7 +74,7 @@ class SqlCoinCatalogTest {
 
     @Test
     fun `migration creates coins and map tables at schema v5`() = runBlocking {
-        assertEquals(5, db.schemaVersion())
+        assertEquals(6, db.schemaVersion())
         assertTrue(catalog.search("btc").isEmpty(), "空库无检索结果")
         val summary = catalog.refreshDirectory(fixtures())
         assertEquals(11, summary.added)

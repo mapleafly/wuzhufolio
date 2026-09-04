@@ -17,6 +17,7 @@ dependencies {
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.kotlinx.coroutines.swing)
     implementation(libs.slf4j.api)
+    implementation(libs.ktor.client.core) // M5：MarketHttp 返回类型的直接引用（应用组装层）
     implementation(libs.logback.classic)
 
     testImplementation(kotlin("test-junit5"))
