@@ -45,6 +45,9 @@ class DefaultMarketSettingsService(
         return keyStatus()
     }
 
+    override suspend fun baseFiat(): String =
+        settings.getGlobal("fiat")?.takeIf { it.isNotBlank() } ?: "USD"
+
     override suspend fun refreshFrequencyMinutes(): Int {
         val raw = settings.getGlobal(MarketConfig.KEY_REFRESH_MINUTES) ?: return RefreshFrequency.MIN5.minutes
         return raw.toIntOrNull()?.let { minutes ->

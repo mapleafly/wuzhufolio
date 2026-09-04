@@ -34,6 +34,8 @@ class MarketSettingsPageUiTest {
         var savedCg: String? = null
         var removedCg = false
 
+        override suspend fun baseFiat(): String = "USD"
+
         override suspend fun keyStatus(): MarketKeyStatus = status
         override suspend fun saveCgKey(key: String): MarketKeyStatus {
             savedCg = key

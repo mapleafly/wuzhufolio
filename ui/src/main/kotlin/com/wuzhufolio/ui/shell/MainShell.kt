@@ -51,6 +51,8 @@ fun MainShell(
     accountArea: @Composable () -> Unit = {},
     /** M5：设置页内容（行情数据源分组宿主；null = 占位页，M10 整页接管后移除回退）。 */
     settingsPageContent: (@Composable () -> Unit)? = null,
+    /** D21：行情页内容（行情浏览 + 自选；null = 占位页）。 */
+    watchPageContent: (@Composable () -> Unit)? = null,
 ) {
     val themeMode by viewModel.themeMode.collectAsState()
     val pnlScheme by viewModel.pnlScheme.collectAsState()
@@ -80,6 +82,17 @@ fun MainShell(
                                             .testTag("page-" + page.name),
                                     ) {
                                         settingsPageContent()
+                                    }
+                                } else {
+                                    PlaceholderPage(page)
+                                }
+                                ShellPage.QUOTES -> if (watchPageContent != null) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .testTag("page-" + page.name),
+                                    ) {
+                                        watchPageContent()
                                     }
                                 } else {
                                     PlaceholderPage(page)

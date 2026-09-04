@@ -94,4 +94,27 @@ object MarketCopy {
 
     fun sourceName(source: PriceSource): String =
         if (source == PriceSource.COINGECKO) "CoinGecko" else "CoinMarketCap"
+
+    /** 行情行数据源列（null = 无行情 "--"）。 */
+    fun sourceText(source: PriceSource?): String = when (source) {
+        PriceSource.COINGECKO -> "CoinGecko"
+        PriceSource.COINMARKETCAP -> "CoinMarketCap（兜底）"
+        null -> "无行情"
+    }
+
+    // ---- 行情页（D21 增补） ----
+
+    const val WATCH_TITLE = "行情"
+    const val WATCH_SUB_DEFAULT = "默认显示稳定币白名单（现金类）· 搜索可添加更多自选（重启保留）"
+    const val WATCH_SUB_CUSTOM = "我的自选（settings 全局行持久化）· 搜索可添加 · 页面可见时按刷新频率自动更新"
+    const val WATCH_EMPTY = "自选为空 · 用上方搜索添加币种"
+    const val WATCH_SEARCH_LABEL = "搜索币种（coins 目录）"
+    const val WATCH_SEARCH_PLACEHOLDER = "如 BTC / usdt / ethereum…"
+    const val WATCH_ADD_ACTION = "添加"
+    const val WATCH_ADDED_HINT = "已在自选中"
+    const val WATCH_REMOVE_ACTION = "移除"
+    const val WATCH_COL_COIN = "币种"
+    const val WATCH_COL_SOURCE = "数据源"
+    const val WATCH_COL_UPDATED = "更新"
+    const val WATCH_NO_RESULT = "无匹配币种"
 }

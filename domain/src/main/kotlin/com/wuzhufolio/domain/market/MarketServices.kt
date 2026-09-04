@@ -44,6 +44,9 @@ interface MarketSettingsService {
 
     suspend fun removeCmcKey(): MarketKeyStatus
 
+    /** 基础法币（settings 全局键 fiat，缺省 USD；行情页计价显示用）。 */
+    suspend fun baseFiat(): String
+
     /** 行情刷新频率档位（分钟；settings 全局键 market.refresh_minutes，缺省 5）。 */
     suspend fun refreshFrequencyMinutes(): Int
 

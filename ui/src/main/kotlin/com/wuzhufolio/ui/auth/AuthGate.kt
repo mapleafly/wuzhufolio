@@ -46,6 +46,8 @@ fun AuthGate(
     startupNotice: String? = null,
     /** M5：设置页内容（行情数据源分组；null = 占位页）。 */
     marketSettingsContent: (@Composable () -> Unit)? = null,
+    /** D21：行情页内容（null = 占位页）。 */
+    watchPageContent: (@Composable () -> Unit)? = null,
 ) {
     val vm = remember { AuthGateViewModel(authService).also { it.start() } }
     DisposableEffect(vm) {
@@ -112,6 +114,7 @@ fun AuthGate(
                                 )
                             },
                             settingsPageContent = marketSettingsContent,
+                            watchPageContent = watchPageContent,
                         )
                     }
                 }

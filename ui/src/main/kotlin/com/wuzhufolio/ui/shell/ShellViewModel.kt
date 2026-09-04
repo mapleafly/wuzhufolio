@@ -17,6 +17,8 @@ enum class ShellPage(val label: String) {
     ASSETS("资产列表"),
     TRANSACTIONS("交易管理"),
     FUNDS("资金管理"),
+    /** D21 行情浏览页（2026-09-04 人工拍板增补，docs/dev/decisions/D21）。 */
+    QUOTES("行情"),
     SETTINGS("设置"),
 
     /** M0 组件走查页（T0.6 验收载体；P4 起仅开发构建可见）。 */
@@ -24,8 +26,8 @@ enum class ShellPage(val label: String) {
     ;
 
     companion object {
-        /** 侧边栏正式五页（顺序 = ia.md）。 */
-        val sidebarPages: List<ShellPage> = listOf(DASHBOARD, ASSETS, TRANSACTIONS, FUNDS, SETTINGS)
+        /** 侧边栏正式六页（顺序 = ia.md；行情页为 D21 增补）。 */
+        val sidebarPages: List<ShellPage> = listOf(DASHBOARD, ASSETS, TRANSACTIONS, FUNDS, QUOTES, SETTINGS)
     }
 }
 

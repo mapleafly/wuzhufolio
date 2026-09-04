@@ -26,10 +26,14 @@ import com.wuzhufolio.data.market.DefaultMarketSettingsService
 import com.wuzhufolio.data.market.DeviceSecretStore
 import com.wuzhufolio.data.market.PriceSnapshotRepository
 import com.wuzhufolio.data.market.RefreshableRankProvider
+import com.wuzhufolio.data.market.SettingsMarketWatchService
+import com.wuzhufolio.data.market.SnapshotMarketQuotesService
 import com.wuzhufolio.data.market.SettingsQuotaLedger
 import com.wuzhufolio.data.market.newOkHttpMarketClient
+import com.wuzhufolio.domain.market.MarketQuotesService
 import com.wuzhufolio.domain.market.MarketRefreshService
 import com.wuzhufolio.domain.market.MarketSettingsService
+import com.wuzhufolio.domain.market.MarketWatchService
 import com.wuzhufolio.domain.accounts.AccountService
 import com.wuzhufolio.domain.redaction.LogRedactor
 import com.wuzhufolio.domain.settings.PnlColorScheme
@@ -75,6 +79,9 @@ object AppBootstrap {
         val marketSettingsService: MarketSettingsService,
         /** M5：行情刷新编排（T5.1/T5.4，主源→兜底 + 目录维护 + 额度计数）。 */
         val marketRefreshService: MarketRefreshService,
+        /** D21：行情浏览页——自选（持久化）与报价组装。 */
+        val marketWatchService: MarketWatchService,
+        val marketQuotesService: MarketQuotesService,
         private val deviceStore: DeviceSecretStore,
         private val keyring: MasterKeyStore?,
         private val deviceKeyring: MasterKeyStore?,
@@ -139,6 +146,8 @@ object AppBootstrap {
             session = SessionRuntime(authService = authService, rememberStore = rememberStore),
             marketSettingsService = market.marketSettingsService,
             marketRefreshService = market.marketRefreshService,
+            marketWatchService = market.marketWatchService,
+            marketQuotesService = market.marketQuotesService,
             deviceStore = market.deviceStore,
             keyring = if (report.backend == KeyStorageBackend.OS_KEYCHAIN) keyring else null,
             deviceKeyring = market.deviceKeyring,
@@ -150,9 +159,12 @@ object AppBootstrap {
      * M5 行情服务装配（T5.1–T5.5）：设备密钥（方案甲）→ 目录/快照/额度 → 编排与 Key 设置用例。
      * deviceKeyring 仅在 OS 钥匙串后端时由 Runtime 持有关闭；降级文件后端立即释放。
      */
+    @Suppress("LongParameterList") // 服务装配袋（五个用例服务 + 三个资源句柄），同 Runtime 释放链
     class MarketServicesBundle internal constructor(
         val marketSettingsService: MarketSettingsService,
         val marketRefreshService: MarketRefreshService,
+        val marketWatchService: MarketWatchService,
+        val marketQuotesService: MarketQuotesService,
         val deviceStore: DeviceSecretStore,
         val deviceKeyring: MasterKeyStore?,
         val httpClient: java.io.Closeable,
@@ -183,9 +195,15 @@ object AppBootstrap {
                     logger = logger,
                 )
                 val marketSettingsService: MarketSettingsService = DefaultMarketSettingsService(deviceStore, settings)
+                val marketWatchService: MarketWatchService = SettingsMarketWatchService(settings, catalog)
+                val marketQuotesService: MarketQuotesService = SnapshotMarketQuotesService(
+                    PriceSnapshotRepository(gate),
+                )
                 return MarketServicesBundle(
                     marketSettingsService = marketSettingsService,
                     marketRefreshService = marketRefreshService,
+                    marketWatchService = marketWatchService,
+                    marketQuotesService = marketQuotesService,
                     deviceStore = deviceStore,
                     deviceKeyring = if (deviceReport.backend == KeyStorageBackend.OS_KEYCHAIN) deviceKeyring else null,
                     httpClient = httpClient,
