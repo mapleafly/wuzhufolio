@@ -215,4 +215,25 @@ class DefaultMarketRefreshServiceTest {
             assertTrue(cgFake.directoryCalls == 1)
         }
     }
+
+    @Test
+    fun `generic directory failure is classified internal and not network`() = runBlocking {
+        MarketTestEnv(seed = false).use { env ->
+            val cgFake = FakeMarketClient("cg")
+            cgFake.directoryThrowable = IllegalStateException("column too long (boom)")
+            val service = DefaultMarketRefreshService(
+                cgClient = cgFake,
+                cmcClient = FakeMarketClient("cmc"),
+                catalog = env.catalog,
+                snapshots = env.snapshots,
+                keyStore = env.deviceStore,
+                settings = env.settings,
+                quota = SettingsQuotaLedger(env.settings),
+                rankCache = RefreshableRankProvider(),
+            )
+            val result = service.refresh(manual = true, coins = listOf("tether"), fiats = listOf("USD"))
+            val error = assertIs<MarketRefreshError.Internal>(result.error)
+            assertTrue(error.detail.contains("column too long"), "修复轮：内部异常不得误报网络不可达")
+        }
+    }
 }

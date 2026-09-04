@@ -72,8 +72,8 @@ class DefaultMarketRefreshService(
                 directoryFailure = e.kind
                 logger.warn("directory refresh failed: {}", e.kind)
             } catch (t: Throwable) {
-                directoryFailure = MarketRefreshError.Network(PriceSource.COINGECKO)
-                logger.warn("directory refresh failed: {}", t.message)
+                directoryFailure = MarketRefreshError.Internal(t.message ?: t.javaClass.simpleName)
+                logger.warn("directory refresh failed (internal): {}", t.message)
             }
         }
         val targets = (coins.ifEmpty { MarketConfig.DEFAULT_FALLBACK_COINS }).distinct()

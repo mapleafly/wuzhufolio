@@ -7,7 +7,7 @@ object CoinsTable : Table("coins") {
     val id = integer("id").autoIncrement()
     val cgId = varchar("cg_id", 128)
     val cmcId = varchar("cmc_id", 32).nullable()
-    val symbol = varchar("symbol", 32)
+    val symbol = text("symbol")
     val name = text("name")
     val status = varchar("status", 16)
     val displayPrecision = integer("display_precision")

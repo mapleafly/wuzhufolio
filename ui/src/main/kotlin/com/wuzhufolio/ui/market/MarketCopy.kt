@@ -88,6 +88,8 @@ object MarketCopy {
             "行情请求失败（HTTP " + error.code + "），已保持上次价格"
         is MarketRefreshError.Untracked ->
             "「" + error.coin + "」暂无行情数据"
+        is MarketRefreshError.Internal ->
+            "行情目录初始化失败，请稍后重试（详情见日志）"
     }
 
     fun sourceName(source: PriceSource): String =

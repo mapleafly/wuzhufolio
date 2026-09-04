@@ -27,6 +27,7 @@ internal class FakeMarketClient(
     var historyResult: (suspend () -> List<MarketCandle>)? = { emptyList() }
     var directoryResult: List<CoinDirectoryEntry> = emptyList()
     var directoryError: MarketRefreshError? = null
+    var directoryThrowable: Throwable? = null
     var rankResult: List<MarketRank> = emptyList()
     var cmcMapResult: List<CmcMapCoin> = emptyList()
 
@@ -71,6 +72,7 @@ internal class FakeMarketClient(
     override suspend fun fetchDirectory(apiKey: String?): List<CoinDirectoryEntry> {
         directoryCalls++
         lastKey = apiKey
+        directoryThrowable?.let { throw it }
         directoryError?.let { throw MarketApiException(it) }
         return directoryResult
     }

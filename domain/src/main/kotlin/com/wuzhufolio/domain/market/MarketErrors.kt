@@ -26,6 +26,9 @@ sealed interface MarketRefreshError {
 
     /** 目标币在任何可用来源均无价（「无行情」提示；不出现在 refresh 结果 error——见 untracked 语义）。 */
     data class Untracked(val coin: String) : MarketRefreshError
+
+    /** 本地/内部初始化失败（目录落库异常等；非网络/平台错误——修复轮：不得误标 Network）。detail 仅入日志。 */
+    data class Internal(val detail: String) : MarketRefreshError
 }
 
 /** 平台级 HTTP 异常（数据层内部/边缘使用；用例层一律经 [MarketRefreshResult.error] 呈现）。 */

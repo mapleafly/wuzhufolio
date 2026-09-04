@@ -328,4 +328,15 @@ class SqlCoinCatalogTest {
             }
         }
     }
+
+    // M5 修复轮回归：CG 目录 symbol 可超 32 字符（Exposed varchar 客户端长度校验曾致整批失败）
+    @Test
+    fun `long symbol entries survive directory refresh`() = runBlocking {
+        val longSymbol = "x".repeat(38) + "-token"
+        val summary = catalog.refreshDirectory(listOf(entry("long-symbol-token", longSymbol, "Long Symbol Token")))
+        assertEquals(1, summary.added)
+        val hits = catalog.getBySymbol(longSymbol)
+        assertEquals(1, hits.size)
+        assertEquals("long-symbol-token", hits.single().cgId)
+    }
 }
