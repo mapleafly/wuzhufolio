@@ -134,7 +134,7 @@ object AppBootstrap {
         val hello = HelloChain(db, settings, logger).run()
 
         val market = MarketServicesBundle.run(gate, settings, logger)
-        val exchange = ExchangeServicesBundle.run(gate, settings, sessions, logger)
+        val exchange = ExchangeServicesBundle.run(gate, settings, sessions, market.catalog, logger)
 
         startKoin { modules(appModule(db, gate, settings)) }
 
@@ -181,6 +181,8 @@ object AppBootstrap {
         val marketRefreshService: MarketRefreshService,
         val marketWatchService: MarketWatchService,
         val marketQuotesService: MarketQuotesService,
+        /** M6 二轮：共享市值排名缓存的币种目录（交易所同步消歧规则③依赖——M3 遗留 4）。 */
+        val catalog: SqlCoinCatalog,
         val deviceStore: DeviceSecretStore,
         val deviceKeyring: MasterKeyStore?,
         val httpClient: java.io.Closeable,
@@ -220,6 +222,7 @@ object AppBootstrap {
                     marketRefreshService = marketRefreshService,
                     marketWatchService = marketWatchService,
                     marketQuotesService = marketQuotesService,
+                    catalog = catalog,
                     deviceStore = deviceStore,
                     deviceKeyring = if (deviceReport.backend == KeyStorageBackend.OS_KEYCHAIN) deviceKeyring else null,
                     httpClient = httpClient,
@@ -243,6 +246,7 @@ object AppBootstrap {
                 gate: DbGate,
                 settings: SettingsRepository,
                 sessions: ActiveSessionStore,
+                catalog: SqlCoinCatalog,
                 logger: Logger,
             ): ExchangeServicesBundle {
                 val httpClient = newOkHttpExchangeClient()
@@ -256,7 +260,7 @@ object AppBootstrap {
                     apiKeyRepository = ApiKeyRepository(gate),
                     syncLogRepository = SyncLogRepository(gate),
                     transactionsRepository = ExchangeTransactionRepository(gate),
-                    catalog = SqlCoinCatalog(gate),
+                    catalog = catalog,
                     settings = settings,
                     adapterFactory = adapterFactory,
                     logger = logger,

@@ -223,6 +223,10 @@ class DefaultExchangeSyncService(
             val queued = plan.queuedSymbols + remaining
             val status = if (abortError != null) SyncStatus.FAILED else SyncStatus.OK
             val message = tally.toMessage(partial, queued, status, abortError)
+            // 二轮诊断：未解析样本落应用日志（不含任何密钥/响应体），便于定位「未收录 vs 歧义」
+            if (tally.unresolvedSamples.isNotEmpty()) {
+                logger.warn("sync unresolved samples (key={}): {}", record.id, tally.unresolvedSamples)
+            }
 
             if (status == SyncStatus.OK) {
                 apiKeyRepository.updateSyncState(accountId, record.id, at, SyncStatus.OK.storageValue)
@@ -276,11 +280,14 @@ class DefaultExchangeSyncService(
         val fetched = fetchSafely(adapter, cursor, tally)
         if (fetched.abortError != null) return SymbolOutcome(tally, fetched.abortError)
         for (trade in fetched.trades) {
-            val row = resolveRow(accountId, adapter.exchangeName, pairInfo, trade)
-            when {
-                row == null -> tally.unresolved++
-                transactionsRepository.insertIfAbsent(row) -> tally.newTrades++
-                else -> tally.duplicates++
+            when (val resolved = resolveRow(accountId, adapter.exchangeName, pairInfo, trade)) {
+                is RowResolution.Skipped -> {
+                    tally.unresolved++
+                    tally.noteUnresolvedSample(resolved.reason)
+                }
+                is RowResolution.Ok ->
+                    if (transactionsRepository.insertIfAbsent(resolved.row)) tally.newTrades++
+                    else tally.duplicates++
             }
         }
         return SymbolOutcome(tally)
@@ -303,31 +310,56 @@ class DefaultExchangeSyncService(
         if (isKeyLevel(e.kind)) FetchOutcome(abortError = e.kind) else FetchOutcome(trades = emptyList())
     }
 
-    /** pair 注册表 + 成交 → 账本行（base/quote 币解析冻结；失败返回 null = 计入 unresolved）。 */
+    /** 单笔成交解析结果：可入账行，或跳过原因（未收录/歧义/退化对——二轮诊断上浮）。 */
+    private sealed interface RowResolution {
+        data class Ok(val row: ImportedTradeRow) : RowResolution
+        data class Skipped(val reason: String) : RowResolution
+    }
+
+    /** pair 注册表 + 成交 → 账本行（base/quote 币解析冻结）；解析失败返回 Skipped（带原因，诊断上浮）。 */
     @Suppress("ReturnCount")
     private suspend fun resolveRow(
         accountId: Int,
         exchange: String,
         pairInfo: PairInfo,
         trade: ExchangeTrade,
-    ): ImportedTradeRow? {
-        val base = catalog.resolve(exchange, pairInfo.baseAsset) as? Resolution.Unique ?: return null
-        val quote = catalog.resolve(exchange, pairInfo.quoteAsset) as? Resolution.Unique ?: return null
-        if (base.coin.id == quote.coin.id) return null // 退化对
-        return ImportedTradeRow(
-            accountId = accountId,
-            exchange = exchange,
-            exchangeOrderId = trade.id.toString(),
-            pair = pairInfo.baseAsset + "/" + pairInfo.quoteAsset,
-            baseCoinId = base.coin.id.toInt(),
-            quoteCoinId = quote.coin.id.toInt(),
-            type = trade.side.storageValue,
-            price = trade.price,
-            quantity = trade.qty,
-            fee = trade.fee,
-            feeCurrency = trade.feeAsset.ifEmpty { pairInfo.quoteAsset },
-            transactionTime = trade.time,
+    ): RowResolution {
+        val base = catalog.resolve(exchange, pairInfo.baseAsset)
+        val baseCoin = (base as? Resolution.Unique)?.coin
+            ?: return RowResolution.Skipped(
+                pairInfo.symbol + "：基础币 " + pairInfo.baseAsset + " " + legFailReason(base),
+            )
+        val quote = catalog.resolve(exchange, pairInfo.quoteAsset)
+        val quoteCoin = (quote as? Resolution.Unique)?.coin
+            ?: return RowResolution.Skipped(
+                pairInfo.symbol + "：计价币 " + pairInfo.quoteAsset + " " + legFailReason(quote),
+            )
+        if (baseCoin.id == quoteCoin.id) {
+            return RowResolution.Skipped(pairInfo.symbol + "：退化对（两腿同币种）")
+        }
+        return RowResolution.Ok(
+            ImportedTradeRow(
+                accountId = accountId,
+                exchange = exchange,
+                exchangeOrderId = trade.id.toString(),
+                pair = pairInfo.baseAsset + "/" + pairInfo.quoteAsset,
+                baseCoinId = baseCoin.id.toInt(),
+                quoteCoinId = quoteCoin.id.toInt(),
+                type = trade.side.storageValue,
+                price = trade.price,
+                quantity = trade.qty,
+                fee = trade.fee,
+                feeCurrency = trade.feeAsset.ifEmpty { pairInfo.quoteAsset },
+                transactionTime = trade.time,
+            ),
         )
+    }
+
+    /** 解析未命中原因（共享规范 §6 口径）：未收录 = 目录无此资产；歧义 = 多候选需人工/CSV 确认。 */
+    private fun legFailReason(resolution: Resolution): String = when (resolution) {
+        is Resolution.NotFound -> "未收录（币种目录无此资产，待目录更新或 CSV 补录）"
+        is Resolution.Ambiguous -> "歧义（同名资产 " + resolution.candidates.size + " 个，需人工确认映射）"
+        else -> "解析失败"
     }
 
     private fun logFailure(accountId: Int, apiKeyId: Int, message: String) {
@@ -386,6 +418,14 @@ private class SyncTally {
     var unresolved: Int = 0
     var fetchFailed: Int = 0
     var firstError: ExchangeError? = null
+    private val unresolvedSampleList: MutableList<String> = mutableListOf()
+
+    /** 未解析样本（前 3 条，含交易对与原因——二轮诊断上浮，message 展示首条）。 */
+    val unresolvedSamples: List<String> get() = unresolvedSampleList.toList()
+
+    fun noteUnresolvedSample(sample: String) {
+        if (unresolvedSampleList.size < 3) unresolvedSampleList.add(sample)
+    }
 
     fun add(other: SyncTally) {
         newTrades += other.newTrades
@@ -393,6 +433,7 @@ private class SyncTally {
         unresolved += other.unresolved
         fetchFailed += other.fetchFailed
         if (firstError == null) firstError = other.firstError
+        for (sample in other.unresolvedSampleList) noteUnresolvedSample(sample)
     }
 
     fun toMessage(partial: Boolean, queued: Int, status: SyncStatus, abortError: ExchangeError?): String {
@@ -405,7 +446,10 @@ private class SyncTally {
             sb.append("同步失败 · 已导入 ").append(newTrades)
         }
         if (duplicates > 0) sb.append(" · 去重跳过 ").append(duplicates)
-        if (unresolved > 0) sb.append(" · 未解析跳过 ").append(unresolved)
+        if (unresolved > 0) {
+            sb.append(" · 未解析跳过 ").append(unresolved)
+            unresolvedSampleList.firstOrNull()?.let { sb.append("（首笔：").append(it).append("）") }
+        }
         if (fetchFailed > 0) {
             sb.append(" · 请求失败 ").append(fetchFailed)
             val first = firstError?.let(::failureText)
