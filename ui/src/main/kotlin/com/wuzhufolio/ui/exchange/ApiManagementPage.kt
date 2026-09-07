@@ -124,6 +124,7 @@ fun ApiManagementPage(
                 ApiKeyModal(
                     title = ApiCopy.EDIT_TITLE,
                     initialName = key.name,
+                    editing = true,
                     busy = state.dialogBusy,
                     error = state.dialogError,
                     onSave = vm::save,
@@ -232,7 +233,7 @@ private fun SyncLogSection(logs: List<SyncLogRow>) {
     }
 }
 
-/** 添加/编辑弹窗（GUI 共性约束 7.3：就地叠加 + 首输入框聚焦；保存 = 校验→落库→首次同步）。 */
+/** 添加/编辑弹窗（GUI 共性约束 7.3：就地叠加 + 首输入框聚焦；保存 = 校验→落库→首次同步/更新）。 */
 @Composable
 private fun ApiKeyModal(
     title: String,
@@ -242,6 +243,8 @@ private fun ApiKeyModal(
     onTest: (ApiKeyInput) -> Unit,
     onClose: () -> Unit,
     initialName: String = "",
+    /** 编辑态：密钥不回显（安全口径），留空 = 保持不变。 */
+    editing: Boolean = false,
 ) {
     val colors = WzTheme.colors
     var name by remember { mutableStateOf(initialName) }
@@ -263,12 +266,25 @@ private fun ApiKeyModal(
             WzTextField(value = name, onValueChange = { name = it }, label = ApiCopy.NAME_LABEL,
                 placeholder = ApiCopy.NAME_PLACEHOLDER, modifier = Modifier.padding(top = 10.dp),
                 testTag = "api-name-input", fieldFocusRequester = nameFocus)
-            WzTextField(value = apiKey, onValueChange = { apiKey = it }, label = ApiCopy.API_KEY_LABEL,
-                placeholder = ApiCopy.API_KEY_PLACEHOLDER, modifier = Modifier.padding(top = 10.dp),
-                testTag = "api-key-input", fieldFocusRequester = keyFocus)
-            WzTextField(value = secret, onValueChange = { secret = it }, label = ApiCopy.SECRET_LABEL,
-                placeholder = ApiCopy.SECRET_PLACEHOLDER, isPassword = true, modifier = Modifier.padding(top = 10.dp),
-                testTag = "api-secret-input", fieldFocusRequester = secretFocus)
+            WzTextField(
+                value = apiKey,
+                onValueChange = { apiKey = it },
+                label = ApiCopy.API_KEY_LABEL,
+                placeholder = if (editing) ApiCopy.EDIT_KEY_PLACEHOLDER else ApiCopy.API_KEY_PLACEHOLDER,
+                modifier = Modifier.padding(top = 10.dp),
+                testTag = "api-key-input",
+                fieldFocusRequester = keyFocus,
+            )
+            WzTextField(
+                value = secret,
+                onValueChange = { secret = it },
+                label = ApiCopy.SECRET_LABEL,
+                placeholder = if (editing) ApiCopy.EDIT_SECRET_PLACEHOLDER else ApiCopy.SECRET_PLACEHOLDER,
+                isPassword = true,
+                modifier = Modifier.padding(top = 10.dp),
+                testTag = "api-secret-input",
+                fieldFocusRequester = secretFocus,
+            )
             if (error != null) {
                 Text(text = error, color = colors.loss, style = WzTheme.typography.caption,
                     modifier = Modifier.padding(top = 6.dp).testTag("api-dialog-error"))

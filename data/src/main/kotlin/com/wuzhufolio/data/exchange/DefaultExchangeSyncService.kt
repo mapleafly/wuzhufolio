@@ -30,6 +30,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.time.Instant
 
+
 /**
  * 交易所同步用例实现（T6.2/T6.3 · 契约 = domain.exchange.ExchangeSyncService）。
  *
@@ -42,6 +43,9 @@ import java.time.Instant
  *    → transactions 去重写本地账本（部分唯一索引 + 先查后写）；
  * 5. 写 sync_logs（脱敏 message）+ 更新 api_keys.last_sync_time/status（OK/FAILED）。
  *
+ * 错误上浮（M6 验收修复轮）：单 symbol 拉取失败不再并入「未解析跳过」——新增「请求失败」计数与首因文案；
+ * 关键级错误（密钥失效/签名/限流/时间戳/网络）立即中止本轮并把真实原因上浮到 sync_logs 与 API 管理页
+ *（此前全部并入 unresolvedSkipped=120 且继续打满预算，用户看不到真实原因）。
  * 币解析未命中（NotFound/Ambiguous/未收录）→ 该笔跳过并计数（unresolvedSkipped，message 注明；目录更新/CSV 补录）。
  * 触发宿主（启动/定时 15/30/60 默认 30）随 M11 桌面集成（M5 调度宿主拆分裁决同口径）。
  */
@@ -81,9 +85,40 @@ class DefaultExchangeSyncService(
             ?: error("first sync did not return a result")
     }
 
+    /** 编辑密钥（M6 验收修复轮）：别名必填；密钥均留空 = 仅改别名；均提供 = 验证后重包覆盖原行。 */
+    override suspend fun updateKey(apiKeyId: Long, input: ApiKeyInput) {
+        require(input.name.trim().isNotEmpty()) { "别名不能为空" }
+        require(input.exchangeName.trim().equals("BINANCE", ignoreCase = true)) { "MVP 仅支持 Binance" }
+        val session = sessions.requireActive()
+        val accountId = session.account.id
+        val keyBlank = input.apiKey.trim().isEmpty()
+        val secretBlank = input.secretKey.trim().isEmpty()
+        require(keyBlank == secretBlank) { "换密钥需同时填写 API Key 与 Secret Key（留空 = 仅更新别名）" }
+        if (keyBlank) {
+            apiKeyRepository.updateAlias(accountId, apiKeyId.toInt(), input.name.trim())
+            return
+        }
+        when (val result = testCredentials(input)) {
+            is CredentialValidation.Ok -> Unit
+            is CredentialValidation.Failed -> throw CredentialValidationFailed(result)
+        }
+        val rowId = apiKeyId.toInt().toString()
+        val id = accountId.toString()
+        apiKeyRepository.updateCredentials(
+            accountId,
+            apiKeyId.toInt(),
+            ApiKeyCiphers(
+                apiKey = crypto.encryptField(input.apiKey, session.dek, id, rowId, "api_key"),
+                secretKey = crypto.encryptField(input.secretKey, session.dek, id, rowId, "secret_key"),
+            ),
+            input.name.trim(),
+        )
+    }
+
     override suspend fun removeKey(apiKeyId: Long) {
         val session = sessions.requireActive()
-        apiKeyRepository.remove(session.account.id, apiKeyId.toInt())
+        // 修复轮：单写事务内先清该 key 的 sync_logs（M008 FK），再删密钥——否则外键约束失败
+        apiKeyRepository.removeWithLogs(session.account.id, apiKeyId.toInt())
     }
 
     override suspend fun testCredentials(input: ApiKeyInput): CredentialValidation {
@@ -171,25 +206,42 @@ class DefaultExchangeSyncService(
 
             val registry = pairs.filter { it.status == "TRADING" }.associateBy { it.symbol }
             val tally = SyncTally()
+            var abortError: ExchangeError? = null
+            var processed = 0
             for (cursor in plan.cursors) {
-                tally.addSymbolOutcome(syncSymbol(accountId, adapter, registry, cursor))
+                val outcome = syncSymbol(accountId, adapter, registry, cursor)
+                tally.add(outcome.tally)
+                processed++
+                if (outcome.abortError != null) {
+                    abortError = outcome.abortError
+                    break
+                }
             }
 
-            val partial = plan.queuedSymbols > 0
-            val message = tally.toMessage(partial, plan.queuedSymbols)
-            apiKeyRepository.updateSyncState(accountId, record.id, at, SyncStatus.OK.storageValue)
-            syncLogRepository.append(accountId, record.id, SyncStatus.OK, tally.newTrades,
-                LogRedactor.redact(message))
+            val remaining = plan.cursors.size - processed
+            val partial = plan.queuedSymbols > 0 || abortError != null
+            val queued = plan.queuedSymbols + remaining
+            val status = if (abortError != null) SyncStatus.FAILED else SyncStatus.OK
+            val message = tally.toMessage(partial, queued, status, abortError)
+
+            if (status == SyncStatus.OK) {
+                apiKeyRepository.updateSyncState(accountId, record.id, at, SyncStatus.OK.storageValue)
+                syncLogRepository.append(accountId, record.id, SyncStatus.OK, tally.newTrades,
+                    LogRedactor.redact(message))
+            } else {
+                logResult(accountId, record.id, SyncStatus.FAILED, tally.newTrades, message)
+                apiKeyRepository.markFailed(accountId, record.id)
+            }
             ApiKeySyncResult(
                 apiKeyId = record.id.toLong(),
                 apiKeyName = record.name,
-                status = SyncStatus.OK,
+                status = status,
                 newTrades = tally.newTrades,
                 duplicatesSkipped = tally.duplicates,
                 unresolvedSkipped = tally.unresolved,
                 partial = partial,
-                queuedSymbols = plan.queuedSymbols,
-                error = null,
+                queuedSymbols = queued,
+                error = abortError,
                 message = message,
                 at = at,
             )
@@ -207,21 +259,23 @@ class DefaultExchangeSyncService(
         }
     }
 
-    /** 单 symbol 一轮：拉取增量成交 → 逐笔映射落账；返回新增/去重/未解析计数。 */
+    /** 单 symbol 一轮：拉取增量成交 → 逐笔映射落账；返回计数 + 关键级中止标记。 */
+    @Suppress("ReturnCount") // 单 symbol 出口固定（无 pair/中止/正常），逐级返回可读性更佳
     private suspend fun syncSymbol(
         accountId: Int,
         adapter: ExchangeAdapter,
         registry: Map<String, PairInfo>,
         cursor: com.wuzhufolio.domain.exchange.SymbolCursor,
-    ): SyncTally {
+    ): SymbolOutcome {
         val tally = SyncTally()
         val pairInfo = registry[cursor.symbol]
         if (pairInfo == null) {
             tally.unresolved++ // 注册表已无此 symbol（下架）→ 计未解析，下轮不再枚举
-            return tally
+            return SymbolOutcome(tally)
         }
-        val trades = fetchSafely(adapter, cursor, tally)
-        for (trade in trades) {
+        val fetched = fetchSafely(adapter, cursor, tally)
+        if (fetched.abortError != null) return SymbolOutcome(tally, fetched.abortError)
+        for (trade in fetched.trades) {
             val row = resolveRow(accountId, adapter.exchangeName, pairInfo, trade)
             when {
                 row == null -> tally.unresolved++
@@ -229,19 +283,24 @@ class DefaultExchangeSyncService(
                 else -> tally.duplicates++
             }
         }
-        return tally
+        return SymbolOutcome(tally)
     }
 
-    /** 单 symbol 拉取（交易所失败计 unresolved 后返回空——不中断整轮，幂等保留下轮续传）。 */
+    /**
+     * 单 symbol 拉取：成功 → 返回成交；失败 → 计 fetchFailed（不再并入 unresolved）并记录首因；
+     * 关键级错误（密钥/签名/限流/时间戳/网络）→ 返回 [abortError] 让整轮中止。
+     */
     private suspend fun fetchSafely(
         adapter: ExchangeAdapter,
         cursor: com.wuzhufolio.domain.exchange.SymbolCursor,
         tally: SyncTally,
-    ): List<ExchangeTrade> = try {
-        adapter.fetchTrades(cursor.symbol, cursor.sinceId, ExchangeLimits.TRADES_PAGE_LIMIT)
+    ): FetchOutcome = try {
+        FetchOutcome(trades = adapter.fetchTrades(cursor.symbol, cursor.sinceId,
+            ExchangeLimits.TRADES_PAGE_LIMIT))
     } catch (e: ExchangeApiException) {
-        tally.unresolved++
-        emptyList()
+        tally.fetchFailed++
+        if (tally.firstError == null) tally.firstError = e.kind
+        if (isKeyLevel(e.kind)) FetchOutcome(abortError = e.kind) else FetchOutcome(trades = emptyList())
     }
 
     /** pair 注册表 + 成交 → 账本行（base/quote 币解析冻结；失败返回 null = 计入 unresolved）。 */
@@ -273,6 +332,11 @@ class DefaultExchangeSyncService(
 
     private fun logFailure(accountId: Int, apiKeyId: Int, message: String) {
         syncLogRepository.append(accountId, apiKeyId, SyncStatus.FAILED, 0,
+            LogRedactor.redact(message))
+    }
+
+    private fun logResult(accountId: Int, apiKeyId: Int, status: SyncStatus, newTrades: Int, message: String) {
+        syncLogRepository.append(accountId, apiKeyId, status, newTrades,
             LogRedactor.redact(message))
     }
 
@@ -315,24 +379,68 @@ class DefaultExchangeSyncService(
     }
 }
 
-/** 单 symbol/单 key 同步计数聚合。 */
+/** 单 symbol/单 key 同步计数聚合（修复轮：新增 fetchFailed/firstError，不再与 unresolved 混计）。 */
 private class SyncTally {
     var newTrades: Int = 0
     var duplicates: Int = 0
     var unresolved: Int = 0
+    var fetchFailed: Int = 0
+    var firstError: ExchangeError? = null
 
-    fun addSymbolOutcome(other: SyncTally) {
+    fun add(other: SyncTally) {
         newTrades += other.newTrades
         duplicates += other.duplicates
         unresolved += other.unresolved
+        fetchFailed += other.fetchFailed
+        if (firstError == null) firstError = other.firstError
     }
 
-    fun toMessage(partial: Boolean, queued: Int): String {
+    fun toMessage(partial: Boolean, queued: Int, status: SyncStatus, abortError: ExchangeError?): String {
         val sb = StringBuilder()
-        sb.append("同步成功 · 新增 ").append(newTrades)
+        if (abortError != null) {
+            sb.append("同步中止：").append(failureText(abortError)).append(" · 已导入 ").append(newTrades)
+        } else if (status == SyncStatus.OK) {
+            sb.append("同步成功 · 新增 ").append(newTrades)
+        } else {
+            sb.append("同步失败 · 已导入 ").append(newTrades)
+        }
         if (duplicates > 0) sb.append(" · 去重跳过 ").append(duplicates)
         if (unresolved > 0) sb.append(" · 未解析跳过 ").append(unresolved)
+        if (fetchFailed > 0) {
+            sb.append(" · 请求失败 ").append(fetchFailed)
+            val first = firstError?.let(::failureText)
+            if (first != null) sb.append("（首因：").append(first).append("）")
+        }
         if (partial) sb.append(" · 部分同步（").append(queued).append(" 个交易对下轮续传）")
         return sb.toString()
     }
+
+    private fun failureText(kind: ExchangeError): String = when (kind) {
+        ExchangeError.InvalidKey,
+        ExchangeError.SignatureInvalid -> "Binance API 密钥已失效，请检查或更新"
+        ExchangeError.RateLimited -> "Binance 限流触发，同步已停止，请稍后重试"
+        ExchangeError.TimestampSkew -> "Binance 时间偏差，同步已停止，请稍后重试"
+        ExchangeError.Network -> "网络不可达 Binance，同步失败（本地账本已保留）"
+        is ExchangeError.Http -> "Binance 请求失败（HTTP " + kind.code + "）"
+        is ExchangeError.Internal -> "同步失败：内部错误（详情见日志）"
+    }
+}
+
+/** 单 symbol 拉取结果（成功成交列表 或 关键级中止错误）。 */
+private class FetchOutcome(
+    val trades: List<ExchangeTrade> = emptyList(),
+    val abortError: ExchangeError? = null,
+)
+
+/** 单 symbol 编排结果（计数 + 关键级中止错误）。 */
+private class SymbolOutcome(
+    val tally: SyncTally = SyncTally(),
+    val abortError: ExchangeError? = null,
+)
+
+/** 关键级错误：应立即中止整轮（继续打满预算只会重复失败 + 触发限流）。 */
+private fun isKeyLevel(kind: ExchangeError): Boolean = when (kind) {
+    ExchangeError.InvalidKey, ExchangeError.SignatureInvalid, ExchangeError.RateLimited,
+    ExchangeError.TimestampSkew, ExchangeError.Network -> true
+    is ExchangeError.Http, is ExchangeError.Internal -> false
 }

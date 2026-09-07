@@ -23,7 +23,14 @@ interface ExchangeSyncService {
      */
     suspend fun addAndSync(input: ApiKeyInput): ApiKeySyncResult
 
-    /** 移除密钥（同步范围随之收缩）。 */
+    /**
+     * 编辑密钥（M6 验收修复轮）：[ApiKeyInput.name] 必填；API Key/Secret **均留空 = 仅更新别名**（不触发网络校验）；
+     * 两者都提供 = 先测试请求验证再以账户 DEK 重包覆盖原行（row id 不变、AAD 稳定）；只填其一拒绝（V 系校验）。
+     * 别名与该账户同交易所内唯一（冲突抛 [DuplicateApiKeyNameException]）。
+     */
+    suspend fun updateKey(apiKeyId: Long, input: ApiKeyInput)
+
+    /** 移除密钥（同一写事务内清理其 sync_logs 后删除——M008 api_key_id FK，修复轮）。 */
     suspend fun removeKey(apiKeyId: Long)
 
     /** 仅测试凭证（不落库、不触发同步；API 管理页「测试请求」按钮）。 */

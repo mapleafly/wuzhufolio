@@ -41,7 +41,7 @@ data class ApiManagementUiState(
  * API 管理 VM（T6.4 · 契约 = ExchangeSyncService）：列表/最近同步记录/间隔档位加载；
  * 添加（测试请求 → 保存即首次同步）/移除/单 key 立即同步；状态经 UI 状态流，明文 Key 只驻留输入框。
  */
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "SwallowedException", "CyclomaticComplexMethod") // 保存路由（新增/编辑）+ 异常映射（脱敏口径），复杂度来自分支固有
 class ApiManagementViewModel(private val service: ExchangeSyncService) : ViewModel() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -94,13 +94,22 @@ class ApiManagementViewModel(private val service: ExchangeSyncService) : ViewMod
         }
     }
 
-    /** 保存（编辑 = 校验 + 覆盖重包；添加 = 校验通过落库 + 立即首次同步）。 */
+    /**
+     * 保存（M6 验收修复轮）：
+     * - 新增：别名/Key/Secret 均必填 → 校验通过落库 + 立即首次同步；
+     * - 编辑：别名必填；密钥**均留空 = 仅更新别名**、均提供 = 验证后重包覆盖原行、只填其一拒绝
+     *   （安全口径：编辑不回显密钥，属预期——见 ApiCopy.EDIT_KEY_PLACEHOLDER）。
+     */
     fun save(input: ApiKeyInput) {
         if (_state.value.dialogBusy) return
+        val editing = _state.value.editingKey
+        val keyBlank = input.apiKey.trim().isEmpty()
+        val secretBlank = input.secretKey.trim().isEmpty()
         val fieldError = when {
             input.name.trim().isEmpty() -> ApiCopy.ERR_NAME_EMPTY
-            input.apiKey.trim().isEmpty() -> ApiCopy.ERR_KEY_EMPTY
-            input.secretKey.trim().isEmpty() -> ApiCopy.ERR_SECRET_EMPTY
+            editing == null && (keyBlank || secretBlank) ->
+                if (keyBlank) ApiCopy.ERR_KEY_EMPTY else ApiCopy.ERR_SECRET_EMPTY
+            editing != null && keyBlank != secretBlank -> ApiCopy.ERR_UPDATE_CREDS_PAIR
             else -> null
         }
         if (fieldError != null) {
@@ -110,12 +119,20 @@ class ApiManagementViewModel(private val service: ExchangeSyncService) : ViewMod
         _state.update { it.copy(dialogBusy = true, dialogError = null) }
         scope.launch {
             try {
-                val result = service.addAndSync(input)
-                closeDialog()
-                onSaveResult(result)
+                if (editing == null) {
+                    val result = service.addAndSync(input)
+                    closeDialog()
+                    onSaveResult(result)
+                } else {
+                    service.updateKey(editing.id, input)
+                    closeDialog()
+                    toast(WzToastKind.Success, ApiCopy.KEY_UPDATED_TOAST)
+                }
                 load()
             } catch (e: CredentialValidationFailed) {
                 _state.update { it.copy(dialogBusy = false, dialogError = ApiCopy.errorText(e.validation.kind)) }
+            } catch (e: com.wuzhufolio.domain.exchange.DuplicateApiKeyNameException) {
+                _state.update { it.copy(dialogBusy = false, dialogError = ApiCopy.ERR_DUPLICATE) }
             } catch (e: IllegalArgumentException) {
                 _state.update { it.copy(dialogBusy = false, dialogError = e.message ?: ApiCopy.ERR_GENERIC) }
             } catch (t: Throwable) {

@@ -49,6 +49,7 @@ object ApiCopy {
     const val SAVE_AND_SYNC_TOAST = "密钥已加密保存 · 请清理系统剪贴板 · 立即执行首次同步（增量去重）…"
     const val SAVE_AND_SYNC_RESULT = "首次同步完成 · 新增 %d"
     const val REMOVED_TOAST = "已移除 API 密钥"
+    const val KEY_UPDATED_TOAST = "已更新 · 密钥已重新加密保存"
     const val SYNC_DONE_TOAST = "同步完成 · 新增 %d · 去重跳过 %d"
     const val SYNC_PARTIAL_TOAST = "同步完成（部分）· 新增 %d · 剩余 %d 个交易对下轮续传"
 
@@ -57,8 +58,14 @@ object ApiCopy {
     const val ERR_NAME_EMPTY = "请输入别名"
     const val ERR_KEY_EMPTY = "请输入 API Key"
     const val ERR_SECRET_EMPTY = "请输入 Secret Key"
+    const val ERR_UPDATE_CREDS_PAIR = "换密钥需同时填写 API Key 与 Secret Key（留空 = 仅更新别名）"
     const val ERR_DUPLICATE = "同名 API 已存在（同一交易所内别名需唯一）"
     const val ERR_GENERIC = "操作失败，请重试"
+
+    // ---- 编辑回显（安全口径：密钥不回显明文/掩码，留空 = 保持不变） ----
+
+    const val EDIT_KEY_PLACEHOLDER = "留空 = 保持不变"
+    const val EDIT_SECRET_PLACEHOLDER = "留空 = 保持不变"
 
     /** ExchangeError → 弹窗/行内文案（api-contracts §4 错误码映射）。 */
     fun errorText(error: ExchangeError): String = when (error) {

@@ -22,6 +22,8 @@ private class FakeExchangeAdapter : com.wuzhufolio.domain.exchange.ExchangeAdapt
     var myTradesCalls = 0
     var invalid = false
     var tradeLimitReached: Boolean = false
+    /** 关键级拉取错误（修复轮：余额/注册表成功但 myTrades 失败 → 应中止并上浮原因）。 */
+    var tradesError: com.wuzhufolio.domain.exchange.ExchangeError? = null
 
     override suspend fun validateCredentials() {
         if (invalid) throw com.wuzhufolio.domain.exchange.ExchangeApiException(ExchangeError.InvalidKey)
@@ -35,6 +37,7 @@ private class FakeExchangeAdapter : com.wuzhufolio.domain.exchange.ExchangeAdapt
     override suspend fun fetchTrades(symbol: String, sinceId: Long?, limit: Int): List<ExchangeTrade> {
         myTradesCalls++
         if (invalid) throw com.wuzhufolio.domain.exchange.ExchangeApiException(ExchangeError.InvalidKey)
+        tradesError?.let { throw com.wuzhufolio.domain.exchange.ExchangeApiException(it) }
         return tradesBySymbol[symbol]?.filter { sinceId == null || it.id > sinceId } ?: emptyList()
     }
 
@@ -166,5 +169,31 @@ class DefaultExchangeSyncServiceTest {
         // 脱敏：密文/密钥明文不入库
         assertTrue(!logs[0].message.contains("ak") || logs[0].message.length < 10)
         assertTrue(!logs[0].message.contains("sk"))
+    }
+
+    @Test
+    fun `key level fetch error aborts run and surfaces real reason in message`() = kotlinx.coroutines.runBlocking {
+        env.loginAccount()
+        val svc = service()
+        adapter.balances = listOf(com.wuzhufolio.domain.exchange.Balance("BTC", BigDecimal("1"), BigDecimal.ZERO))
+        adapter.pairs = listOf(PairInfo("BTCUSDT", "BTC", "USDT", "TRADING"))
+        // 余额/注册表成功，但 myTrades 抛限流 → 首 symbol 即中止，不再打满预算
+        adapter.tradesError = ExchangeError.RateLimited
+        val key = env.apiKeys.create(env.sessions.get()!!.account.id, "k", "BINANCE", { rowId ->
+            val id = env.sessions.get()!!.account.id.toString()
+            ApiKeyCiphers(
+                env.crypto.encryptField("ak", env.sessions.get()!!.dek, id, rowId.toString(), "api_key"),
+                env.crypto.encryptField("sk", env.sessions.get()!!.dek, id, rowId.toString(), "secret_key"),
+            )
+        })
+        val result = svc.syncNow(key.id.toLong()).single()
+        assertEquals(com.wuzhufolio.domain.exchange.SyncStatus.FAILED, result.status)
+        assertTrue(result.error is ExchangeError.RateLimited, "关键级错误应上浮：" + result.error)
+        assertEquals(1, adapter.myTradesCalls, "关键级错误后应立即中止，不再继续拉取")
+        assertTrue(result.message.contains("同步中止"), result.message)
+        assertTrue(result.message.contains("请求失败 1"), result.message)
+        val logs = env.syncLogs.recent(env.sessions.get()!!.account.id, 5)
+        assertEquals(com.wuzhufolio.domain.exchange.SyncStatus.FAILED, logs[0].status)
+        assertTrue(logs[0].message.contains("限流"), "sync_logs 应含真实原因: " + logs[0].message)
     }
 }

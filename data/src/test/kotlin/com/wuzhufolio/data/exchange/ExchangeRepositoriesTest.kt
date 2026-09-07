@@ -110,11 +110,45 @@ class ExchangeRepositoriesTest {
     }
 
     @Test
-    fun `remove key shrinks the list`() {
+    fun `remove key with existing sync logs succeeds and clears both (M8 FK)`() {
         val session = env.loginAccount()
         val record = env.apiKeys.create(session.account.id, "temp", "BINANCE",
             cipher(session.account.id, session.dek, "a", "b"))
-        env.apiKeys.remove(session.account.id, record.id)
-        assertTrue(env.apiKeys.list(session.account.id).isEmpty())
+        // 先产生同步记录（M008 sync_logs.api_key_id → api_keys FK）——修复轮前直接删密钥会外键失败
+        env.syncLogs.append(session.account.id, record.id, SyncStatus.OK, 3, "同步成功 · 新增 3")
+        env.apiKeys.removeWithLogs(session.account.id, record.id)
+        assertTrue(env.apiKeys.list(session.account.id).isEmpty(), "密钥应已删除")
+        assertTrue(env.syncLogs.recentFor(session.account.id, record.id, 10).isEmpty(), "该 key 的同步日志应随删除清除")
+    }
+
+    @Test
+    fun `update alias keeps ciphertext and update credentials re-encrypts in place`() {
+        val session = env.loginAccount()
+        val record = env.apiKeys.create(session.account.id, "old", "BINANCE",
+            cipher(session.account.id, session.dek, "ak-1", "sk-1"))
+        // 仅改别名：密文不变、可继续解密
+        env.apiKeys.updateAlias(session.account.id, record.id, "new-name")
+        val renamed = env.apiKeys.findById(session.account.id, record.id)!!
+        assertEquals("new-name", renamed.name)
+        assertEquals("ak-1", env.crypto.decryptField(renamed.apiKeyCipher, session.dek,
+            session.account.id.toString(), renamed.id.toString(), "api_key"))
+        // 换凭证：同 row id 重包（AAD 稳定），解密得新值、last_sync_time 保留
+        val now = Instant.now()
+        env.apiKeys.updateSyncState(session.account.id, record.id, now, SyncStatus.OK.storageValue)
+        env.apiKeys.updateCredentials(
+            session.account.id,
+            record.id,
+            ApiKeyCiphers(
+                apiKey = env.crypto.encryptField("ak-2", session.dek, session.account.id.toString(),
+                    record.id.toString(), "api_key"),
+                secretKey = env.crypto.encryptField("sk-2", session.dek, session.account.id.toString(),
+                    record.id.toString(), "secret_key"),
+            ),
+            "new-name",
+        )
+        val updated = env.apiKeys.findById(session.account.id, record.id)!!
+        assertEquals("ak-2", env.crypto.decryptField(updated.apiKeyCipher, session.dek,
+            session.account.id.toString(), updated.id.toString(), "api_key"))
+        assertEquals(now, updated.lastSyncTime?.let(Instant::parse))
     }
 }

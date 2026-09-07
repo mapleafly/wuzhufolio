@@ -123,7 +123,10 @@ class ApiKeyRepository(private val gate: DbGate) {
         }
     }
 
-    /** 覆盖密钥列密文（别名不变，仅换凭证）。 */
+    /**
+     * 编辑覆盖（M6 验收修复轮）：别名 + 凭证四列密文重写（row id 不变 → FieldCipher AAD 稳定），
+     * 状态回 OK；**保留 last_sync_time**（换凭证不抹历史同步痕迹——审计口径，见模块记录 M6 §8）。
+     */
     fun updateCredentials(accountId: Int, id: Int, cipher: ApiKeyCiphers, name: String) {
         gate.writeBlocking {
             ApiKeysTable.update(where = { (ApiKeysTable.accountId eq accountId) and (ApiKeysTable.id eq id) }) {
@@ -133,7 +136,15 @@ class ApiKeyRepository(private val gate: DbGate) {
                 it[extra] = cipher.extra
                 it[ApiKeysTable.name] = name
                 it[status] = "OK"
-                it[lastSyncTime] = null
+            }
+        }
+    }
+
+    /** 仅更新别名（编辑弹窗密钥留空路径；不触凭证列与同步状态）。 */
+    fun updateAlias(accountId: Int, id: Int, name: String) {
+        gate.writeBlocking {
+            ApiKeysTable.update(where = { (ApiKeysTable.accountId eq accountId) and (ApiKeysTable.id eq id) }) {
+                it[ApiKeysTable.name] = name
             }
         }
     }
@@ -157,9 +168,14 @@ class ApiKeyRepository(private val gate: DbGate) {
         }
     }
 
-    /** 移除密钥（同步范围随之收缩）。 */
-    fun remove(accountId: Int, id: Int) {
+    /**
+     * 移除密钥（M6 验收修复轮）：**同一写事务内先删该 key 的 sync_logs 再删密钥**——
+     * M008 sync_logs.api_key_id FK 引用 api_keys(id)，直接删密钥会因外键约束失败
+     *（人工门实测：有同步记录的 key 点移除报数据库错误）。同步日志随 key 生命周期清除。
+     */
+    fun removeWithLogs(accountId: Int, id: Int) {
         gate.writeBlocking {
+            SyncLogsTable.deleteWhere { (SyncLogsTable.accountId eq accountId) and (SyncLogsTable.apiKeyId eq id) }
             ApiKeysTable.deleteWhere { (ApiKeysTable.accountId eq accountId) and (ApiKeysTable.id eq id) }
         }
     }

@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.wuzhufolio.domain.exchange.ApiKeyInfo
@@ -57,6 +58,15 @@ class ApiManagementPageUiTest {
         }
 
         override suspend fun removeKey(apiKeyId: Long) { removedId = apiKeyId }
+
+        var updatedId: Long? = null
+        var updatedInput: ApiKeyInput? = null
+
+        override suspend fun updateKey(apiKeyId: Long, input: ApiKeyInput) {
+            updatedId = apiKeyId
+            updatedInput = input
+            keys.replaceAll { if (it.id == apiKeyId) it.copy(name = input.name) else it }
+        }
 
         override suspend fun testCredentials(input: ApiKeyInput): CredentialValidation = testResult
 
@@ -150,5 +160,40 @@ class ApiManagementPageUiTest {
         onNodeWithTag("api-key-remove-7").performClick()
         waitUntil(timeoutMillis = 2_000) { svc.removedId == 7L }
         assertEquals(7L, svc.removedId)
+    }
+
+    @Test
+    fun `edit modal keeps secret blank and alias-only save routes to update not add`() = runComposeUiTest {
+        val svc = FakeSyncService().apply {
+            keys.add(ApiKeyInfo(7L, 1L, "主号", "BINANCE", Instant.now(), "OK", true))
+        }
+        setContent { ApiManagementPage(svc) }
+        waitUntil(timeoutMillis = 2_000) { textCount("主号") >= 1 }
+        onNodeWithTag("api-key-edit-7").performClick()
+        onNodeWithTag("api-modal", useUnmergedTree = true).assertIsDisplayed()
+        // 编辑态：密钥不回显（安全口径），placeholder 提示留空 = 保持不变
+        onNodeWithTag("api-key-input").assertIsDisplayed()
+        waitUntil(timeoutMillis = 2_000) { textCount(ApiCopy.EDIT_KEY_PLACEHOLDER) >= 1 }
+        onNodeWithTag("api-name-input").performTextClearance()
+        onNodeWithTag("api-name-input").performTextInput("主号改")
+        onNodeWithTag("api-save", useUnmergedTree = true).performClick()
+        waitUntil(timeoutMillis = 2_000) { svc.updatedId == 7L }
+        assertEquals(7L, svc.updatedId)
+        assertEquals("主号改", svc.updatedInput?.name)
+        assertEquals(null, svc.savedInput, "编辑不得走新增（addAndSync）")
+    }
+
+    @Test
+    fun `edit with only one credential filled is rejected`() = runComposeUiTest {
+        val svc = FakeSyncService().apply {
+            keys.add(ApiKeyInfo(7L, 1L, "主号", "BINANCE", Instant.now(), "OK", true))
+        }
+        setContent { ApiManagementPage(svc) }
+        waitUntil(timeoutMillis = 2_000) { textCount("主号") >= 1 }
+        onNodeWithTag("api-key-edit-7").performClick()
+        onNodeWithTag("api-key-input").performTextInput("ak-only")
+        onNodeWithTag("api-save", useUnmergedTree = true).performClick()
+        waitUntil(timeoutMillis = 2_000) { textCount(ApiCopy.ERR_UPDATE_CREDS_PAIR) >= 1 }
+        assertEquals(null, svc.updatedId, "只填其一应被拒绝，不触达服务")
     }
 }
