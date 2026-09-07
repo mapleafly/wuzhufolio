@@ -442,6 +442,7 @@ private class SyncTally {
         for (sample in other.unresolvedSampleList) noteUnresolvedSample(sample)
     }
 
+    @Suppress("CyclomaticComplexMethod") // message 组装按计数段逐段拼接，复杂度来自分支固有
     fun toMessage(partial: Boolean, queued: Int, status: SyncStatus, abortError: ExchangeError?): String {
         val sb = StringBuilder()
         if (abortError != null) {
@@ -461,6 +462,11 @@ private class SyncTally {
             val first = firstError?.let(::failureText)
             if (first != null) sb.append("（首因：").append(first).append("）")
         }
+        // 增量游标语义：fromId = 已同步最大成交 id + 1，无新成交时交易所返回空列表——
+        // 此时「去重跳过」也为 0（没有行进入去重判断），补一句标注避免被误读为异常（三轮后人工问询）。
+        val nothingNew = newTrades == 0 && duplicates == 0 && unresolved == 0 && fetchFailed == 0 &&
+            !partial && abortError == null
+        if (nothingNew && status == SyncStatus.OK) sb.append("（增量无新成交 · 已同步至最新）")
         if (partial) sb.append(" · 部分同步（").append(queued).append(" 个交易对下轮续传）")
         return sb.toString()
     }

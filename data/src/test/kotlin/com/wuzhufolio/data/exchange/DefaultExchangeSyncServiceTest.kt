@@ -109,6 +109,13 @@ class DefaultExchangeSyncServiceTest {
         val rows = env.transactions.syncedPairs(env.sessions.get()!!.account.id, "BINANCE")
         assertEquals(1, rows.size)
         assertEquals(102L, rows[0].maxOrderId)
+        // 第三次同步：增量游标（fromId = 最大成交 id + 1）拉不到新成交 → 新增 0 且无去重计数
+        // （「去重跳过」仅在交易所返回已同步过的成交时出现——幂等证明是「新增 0」，三轮后人工问询口径）
+        val third = svc.syncNow(first.apiKeyId).single()
+        assertEquals(com.wuzhufolio.domain.exchange.SyncStatus.OK, third.status)
+        assertEquals(0, third.newTrades)
+        assertTrue(third.message.contains("增量无新成交"), third.message)
+        assertEquals(3, env.transactions.countByAccount(env.sessions.get()!!.account.id))
         // 同步间隔缺省 30，可改 15/60
         assertEquals(30, svc.syncIntervalMinutes())
         svc.saveSyncIntervalMinutes(15)
