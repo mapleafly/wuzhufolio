@@ -59,6 +59,8 @@ class DefaultExchangeSyncService(
     private val catalog: CoinCatalog,
     private val settings: SettingsRepository,
     private val adapterFactory: (ExchangeCredentials) -> ExchangeAdapter,
+    /** M6 二轮：歧义消歧规则③输入的市值榜预热回调（AppBootstrap 接行情编排实现；测试可空）。 */
+    private val rankWarmUp: (suspend () -> Unit)? = null,
     private val logger: Logger = LoggerFactory.getLogger(DefaultExchangeSyncService::class.java),
 ) : ExchangeSyncService {
 
@@ -205,6 +207,10 @@ class DefaultExchangeSyncService(
             val plan = ExchangeSyncPolicy.plan(candidates, syncedIds)
 
             val registry = pairs.filter { it.status == "TRADING" }.associateBy { it.symbol }
+            // 二轮：同步前预热市值榜（歧义消歧规则③输入；已热 = 无网络开销；失败不阻断，样本照常上浮）
+            rankWarmUp?.let { warm ->
+                runCatching { warm() }.onFailure { t -> logger.warn("rank warm-up failed: {}", t.toString()) }
+            }
             val tally = SyncTally()
             var abortError: ExchangeError? = null
             var processed = 0

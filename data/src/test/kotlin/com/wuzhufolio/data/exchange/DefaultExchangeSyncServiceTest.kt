@@ -196,4 +196,76 @@ class DefaultExchangeSyncServiceTest {
         assertEquals(com.wuzhufolio.domain.exchange.SyncStatus.FAILED, logs[0].status)
         assertTrue(logs[0].message.contains("限流"), "sync_logs 应含真实原因: " + logs[0].message)
     }
+
+    @Test
+    @Suppress("LongMethod")
+    fun `ambiguous ticker resolves via rank warm-up and imports trades`() = kotlinx.coroutines.runBlocking {
+        service() // 初始化共享 FakeAdapter（lateinit）
+        // CG 目录里 BNB 同名资产 2 个（binancecoin + BNB48）——人工门实测样本根因
+        val provider = object : com.wuzhufolio.domain.catalog.MarketRankProvider {
+            var ranks: Map<String, Int> = emptyMap()
+            override fun rankOf(cgId: String): Int? = ranks[cgId]
+        }
+        val catalog = com.wuzhufolio.data.catalog.SqlCoinCatalog(env.gate, provider)
+        kotlinx.coroutines.runBlocking {
+            catalog.refreshDirectory(
+                listOf(
+                    com.wuzhufolio.domain.catalog.CoinDirectoryEntry("binancecoin", "bnb", "BNB"),
+                    com.wuzhufolio.domain.catalog.CoinDirectoryEntry("bnb48-club-token", "bnb", "BNB48 Club Token"),
+                    com.wuzhufolio.domain.catalog.CoinDirectoryEntry("tether", "usdt", "Tether"),
+                ),
+            )
+        }
+        var warmUps = 0
+        val svc = DefaultExchangeSyncService(
+            sessions = env.sessions,
+            crypto = env.crypto,
+            apiKeyRepository = env.apiKeys,
+            syncLogRepository = env.syncLogs,
+            transactionsRepository = env.transactions,
+            catalog = catalog,
+            settings = env.settings,
+            adapterFactory = { _: ExchangeCredentials -> adapter },
+            rankWarmUp = {
+                warmUps++
+                provider.ranks = mapOf("binancecoin" to 4) // 预热：市值榜注入（BNB48 不在榜）
+            },
+        )
+        env.loginAccount()
+        adapter.balances = listOf(com.wuzhufolio.domain.exchange.Balance("BNB", BigDecimal("10"), BigDecimal.ZERO))
+        adapter.pairs = listOf(PairInfo("BNBUSDT", "BNB", "USDT", "TRADING"))
+        adapter.tradesBySymbol["BNBUSDT"] = mutableListOf(
+            trade(1, "BNBUSDT", TradeSide.BUY, "600", "2"),
+            trade(2, "BNBUSDT", TradeSide.SELL, "610", "1"),
+        )
+        val key = env.apiKeys.create(env.sessions.get()!!.account.id, "bnb", "BINANCE", { rowId ->
+            val id = env.sessions.get()!!.account.id.toString()
+            ApiKeyCiphers(
+                env.crypto.encryptField("ak", env.sessions.get()!!.dek, id, rowId.toString(), "api_key"),
+                env.crypto.encryptField("sk", env.sessions.get()!!.dek, id, rowId.toString(), "secret_key"),
+            )
+        })
+
+        // 无预热回调的行为对照：歧义全部跳过
+        val noWarm = DefaultExchangeSyncService(
+            sessions = env.sessions,
+            crypto = env.crypto,
+            apiKeyRepository = env.apiKeys,
+            syncLogRepository = env.syncLogs,
+            transactionsRepository = env.transactions,
+            catalog = catalog,
+            settings = env.settings,
+            adapterFactory = { _: ExchangeCredentials -> adapter },
+        )
+        val skipped = noWarm.syncNow(key.id.toLong()).single()
+        assertEquals(0, skipped.newTrades)
+        assertEquals(2, skipped.unresolvedSkipped, "无排名时歧义资产按规范跳过")
+
+        // 带预热：规则③按市值排名裁定 binancecoin → 成交入账
+        val result = svc.syncNow(key.id.toLong()).single()
+        assertEquals(1, warmUps, "预热每轮至多一次")
+        assertEquals(com.wuzhufolio.domain.exchange.SyncStatus.OK, result.status)
+        assertEquals(2, result.newTrades, "歧义经排名消歧后成交入账")
+        assertEquals(0, result.unresolvedSkipped)
+    }
 }

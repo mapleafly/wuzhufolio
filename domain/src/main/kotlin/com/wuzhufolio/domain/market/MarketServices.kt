@@ -27,6 +27,13 @@ interface MarketRefreshService {
 
     /** 目录数据新鲜度（>24h 视为过期，编排刷新前先拉 /coins/list + CMC map）。 */
     suspend fun directoryFresh(): Boolean
+
+    /**
+     * 市值榜缓存预热（M6 二轮接线 · 消歧规则③输入）：交易所同步遇同名 ticker 歧义时回调触发；
+     * 缓存已热 = 直接返回 true（无网络）。实现方（M5 编排）拉 /coins/markets 4×250 页喂缓存。
+     * 接口默认 false = 该能力不可用（测试假实现无需关注）。
+     */
+    suspend fun warmUpRankCache(): Boolean = false
 }
 
 /** 行情 Key 设置用例（T5.5：保存即生效——保存即由后续刷新使用，无需重启；明文不驻留）。 */

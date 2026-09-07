@@ -224,21 +224,39 @@ class DefaultMarketRefreshService(
         val summary = catalog.refreshDirectory(entries)
         logger.info("coin directory refreshed added={} updated={}", summary.added, summary.updated)
 
-        val ranked = mutableListOf<MarketRank>()
-        var page = 1
-        var morePages = true
-        while (page <= RANK_PAGES && morePages) {
-            val part = cgClient.fetchMarketRanking(page, RANK_PAGE_SIZE, cgKey)
-            if (cgKey != null) quota.record(QuotaCallKind.DIRECTORY)
-            ranked += part
-            morePages = part.size >= RANK_PAGE_SIZE
-            page++
-        }
-        rankCache.update(ranked)
+        warmUpRankCache()
 
         val cmcKey = if (keys.cmcConfigured) keyStore.get(MarketConfig.KEY_CMC, MarketConfig.PURPOSE_CMC) else null
         if (cmcKey != null) syncCmcMap(cmcKey)
         settings.putGlobal(DIRECTORY_LAST_KEY, clock().toString())
+    }
+
+    /**
+     * 市值榜缓存预热（M6 二轮接线 · 消歧规则③输入）：缓存已热直接返回 true（无网络）；
+     * 冷则拉 /coins/markets 4×250 页喂缓存（仅个人 Key 模式计 DIRECTORY 额度，口径同目录维护）。
+     * 交易所同步遇同名 ticker 歧义时经 AppBootstrap 回调触发（两类 API 隔离：经接口回调，不共享实现）。
+     */
+    override suspend fun warmUpRankCache(): Boolean {
+        if (rankCache.size() > 0) return true
+        return try {
+            val cgKey = rawCgKey(keyStatusOf())
+            val ranked = mutableListOf<MarketRank>()
+            var page = 1
+            var morePages = true
+            while (page <= RANK_PAGES && morePages) {
+                val part = cgClient.fetchMarketRanking(page, RANK_PAGE_SIZE, cgKey)
+                if (cgKey != null) quota.record(QuotaCallKind.DIRECTORY)
+                ranked += part
+                morePages = part.size >= RANK_PAGE_SIZE
+                page++
+            }
+            rankCache.update(ranked)
+            logger.info("rank cache warmed entries={}", ranked.size)
+            true
+        } catch (e: Exception) {
+            logger.warn("rank cache warm-up failed: {}", e.toString())
+            false
+        }
     }
 
     private suspend fun syncCmcMap(cmcKey: String) {

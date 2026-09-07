@@ -109,6 +109,7 @@ object AppBootstrap {
         }
     }
 
+    @Suppress("LongMethod") // 引导装配链（密钥→DB→服务束→Koin→Runtime），步骤内聚
     fun run(logger: Logger): Runtime {
         val keyring: MasterKeyStore =
             KeychainMasterKeyStore(KeychainAccounts.SERVICE, KeychainAccounts.DB_KEY)
@@ -134,7 +135,14 @@ object AppBootstrap {
         val hello = HelloChain(db, settings, logger).run()
 
         val market = MarketServicesBundle.run(gate, settings, logger)
-        val exchange = ExchangeServicesBundle.run(gate, settings, sessions, market.catalog, logger)
+        val exchange = ExchangeServicesBundle.run(
+            gate,
+            settings,
+            sessions,
+            market.catalog,
+            rankWarmUp = { market.marketRefreshService.warmUpRankCache() },
+            logger = logger,
+        )
 
         startKoin { modules(appModule(db, gate, settings)) }
 
@@ -198,8 +206,9 @@ object AppBootstrap {
                         logger,
                     )
                 val deviceStore = DeviceSecretStore(deviceReport.key, settings, logger)
-                val catalog = SqlCoinCatalog(gate)
                 val rankCache = RefreshableRankProvider()
+                // M6 二轮：共享目录接入市值排名缓存（消歧规则③——交易所同步歧义资产按排名自动裁定）
+                val catalog = SqlCoinCatalog(gate, rankCache)
                 val httpClient = newOkHttpMarketClient()
                 val marketRefreshService: MarketRefreshService = DefaultMarketRefreshService(
                     cgClient = CoingeckoMarketClient(httpClient),
@@ -247,6 +256,7 @@ object AppBootstrap {
                 settings: SettingsRepository,
                 sessions: ActiveSessionStore,
                 catalog: SqlCoinCatalog,
+                rankWarmUp: suspend () -> Unit,
                 logger: Logger,
             ): ExchangeServicesBundle {
                 val httpClient = newOkHttpExchangeClient()
@@ -263,6 +273,7 @@ object AppBootstrap {
                     catalog = catalog,
                     settings = settings,
                     adapterFactory = adapterFactory,
+                    rankWarmUp = rankWarmUp,
                     logger = logger,
                 )
                 return ExchangeServicesBundle(exchangeSyncService = syncService, httpClient = httpClient)
