@@ -229,8 +229,10 @@ class TransactionsPageUiTest {
             )
             importResult = CsvImportSummary(1, 0, 0, emptyList())
         }
-        java.nio.file.Files.writeString(java.nio.file.Path.of("/tmp/fake.csv"), "x")
-        setContent { TransactionsPage(svc, { "/tmp/fake.csv" }, { null }) }
+        // 平台无关临时文件（Windows 无 /tmp；createTempFile 落在系统临时目录）
+        val fakeCsv = java.nio.file.Files.createTempFile("fake", ".csv")
+        java.nio.file.Files.writeString(fakeCsv, "x")
+        setContent { TransactionsPage(svc, { fakeCsv.toString() }, { null }) }
         onNodeWithTag("tx-import").performClick()
         onNodeWithTag("csv-modal", useUnmergedTree = true).assertIsDisplayed()
         onNodeWithTag("csv-pick").performClick()
