@@ -63,4 +63,28 @@ class KeyringRememberMeStoreTest {
             store.close()
         }
     }
+
+    /**
+     * parse 契约回归（全平台可跑，不依赖钥匙串后端；2026-09-08 C0 勘误）：
+     * 损坏值一律抛 IllegalStateException——形状/账户/长度三处原用 require/error 抛 IAE，
+     * 与 KDoc 契约不符，win/mac CI 钥匙串真实后端测试因此变红。
+     */
+    @Test
+    fun `parse corrupt shapes throw typed ISE on every platform`() {
+        val token = java.util.Base64.getUrlEncoder().withoutPadding()
+            .encodeToString(ByteArray(32))
+        val shortToken = java.util.Base64.getUrlEncoder().withoutPadding()
+            .encodeToString(ByteArray(16))
+        // 坏形状（无分隔符 / 段数不足）
+        kotlin.test.assertFailsWith<IllegalStateException> { KeyringRememberMeStore.parse("broken!!") }
+        // 坏账户（非数字）
+        kotlin.test.assertFailsWith<IllegalStateException> { KeyringRememberMeStore.parse("zz|" + token + "|wrapped") }
+        // token 长度不符
+        kotlin.test.assertFailsWith<IllegalStateException> { KeyringRememberMeStore.parse("9|" + shortToken + "|wrapped") }
+        // 合法值可正常解析
+        val ok = KeyringRememberMeStore.parse("9|" + token + "|wrapped")
+        assertEquals(9, ok.accountId)
+        assertEquals(32, ok.token.size)
+        assertEquals("wrapped", ok.wrappedDekSession)
+    }
 }

@@ -122,18 +122,26 @@ class KeyringRememberMeStore(
                 Base64.getUrlEncoder().withoutPadding().encodeToString(entry.token) + "|" +
                 entry.wrappedDekSession
 
-        /** 反序列化；损坏抛 IllegalStateException（不允许静默丢弃）。 */
+        /**
+         * 反序列化；损坏**一律抛 IllegalStateException**（不允许静默丢弃；KDoc 契约口径）。
+         * 2026-09-08 C0 勘误：形状/账户/长度三处原用 require/error 抛 IllegalArgumentException，
+         * 与契约不符且 CI win/mac 钥匙串真实后端测试（损坏值须抛类型化失败）因此变红。
+         */
         internal fun parse(value: String): RememberMeEntry {
             val parts = value.split("|", limit = 3)
-            require(parts.size == 3) { "remember-me entry corrupt (bad shape)" }
+            if (parts.size != 3) {
+                throw IllegalStateException("remember-me entry corrupt (bad shape)")
+            }
             val accountId = parts[0].toIntOrNull()
-                ?: error("remember-me entry corrupt (bad account)")
+                ?: throw IllegalStateException("remember-me entry corrupt (bad account)")
             val token = try {
                 Base64.getUrlDecoder().decode(parts[1])
             } catch (e: IllegalArgumentException) {
                 throw IllegalStateException("remember-me entry corrupt (bad token)", e)
             }
-            require(token.size == 32) { "remember-me entry corrupt (token length)" }
+            if (token.size != 32) {
+                throw IllegalStateException("remember-me entry corrupt (token length)")
+            }
             return RememberMeEntry(accountId, token, parts[2])
         }
     }
