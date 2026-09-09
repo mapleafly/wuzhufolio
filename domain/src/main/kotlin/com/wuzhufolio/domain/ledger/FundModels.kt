@@ -33,6 +33,12 @@ data class FundInput(
     val kind: FlowKind,
     /** 币种符号（限稳定币或其他加密货币；法币代码拒绝并提示改记兑换后到账的稳定币）。 */
     val coinSymbol: String,
+    /**
+     * 表单候选点选冻结的 coins.id（null = 纯手输符号）。
+     * 同名资产在目录中可能很多（如 USDT 同名数十个）——纯符号解析无法唯一确定，用户从候选列表
+     * 点选的币种必须直达保存（M8 修复轮 §8-1）；服务按行 id 直接取用并校验符号一致。
+     */
+    val pickedCoinId: Long? = null,
     /** 数量（正数，V6）。 */
     val quantity: BigDecimal,
     /** 流水时间（UTC；表单本地时区输入、保存转 UTC）。 */
@@ -57,6 +63,8 @@ data class FundEntryRow(
     /** DEPOSIT/WITHDRAWAL；校准行为 null（方向由差额符号承载）。 */
     val kind: FlowKind?,
     val coinSymbol: String,
+    /** 币种行 id（编辑表单回填时作为 pickedCoinId 直达保存，绕过同名歧义——M8 修复轮 §8-1）。 */
+    val coinId: Long,
     /** 增资/撤资 = 数量；校准行 = 差额（可负）。 */
     val quantity: BigDecimal,
     /** 折算基础法币金额（动态重建口径；待定价/估算中时展示配合 [estimated]）。 */
@@ -137,14 +145,23 @@ interface FundService {
     /** 总览卡（可用现金余额 / 投入本金（净）+ 累计增资/撤资副行）。 */
     suspend fun fundsOverview(): FundsOverview
 
-    /** 表单折算预览（记录时行情价；null = 暂无行情价）。 */
-    suspend fun fiatValuePreview(coinSymbol: String, quantity: BigDecimal, at: Instant): FiatValuePreview
+    /** 表单折算预览（记录时行情价；null = 暂无行情价；[pickedCoinId] 语义见 [FundInput]）。 */
+    suspend fun fiatValuePreview(
+        coinSymbol: String,
+        quantity: BigDecimal,
+        at: Instant,
+        pickedCoinId: Long? = null,
+    ): FiatValuePreview
 
     /** 币种目录检索（表单币种自动补全，PRD §9.8「基于币种目录自动补全与归一」）。 */
     suspend fun searchCoins(query: String, limit: Int = 10): List<com.wuzhufolio.domain.catalog.CatalogCoin>
 
-    /** 基础法币对应的默认币种（PRD §9.8：USD -> USDT，其余法币 -> USDC）。 */
-    suspend fun defaultCoinSymbol(): String
+    /**
+     * 基础法币对应的默认币种（PRD §9.8：USD -> USDT、其余法币 -> USDC），**解析为完整目录行**
+     * （按稳定币白名单 cg_id 直取——同名符号歧义下默认币种必须唯一确定，M8 修复轮 §8-1）；
+     * 目录暂缺该稳定币时返回 null（表单留空由用户检索）。
+     */
+    suspend fun defaultCoin(): com.wuzhufolio.domain.catalog.CatalogCoin?
 }
 
 /** 资金页数据（列表 + 总览卡同源重放；总览在重放异常等极端场景为 null，UI 展示 "--"）。 */
@@ -249,12 +266,15 @@ class CalibrationBlockedException(
  */
 interface CalibrationUseCase {
 
-    /** 校准准备（预览；任一前提不满足抛 [CalibrationBlockedException]）。 */
-    suspend fun prepare(coinSymbol: String): CalibrationPreparation
+    /**
+     * 校准准备（预览；任一前提不满足抛 [CalibrationBlockedException]）。
+     * [pickedCoinId] = 校准弹窗候选点选的 coins.id（同名符号歧义下直达解析，M8 修复轮 §8-1）。
+     */
+    suspend fun prepare(coinSymbol: String, pickedCoinId: Long? = null): CalibrationPreparation
 
     /** 执行校准：规划 -> 锚点入库 -> sync_logs 留痕 ->（UI 层触发刷新后）全量重放。 */
-    suspend fun execute(coinSymbol: String): CalibrationResult
+    suspend fun execute(coinSymbol: String, pickedCoinId: Long? = null): CalibrationResult
 
     /** 校准历史（币种详情页列表输入；M12 聚合页接线，本模块先落服务面）。 */
-    suspend fun history(coinSymbol: String): List<ReconciliationRow>
+    suspend fun history(coinSymbol: String, pickedCoinId: Long? = null): List<ReconciliationRow>
 }

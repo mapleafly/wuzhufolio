@@ -74,6 +74,14 @@ fun FundFormModal(
                     testTag = "fund-coin-input",
                 )
                 FundSuggestionList(state.candidates) { vm.pickCandidate(it) }
+                if (state.pickedLabel != null) {
+                    Text(
+                        text = FundsCopy.PICKED_PREFIX + state.pickedLabel,
+                        color = colors.accent,
+                        style = WzTheme.typography.caption,
+                        modifier = Modifier.padding(top = 4.dp).testTag("fund-picked"),
+                    )
+                }
                 Text(
                     text = state.fiatHint ?: FundsCopy.COIN_HINT,
                     color = if (state.fiatHint != null) colors.warn else colors.ink3,
@@ -197,7 +205,7 @@ private fun fiatPreviewText(state: FundFormState): String {
     }
 }
 
-/** 目录候选列表（币种自动补全；点击选中即收起）。 */
+/** 目录候选列表（币种自动补全；行含 cg_id 供同名资产区分——M8 修复轮 §8-1；点击选中即收起）。 */
 @Composable
 private fun FundSuggestionList(candidates: List<CatalogCoin>, onPick: (CatalogCoin) -> Unit) {
     if (candidates.isEmpty()) return
@@ -209,19 +217,29 @@ private fun FundSuggestionList(candidates: List<CatalogCoin>, onPick: (CatalogCo
             .background(colors.surface)
             .testTag("fund-suggestion-list"),
     ) {
-        candidates.take(6).forEach { coin ->
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onPick(coin) }
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
-            ) {
-                Text(
-                    text = coin.symbol + " · " + coin.name,
-                    color = colors.ink,
-                    style = WzTheme.typography.body,
-                )
+        val scroll = rememberScrollState()
+        Box(modifier = Modifier.heightIn(max = 168.dp)) {
+            Column(modifier = Modifier.fillMaxWidth().verticalScroll(scroll)) {
+                candidates.take(FundsCopy.MAX_CANDIDATES).forEach { coin ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onPick(coin) }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                            .testTag("fund-suggestion-" + coin.id),
+                    ) {
+                        Text(
+                            text = coin.symbol + " · " + coin.name + "（" + coin.cgId + "）",
+                            color = colors.ink,
+                            style = WzTheme.typography.body,
+                        )
+                    }
+                }
             }
+            VerticalScrollbar(
+                adapter = rememberScrollbarAdapter(scroll),
+                modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+            )
         }
     }
 }

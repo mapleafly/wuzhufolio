@@ -79,6 +79,7 @@ class DefaultFundService(
                 entryType = if (row.kind == FlowKind.WITHDRAWAL) FundEntryType.WITHDRAWAL else FundEntryType.DEPOSIT,
                 kind = row.kind,
                 coinSymbol = coin.symbol,
+                coinId = coin.id,
                 quantity = row.amount,
                 baseAmount = event?.fiatValue ?: row.baseAmount,
                 time = row.time,
@@ -95,6 +96,7 @@ class DefaultFundService(
                 entryType = FundEntryType.RECONCILIATION,
                 kind = null,
                 coinSymbol = coin.symbol,
+                coinId = coin.id,
                 quantity = row.delta,
                 baseAmount = row.baseAmount, // 差额账务按记录值固定（M4 §5-7），不随行情重解析
                 time = row.createdAt,
@@ -112,7 +114,7 @@ class DefaultFundService(
         val session = sessions.requireActive()
         val accountId = session.account.id
         validateShape(input)
-        val coin = resolveFundCoin(input.coinSymbol)
+        val coin = resolveFundCoin(input.coinSymbol, input.pickedCoinId)
         val baseFiat = baseFiat()
         val rows = loadRows(accountId)
         val without = assembler.build(rows.tx, rows.funds, rows.recons, baseFiat).events
@@ -152,7 +154,7 @@ class DefaultFundService(
         val accountId = session.account.id
         validateShape(input)
         val old = funds.findById(accountId, id) ?: throw IllegalArgumentException("资金记录不存在或已删除")
-        val coin = resolveFundCoin(input.coinSymbol)
+        val coin = resolveFundCoin(input.coinSymbol, input.pickedCoinId)
         val baseFiat = baseFiat()
         val rows = loadRows(accountId)
         val without = assembler.build(rows.tx, rows.funds, rows.recons, baseFiat).events
@@ -222,9 +224,10 @@ class DefaultFundService(
         coinSymbol: String,
         quantity: BigDecimal,
         at: Instant,
+        pickedCoinId: Long?,
     ): FiatValuePreview {
         if (quantity.signum() <= 0) return FiatValuePreview(null, false)
-        val coin = runCatching { resolveFundCoin(coinSymbol) }.getOrNull()
+        val coin = runCatching { resolveFundCoin(coinSymbol, pickedCoinId) }.getOrNull()
             ?: return FiatValuePreview(null, false)
         val value = eventBuilder.resolveFiatValue(coin, quantity, baseFiat(), at)
         // 名义零折算（无任何可得价）= 待定价（null）；估算路径（最近可得价）保留金额并标估算
@@ -234,11 +237,13 @@ class DefaultFundService(
 
     override suspend fun searchCoins(query: String, limit: Int): List<CatalogCoin> = catalog.search(query, limit)
 
-    override suspend fun defaultCoinSymbol(): String {
+    override suspend fun defaultCoin(): com.wuzhufolio.domain.catalog.CatalogCoin? {
         val fiat = settings.getGlobal(DefaultTransactionLedgerService.SETTING_FIAT)?.takeIf { it.isNotBlank() }
             ?: "USD"
-        // PRD §9.8：基础法币为 USD 时默认 USDT，其余法币默认 USDC
-        return if (fiat.equals("USD", ignoreCase = true)) "USDT" else "USDC"
+        // PRD §9.8：基础法币为 USD 时默认 USDT，其余法币默认 USDC——按白名单 cg_id 直取
+        //（同名符号歧义下默认币种必须唯一确定，M8 修复轮 §8-1）
+        val cgId = if (fiat.equals("USD", ignoreCase = true)) "tether" else "usd-coin"
+        return catalog.getByCgId(cgId)
     }
 
     // ---- 内部 ----
@@ -343,9 +348,21 @@ class DefaultFundService(
      * 币种解析（法币不入账——PRD 故事 6.1/V1.4「法币退出账本资产」）：孪生映射法币点名稳定币
      * （USD -> 请记录 USDT），无映射法币同样拒绝；普通币种走目录精确/四级消歧（与交易半边同口径）。
      */
-    @Suppress("ThrowsCount") // 法币两态 + 消歧两态各抛类型化异常（调用方 UI 逐态映射文案）
-    private suspend fun resolveFundCoin(symbol: String): CatalogCoin {
+    @Suppress("ReturnCount", "ThrowsCount") // 点选直达/法币两态/消歧两态各抛类型化异常（UI 逐态映射文案）
+    private suspend fun resolveFundCoin(symbol: String, pickedCoinId: Long? = null): CatalogCoin {
         val norm = symbol.trim().uppercase()
+        // 候选点选直达（M8 修复轮 §8-1）：按行 id 取用并校验符号一致，绕过同名符号歧义
+        if (pickedCoinId != null) {
+            val picked = catalog.getById(pickedCoinId)
+                ?: throw CoinResolutionException(norm, "所选币种不存在或已删除，请重新从候选列表选择")
+            if (!picked.symbol.equals(norm, ignoreCase = true)) {
+                throw CoinResolutionException(
+                    norm,
+                    "所选币种（" + picked.symbol + "）与输入符号不一致，请重新从候选列表选择",
+                )
+            }
+            return picked
+        }
         when (val leg = catalog.fiatQuoteLeg(norm)) {
             is FiatLeg.TwinStable -> throw CoinResolutionException(
                 norm,

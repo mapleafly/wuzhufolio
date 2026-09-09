@@ -1,5 +1,6 @@
 package com.wuzhufolio.data.ledger
 
+import com.wuzhufolio.domain.catalog.CoinDirectoryEntry
 import com.wuzhufolio.domain.engine.FlowKind
 import com.wuzhufolio.domain.engine.Side
 import com.wuzhufolio.domain.ledger.CoinResolutionException
@@ -29,6 +30,7 @@ class DefaultFundServiceTest {
     private fun input(
         kind: FlowKind = FlowKind.DEPOSIT,
         coin: String = "USDT",
+        pickedCoinId: Long? = null,
         quantity: String = "1000",
         at: Instant = Instant.parse("2026-08-30T08:00:00Z"),
         sourceDest: String? = null,
@@ -36,6 +38,7 @@ class DefaultFundServiceTest {
     ) = FundInput(
         kind = kind,
         coinSymbol = coin,
+        pickedCoinId = pickedCoinId,
         quantity = BigDecimal(quantity),
         time = at,
         sourceDest = sourceDest,
@@ -194,6 +197,45 @@ class DefaultFundServiceTest {
                 env.fundService.deleteFunds(listOf(uuid))
             }
             assertEquals(LedgerErrorCode.REPLAY_CONFLICT, e.code)
+        }
+    }
+
+    /** 修复轮 §8-1（GUI 走查）：同名符号歧义下纯符号解析拒绝，候选点选（pickedCoinId）直达保存。 */
+    @Test
+    fun ambiguousSymbolRequiresPickedCoinWhichBypassesResolution() = runBlocking {
+        LedgerTestEnv().use { env ->
+            env.login()
+            // 注入同名资产（Abstract 链 USDT）——目录出现 2 个 USDT（真实目录为 49 个同形场景）
+            env.catalog.refreshDirectory(
+                listOf(CoinDirectoryEntry("usdt-abstract", "usdt", "Abstract USD")),
+            )
+            val tether = env.coin("USDT")!!
+            val abstractUsdt = env.catalog.getByCgId("usdt-abstract")!!
+            // 纯符号保存 -> 歧义拒绝
+            val e = assertFailsWith<CoinResolutionException> { env.fundService.saveFund(input()) }
+            assertTrue(e.reason.contains("歧义"), "应报同名歧义：${e.reason}")
+            // 候选点选（选 Abstract USDT）-> 直达保存成功
+            val id = env.fundService.saveFund(input(pickedCoinId = abstractUsdt.id))
+            assertTrue(id > 0)
+            val row = env.fundService.listFunds(FundFilter()).rows.first { it.id == id }
+            assertEquals(abstractUsdt.id, row.coinId)
+            // 点选与输入符号不一致 -> 类型化拒绝
+            assertFailsWith<CoinResolutionException> {
+                env.fundService.saveFund(input(coin = "BTC", pickedCoinId = tether.id))
+            }
+        }
+    }
+
+    /** 修复轮 §8-1（GUI 走查）：默认币种按白名单 cg_id 直取（唯一确定），返回完整目录行。 */
+    @Test
+    fun defaultCoinResolvesByWhitelistCgId() = runBlocking {
+        LedgerTestEnv().use { env ->
+            env.login()
+            val default = env.fundService.defaultCoin()
+            assertEquals("tether", default!!.cgId)
+            assertEquals("USDT", default.symbol)
+            env.settings.putGlobal(DefaultTransactionLedgerService.SETTING_FIAT, "EUR")
+            assertEquals("usd-coin", env.fundService.defaultCoin()!!.cgId)
         }
     }
 

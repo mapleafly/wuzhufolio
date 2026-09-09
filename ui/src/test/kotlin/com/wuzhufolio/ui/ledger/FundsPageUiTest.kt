@@ -10,6 +10,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.wuzhufolio.domain.catalog.CatalogCoin
+import com.wuzhufolio.domain.catalog.CoinStatus
 import com.wuzhufolio.domain.engine.FlowKind
 import com.wuzhufolio.domain.ledger.CalibrationBlockedException
 import com.wuzhufolio.domain.ledger.CalibrationPreparation
@@ -39,12 +40,14 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalTestApi::class)
 class FundsPageUiTest {
 
+    @Suppress("LongParameterList") // 测试行构造器（默认值 + 命名参数覆盖，M7 同口径）
     private fun fundRow(
         id: Long,
         uuid: String,
         type: FundEntryType,
         coin: String = "USDT",
         qty: String = "100",
+        coinId: Long = id + 100,
     ) = FundEntryRow(
         id = id,
         uuid = uuid,
@@ -55,6 +58,7 @@ class FundsPageUiTest {
             null
         },
         coinSymbol = coin,
+        coinId = coinId,
         quantity = BigDecimal(qty),
         baseAmount = BigDecimal("1000"),
         time = Instant.parse("2026-09-01T08:00:00Z"),
@@ -97,11 +101,12 @@ class FundsPageUiTest {
             coinSymbol: String,
             quantity: BigDecimal,
             at: Instant,
+            pickedCoinId: Long?,
         ): FiatValuePreview = FiatValuePreview(BigDecimal("100"), false)
 
         override suspend fun searchCoins(query: String, limit: Int): List<CatalogCoin> = searchResults
 
-        override suspend fun defaultCoinSymbol(): String = ""
+        override suspend fun defaultCoin(): CatalogCoin? = null
     }
 
     private inner class FakeCalibration(
@@ -124,13 +129,13 @@ class FundsPageUiTest {
             direction = FlowKind.DEPOSIT,
         )
 
-        override suspend fun prepare(coinSymbol: String): CalibrationPreparation {
+        override suspend fun prepare(coinSymbol: String, pickedCoinId: Long?): CalibrationPreparation {
             preparedCoin = coinSymbol
             blockReason?.let { throw CalibrationBlockedException(it, "提示：" + it.name) }
             return prep
         }
 
-        override suspend fun execute(coinSymbol: String): CalibrationResult {
+        override suspend fun execute(coinSymbol: String, pickedCoinId: Long?): CalibrationResult {
             executedCoin = coinSymbol
             return CalibrationResult(
                 recorded = true,
@@ -148,7 +153,7 @@ class FundsPageUiTest {
             )
         }
 
-        override suspend fun history(coinSymbol: String): List<ReconciliationRow> = emptyList()
+        override suspend fun history(coinSymbol: String, pickedCoinId: Long?): List<ReconciliationRow> = emptyList()
     }
 
     private fun androidx.compose.ui.test.ComposeUiTest.textCount(text: String, substring: Boolean = true): Int =
@@ -197,6 +202,24 @@ class FundsPageUiTest {
         onNodeWithTag("fund-save", useUnmergedTree = true).performClick()
         waitUntil(timeoutMillis = 2_000) { svc.savedInput != null }
         assertEquals(FlowKind.WITHDRAWAL, svc.savedInput!!.kind)
+    }
+
+    /** 修复轮 §8-1：候选点选必须直达保存（pickedCoinId 传入服务），且候选行展示 cg_id。 */
+    @Test
+    fun coinPickCarriesPickedCoinIdToService() = runComposeUiTest {
+        val picked = CatalogCoin(77L, "tether", null, "USDT", "Tether", CoinStatus.ACTIVE)
+        val svc = FakeFundService().apply { searchResults = listOf(picked) }
+        setContent { FundsPage(svc, FakeCalibration()) }
+        onNodeWithTag("fund-add-deposit").performClick()
+        onNodeWithTag("fund-coin-input").performTextInput("USDT")
+        waitUntil(timeoutMillis = 2_000) { textCount("tether") >= 1 }
+        onNodeWithTag("fund-suggestion-77").performClick()
+        waitUntil(timeoutMillis = 2_000) { textCount(FundsCopy.PICKED_PREFIX) >= 1 }
+        onNodeWithTag("fund-qty-input").performTextInput("100")
+        onNodeWithTag("fund-save", useUnmergedTree = true).performClick()
+        waitUntil(timeoutMillis = 2_000) { svc.savedInput != null }
+        assertEquals(77L, svc.savedInput!!.pickedCoinId)
+        assertEquals("USDT", svc.savedInput!!.coinSymbol)
     }
 
     @Test

@@ -104,6 +104,18 @@ object FundsCopy {
     const val CAL_SUCCESS = "校准完成 · 已生成校准记录并留痕同步日志"
     const val CAL_EXECUTING = "执行中…"
 
+    /** 候选列表最多展示条数（可滚动；同名资产靠 cg_id 区分）。 */
+    const val MAX_CANDIDATES = 12
+
+    /** 已选候选展示前缀（表单内「已选择」行；同名资产靠 cg_id 区分）。 */
+    const val PICKED_PREFIX = "已选择："
+    const val PICKED_HINT = "点选候选后保存将使用所选币种（同名资产请以括号内的 CoinGecko id 区分）"
+
+    /** 币种解析失败 -> 中文可操作文案（替代英文异常原文——2026-09-09 GUI 走查修复轮 §8-1）。 */
+    fun coinResolutionCopy(error: com.wuzhufolio.domain.ledger.CoinResolutionException): String =
+        "币种「" + error.symbol + "」无法唯一确定：" + error.reason +
+            if (error.reason.contains("歧义")) "——请从输入框下方候选列表点选后再保存" else ""
+
     /** 违例分类 -> 用户文案（interaction V7 / V9；api-contracts §4 错误码映射）。 */
     fun validationCopy(error: com.wuzhufolio.domain.ledger.LedgerValidationException): String = when (error.code) {
         LedgerErrorCode.INSUFFICIENT_POSITION -> error.coinSymbol + " 持仓不足，无法撤资"

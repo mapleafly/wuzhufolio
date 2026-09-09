@@ -65,10 +65,10 @@ class DefaultCalibrationService(
 
     private val reconciliation = ReconciliationService()
 
-    override suspend fun prepare(coinSymbol: String): CalibrationPreparation {
+    override suspend fun prepare(coinSymbol: String, pickedCoinId: Long?): CalibrationPreparation {
         val session = sessions.requireActive()
         val accountId = session.account.id
-        val coin = resolveCoin(coinSymbol)
+        val coin = resolveCoin(coinSymbol, pickedCoinId)
         val local = localPosition(accountId, coin)
         val exchangeName = requireSingleSource(local.sources)
         val key = pickKey(accountId, exchangeName)
@@ -99,14 +99,14 @@ class DefaultCalibrationService(
         )
     }
 
-    override suspend fun execute(coinSymbol: String): CalibrationResult {
+    override suspend fun execute(coinSymbol: String, pickedCoinId: Long?): CalibrationResult {
         val session = sessions.requireActive()
         val accountId = session.account.id
-        val prep = prepare(coinSymbol) // 重新实时取数（余额/市价以执行时点为准）
+        val prep = prepare(coinSymbol, pickedCoinId) // 重新实时取数（余额/市价以执行时点为准）
         if (prep.delta.signum() == 0) {
             return CalibrationResult(recorded = false, row = null)
         }
-        val coin = resolveCoin(coinSymbol)
+        val coin = resolveCoin(coinSymbol, pickedCoinId)
         validateAnchorMutation(accountId, coin, prep)
         val rowId = recons.insert(
             NewReconciliationRow(
@@ -150,9 +150,9 @@ class DefaultCalibrationService(
         )
     }
 
-    override suspend fun history(coinSymbol: String): List<ReconciliationRow> {
+    override suspend fun history(coinSymbol: String, pickedCoinId: Long?): List<ReconciliationRow> {
         val session = sessions.requireActive()
-        val coin = resolveCoin(coinSymbol)
+        val coin = resolveCoin(coinSymbol, pickedCoinId)
         return recons.listForCoin(session.account.id, coin.id).map { row ->
             ReconciliationRow(
                 id = row.id,
@@ -326,8 +326,21 @@ class DefaultCalibrationService(
         direction = plan.direction,
     )
 
-    private suspend fun resolveCoin(symbol: String): CatalogCoin {
+    @Suppress("ReturnCount", "ThrowsCount") // 点选直达 + 精确 + 消歧三段早退（与 DefaultFundService 同构）
+    private suspend fun resolveCoin(symbol: String, pickedCoinId: Long? = null): CatalogCoin {
         val norm = symbol.trim().uppercase()
+        // 候选点选直达（M8 修复轮 §8-1）：按行 id 取用并校验符号一致，绕过同名符号歧义
+        if (pickedCoinId != null) {
+            val picked = catalog.getById(pickedCoinId)
+                ?: throw CoinResolutionException(norm, "所选币种不存在或已删除，请重新从候选列表选择")
+            if (!picked.symbol.equals(norm, ignoreCase = true)) {
+                throw CoinResolutionException(
+                    norm,
+                    "所选币种（" + picked.symbol + "）与输入符号不一致，请重新从候选列表选择",
+                )
+            }
+            return picked
+        }
         val exact = catalog.getBySymbol(norm).filter { it.status == com.wuzhufolio.domain.catalog.CoinStatus.ACTIVE }
         if (exact.size == 1) return exact.first()
         return when (val res = catalog.resolve(null, norm)) {

@@ -166,6 +166,34 @@ class CalibrationServiceTest {
         }
     }
 
+    /** 修复轮 §8-1（GUI 走查）：同名符号歧义下校准弹窗候选点选（pickedCoinId）直达解析。 */
+    @Test
+    fun calibrationResolvesPickedCoinOnAmbiguousSymbol() = runBlocking {
+        LedgerTestEnv().use { env ->
+            env.login()
+            seedSingleSourceCoin(env, "1.0")
+            env.addKey()
+            val btc = env.coin("BTC")!!
+            // 注入同名资产（目录出现 2 个 BTC）
+            env.catalog.refreshDirectory(
+                listOf(com.wuzhufolio.domain.catalog.CoinDirectoryEntry("bitcoin-abstract", "btc", "Abstract Bitcoin")),
+            )
+            env.putSnapshot(btc.id, "USD", "50000", Instant.parse("2026-08-01T00:00:00Z"))
+            env.fakeBalances = listOf(
+                com.wuzhufolio.domain.exchange.Balance("BTC", BigDecimal("0.8"), BigDecimal.ZERO),
+            )
+            // 纯符号 -> 歧义拒绝
+            assertFailsWith<com.wuzhufolio.domain.ledger.CoinResolutionException> {
+                env.calibrationService.prepare("BTC")
+            }
+            // 候选点选（真 tether/bitcoin 行）-> 预览 + 执行成功
+            val prep = env.calibrationService.prepare("BTC", btc.id)
+            assertEquals(0, BigDecimal("-0.2").compareTo(prep.delta))
+            val result = env.calibrationService.execute("BTC", btc.id)
+            assertTrue(result.recorded)
+        }
+    }
+
     @Test
     fun historyListsReconciliationRowsForCoin() = runBlocking {
         LedgerTestEnv().use { env ->

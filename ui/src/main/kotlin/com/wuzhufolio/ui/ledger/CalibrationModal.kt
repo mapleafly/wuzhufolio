@@ -1,6 +1,7 @@
 package com.wuzhufolio.ui.ledger
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -50,6 +51,35 @@ fun CalibrationModal(
             fieldFocusRequester = coinFocus,
             testTag = "cal-coin-input",
         )
+        if (state.candidates.isNotEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp)
+                    .background(colors.surface)
+                    .testTag("cal-suggestion-list"),
+            ) {
+                state.candidates.take(FundsCopy.MAX_CANDIDATES).forEach { coin ->
+                    Text(
+                        text = coin.symbol + " · " + coin.name + "（" + coin.cgId + "）",
+                        color = colors.ink,
+                        style = WzTheme.typography.body,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { vm.pickCalibrationCandidate(coin) }
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                    )
+                }
+            }
+        }
+        if (state.pickedLabel != null) {
+            Text(
+                text = FundsCopy.PICKED_PREFIX + state.pickedLabel,
+                color = colors.accent,
+                style = WzTheme.typography.caption,
+                modifier = Modifier.padding(top = 4.dp).testTag("cal-picked"),
+            )
+        }
         WzButton(
             text = FundsCopy.CAL_PREPARE,
             onClick = vm::prepareCalibration,

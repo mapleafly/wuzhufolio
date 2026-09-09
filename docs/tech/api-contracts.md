@@ -221,6 +221,13 @@ interface SettingsService {
 >  （增资建立的持仓即时解锁手动买入 V5 路径——M7 §6 遗留 1 落地）。
 > 回溯：PRD 故事 6.1/6.2/6.3、4.1-5、§9.8、§10-8、全局说明「持仓校准规则」「成本计算规范」、
 > interaction V6/V7、黄金用例 2/3/4/7/8（引擎数值 M4 已守护，接线形状随 M8 数据层测试）。
+>
+> **M8 修复轮补录（2026-09-09，模块记录 M8 §8）**：GUI 走查暴露同名符号歧义阻断——候选点选未直达
+> 保存。修复：`FundInput.pickedCoinId` / `FundEntryRow.coinId` / `fiatValuePreview(pickedCoinId)` /
+> `CalibrationUseCase.prepare/execute/history(pickedCoinId)`（点选冻结 coins.id，服务按行 id 直取 +
+> 符号一致性校验，绕过符号歧义）；`FundService.defaultCoinSymbol()` 改 **`defaultCoin(): CatalogCoin?`**
+>（按白名单 cg_id 直取 USD→tether / 其余→usd-coin）；候选行展示 cg_id；`CoinResolutionException`
+> UI 文案中文化（coinResolutionCopy）。
 
 
 

@@ -45,15 +45,21 @@ data class FundFormState(
     val errors: Map<String, String> = emptyMap(),
     val formError: String? = null,
     val candidates: List<CatalogCoin> = emptyList(),
+    /** 候选点选冻结（coins.id + 展示标签）——同名符号歧义下直达保存（M8 修复轮 §8-1）。 */
+    val pickedCoinId: Long? = null,
+    val pickedLabel: String? = null,
     val busy: Boolean = false,
     val fiatPreview: FiatValuePreview? = null,
     /** 法币输入实时提示（PRD §9.8「输入法币代码时提示改为记录兑换后到账的稳定币」）。 */
     val fiatHint: String? = null,
 )
 
-/** 校准弹窗状态（T8.2：预览 -> 确认执行）。 */
+/** 校准弹窗状态（T8.2：预览 -> 确认执行；候选点选直达——M8 修复轮 §8-1）。 */
 data class CalibrationUiState(
     val coinInput: String = "",
+    val candidates: List<CatalogCoin> = emptyList(),
+    val pickedCoinId: Long? = null,
+    val pickedLabel: String? = null,
     val busy: Boolean = false,
     val executing: Boolean = false,
     val preparation: CalibrationPreparation? = null,
@@ -150,8 +156,20 @@ class FundsViewModel(
             )
         }
         scope.launch {
-            val default = runCatching { service.defaultCoinSymbol() }.getOrNull()
-            if (default != null) patchForm { f -> f.copy(coinSymbol = f.coinSymbol.ifBlank { default }) }
+            val default = runCatching { service.defaultCoin() }.getOrNull()
+            if (default != null) {
+                patchForm { f ->
+                    if (f.coinSymbol.isBlank()) {
+                        f.copy(
+                            coinSymbol = default.symbol,
+                            pickedCoinId = default.id,
+                            pickedLabel = pickedLabelOf(default),
+                        )
+                    } else {
+                        f
+                    }
+                }
+            }
         }
     }
 
@@ -167,6 +185,8 @@ class FundsViewModel(
                     id = row.id,
                     kind = row.kind ?: FlowKind.DEPOSIT,
                     coinSymbol = row.coinSymbol,
+                    pickedCoinId = row.coinId,
+                    pickedLabel = row.coinSymbol,
                     quantity = row.quantity.stripTrailingZeros().toPlainString(),
                     timeText = row.time.atZone(ZoneId.systemDefault()).format(FORM_LOCAL),
                     sourceDest = row.sourceDest ?: "",
@@ -199,7 +219,14 @@ class FundsViewModel(
 
     fun onCoinChange(value: String) {
         patchForm {
-            it.copy(coinSymbol = value, candidates = emptyList(), formError = null, fiatHint = fiatHintOf(value))
+            it.copy(
+                coinSymbol = value,
+                candidates = emptyList(),
+                pickedCoinId = null,
+                pickedLabel = null,
+                formError = null,
+                fiatHint = fiatHintOf(value),
+            )
         }
         refreshPreview()
         searchCoins(value)
@@ -224,9 +251,22 @@ class FundsViewModel(
     }
 
     fun pickCandidate(coin: CatalogCoin) {
-        patchForm { it.copy(coinSymbol = coin.symbol, candidates = emptyList(), fiatHint = null) }
+        patchForm {
+            it.copy(
+                coinSymbol = coin.symbol,
+                pickedCoinId = coin.id,
+                pickedLabel = pickedLabelOf(coin),
+                candidates = emptyList(),
+                fiatHint = null,
+                errors = it.errors - FundField.COIN.key,
+            )
+        }
         refreshPreview()
     }
+
+    /** 候选展示标签（含 cg_id——同名资产靠 CoinGecko id 区分，M8 修复轮 §8-1）。 */
+    private fun pickedLabelOf(coin: CatalogCoin): String =
+        coin.symbol + " · " + coin.name + "（" + coin.cgId + "）"
 
     private fun searchCoins(query: String) {
         val q = query.trim()
@@ -247,7 +287,7 @@ class FundsViewModel(
         }
         val at = parseLocalTime(form.timeText) ?: Instant.now()
         scope.launch {
-            val preview = runCatching { service.fiatValuePreview(coin, quantity, at) }.getOrNull()
+            val preview = runCatching { service.fiatValuePreview(coin, quantity, at, form.pickedCoinId) }.getOrNull()
             // 只把「当前仍在编辑同一币种/数量」的结果写回（避免慢响应错配）
             patchForm { f ->
                 if (f.coinSymbol.trim().equals(coin, ignoreCase = true) && f.quantity == form.quantity) {
@@ -283,6 +323,7 @@ class FundsViewModel(
         val input = FundInput(
             kind = form.kind,
             coinSymbol = form.coinSymbol,
+            pickedCoinId = form.pickedCoinId,
             quantity = quantity,
             time = time,
             sourceDest = form.sourceDest.trim().takeIf { it.isNotEmpty() },
@@ -377,7 +418,39 @@ class FundsViewModel(
 
     fun onCalibrationCoinChange(value: String) {
         _state.update { st ->
-            st.copy(calibration = st.calibration?.copy(coinInput = value, preparation = null, error = null))
+            st.copy(
+                calibration = st.calibration?.copy(
+                    coinInput = value,
+                    candidates = emptyList(),
+                    pickedCoinId = null,
+                    pickedLabel = null,
+                    preparation = null,
+                    error = null,
+                ),
+            )
+        }
+        val q = value.trim()
+        if (q.isNotEmpty()) {
+            scope.launch {
+                val found = runCatching { service.searchCoins(q) }.getOrDefault(emptyList())
+                _state.update { st ->
+                    st.copy(calibration = st.calibration?.copy(candidates = found))
+                }
+            }
+        }
+    }
+
+    fun pickCalibrationCandidate(coin: CatalogCoin) {
+        _state.update { st ->
+            st.copy(
+                calibration = st.calibration?.copy(
+                    coinInput = coin.symbol,
+                    candidates = emptyList(),
+                    pickedCoinId = coin.id,
+                    pickedLabel = coin.symbol + " · " + coin.name + "（" + coin.cgId + "）",
+                    error = null,
+                ),
+            )
         }
     }
 
@@ -388,7 +461,7 @@ class FundsViewModel(
         if (coin.isEmpty() || cal.busy) return
         _state.update { st -> st.copy(calibration = st.calibration?.copy(busy = true, error = null)) }
         scope.launch {
-            runCatching { calibration.prepare(coin) }
+            runCatching { calibration.prepare(coin, cal.pickedCoinId) }
                 .onSuccess { prep ->
                     _state.update { st ->
                         st.copy(calibration = st.calibration?.copy(busy = false, preparation = prep))
@@ -411,7 +484,7 @@ class FundsViewModel(
         if (coin.isEmpty() || cal.executing) return
         _state.update { st -> st.copy(calibration = st.calibration?.copy(executing = true, error = null)) }
         scope.launch {
-            runCatching { calibration.execute(coin) }
+            runCatching { calibration.execute(coin, cal.pickedCoinId) }
                 .onSuccess { result ->
                     val message = if (result.recorded) {
                         FundsCopy.CAL_SUCCESS
@@ -438,7 +511,7 @@ class FundsViewModel(
 
     private fun calibrationErrorCopy(t: Throwable): String = when (t) {
         is CalibrationBlockedException -> t.message
-        is CoinResolutionException -> t.message ?: FundsCopy.SAVE_FAILED
+        is CoinResolutionException -> FundsCopy.coinResolutionCopy(t)
         is LedgerValidationException -> FundsCopy.validationCopy(t)
         else -> t.message ?: "校准失败"
     }
