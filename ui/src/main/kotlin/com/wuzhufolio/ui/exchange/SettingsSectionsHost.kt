@@ -23,14 +23,15 @@ import com.wuzhufolio.ui.theme.WzTheme
  * 设置页内容占位宿主（M6 · 挂载到 MainShell SETTINGS 页）。
  *
  * 现状：M5 的 MarketSettingsPage 以「独立设置占位宿主」托管行情数据源分组（M5 §5-6-④ 注「M10 将并入完整设置页」）；
- * M6 交易所同步的 API 管理同样属设置分组（ia.md §2.14 入口 = 设置 → API 管理）。M10 建完整设置页前，
- * 本宿主以分段切换挂载两组内容（行情数据源 / API 管理），默认选中行情数据源保持 M5 通过时的首屏口径；
- * M10 整页接管后移除本宿主、按原型单页分组合流（登记见模块记录 M6 §5 UI 偏差）。
+ * M6 交易所同步的 API 管理同样属设置分组（ia.md §2.14 入口 = 设置 → API 管理）；M7 增加手续费费率分组
+ * （T7.2 端到端补口，最小 CRUD）。M10 建完整设置页前，本宿主以分段切换挂载三组内容，默认选中行情数据源
+ * 保持 M5 通过时的首屏口径；M10 整页接管后移除本宿主、按原型单页分组合流（登记见模块记录 M6 §5/M7 §8）。
  */
 @Composable
 fun SettingsSectionsHost(
     marketContent: @Composable () -> Unit,
     apiContent: @Composable () -> Unit,
+    feeContent: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val colors = WzTheme.colors
@@ -56,14 +57,24 @@ fun SettingsSectionsHost(
                 else WzButtonVariant.Secondary,
                 testTag = "settings-section-api",
             )
+            if (feeContent != null) {
+                WzButton(
+                    text = if (section == SettingsSection.FEE) "● 手续费" else "○ 手续费",
+                    onClick = { section = SettingsSection.FEE },
+                    variant = if (section == SettingsSection.FEE) WzButtonVariant.Primary
+                    else WzButtonVariant.Secondary,
+                    testTag = "settings-section-fee",
+                )
+            }
         }
         Box(modifier = Modifier.weight(1f)) {
             when (section) {
                 SettingsSection.MARKET -> marketContent()
                 SettingsSection.API -> apiContent()
+                SettingsSection.FEE -> if (feeContent != null) feeContent() else marketContent()
             }
         }
     }
 }
 
-private enum class SettingsSection { MARKET, API }
+private enum class SettingsSection { MARKET, API, FEE }

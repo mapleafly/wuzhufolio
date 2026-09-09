@@ -48,6 +48,13 @@ fun AuthGate(
     marketSettingsContent: (@Composable () -> Unit)? = null,
     /** D21：行情页内容（null = 占位页）。 */
     watchPageContent: (@Composable () -> Unit)? = null,
+    /** M7：交易管理页内容（null = 占位页）。 */
+    transactionsPageContent: (@Composable () -> Unit)? = null,
+    /** M7 补口：顶栏手动同步（null = 不显示按钮）。 */
+    onManualSync: (() -> Unit)? = null,
+    manualSyncing: Boolean = false,
+    manualSyncToast: com.wuzhufolio.ui.components.WzToast? = null,
+    onManualSyncToastDismiss: () -> Unit = {},
 ) {
     val vm = remember { AuthGateViewModel(authService).also { it.start() } }
     DisposableEffect(vm) {
@@ -115,6 +122,11 @@ fun AuthGate(
                             },
                             settingsPageContent = marketSettingsContent,
                             watchPageContent = watchPageContent,
+                            transactionsPageContent = transactionsPageContent,
+                            onManualSync = onManualSync,
+                            manualSyncing = manualSyncing,
+                            manualSyncToast = manualSyncToast,
+                            onManualSyncToastDismiss = onManualSyncToastDismiss,
                         )
                     }
                 }

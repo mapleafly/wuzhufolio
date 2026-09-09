@@ -32,6 +32,7 @@ import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
 import com.wuzhufolio.ui.components.WzModal
 import com.wuzhufolio.ui.components.WzStatusBar
+import com.wuzhufolio.ui.components.WzToast
 import com.wuzhufolio.ui.components.WzToastHost
 import com.wuzhufolio.ui.gallery.ComponentGallery
 import com.wuzhufolio.ui.theme.WuzhuTheme
@@ -53,6 +54,15 @@ fun MainShell(
     settingsPageContent: (@Composable () -> Unit)? = null,
     /** D21：行情页内容（行情浏览 + 自选；null = 占位页）。 */
     watchPageContent: (@Composable () -> Unit)? = null,
+    /** M7：交易管理页内容（null = 占位页）。 */
+    transactionsPageContent: (@Composable () -> Unit)? = null,
+    /** M7 补口：顶栏手动同步（null = 不显示按钮；PRD 故事 4.3 + ia.md 顶栏规范）。 */
+    onManualSync: (() -> Unit)? = null,
+    /** 顶栏手动同步进行中（按钮置「同步中…」并禁用）。 */
+    manualSyncing: Boolean = false,
+    /** 顶栏手动同步结果 toast（与主壳 toast 合并展示）。 */
+    manualSyncToast: WzToast? = null,
+    onManualSyncToastDismiss: () -> Unit = {},
 ) {
     val themeMode by viewModel.themeMode.collectAsState()
     val pnlScheme by viewModel.pnlScheme.collectAsState()
@@ -71,6 +81,8 @@ fun MainShell(
                             title = page.label,
                             themeMode = themeMode,
                             onToggleTheme = viewModel::toggleTheme,
+                            onManualSync = onManualSync,
+                            manualSyncing = manualSyncing,
                         )
                         Box(modifier = Modifier.weight(1f)) {
                             when (page) {
@@ -97,6 +109,17 @@ fun MainShell(
                                 } else {
                                     PlaceholderPage(page)
                                 }
+                                ShellPage.TRANSACTIONS -> if (transactionsPageContent != null) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .testTag("page-" + page.name),
+                                    ) {
+                                        transactionsPageContent()
+                                    }
+                                } else {
+                                    PlaceholderPage(page)
+                                }
                                 else -> PlaceholderPage(page)
                             }
                         }
@@ -109,7 +132,14 @@ fun MainShell(
                     version = "v0.1.0-m0",
                 )
             }
-            WzToastHost(toast = toast, onDismiss = viewModel::dismissToast)
+            // 顶栏同步结果与主壳 toast 共用宿主（同一位置，先显示同步结果）
+            WzToastHost(
+                toast = manualSyncToast ?: toast,
+                onDismiss = {
+                    onManualSyncToastDismiss()
+                    viewModel.dismissToast()
+                },
+            )
             if (startupNotice != null && showStartupNotice) {
                 StartupNoticeModal(notice = startupNotice) { showStartupNotice = false }
             }
@@ -223,7 +253,13 @@ private fun SidebarNavItem(label: String, active: Boolean, onClick: () -> Unit, 
 }
 
 @Composable
-private fun TopBar(title: String, themeMode: ThemeMode, onToggleTheme: () -> Unit) {
+private fun TopBar(
+    title: String,
+    themeMode: ThemeMode,
+    onToggleTheme: () -> Unit,
+    onManualSync: (() -> Unit)?,
+    manualSyncing: Boolean,
+) {
     val colors = WzTheme.colors
     Row(
         modifier = Modifier
@@ -242,6 +278,17 @@ private fun TopBar(title: String, themeMode: ThemeMode, onToggleTheme: () -> Uni
             style = WzTheme.typography.caption,
             modifier = Modifier.padding(end = 12.dp),
         )
+        // 手动同步交易（PRD 故事 4.3：任何页面常驻可达；同步中指示）
+        if (onManualSync != null) {
+            WzButton(
+                text = if (manualSyncing) "同步中…" else "立即同步",
+                onClick = onManualSync,
+                variant = WzButtonVariant.Secondary,
+                enabled = !manualSyncing,
+                testTag = "topbar-sync",
+            )
+            Box(modifier = Modifier.width(12.dp))
+        }
         Text(
             text = if (themeMode == ThemeMode.LIGHT) "☾" else "☀",
             color = colors.ink,

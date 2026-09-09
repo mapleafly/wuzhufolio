@@ -25,6 +25,11 @@ object ApiCopy {
     const val SYNC_NOW = "立即同步"
     const val SYNCING = "同步中…"
 
+    /** 页面级手动同步（PRD 故事 4.3；2026-09-08 走查补口：入口不随密钥列表为空而消失）。 */
+    const val SYNC_ALL_BUTTON = "立即同步（全部密钥）"
+    const val SYNC_ALL_EMPTY = "尚未添加 API 密钥：请先添加只读密钥，再执行同步"
+    const val EMPTY_HINT = "尚未添加 API 密钥 · 添加后每个密钥行内提供「立即同步」，也可用下方「立即同步（全部密钥）」"
+
     const val SYNC_INTERVAL_LABEL = "API 同步间隔（交易数据）"
     const val SYNC_INTERVAL_SUB = "自动增量同步的间隔（默认 30 分钟）"
 

@@ -77,7 +77,7 @@ fun ApiManagementPage(
                 modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
             if (state.keys.isEmpty()) {
                 Text(
-                    text = "尚未添加 API · 点击下方按钮添加 Binance 只读密钥",
+                    text = ApiCopy.EMPTY_HINT,
                     color = colors.ink3,
                     style = WzTheme.typography.body,
                     modifier = Modifier.padding(vertical = 8.dp).testTag("api-empty"),
@@ -94,11 +94,23 @@ fun ApiManagementPage(
                 }
             }
 
-            Row(modifier = Modifier.padding(top = 16.dp)) {
+            Row(
+                modifier = Modifier.padding(top = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 WzButton(
                     text = ApiCopy.ADD_BUTTON,
                     onClick = vm::openAdd,
                     testTag = "api-add",
+                )
+                // 页面级手动同步（PRD 故事 4.3）：入口常驻，不随密钥列表为空而消失
+                WzButton(
+                    text = if (state.syncingAll) ApiCopy.SYNCING else ApiCopy.SYNC_ALL_BUTTON,
+                    onClick = vm::syncAll,
+                    variant = WzButtonVariant.Secondary,
+                    enabled = !state.syncingAll && state.syncingKeyId == null,
+                    testTag = "api-sync-all",
                 )
             }
 

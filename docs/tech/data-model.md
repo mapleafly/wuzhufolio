@@ -90,6 +90,12 @@ erDiagram
 
 匹配优先级：交易所 > 全局（PRD §10-7 注）；备份去重键 (account_id, exchange)。
 
+> **M7 勘误（随 M010 落 DDL，2026-09-07）**：buy_rate / sell_rate 实际落为 TEXT 十进制串（百分比值，
+> 如 0.1 = 0.1%）——延续 M005/M006/M009 勘误链（SQLite NUMERIC 浮点截断风险，见模块记录 M5 §5）。
+> M7 只读消费（交易表单「自动计算手续费」，FeeRateResolver 交易所 > 全局）；费率 CRUD UI 归 M10
+> （task-breakdown T10.1，拆分登记见模块记录 M7 §5）。
+
+
 ### 2.5 transactions（交易记录表）—— PRD §10-1
 
 | 字段 | 类型 | 约束/说明 |
@@ -114,6 +120,13 @@ erDiagram
 | price_status | String | OK / PENDING |
 
 索引：account_id、transaction_time。去重键落为部分唯一索引 UNIQUE(account_id, exchange, exchange_order_id) WHERE exchange_order_id IS NOT NULL（数据库层防并发漏重，评审 N1）；无订单号走模糊匹配（时间+交易对+类型+数量+价格）。
+
+> **M7 口径（2026-09-07）**：手动/CSV 写入口径——手动行 exchange_order_id = null（无去重键）、
+> source='Manual'；CSV 行 source='CSV'、order_id 有则精确去重 / 无则模糊去重（时间+交易对+类型+数量+价格，
+> 疑似重复提示逐条确认，PRD 故事 2.3-4）；法币计价交易对按 1:1 归一为孪生稳定币冻结 quote_coin_id
+> （pair 展示保留录入形态，如 BTC/USD，黄金用例 12）。事件构造层（FK -> cg_id + 折算价解析 + PENDING）
+> 归 M7 交易半边，见 api-contracts §3 M7 补录。
+
 
 > M6 口径：API 同步导入行 source='BINANCE API'、exchange_order_id = 交易所成交 id（Binance myTrades.id，逐笔去重，部分成交 orderId 重复故不用 orderId——规格落档见模块记录 M6 §5）；pair 存展示拼接 "BASE/QUOTE"（原始 symbol 切分以 exchangeInfo 注册表为准，不靠字符串猜测）。
 

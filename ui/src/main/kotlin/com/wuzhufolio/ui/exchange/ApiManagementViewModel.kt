@@ -9,6 +9,7 @@ import com.wuzhufolio.domain.exchange.CredentialValidationFailed
 import com.wuzhufolio.domain.exchange.ExchangeCadence
 import com.wuzhufolio.domain.exchange.ExchangeSyncService
 import com.wuzhufolio.domain.exchange.SyncLogRow
+import com.wuzhufolio.domain.exchange.SyncStatus
 import com.wuzhufolio.ui.components.WzToast
 import com.wuzhufolio.ui.components.WzToastKind
 import kotlinx.coroutines.CoroutineScope
@@ -34,6 +35,8 @@ data class ApiManagementUiState(
     val dialogBusy: Boolean = false,
     val dialogError: String? = null,
     val syncingKeyId: Long? = null,
+    /** 页面级「立即同步（全部密钥）」进行中（与行级互斥）。 */
+    val syncingAll: Boolean = false,
     val toast: WzToast? = null,
 )
 
@@ -154,7 +157,7 @@ class ApiManagementViewModel(private val service: ExchangeSyncService) : ViewMod
     }
 
     fun syncNow(key: ApiKeyInfo) {
-        if (_state.value.syncingKeyId != null) return
+        if (_state.value.syncingKeyId != null || _state.value.syncingAll) return
         _state.update { it.copy(syncingKeyId = key.id) }
         scope.launch {
             try {
@@ -165,6 +168,37 @@ class ApiManagementViewModel(private val service: ExchangeSyncService) : ViewMod
                 toast(WzToastKind.Failure, t.message ?: ApiCopy.ERR_GENERIC)
             } finally {
                 _state.update { it.copy(syncingKeyId = null) }
+            }
+        }
+    }
+
+    /**
+     * 页面级手动同步（PRD 故事 4.3「提供手动同步按钮」；2026-09-08 走查补口）。
+     * 无密钥 -> 提示引导；有密钥 -> 同步全部（syncNow(null)），汇总新增/失败计数。
+     */
+    fun syncAll() {
+        if (_state.value.keys.isEmpty()) {
+            toast(WzToastKind.Failure, ApiCopy.SYNC_ALL_EMPTY)
+            return
+        }
+        if (_state.value.syncingAll || _state.value.syncingKeyId != null) return
+        _state.update { it.copy(syncingAll = true) }
+        scope.launch {
+            try {
+                val results = service.syncNow(null)
+                val newTrades = results.sumOf { it.newTrades }
+                val failed = results.count { it.status == SyncStatus.FAILED }
+                val message = if (failed > 0) {
+                    "同步完成（部分失败 " + failed + " 个密钥）· 新增 " + newTrades
+                } else {
+                    "同步完成 · " + results.size + " 个密钥 · 新增 " + newTrades
+                }
+                toast(if (failed > 0) WzToastKind.Failure else WzToastKind.Success, message)
+                load()
+            } catch (t: Throwable) {
+                toast(WzToastKind.Failure, t.message ?: ApiCopy.ERR_GENERIC)
+            } finally {
+                _state.update { it.copy(syncingAll = false) }
             }
         }
     }

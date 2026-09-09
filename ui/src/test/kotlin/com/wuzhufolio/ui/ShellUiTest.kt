@@ -5,6 +5,9 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.wuzhufolio.domain.settings.PnlColorScheme
 import com.wuzhufolio.domain.settings.ThemeMode
@@ -72,5 +75,33 @@ class ShellUiTest {
         onNodeWithTag("gallery-modal", useUnmergedTree = true).assertExists()
         onNodeWithTag("gallery-modal-close", useUnmergedTree = true).performClick()
         onNodeWithTag("gallery-modal", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    /** 顶栏手动同步（M7 补口 · PRD 故事 4.3）：按钮常驻、点击回调、同步中态。 */
+    @Test
+    fun `top bar manual sync button invokes callback and reflects syncing state`() = runComposeUiTest {
+        val vm = newViewModel()
+        var clicks = 0
+        var syncing by mutableStateOf(false)
+        setContent {
+            MainShell(
+                viewModel = vm,
+                onManualSync = { clicks++ },
+                manualSyncing = syncing,
+            )
+        }
+        onNodeWithTag("topbar-sync").assertIsDisplayed()
+        onNodeWithTag("topbar-sync").performClick()
+        assertEquals(1, clicks)
+        syncing = true
+        waitUntil(timeoutMillis = 2_000) { vm.page.value != null && clicks == 1 }
+        onNodeWithTag("topbar-sync").assertIsDisplayed()
+    }
+
+    /** 未传 onManualSync 时不渲染按钮（既有调用方零影响）。 */
+    @Test
+    fun `top bar sync button hidden when callback absent`() = runComposeUiTest {
+        setContent { MainShell(newViewModel()) }
+        onNodeWithTag("topbar-sync").assertDoesNotExist()
     }
 }

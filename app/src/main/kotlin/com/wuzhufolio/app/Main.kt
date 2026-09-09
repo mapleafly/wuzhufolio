@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,6 +29,9 @@ import com.wuzhufolio.ui.exchange.ApiManagementPage
 import com.wuzhufolio.ui.exchange.SettingsSectionsHost
 import com.wuzhufolio.ui.market.MarketSettingsPage
 import com.wuzhufolio.ui.market.MarketWatchPage
+import com.wuzhufolio.ui.exchange.TopBarSyncViewModel
+import com.wuzhufolio.ui.ledger.FeeRuleSettingsSection
+import com.wuzhufolio.ui.ledger.TransactionsPage
 import com.wuzhufolio.ui.theme.WuzhuTheme
 import com.wuzhufolio.ui.theme.WzTheme
 import org.slf4j.LoggerFactory
@@ -67,6 +73,13 @@ private sealed interface Outcome {
 
 @Composable
 private fun MainWindow(runtime: AppBootstrap.Runtime, onExit: () -> Unit) {
+    // 顶栏手动同步（PRD 故事 4.3）：VM 持有同步状态与结果 toast
+    val syncViewModel = remember { TopBarSyncViewModel(runtime.exchangeSyncService) }
+    DisposableEffect(syncViewModel) {
+        onDispose { syncViewModel.dispose() }
+    }
+    val manualSyncing by syncViewModel.syncing.collectAsState()
+    val manualSyncToast by syncViewModel.toast.collectAsState()
     Window(
         onCloseRequest = onExit,
         title = "WuZhuFolio",
@@ -89,6 +102,9 @@ private fun MainWindow(runtime: AppBootstrap.Runtime, onExit: () -> Unit) {
                     apiContent = {
                         ApiManagementPage(service = runtime.exchangeSyncService)
                     },
+                    feeContent = {
+                        FeeRuleSettingsSection(service = runtime.feeRuleService)
+                    },
                 )
             },
             watchPageContent = {
@@ -99,7 +115,43 @@ private fun MainWindow(runtime: AppBootstrap.Runtime, onExit: () -> Unit) {
                     settingsService = runtime.marketSettingsService,
                 )
             },
+            transactionsPageContent = {
+                TransactionsPage(
+                    service = runtime.transactionLedgerService,
+                    pickCsvFile = { FilePicker.pickLoad("选择 CSV 文件") },
+                    pickTemplatePath = { FilePicker.pickSave("保存 CSV 模板") },
+                )
+            },
+            onManualSync = syncViewModel::syncNow,
+            manualSyncing = manualSyncing,
+            manualSyncToast = manualSyncToast,
+            onManualSyncToastDismiss = syncViewModel::dismissToast,
         )
+    }
+}
+
+/**
+ * 原生文件选择（M7 CSV 导入/模板下载）：AWT FileDialog 必须在 EDT 线程执行。
+ *
+ * 线程口径（2026-09-07 GUI 走查修复轮）：调用方可能在协程线程（默认 Dispatcher）也可能在 EDT——
+ * 直接 invokeAndWait 在 EDT 上会抛 IllegalStateException（"cannot call invokeAndWait from the event
+ * dispatcher thread"），此前「下载标准模板」即因此崩溃。此处按当前线程分流：EDT 直接显示，
+ * 否则 invokeAndWait 同步等待；返回所选文件绝对路径，取消返回 null。
+ */
+private object FilePicker {
+    fun pickLoad(title: String): String? = pick(title, java.awt.FileDialog.LOAD)
+    fun pickSave(title: String): String? = pick(title, java.awt.FileDialog.SAVE)
+
+    private fun pick(title: String, mode: Int): String? {
+        var result: String? = null
+        val show = {
+            val chooser = java.awt.FileDialog(null as java.awt.Frame?, title, mode)
+            chooser.isVisible = true
+            val file = chooser.file
+            if (file != null) result = java.io.File(chooser.directory, file).absolutePath
+        }
+        if (java.awt.EventQueue.isDispatchThread()) show() else java.awt.EventQueue.invokeAndWait(show)
+        return result
     }
 }
 

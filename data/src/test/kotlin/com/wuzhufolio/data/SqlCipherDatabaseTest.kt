@@ -35,7 +35,7 @@ class SqlCipherDatabaseTest {
     fun `fresh database is encrypted at rest and migrates to latest`() {
         val db = openWith()
         try {
-            assertEquals(9, db.migrateToLatest())
+            assertEquals(10, db.migrateToLatest())
             db.connection.prepareStatement(
                 "INSERT INTO settings(key, account_id, value, updated_at) " +
                     "VALUES ('sqlcipher.probe.fiat', NULL, 'USD', 'now')",
@@ -68,8 +68,8 @@ class SqlCipherDatabaseTest {
         // 模拟进程重启：同一密钥重新建连接 + 全量迁移（幂等）+ 数据仍在
         val second = openWith(key)
         try {
-            assertEquals(9, second.schemaVersion())
-            assertEquals(9, second.migrateToLatest())
+            assertEquals(10, second.schemaVersion())
+            assertEquals(10, second.migrateToLatest())
             second.connection.createStatement().use { st ->
                 st.executeQuery("SELECT value FROM settings WHERE key = 'sqlcipher.probe.theme'").use { rs ->
                     rs.next()

@@ -36,7 +36,15 @@ import com.wuzhufolio.data.exchange.DefaultExchangeSyncService
 import com.wuzhufolio.data.exchange.ExchangeTransactionRepository
 import com.wuzhufolio.data.exchange.SyncLogRepository
 import com.wuzhufolio.data.exchange.newOkHttpExchangeClient
+import com.wuzhufolio.data.ledger.CsvTradeParser
+import com.wuzhufolio.data.ledger.DefaultFeeRuleService
+import com.wuzhufolio.data.ledger.DefaultTransactionLedgerService
+import com.wuzhufolio.data.ledger.FeeRuleRepository
+import com.wuzhufolio.data.ledger.LedgerTransactionRepository
+import com.wuzhufolio.data.ledger.TransactionEventBuilder
 import com.wuzhufolio.domain.exchange.ExchangeSyncService
+import com.wuzhufolio.domain.ledger.FeeRuleService
+import com.wuzhufolio.domain.ledger.TransactionLedgerService
 import com.wuzhufolio.domain.security.CryptoService
 import com.wuzhufolio.domain.market.MarketQuotesService
 import com.wuzhufolio.domain.market.MarketRefreshService
@@ -92,6 +100,10 @@ object AppBootstrap {
         val marketQuotesService: MarketQuotesService,
         /** M6：交易所同步用例（API 管理页 + 增量同步 + sync_logs/状态）。 */
         val exchangeSyncService: ExchangeSyncService,
+        /** M7：交易账本用例（手动增删改 + 费率自动计算 + CSV 导入，交易管理页）。 */
+        val transactionLedgerService: TransactionLedgerService,
+        /** M7：费率规则设置（最小 CRUD，设置页「手续费」分组；M10 整页接管）。 */
+        val feeRuleService: FeeRuleService,
         private val deviceStore: DeviceSecretStore,
         private val keyring: MasterKeyStore?,
         private val deviceKeyring: MasterKeyStore?,
@@ -143,6 +155,12 @@ object AppBootstrap {
             rankWarmUp = { market.marketRefreshService.warmUpRankCache() },
             logger = logger,
         )
+        val ledger = LedgerServicesBundle.run(
+            gate,
+            settings,
+            sessions,
+            market.catalog,
+        )
 
         startKoin { modules(appModule(db, gate, settings)) }
 
@@ -171,6 +189,8 @@ object AppBootstrap {
             marketWatchService = market.marketWatchService,
             marketQuotesService = market.marketQuotesService,
             exchangeSyncService = exchange.exchangeSyncService,
+            transactionLedgerService = ledger.transactionLedgerService,
+            feeRuleService = ledger.feeRuleService,
             deviceStore = market.deviceStore,
             keyring = if (report.backend == KeyStorageBackend.OS_KEYCHAIN) keyring else null,
             deviceKeyring = market.deviceKeyring,
@@ -277,6 +297,40 @@ object AppBootstrap {
                     logger = logger,
                 )
                 return ExchangeServicesBundle(exchangeSyncService = syncService, httpClient = httpClient)
+            }
+        }
+    }
+
+    /**
+     * M7 交易账本服务装配（T7.1–T7.4）：账本仓库 + 费率规则仓库 + CSV 解析器 + 事件构造层 +
+     * 用例服务。与 M6 同步编排共享同一币种目录（market.catalog——事件 FK->cg_id 解析、
+     * CSV/手动消歧同口径）；快照仓库独立实例（同表无状态，先例 = SnapshotMarketQuotesService）。
+     */
+    class LedgerServicesBundle internal constructor(
+        val transactionLedgerService: TransactionLedgerService,
+        val feeRuleService: FeeRuleService,
+    ) {
+        companion object {
+            fun run(
+                gate: DbGate,
+                settings: SettingsRepository,
+                sessions: ActiveSessionStore,
+                catalog: SqlCoinCatalog,
+            ): LedgerServicesBundle {
+                val feeRules = FeeRuleRepository(gate)
+                val service: TransactionLedgerService = DefaultTransactionLedgerService(
+                    sessions = sessions,
+                    repository = LedgerTransactionRepository(gate),
+                    catalog = catalog,
+                    settings = settings,
+                    feeRules = feeRules,
+                    parser = CsvTradeParser(catalog),
+                    eventBuilder = TransactionEventBuilder(catalog, PriceSnapshotRepository(gate)),
+                )
+                return LedgerServicesBundle(
+                    transactionLedgerService = service,
+                    feeRuleService = DefaultFeeRuleService(sessions, feeRules),
+                )
             }
         }
     }

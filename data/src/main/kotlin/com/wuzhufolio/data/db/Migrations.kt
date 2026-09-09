@@ -298,6 +298,41 @@ object M009CreateTransactions : Migration {
     }
 }
 
+/**
+ * M010：fee_rules 手续费费率规则表（data-model §2.4 / PRD §10-7、§7.2-6.3；账户级）。
+ *
+ * M7 T7.2 落表与只读消费（交易表单「自动计算手续费」= FeeRateResolver 交易所 > 全局）；
+ * 费率 CRUD UI 归 M10（task-breakdown T10.1，M7 模块记录 §5 登记拆分）。
+ * buy_rate/sell_rate 存 TEXT 十进制串（百分比值，如 0.1 = 0.1%）——延续 M005/M006/M009 勘误链
+ *（SQLite NUMERIC 浮点截断风险，见模块记录 M5 §5），data-model §2.4 类型勘误随本迁移登记。
+ */
+object M010CreateFeeRules : Migration {
+    override val version = 10
+    override val description = "create fee_rules table"
+
+    override fun migrate(connection: Connection) {
+        connection.createStatement().use { st ->
+            st.executeUpdate(
+                """
+                CREATE TABLE fee_rules (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    account_id INTEGER NOT NULL,
+                    exchange TEXT NOT NULL DEFAULT '',
+                    buy_rate TEXT NOT NULL,
+                    sell_rate TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (account_id) REFERENCES accounts(id)
+                )
+                """.trimIndent(),
+            )
+            st.executeUpdate("CREATE INDEX idx_fee_rules_account ON fee_rules(account_id)")
+            st.executeUpdate(
+                "CREATE UNIQUE INDEX idx_fee_rules_account_exchange ON fee_rules(account_id, exchange)",
+            )
+        }
+    }
+}
+
 /** 全部迁移，按版本升序登记。新迁移只追加、不改历史。 */
 val ALL_MIGRATIONS: List<Migration> = listOf(
     M001CreateSettings,
@@ -309,4 +344,5 @@ val ALL_MIGRATIONS: List<Migration> = listOf(
     M007CreateApiKeys,
     M008CreateSyncLogs,
     M009CreateTransactions,
+    M010CreateFeeRules,
 )

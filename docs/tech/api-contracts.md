@@ -174,6 +174,32 @@ interface SettingsService {
 > 实现注：sync 只写交易行（source='BINANCE API'），不覆盖本地持仓；`fetchTrades` 以已同步最大成交 id 为增量游标；
 > 币解析未命中（NotFound/Ambiguous/未收录）跳过并计数（sync_logs message 注明，目录更新/CSV 补录）。回溯：ADR-004、PRD 故事 4.1。
 
+> 币解析未命中（NotFound/Ambiguous/未收录）跳过并计数（sync_logs message 注明，目录更新/CSV 补录）。回溯：ADR-004、PRD 故事 4.1。
+>
+> **M7 补录（交易账本实现 · 2026-09-07，模块记录 M7.md）**：§3 LedgerService 交易半边已落地——
+> TransactionLedgerService（domain/ledger，api-contracts §3 细化）：
+> listTransactions / saveTransaction / updateTransaction / deleteTransactions / feeQuote / searchCoins /
+> parseCsv / confirmCsvImport / csvTemplateCsv。实现要点：
+> - 手动增删改 = 事件构造层（DB 行 -> LedgerEvent：FK -> cg_id 解析 + 折算价解析 + PENDING 标记，
+>   M4 §5 补录「事件构造层归 M7/M8」交易半边）-> ReplayEngine.validateMutation 相对校验（M4 §5-5）
+>   -> 违例分类（ReplayConflictClassifier：买入计价腿不足 = V5 INSUFFICIENT_BALANCE / 卖空 = V7 同构
+>   INSUFFICIENT_POSITION / 其余 = V9 REPLAY_CONFLICT）-> LedgerValidationException(code, coinSymbol) 上浮，
+>   文案映射在 ui/ledger/TransactionCopy（api-contracts §4 错误码）；
+> - 离线保存（PRD N3）：候选事件折算价缺失以名义折算参与数量校验，行照常落库、动态估算态由构造层承载；
+> - 费率自动计算（T7.2）= FeeRateResolver（交易所 > 全局）+ FeeCalculator 三币种基数 + 现价折算；
+>   fee_rules 表 = M010（schema 9->10，data-model §2.4，M7 只读 + 最小写入面，CRUD UI 归 M10）；
+> - CSV（T7.3）= 标准模板/别名表头解析（UTC）-> 预览（新增/疑似重复[精确+模糊]/未解析/影响摘要）-> 确认
+>   （歧义选择固化 MANUAL -> 去重复核 -> LENIENT 导入 -> 负持仓「持仓异常」清单）；
+> - 卖出逐笔已实现盈亏（T7.4 卖出行）= SellRealizedTracer（展示口径，单一真源 = 引擎，
+>   黄金用例交叉校验守护，模块记录 M7 §5）。回溯：PRD 故事 2.1/2.3/7.1、§9.6/9.7、interaction V1-V5/V9。
+>
+> **M7 修复轮补录（2026-09-07，模块记录 M7 §7）**：① 折算价完全缺失的行改**名义折算**（quote≈1，
+> estimated=true）参与重放，不再排除（原口径会使后续卖出失去成本基数）；② 新增 FeeRuleService
+> （listRules/saveGlobal/saveExchange/removeRule）——设置页「手续费」分组最小 CRUD，M10 T10.1 整页接管时扩展。
+> ③ 顶栏常驻手动同步入口（TopBarSyncViewModel，复用 syncNow(null) 同步全部密钥；PRD 故事 4.3 + ia.md 顶栏规范；
+> C0 实现补全，见模块记录 M7 §7.8）。
+
+
 
 ## 4. 错误码与提示文案映射（统一异常处理）
 

@@ -70,7 +70,19 @@ class ApiManagementPageUiTest {
 
         override suspend fun testCredentials(input: ApiKeyInput): CredentialValidation = testResult
 
-        override suspend fun syncNow(apiKeyId: Long?): List<ApiKeySyncResult> = emptyList()
+        var syncNowIds: MutableList<Long?> = mutableListOf()
+
+        override suspend fun syncNow(apiKeyId: Long?): List<ApiKeySyncResult> {
+            syncNowIds.add(apiKeyId)
+            return keys.map {
+                ApiKeySyncResult(
+                    apiKeyId = it.id, apiKeyName = it.name, status = SyncStatus.OK,
+                    newTrades = 3, duplicatesSkipped = 0, unresolvedSkipped = 0,
+                    partial = false, queuedSymbols = 0, error = null,
+                    message = "同步成功 · 新增 3", at = Instant.now(),
+                )
+            }
+        }
 
         override suspend fun recentSyncLogs(limit: Int): List<SyncLogRow> = logs.take(limit)
 
@@ -88,6 +100,30 @@ class ApiManagementPageUiTest {
         onNodeWithTag("api-management").assertIsDisplayed()
         onNodeWithTag("api-empty").assertIsDisplayed()
         onNodeWithTag("api-add").assertIsDisplayed()
+        // 页面级手动同步入口常驻（2026-09-08 走查补口）
+        onNodeWithTag("api-sync-all").assertIsDisplayed()
+    }
+
+    @Test
+    fun `sync all with no keys shows guidance toast`() = runComposeUiTest {
+        val svc = FakeSyncService()
+        setContent { ApiManagementPage(svc) }
+        onNodeWithTag("api-sync-all").performClick()
+        waitUntil(timeoutMillis = 2_000) { textCount(ApiCopy.SYNC_ALL_EMPTY) >= 1 }
+        assertTrue(svc.syncNowIds.isEmpty(), "无密钥不得触达同步服务")
+    }
+
+    @Test
+    fun `sync all with keys syncs every key and toasts summary`() = runComposeUiTest {
+        val svc = FakeSyncService().apply {
+            keys.add(ApiKeyInfo(7L, 1L, "主号", "BINANCE", Instant.now(), "OK", true))
+        }
+        setContent { ApiManagementPage(svc) }
+        waitUntil(timeoutMillis = 2_000) { textCount("主号") >= 1 }
+        onNodeWithTag("api-sync-all").performClick()
+        waitUntil(timeoutMillis = 2_000) { svc.syncNowIds.isNotEmpty() }
+        assertEquals(listOf<Long?>(null), svc.syncNowIds, "页面级同步应同步全部密钥（null）")
+        waitUntil(timeoutMillis = 2_000) { textCount("同步完成 · 1 个密钥", substring = true) >= 1 }
     }
 
     @Test

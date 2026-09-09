@@ -34,7 +34,7 @@ class AccountRepositoryTest {
 
     @Test
     fun `migration creates accounts table and starts empty`() {
-        assertEquals(9, db.schemaVersion())
+        assertEquals(10, db.schemaVersion())
         assertTrue(!repo.existsAny())
         assertTrue(repo.list().isEmpty())
     }
