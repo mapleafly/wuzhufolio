@@ -235,7 +235,23 @@ class DefaultFundService(
         return FiatValuePreview(value.fiat, value.estimated)
     }
 
-    override suspend fun searchCoins(query: String, limit: Int): List<CatalogCoin> = catalog.search(query, limit)
+    /**
+     * 候选检索（M8 修复轮 §8-2）：目录检索同名符号按名称字母序并列（M3 口径，未接市值排名），
+     * canonical 资产（tether 等）会被同名资产挤出 limit——本层把**命中查询的默认币种置顶**，
+     * 其余保持目录相关度序；不动 M3 已通过产物的排序口径。
+     */
+    @Suppress("ReturnCount") // 空查询/空结果/主路径三段早退
+    override suspend fun searchCoins(query: String, limit: Int): List<CatalogCoin> {
+        val q = query.trim()
+        if (q.isEmpty()) return emptyList()
+        val widened = catalog.search(q, SEARCH_WIDEN_LIMIT)
+        if (widened.isEmpty()) return emptyList()
+        val pinned = defaultCoin()?.takeIf {
+            it.symbol.contains(q, ignoreCase = true) || it.name.contains(q, ignoreCase = true)
+        }
+        val rest = widened.filter { it.id != pinned?.id }
+        return (listOfNotNull(pinned) + rest).take(limit)
+    }
 
     override suspend fun defaultCoin(): com.wuzhufolio.domain.catalog.CatalogCoin? {
         val fiat = settings.getGlobal(DefaultTransactionLedgerService.SETTING_FIAT)?.takeIf { it.isNotBlank() }
@@ -400,6 +416,9 @@ class DefaultFundService(
     companion object {
         const val PRICE_OK = "OK"
         const val PRICE_PENDING = "PENDING"
+
+        /** 候选检索加宽数（先取宽、置顶默认币后再裁剪到调用方 limit）。 */
+        const val SEARCH_WIDEN_LIMIT = 50
 
         /** 法币输入提示前缀（PRD §9.8「输入法币代码时提示改为记录兑换后到账的稳定币」）。 */
         const val FIAT_HINT = "法币不入账本（仅作计价单位），"

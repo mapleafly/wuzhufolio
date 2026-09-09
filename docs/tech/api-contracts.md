@@ -228,6 +228,10 @@ interface SettingsService {
 > 符号一致性校验，绕过符号歧义）；`FundService.defaultCoinSymbol()` 改 **`defaultCoin(): CatalogCoin?`**
 >（按白名单 cg_id 直取 USD→tether / 其余→usd-coin）；候选行展示 cg_id；`CoinResolutionException`
 > UI 文案中文化（coinResolutionCopy）。
+>
+> **M8 修复轮二补录（2026-09-09，模块记录 M8 §8-2）**：候选检索 `FundService.searchCoins` 上限
+> 10→20，且**命中查询的默认币种置顶**（同名符号在目录检索按名称字母序并列，canonical 资产会被
+> 挤出头部——M8 层 pin，M3 目录检索口径不动）。
 
 
 

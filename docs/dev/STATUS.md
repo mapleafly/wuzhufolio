@@ -448,8 +448,8 @@ FeeRuleSettingsSection）；⑤ **折算价缺失改名义折算参与重放**�
 - **接线**：M7 交易服务重放输入改三类事件全集（增资即时解锁手动买入 V5——M7 遗留 1 落地，M7 契约
   与 DDL 不变、存量测试全量回归绿）；MainShell/AuthGate FUNDS 槽位；Main/AppBootstrap 装配
   （与 M6 共享密钥仓库/日志仓库/适配器工厂/HTTP 客户端）
-- 测试：**401 全绿 0 失败**（domain 160 / data 168 / ui 73；新增 34 项：data 资金 14 + 校准 10 +
-  ui 走查 10，含走查修复轮 4 项）+ detekt 0 + 编译警告 0；无缓存 clean build 全绿
+- 测试：**402 全绿 0 失败**（domain 160 / data 169 / ui 73；新增 35 项：data 资金 15 + 校准 10 +
+  ui 走查 10，含走查修复轮 5 项）+ detekt 0 + 编译警告 0；无缓存 clean build 全绿
 - GUI 冒烟实证：真实 v10 开发库 → **schema=12**（M011/M012 自动应用）、0 异常、窗口驻留（rc=124）；
   api-contracts §3 M8 补录 + data-model §2.6/§2.7 落表注与 TEXT 勘误回写
 
@@ -459,8 +459,8 @@ TEXT 勘误）。
 
 **怎么验收（人工）**：
 1. docs/dev/modules/M8.md §3 逐项打勾（重点走读 §5 规格落档 1–6）；
-2. 复跑 clean build detekt（命令见 M8.md §4，应 401 测试 0 失败 + detekt 0 + 警告 0）；
-3. 聚焦：`:data:test --tests "…DefaultFundServiceTest"`（14）/ `"…CalibrationServiceTest"`（10）/
+2. 复跑 clean build detekt（命令见 M8.md §4，应 402 测试 0 失败 + detekt 0 + 警告 0）；
+3. 聚焦：`:data:test --tests "…DefaultFundServiceTest"`（15）/ `"…CalibrationServiceTest"`（10）/
    `:ui:test --tests "…FundsPageUiTest"`（10）；
 4. GUI 走查（详见 M8.md §4 步骤 4：增资→列表/总览联动 → 手动买入不再 V5 → 撤资超额 V7 → 编辑/
    删除增资 V9 → 校准三态（多来源/无密钥/正常预览+执行+留痕）→ 筛选/搜索/双主题）。
@@ -469,7 +469,10 @@ TEXT 勘误）。
 资产 49 个）点选候选后保存仍报「歧义」——根因 = 候选点选未直达保存；修复 = `pickedCoinId` 贯穿
 （表单/编辑/校准弹窗 + 默认币种改按白名单 cg_id 直取 `defaultCoin()`）+ 候选行展示 cg_id + 可滚动
 候选 + 解析错误文案中文化；usd/cny 拒绝为设计行为（文案已统一中文化）。新增回归 4 项，全量
-**401 测试 0 失败** + detekt 0 + 无缓存 clean build 全绿 + GUI 冒烟 schema=12 无异常。
+**第二轮走查反馈（2026-09-09，1 项，见 M8.md §8-2）**：候选列表找不到「USDT · Tether（tether）」——
+根因 = 目录检索同名符号按名称字母序并列、canonical 资产被挤出前 10；修复 = M8 层**默认币种置顶**
++ 候选上限 10→20（M3 目录检索口径不动，市值排名排序登记为后续提案待人工拍板）；回归 +1，全量
+**402 测试 0 失败** + detekt 0 + GUI 冒烟 schema=12 无异常。
 
 **遗留问题（转后续模块，详见模块记录 §6）**：币种详情页校准入口迁移 + 校准历史 UI（M12）；资金页
 空态引导（M12）；真实校准端到端冒烟（P5）；法币孪生映射设置化（M10）；CI 三平台复跑待推送；
@@ -524,7 +527,7 @@ TEXT 勘误）。
 ## 当前阻塞点
 
 - **P4-M6 人工复验数据点（2026-09-07）**：三轮修复后立即同步实测「同步成功 · 新增 120」——BNB 歧义消解确认、成交已入 transactions（source=BINANCE API，去重幂等）；窗口可见列表随 M7 交易管理页（当前侧边栏「交易管理」仍为占位）+ M12 聚合呈现；幂等自查 = 再点一次立即同步应显「新增 0 · 去重跳过 120」。
-- **P4 下一启动点（2026-09-09）**：M8 资金管理已产出（401 测试全绿 + GUI schema=12 冒烟无异常），**停在人工门待验收**——按 docs/dev/modules/M8.md §4 走查；通过后解锁 M9 备份恢复或并行面 M10/M11。
+- **P4 下一启动点（2026-09-09）**：M8 资金管理已产出（402 测试全绿 + GUI schema=12 冒烟无异常），**停在人工门待验收**——按 docs/dev/modules/M8.md §4 走查；通过后解锁 M9 备份恢复或并行面 M10/M11。
 
 ## 技能盘点结论（2026-08-30 更新）
 
@@ -608,4 +611,4 @@ TEXT 勘误）。
 | 2026-09-08 | Agent | **M7 第四轮走查反馈（手动同步入口）** | 主壳顶栏新增常驻「立即同步」按钮（PRD 故事 4.3 + ia.md 顶栏规范）：同步全部密钥、同步中指示、结果 toast、无密钥引导；与设置页入口并存；C0 实现补全；+5 项回归测试（ShellUiTest 2 + TopBarSyncViewModelTest 3），clean build detekt 全绿；M7.md §7.8；**M7 维持待审核** |
 | 2026-09-08 | 人 | **通过 M7** | 原话「这个功能保留下来，文档要同步留痕。M7 通过。 更新git，并远程提交。」——M7 ✅ 已通过关闭（顶栏手动同步入口保留并文档留痕）；M8/M10 解锁待人工启动指令 |
 | 2026-09-08 | Agent | **修复 M2 遗留 CI 缺陷** | 推送后核查：上轮 CI macos/windows Test 失败——remember-me parse 形状/账户/长度分支 require/error 抛 IAE，与 KDoc 契约（损坏一律 ISE）不符（Linux 跳过未暴露，win/mac 真实后端首跑暴露）；统一为类型化 ISE + 全平台 parse 契约回归测试（C0 勘误）；M7.md §7.9；复跑又暴露 windows 测试自备文件写 /tmp（平台无关 createTempFile 修复）；**最终 CI run 34324035381 三平台全绿** |
-| 2026-09-09 | Agent | **执行 P4-M8 资金管理** | 人指令「执行p4-M8」；T8.1–T8.3 产物见 docs/dev/modules/M8.md（FundService/CalibrationUseCase 契约 + M011/M012 schema 10→12 + 事件构造层资金半边 LedgerEventAssembler + 资金/校准服务 + 资金页六文件 + M7 交易半边接线[增资解锁手动买入 V5]）；34 新增测试全绿（含走查修复轮 4 项），401 执行 0 失败 + detekt 0 + 编译警告 0 + 无缓存 clean build 全绿 + GUI schema=12 冒烟无异常；§5 规格落档 6 条（V7 同点绝对收紧/锚点入库相对校验/校准入口暂挂资金页/名义零折算/决胜序/TEXT 勘误）待人工走读；**P4 维持进行中，M8 置待审核，停人工门** |
+| 2026-09-09 | Agent | **执行 P4-M8 资金管理** | 人指令「执行p4-M8」；T8.1–T8.3 产物见 docs/dev/modules/M8.md（FundService/CalibrationUseCase 契约 + M011/M012 schema 10→12 + 事件构造层资金半边 LedgerEventAssembler + 资金/校准服务 + 资金页六文件 + M7 交易半边接线[增资解锁手动买入 V5]）；34 新增测试全绿（含走查修复轮 4 项），402 执行 0 失败 + detekt 0 + 编译警告 0 + 无缓存 clean build 全绿 + GUI schema=12 冒烟无异常；§5 规格落档 6 条（V7 同点绝对收紧/锚点入库相对校验/校准入口暂挂资金页/名义零折算/决胜序/TEXT 勘误）待人工走读；**P4 维持进行中，M8 置待审核，停人工门** |

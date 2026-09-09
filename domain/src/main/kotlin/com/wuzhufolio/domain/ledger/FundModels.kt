@@ -153,8 +153,13 @@ interface FundService {
         pickedCoinId: Long? = null,
     ): FiatValuePreview
 
-    /** 币种目录检索（表单币种自动补全，PRD §9.8「基于币种目录自动补全与归一」）。 */
-    suspend fun searchCoins(query: String, limit: Int = 10): List<com.wuzhufolio.domain.catalog.CatalogCoin>
+    /**
+     * 币种目录检索（表单/校准候选，PRD §9.8「基于币种目录自动补全与归一」）。
+     * 排序 = **默认币种（基础法币对应稳定币）命中查询时置顶** + 其余按目录相关度——同名符号资产
+     * 在目录检索中按名称字母序并列（M3 口径），canonical 资产（如 tether）会被同名资产挤出头部，
+     * 候选列表必须保证默认币种可达（M8 修复轮 §8-2）。
+     */
+    suspend fun searchCoins(query: String, limit: Int = 20): List<com.wuzhufolio.domain.catalog.CatalogCoin>
 
     /**
      * 基础法币对应的默认币种（PRD §9.8：USD -> USDT、其余法币 -> USDC），**解析为完整目录行**

@@ -226,6 +226,28 @@ class DefaultFundServiceTest {
         }
     }
 
+    /** 修复轮 §8-2（GUI 走查）：同名符号挤占候选头部时，默认币种（tether）必须置顶可达。 */
+    @Test
+    fun candidateSearchPinsDefaultCoinToTop() = runBlocking {
+        LedgerTestEnv().use { env ->
+            env.login()
+            // 注入 3 个同名 USDT（名称字母序在 Tether 之前——复现「49 个同名把 tether 挤出前 10」）
+            env.catalog.refreshDirectory(
+                listOf(
+                    CoinDirectoryEntry("usdt-abstract", "usdt", "Abstract USD"),
+                    CoinDirectoryEntry("usdt-bridge", "usdt", "Bridge USD"),
+                    CoinDirectoryEntry("usdt-coin98", "usdt", "Coin98 USD"),
+                ),
+            )
+            val candidates = env.fundService.searchCoins("usdt")
+            assertEquals("tether", candidates.first().cgId, "默认币种应置顶")
+            assertTrue(candidates.any { it.cgId == "usdt-abstract" }, "其余同名候选仍在列表")
+            // 非默认币种查询不置顶（btc -> bitcoin 仍按目录相关度）
+            val btc = env.fundService.searchCoins("btc")
+            assertEquals("bitcoin", btc.first().cgId)
+        }
+    }
+
     /** 修复轮 §8-1（GUI 走查）：默认币种按白名单 cg_id 直取（唯一确定），返回完整目录行。 */
     @Test
     fun defaultCoinResolvesByWhitelistCgId() = runBlocking {
