@@ -129,19 +129,14 @@ class KeyringRememberMeStore(
          */
         internal fun parse(value: String): RememberMeEntry {
             val parts = value.split("|", limit = 3)
-            if (parts.size != 3) {
-                throw IllegalStateException("remember-me entry corrupt (bad shape)")
-            }
-            val accountId = parts[0].toIntOrNull()
-                ?: throw IllegalStateException("remember-me entry corrupt (bad account)")
+            check(parts.size == 3) { "remember-me entry corrupt (bad shape)" }
+            val accountId = checkNotNull(parts[0].toIntOrNull()) { "remember-me entry corrupt (bad account)" }
             val token = try {
                 Base64.getUrlDecoder().decode(parts[1])
             } catch (e: IllegalArgumentException) {
                 throw IllegalStateException("remember-me entry corrupt (bad token)", e)
             }
-            if (token.size != 32) {
-                throw IllegalStateException("remember-me entry corrupt (token length)")
-            }
+            check(token.size == 32) { "remember-me entry corrupt (token length)" }
             return RememberMeEntry(accountId, token, parts[2])
         }
     }

@@ -78,9 +78,13 @@ class KeyringRememberMeStoreTest {
         // 坏形状（无分隔符 / 段数不足）
         kotlin.test.assertFailsWith<IllegalStateException> { KeyringRememberMeStore.parse("broken!!") }
         // 坏账户（非数字）
-        kotlin.test.assertFailsWith<IllegalStateException> { KeyringRememberMeStore.parse("zz|" + token + "|wrapped") }
+        kotlin.test.assertFailsWith<IllegalStateException> {
+            KeyringRememberMeStore.parse("zz|" + token + "|wrapped")
+        }
         // token 长度不符
-        kotlin.test.assertFailsWith<IllegalStateException> { KeyringRememberMeStore.parse("9|" + shortToken + "|wrapped") }
+        kotlin.test.assertFailsWith<IllegalStateException> {
+            KeyringRememberMeStore.parse("9|" + shortToken + "|wrapped")
+        }
         // 合法值可正常解析
         val ok = KeyringRememberMeStore.parse("9|" + token + "|wrapped")
         assertEquals(9, ok.accountId)
