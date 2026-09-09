@@ -37,13 +37,20 @@ import com.wuzhufolio.data.exchange.ExchangeTransactionRepository
 import com.wuzhufolio.data.exchange.SyncLogRepository
 import com.wuzhufolio.data.exchange.newOkHttpExchangeClient
 import com.wuzhufolio.data.ledger.CsvTradeParser
+import com.wuzhufolio.data.ledger.DefaultCalibrationService
 import com.wuzhufolio.data.ledger.DefaultFeeRuleService
+import com.wuzhufolio.data.ledger.DefaultFundService
 import com.wuzhufolio.data.ledger.DefaultTransactionLedgerService
 import com.wuzhufolio.data.ledger.FeeRuleRepository
+import com.wuzhufolio.data.ledger.FundFlowRepository
+import com.wuzhufolio.data.ledger.LedgerEventAssembler
 import com.wuzhufolio.data.ledger.LedgerTransactionRepository
+import com.wuzhufolio.data.ledger.ReconciliationRepository
 import com.wuzhufolio.data.ledger.TransactionEventBuilder
 import com.wuzhufolio.domain.exchange.ExchangeSyncService
+import com.wuzhufolio.domain.ledger.CalibrationUseCase
 import com.wuzhufolio.domain.ledger.FeeRuleService
+import com.wuzhufolio.domain.ledger.FundService
 import com.wuzhufolio.domain.ledger.TransactionLedgerService
 import com.wuzhufolio.domain.security.CryptoService
 import com.wuzhufolio.domain.market.MarketQuotesService
@@ -104,6 +111,10 @@ object AppBootstrap {
         val transactionLedgerService: TransactionLedgerService,
         /** M7：费率规则设置（最小 CRUD，设置页「手续费」分组；M10 整页接管）。 */
         val feeRuleService: FeeRuleService,
+        /** M8：资金管理用例（增资/撤资 + 校准行入列 + 资金页，T8.1–T8.3）。 */
+        val fundService: FundService,
+        /** M8：持仓校准用例（单一来源门 + 差额规划 + 锚点入库 + 日志留痕）。 */
+        val calibrationService: CalibrationUseCase,
         private val deviceStore: DeviceSecretStore,
         private val keyring: MasterKeyStore?,
         private val deviceKeyring: MasterKeyStore?,
@@ -160,6 +171,7 @@ object AppBootstrap {
             settings,
             sessions,
             market.catalog,
+            exchange = exchange,
         )
 
         startKoin { modules(appModule(db, gate, settings)) }
@@ -191,6 +203,8 @@ object AppBootstrap {
             exchangeSyncService = exchange.exchangeSyncService,
             transactionLedgerService = ledger.transactionLedgerService,
             feeRuleService = ledger.feeRuleService,
+            fundService = ledger.fundService,
+            calibrationService = ledger.calibrationService,
             deviceStore = market.deviceStore,
             keyring = if (report.backend == KeyStorageBackend.OS_KEYCHAIN) keyring else null,
             deviceKeyring = market.deviceKeyring,
@@ -268,6 +282,11 @@ object AppBootstrap {
     @Suppress("LongParameterList") // 装配袋（gate/设置/会话/日志），同 Runtime 释放链
     class ExchangeServicesBundle internal constructor(
         val exchangeSyncService: ExchangeSyncService,
+        /** M8 校准流复用：密钥仓库/同步日志仓库/适配器工厂（同一 HTTP 客户端，不另建连接池）。 */
+        val apiKeyRepository: ApiKeyRepository,
+        val syncLogRepository: SyncLogRepository,
+        val adapterFactory: (com.wuzhufolio.domain.exchange.ExchangeCredentials) ->
+        com.wuzhufolio.domain.exchange.ExchangeAdapter,
         val httpClient: java.io.Closeable,
     ) {
         companion object {
@@ -284,11 +303,13 @@ object AppBootstrap {
                 com.wuzhufolio.domain.exchange.ExchangeAdapter = { credentials ->
                     BinanceAdapter(httpClient, credentials)
                 }
+                val apiKeyRepository = ApiKeyRepository(gate)
+                val syncLogRepository = SyncLogRepository(gate)
                 val syncService: ExchangeSyncService = DefaultExchangeSyncService(
                     sessions = sessions,
                     crypto = CryptoService(),
-                    apiKeyRepository = ApiKeyRepository(gate),
-                    syncLogRepository = SyncLogRepository(gate),
+                    apiKeyRepository = apiKeyRepository,
+                    syncLogRepository = syncLogRepository,
                     transactionsRepository = ExchangeTransactionRepository(gate),
                     catalog = catalog,
                     settings = settings,
@@ -296,19 +317,29 @@ object AppBootstrap {
                     rankWarmUp = rankWarmUp,
                     logger = logger,
                 )
-                return ExchangeServicesBundle(exchangeSyncService = syncService, httpClient = httpClient)
+                return ExchangeServicesBundle(
+                    exchangeSyncService = syncService,
+                    apiKeyRepository = apiKeyRepository,
+                    syncLogRepository = syncLogRepository,
+                    adapterFactory = adapterFactory,
+                    httpClient = httpClient,
+                )
             }
         }
     }
 
     /**
-     * M7 交易账本服务装配（T7.1–T7.4）：账本仓库 + 费率规则仓库 + CSV 解析器 + 事件构造层 +
-     * 用例服务。与 M6 同步编排共享同一币种目录（market.catalog——事件 FK->cg_id 解析、
-     * CSV/手动消歧同口径）；快照仓库独立实例（同表无状态，先例 = SnapshotMarketQuotesService）。
+     * M7/M8 交易账本服务装配（T7.1–T7.4 + T8.1–T8.3）：账本仓库 + 资金/校准仓库 + 费率规则仓库 +
+     * CSV 解析器 + 事件构造层 + 全量事件装配层 + 用例服务（交易/资金/校准）。
+     * 与 M6 同步编排共享同一币种目录（market.catalog——事件 FK->cg_id 解析、CSV/手动消歧同口径）；
+     * 快照仓库独立实例（同表无状态，先例 = SnapshotMarketQuotesService）。
      */
+    @Suppress("LongParameterList") // 装配袋（两服务共用的仓库/构造器注入），拆散反损可读性
     class LedgerServicesBundle internal constructor(
         val transactionLedgerService: TransactionLedgerService,
         val feeRuleService: FeeRuleService,
+        val fundService: FundService,
+        val calibrationService: CalibrationUseCase,
     ) {
         companion object {
             fun run(
@@ -316,20 +347,54 @@ object AppBootstrap {
                 settings: SettingsRepository,
                 sessions: ActiveSessionStore,
                 catalog: SqlCoinCatalog,
+                exchange: ExchangeServicesBundle,
             ): LedgerServicesBundle {
                 val feeRules = FeeRuleRepository(gate)
+                val txRepository = LedgerTransactionRepository(gate)
+                val fundRepository = FundFlowRepository(gate)
+                val reconRepository = ReconciliationRepository(gate)
+                val snapshots = PriceSnapshotRepository(gate)
+                val eventBuilder = TransactionEventBuilder(catalog, snapshots)
+                val assembler = LedgerEventAssembler(catalog, eventBuilder)
                 val service: TransactionLedgerService = DefaultTransactionLedgerService(
                     sessions = sessions,
-                    repository = LedgerTransactionRepository(gate),
+                    repository = txRepository,
+                    fundsRepository = fundRepository,
+                    reconsRepository = reconRepository,
                     catalog = catalog,
                     settings = settings,
                     feeRules = feeRules,
                     parser = CsvTradeParser(catalog),
-                    eventBuilder = TransactionEventBuilder(catalog, PriceSnapshotRepository(gate)),
+                    eventBuilder = eventBuilder,
+                    assembler = assembler,
                 )
                 return LedgerServicesBundle(
                     transactionLedgerService = service,
                     feeRuleService = DefaultFeeRuleService(sessions, feeRules),
+                    fundService = DefaultFundService(
+                        sessions = sessions,
+                        transactions = txRepository,
+                        funds = fundRepository,
+                        recons = reconRepository,
+                        catalog = catalog,
+                        settings = settings,
+                        eventBuilder = eventBuilder,
+                        assembler = assembler,
+                    ),
+                    calibrationService = DefaultCalibrationService(
+                        sessions = sessions,
+                        catalog = catalog,
+                        settings = settings,
+                        transactions = txRepository,
+                        funds = fundRepository,
+                        recons = reconRepository,
+                        assembler = assembler,
+                        eventBuilder = eventBuilder,
+                        apiKeyRepository = exchange.apiKeyRepository,
+                        crypto = CryptoService(),
+                        adapterFactory = exchange.adapterFactory,
+                        syncLogs = exchange.syncLogRepository,
+                    ),
                 )
             }
         }

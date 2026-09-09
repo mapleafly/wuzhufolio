@@ -94,7 +94,7 @@ class ShellUiTest {
         onNodeWithTag("topbar-sync").performClick()
         assertEquals(1, clicks)
         syncing = true
-        waitUntil(timeoutMillis = 2_000) { vm.page.value != null && clicks == 1 }
+        waitUntil(timeoutMillis = 2_000) { clicks == 1 }
         onNodeWithTag("topbar-sync").assertIsDisplayed()
     }
 

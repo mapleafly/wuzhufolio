@@ -50,6 +50,8 @@ fun AuthGate(
     watchPageContent: (@Composable () -> Unit)? = null,
     /** M7：交易管理页内容（null = 占位页）。 */
     transactionsPageContent: (@Composable () -> Unit)? = null,
+    /** M8：资金管理页内容（增资/撤资/校准；null = 占位页）。 */
+    fundsPageContent: (@Composable () -> Unit)? = null,
     /** M7 补口：顶栏手动同步（null = 不显示按钮）。 */
     onManualSync: (() -> Unit)? = null,
     manualSyncing: Boolean = false,
@@ -123,6 +125,7 @@ fun AuthGate(
                             settingsPageContent = marketSettingsContent,
                             watchPageContent = watchPageContent,
                             transactionsPageContent = transactionsPageContent,
+                            fundsPageContent = fundsPageContent,
                             onManualSync = onManualSync,
                             manualSyncing = manualSyncing,
                             manualSyncToast = manualSyncToast,

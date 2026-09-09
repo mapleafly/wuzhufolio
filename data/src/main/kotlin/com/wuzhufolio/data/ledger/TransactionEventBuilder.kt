@@ -164,6 +164,26 @@ class TransactionEventBuilder(
         priceOf(coinId, baseFiat, Instant.now())?.price
 
     /**
+     * 资金折算值解析（M8 资金半边）：fiatValue = 数量 × 记录时行情价，取数链与交易折算同源
+     *（① 快照 nearestBefore → ② USD 锚定 1:1 → ③ 快照最近可得估算）。
+     * 完全缺失时返回 fiat = 0 + estimated = true（**名义零折算**参与重放——保数量链，
+     * 累计增资/撤资暂按 0 计，行情回填后重建事件自动纠正，黄金用例 9 语义；口径登记模块记录 M8 §5）。
+     */
+    suspend fun resolveFiatValue(
+        coin: CatalogCoin,
+        quantity: BigDecimal,
+        baseFiat: String,
+        at: Instant,
+    ): FundValue {
+        val px = priceOf(coin.id, baseFiat, at)
+            ?: return FundValue(fiat = BigDecimal.ZERO, estimated = true)
+        return FundValue(fiat = quantity.multiply(px.price), estimated = px.exact == false)
+    }
+
+    /** 资金折算解析结果（[fiat] = 折算基础法币金额；[estimated] = 估算路径）。 */
+    data class FundValue(val fiat: BigDecimal, val estimated: Boolean)
+
+    /**
      * 折算价解析（① 快照前向 → ② USD 锚定 → ③ 快照后向估算；null = 无任何可得价）。
      * nearestBefore 逐时刻查询、不加缓存：同小时桶内不同 at 的「记录时价」可能不同，
      * 以桶为键缓存会错配（本地 SQLite 点查成本可忽略，先例 = PriceSnapshotRepository 内存过滤口径）。

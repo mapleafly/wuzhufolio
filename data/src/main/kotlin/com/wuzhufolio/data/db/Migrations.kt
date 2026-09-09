@@ -333,6 +333,88 @@ object M010CreateFeeRules : Migration {
     }
 }
 
+/**
+ * M011：capital_flows 资金流水表（data-model §2.6 / PRD §10-5；账户级）。
+ *
+ * M8 T8.1 落表：增资/撤资事件（FundEvent，引擎三类事件之二）；amount/base_amount 存 TEXT 十进制串
+ *（延续 M005/M006/M009/M010 勘误链——SQLite NUMERIC 浮点截断风险，data-model §2.6 类型勘误随本迁移登记）；
+ * base_amount 为**记录时折算快照**（审计/备份口径），引擎与展示以事件构造层动态重建为准（黄金用例 9
+ * 「回填后重算」语义，行情回填后无需改行）；coin_id 冻结 coins 行 FK；flow_time 为 SqlUtc 文本。
+ */
+object M011CreateCapitalFlows : Migration {
+    override val version = 11
+    override val description = "create capital_flows table"
+
+    override fun migrate(connection: Connection) {
+        connection.createStatement().use { st ->
+            st.executeUpdate(
+                """
+                CREATE TABLE capital_flows (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    account_id INTEGER NOT NULL,
+                    type TEXT NOT NULL,
+                    amount TEXT NOT NULL,
+                    base_amount TEXT NOT NULL,
+                    currency TEXT NOT NULL,
+                    coin_id INTEGER NOT NULL,
+                    flow_time TEXT NOT NULL,
+                    source_dest TEXT,
+                    notes TEXT,
+                    created_at TEXT NOT NULL,
+                    uuid TEXT NOT NULL,
+                    price_status TEXT NOT NULL DEFAULT 'OK',
+                    FOREIGN KEY (account_id) REFERENCES accounts(id),
+                    FOREIGN KEY (coin_id) REFERENCES coins(id)
+                )
+                """.trimIndent(),
+            )
+            st.executeUpdate("CREATE INDEX idx_capital_flows_account_time ON capital_flows(account_id, flow_time)")
+        }
+    }
+}
+
+/**
+ * M012：reconciliation_records 持仓校准记录表（data-model §2.7 / PRD §10-8；账户级）。
+ *
+ * M8 T8.2 落表：校准锚点事件（AnchorEvent，引擎三类事件之三）——锚点语义参与全量重放，
+ * 差额账务按记录值固定（delta/base_amount 存快照，重放不再动态重解析——M4 §5-7「按记录值固定」）；
+ * local/exchange/delta/base_amount 存 TEXT 十进制串（勘误链同 M011）；不可编辑、仅可删除（PRD §10-8 注）。
+ */
+object M012CreateReconciliationRecords : Migration {
+    override val version = 12
+    override val description = "create reconciliation_records table"
+
+    override fun migrate(connection: Connection) {
+        connection.createStatement().use { st ->
+            st.executeUpdate(
+                """
+                CREATE TABLE reconciliation_records (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    account_id INTEGER NOT NULL,
+                    symbol TEXT NOT NULL,
+                    coin_id INTEGER NOT NULL,
+                    exchange TEXT NOT NULL,
+                    local_quantity TEXT NOT NULL,
+                    exchange_quantity TEXT NOT NULL,
+                    delta TEXT NOT NULL,
+                    base_amount TEXT NOT NULL,
+                    uuid TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (account_id) REFERENCES accounts(id),
+                    FOREIGN KEY (coin_id) REFERENCES coins(id)
+                )
+                """.trimIndent(),
+            )
+            st.executeUpdate(
+                "CREATE INDEX idx_reconciliation_account_time ON reconciliation_records(account_id, created_at)",
+            )
+            st.executeUpdate(
+                "CREATE INDEX idx_reconciliation_account_coin ON reconciliation_records(account_id, coin_id)",
+            )
+        }
+    }
+}
+
 /** 全部迁移，按版本升序登记。新迁移只追加、不改历史。 */
 val ALL_MIGRATIONS: List<Migration> = listOf(
     M001CreateSettings,
@@ -345,4 +427,6 @@ val ALL_MIGRATIONS: List<Migration> = listOf(
     M008CreateSyncLogs,
     M009CreateTransactions,
     M010CreateFeeRules,
+    M011CreateCapitalFlows,
+    M012CreateReconciliationRecords,
 )

@@ -57,14 +57,28 @@ import java.util.concurrent.ConcurrentHashMap
 class DefaultTransactionLedgerService(
     private val sessions: ActiveSessionStore,
     private val repository: LedgerTransactionRepository,
+    private val fundsRepository: FundFlowRepository,
+    private val reconsRepository: ReconciliationRepository,
     private val catalog: CoinCatalog,
     private val settings: SettingsRepository,
     private val feeRules: FeeRuleRepository,
     private val parser: CsvTradeParser,
     private val eventBuilder: TransactionEventBuilder,
+    private val assembler: LedgerEventAssembler,
 ) : TransactionLedgerService {
 
     private val csvSessions = ConcurrentHashMap<String, CsvSession>()
+
+    /** 三类记录联合读取 + 事件装配（M8 资金半边接入：重放校验输入 = 交易+资金+锚点全集）。 */
+    private val rowSource = LedgerRowsSource(repository, fundsRepository, reconsRepository)
+
+    private suspend fun assembledBuild(
+        accountId: Int,
+        baseFiat: String,
+    ): LedgerEventAssembler.Assembled {
+        val rows = rowSource.load(accountId)
+        return assembler.build(rows.tx, rows.funds, rows.recons, baseFiat)
+    }
 
     // ---- 列表（T7.4） ----
 
@@ -73,7 +87,7 @@ class DefaultTransactionLedgerService(
         val rows = repository.listFiltered(session.account.id, filter)
         if (rows.isEmpty()) return emptyList()
         val baseFiat = baseFiat()
-        val build = eventBuilder.build(repository.listAll(session.account.id), baseFiat)
+        val build = assembledBuild(session.account.id, baseFiat)
         val realized = SellRealizedTracer.realizedByEvent(build.events)
         val coinCache = HashMap<Long, CatalogCoin?>()
         suspend fun coinOf(id: Long): CatalogCoin? = coinCache.getOrPut(id) { catalog.getById(id) }
@@ -96,8 +110,8 @@ class DefaultTransactionLedgerService(
                 time = row.time,
                 notes = row.notes,
                 source = row.source,
-                priceStatus = if (row.id in build.estimatedRowIds) PRICE_PENDING else PRICE_OK,
-                estimated = row.id in build.estimatedRowIds,
+                priceStatus = if (row.id in build.tradeBuild.estimatedRowIds) PRICE_PENDING else PRICE_OK,
+                estimated = row.id in build.tradeBuild.estimatedRowIds,
                 realizedPnlFiat = if (row.side == Side.SELL) realized[row.uuid] else null,
             )
         }
@@ -110,12 +124,12 @@ class DefaultTransactionLedgerService(
         val accountId = session.account.id
         validateShape(input)
         val resolved = resolveInput(input)
-        val allRows = repository.listAll(accountId)
+        val rows = rowSource.load(accountId)
         val baseFiat = baseFiat()
-        val without = eventBuilder.build(allRows, baseFiat).events
-        val seq = (allRows.maxOfOrNull { it.id } ?: 0L) + 1
+        val without = assembler.build(rows.tx, rows.funds, rows.recons, baseFiat).events
+        val seq = assembler.nextSeq(rows.tx, rows.funds, rows.recons)
         val candidate = mutationEvent(resolved, "candidate-" + UUID.randomUUID(), seq, baseFiat)
-        validateMutation(without + candidate, without, candidate, allRows)
+        validateMutation(without + candidate, without, candidate, rows.tx)
         return repository.insert(
             NewLedgerTxRow(
                 accountId = accountId,
@@ -144,12 +158,13 @@ class DefaultTransactionLedgerService(
         val old = repository.findById(accountId, id) ?: throw IllegalArgumentException("交易记录不存在或已删除")
         val resolved = resolveInput(input)
         val baseFiat = baseFiat()
-        val allRows = repository.listAll(accountId)
-        val without = eventBuilder.build(allRows, baseFiat).events
-        val rowsWithoutOld = allRows.filter { it.id != old.id }
+        val rows = rowSource.load(accountId)
+        val without = assembler.build(rows.tx, rows.funds, rows.recons, baseFiat).events
+        val rowsWithoutOld = rows.copy(tx = rows.tx.filter { it.id != old.id })
         val candidate = mutationEvent(resolved, old.uuid, old.id, baseFiat)
-        val withOp = eventBuilder.build(rowsWithoutOld, baseFiat).events + candidate
-        validateMutation(withOp, without, candidate, allRows)
+        val withOp = assembler.build(rowsWithoutOld.tx, rowsWithoutOld.funds, rowsWithoutOld.recons, baseFiat).events +
+            candidate
+        validateMutation(withOp, without, candidate, rows.tx)
         repository.update(
             UpdatedLedgerTxRow(
                 accountId = accountId,
@@ -178,22 +193,24 @@ class DefaultTransactionLedgerService(
         }.distinctBy { it.id }
         if (targets.isEmpty()) return
         val baseFiat = baseFiat()
-        val allRows = repository.listAll(accountId)
-        val without = eventBuilder.build(allRows, baseFiat).events
+        val rows = rowSource.load(accountId)
+        val without = assembler.build(rows.tx, rows.funds, rows.recons, baseFiat).events
         val doomedIds = targets.map { it.id }.toSet()
-        val withOp = eventBuilder.build(allRows.filter { it.id !in doomedIds }, baseFiat).events
-        validateMutation(withOp, without, null, allRows)
+        val rowsWithout = rows.copy(tx = rows.tx.filter { it.id !in doomedIds })
+        val withOp = assembler.build(rowsWithout.tx, rowsWithout.funds, rowsWithout.recons, baseFiat).events
+        validateMutation(withOp, without, null, rows.tx)
         repository.deleteByIds(accountId, targets.map { it.id })
     }
 
     /**
      * 相对校验 + 违例分类（V5/V7 同构/V9——api-contracts §4 错误码映射）。
-     * [rows] = 当前账户全量行：用于把 REPLAY_CONFLICT 定位到具体冲突记录（时间/方向/交易对/数量），
+     * [rows] = 当前账户交易全量行：用于把 REPLAY_CONFLICT 定位到具体冲突记录（时间/方向/交易对/数量），
      * 让「删除一笔买入被其后卖出拦住」这类提示可操作（2026-09-08 修复轮）。
+     * 事件列表 = 三类事件全集（M8 资金半边接入——交易校验须计入资金/锚点）。
      */
     private suspend fun validateMutation(
-        withOp: List<TradeEvent>,
-        without: List<TradeEvent>,
+        withOp: List<com.wuzhufolio.domain.engine.LedgerEvent>,
+        without: List<com.wuzhufolio.domain.engine.LedgerEvent>,
         operated: TradeEvent?,
         rows: List<LedgerTxRow>,
     ) {
@@ -456,9 +473,9 @@ class DefaultTransactionLedgerService(
     ): Pair<List<CoinPositionDelta>, List<String>> {
         val resolvable = parsed.filter { it.baseCoin != null && it.quoteCoin != null }
         if (resolvable.isEmpty()) return Pair(emptyList(), emptyList())
-        val allRows = repository.listAll(accountId)
-        val preEvents = eventBuilder.build(allRows, baseFiat).events
-        var seq = (allRows.maxOfOrNull { it.id } ?: 0L)
+        val rows = rowSource.load(accountId)
+        val preEvents = assembler.build(rows.tx, rows.funds, rows.recons, baseFiat).events
+        var seq = assembler.nextSeq(rows.tx, rows.funds, rows.recons) - 1
         val drafts = ArrayList<TradeEvent>()
         for (t in resolvable) {
             seq += 1

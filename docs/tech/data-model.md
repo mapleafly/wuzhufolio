@@ -132,6 +132,12 @@ erDiagram
 
 ### 2.6 capital_flows（资金流水表）—— PRD §10-5
 
+> **M8 落表（M011，schema 10→12，2026-09-09）**：type 枚举 DEPOSIT/WITHDRAWAL；amount/base_amount
+> 存 TEXT 十进制串（延续 M005/M006/M009/M010 勘误链——SQLite NUMERIC 浮点截断风险，**类型勘误：原
+> Decimal → TEXT 十进制串**，登记 docs/dev/modules/M8.md §5）；flow_time 为 SqlUtc 文本（同 §2.11 口径）。
+> base_amount 为**记录时折算快照**（审计/备份口径）——引擎与展示以事件构造层动态重建为准
+>（行情回填后自动纠正，黄金用例 9 语义）；price_status OK/PENDING（保存时点快照）。
+
 | 字段 | 类型 | 约束/说明 |
 |------|------|-----------|
 | id | Integer | PK 自增 |
@@ -149,6 +155,10 @@ erDiagram
 | price_status | String | OK / PENDING |
 
 ### 2.7 reconciliation_records（持仓校准记录表）—— PRD §10-8
+
+> **M8 落表（M012，schema 10→12，2026-09-09）**：local_quantity/exchange_quantity/delta/base_amount
+> 存 TEXT 十进制串（勘误链同 §2.6）；created_at 为 SqlUtc 文本。差额账务（delta/base_amount）按**记录值
+> 固定**参与重放（M4 §5-7，不随行情重解析）；uuid = 事件 id + 备份去重键。
 
 | 字段 | 类型 | 约束/说明 |
 |------|------|-----------|

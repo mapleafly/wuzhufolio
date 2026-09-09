@@ -256,6 +256,20 @@ class SqlCoinCatalog(
         return mappingRowOrNull(exchangeKey, assetKey)?.let { getById(it.coinId) }
     }
 
+    override suspend fun exchangeAssetFor(exchange: String, coinId: Long): String? {
+        val exchangeKey = CoinNames.normalizeCode(exchange)
+        if (exchangeKey.isEmpty()) return null
+        return gate.read {
+            ExchangeCoinMapTable.selectAll()
+                .where {
+                    (ExchangeCoinMapTable.exchange eq exchangeKey) and
+                        (ExchangeCoinMapTable.coinId eq coinId.toInt())
+                }
+                .toList()
+        }.maxByOrNull { it[ExchangeCoinMapTable.updatedAt] }
+            ?.let { it[ExchangeCoinMapTable.exchangeAsset] }
+    }
+
     private suspend fun mappingRowOrNull(exchangeKey: String, assetKey: String): MappingRow? =
         if (exchangeKey.isEmpty() || assetKey.isEmpty()) null else mappingRow(exchangeKey, assetKey)
 

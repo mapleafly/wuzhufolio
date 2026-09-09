@@ -6,6 +6,7 @@ package com.wuzhufolio.domain.catalog
  * 消费方：M5（行情 /coins/list 刷新喂 [refreshDirectory]、CMC map 喂 [refreshCmcIds]）、
  * M6/M7（[search]/[resolve]/[freezeMapping]/[fiatQuoteLeg]）。全部走 DbGate 单写队列（写）/WAL 读。
  */
+@Suppress("TooManyFunctions") // 目录/消歧/法币三域共 11 动作（api-contracts §3 补录登记），拆分反损内聚
 interface CoinCatalog {
 
     // ---------- T3.1 coins 目录：检索（共享规范 §6「输入归一化」） ----------
@@ -46,6 +47,12 @@ interface CoinCatalog {
 
     /** 只读查询既有映射（不存在返回 null）。 */
     suspend fun mappingFor(exchange: String, asset: String): CatalogCoin?
+
+    /**
+     * 反向映射查询（M8 持仓校准：把 coins.id 映射回交易所资产符号，用于在 fetchBalances
+     * 结果中定位该币种的余额行）；该交易所在映射表中无此币种时返回 null（调用方按 symbol 兜底）。
+     */
+    suspend fun exchangeAssetFor(exchange: String, coinId: Long): String?
 
     // ---------- T3.3 法币归一（共享规范 §3） ----------
 

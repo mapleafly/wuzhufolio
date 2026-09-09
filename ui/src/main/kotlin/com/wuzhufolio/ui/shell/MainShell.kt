@@ -56,6 +56,8 @@ fun MainShell(
     watchPageContent: (@Composable () -> Unit)? = null,
     /** M7：交易管理页内容（null = 占位页）。 */
     transactionsPageContent: (@Composable () -> Unit)? = null,
+    /** M8：资金管理页内容（增资/撤资/校准；null = 占位页）。 */
+    fundsPageContent: (@Composable () -> Unit)? = null,
     /** M7 补口：顶栏手动同步（null = 不显示按钮；PRD 故事 4.3 + ia.md 顶栏规范）。 */
     onManualSync: (() -> Unit)? = null,
     /** 顶栏手动同步进行中（按钮置「同步中…」并禁用）。 */
@@ -116,6 +118,17 @@ fun MainShell(
                                             .testTag("page-" + page.name),
                                     ) {
                                         transactionsPageContent()
+                                    }
+                                } else {
+                                    PlaceholderPage(page)
+                                }
+                                ShellPage.FUNDS -> if (fundsPageContent != null) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .testTag("page-" + page.name),
+                                    ) {
+                                        fundsPageContent()
                                     }
                                 } else {
                                     PlaceholderPage(page)

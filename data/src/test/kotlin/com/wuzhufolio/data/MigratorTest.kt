@@ -27,18 +27,18 @@ class MigratorTest {
     fun `fresh database migrates to latest version`() {
         assertEquals(0, db.schemaVersion())
         val version = db.migrateToLatest()
-        assertEquals(10, version)
-        assertEquals(10, db.schemaVersion())
+        assertEquals(12, version)
+        assertEquals(12, db.schemaVersion())
     }
 
     @Test
     fun `migration is idempotent and seeds defaults exactly once`() {
         db.migrateToLatest()
         db.migrateToLatest()
-        assertEquals(10, db.schemaVersion())
+        assertEquals(12, db.schemaVersion())
         db.connection.createStatement().use { st ->
             st.executeQuery("SELECT COUNT(*) FROM schema_version").use { rs ->
-                rs.next(); assertEquals(10, rs.getInt(1))
+                rs.next(); assertEquals(12, rs.getInt(1))
             }
             st.executeQuery("SELECT COUNT(*) FROM settings").use { rs ->
                 rs.next(); assertEquals(4, rs.getInt(1))

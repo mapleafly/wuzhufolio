@@ -31,6 +31,7 @@ import com.wuzhufolio.ui.market.MarketSettingsPage
 import com.wuzhufolio.ui.market.MarketWatchPage
 import com.wuzhufolio.ui.exchange.TopBarSyncViewModel
 import com.wuzhufolio.ui.ledger.FeeRuleSettingsSection
+import com.wuzhufolio.ui.ledger.FundsPage
 import com.wuzhufolio.ui.ledger.TransactionsPage
 import com.wuzhufolio.ui.theme.WuzhuTheme
 import com.wuzhufolio.ui.theme.WzTheme
@@ -120,6 +121,12 @@ private fun MainWindow(runtime: AppBootstrap.Runtime, onExit: () -> Unit) {
                     service = runtime.transactionLedgerService,
                     pickCsvFile = { FilePicker.pickLoad("选择 CSV 文件") },
                     pickTemplatePath = { FilePicker.pickSave("保存 CSV 模板") },
+                )
+            },
+            fundsPageContent = {
+                FundsPage(
+                    service = runtime.fundService,
+                    calibration = runtime.calibrationService,
                 )
             },
             onManualSync = syncViewModel::syncNow,

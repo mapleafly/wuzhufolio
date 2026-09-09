@@ -198,6 +198,29 @@ interface SettingsService {
 > （listRules/saveGlobal/saveExchange/removeRule）——设置页「手续费」分组最小 CRUD，M10 T10.1 整页接管时扩展。
 > ③ 顶栏常驻手动同步入口（TopBarSyncViewModel，复用 syncNow(null) 同步全部密钥；PRD 故事 4.3 + ia.md 顶栏规范；
 > C0 实现补全，见模块记录 M7 §7.8）。
+>
+> **M8 补录（资金管理实现 · 2026-09-09，模块记录 M8.md）**：§3 LedgerService 资金半边 + 校准执行流落地——
+> `FundService`（domain/ledger，FundModels.kt）：listFunds（FundPage = 混合列表 + 总览卡同源重放）/
+> saveFund / updateFund / deleteFunds（按 uuid，资金行与校准行可混选）/ fundsOverview / fiatValuePreview /
+> searchCoins / defaultCoinSymbol（PRD §9.8：USD→USDT、其余法币→USDC）。实现要点：
+> - 手动增删改 = **事件构造层资金半边**（LedgerEventAssembler：三类记录 → FundEvent/AnchorEvent +
+>   交易半边委托，确定性决胜序 (at, seq, 类型序[资金0/交易1/锚点2], uuid)）→ 双列表
+>   ReplayEngine.validateMutation 相对校验（M4 §5-5）→ FundConflictClassifier 分类
+>  （撤资本位点 = V7 / 其余 = V9）→ LedgerValidationException 上浮（文案映射 ui/ledger/FundsCopy）；
+> - **V7 撤资同点绝对校验**（M4 §5-5「宽松口径复核归 M8」的收紧结论）：撤资本位点任何负边界
+>  （含导入既存异常位点被继续加深）都阻止——「XX 持仓不足，无法撤资」（模块记录 M8 §5）；
+> - 折算 = 记录时行情价链（TransactionEventBuilder.resolveFiatValue，与交易折算同源）；
+>   完全缺失 = **名义零折算**（fiatValue=0 + estimated）参与重放（保数量链，黄金用例 9 回填自动纠正）；
+> - **CalibrationUseCase**（domain/ledger，api-contracts §3 SyncService.reconcilePosition 细化）：
+>   prepare（单一来源门 → 只读密钥 → fetchBalances 实时余额（exchange_coin_map 反向映射 + symbol 兜底）→
+>   校准时市价 → ReconciliationService.plan 差额规划）→ execute（相对校验（锚点后记录冲突 = V9）→
+>   reconciliation_records 入库 → **sync_logs 留痕**（PRD 故事 4.1-5））；任一前提不满足抛
+>   CalibrationBlockedException（NO_RECORDS/MULTI_SOURCE/NO_EXCHANGE_KEY/NO_MARKET_PRICE/
+>   BALANCE_FETCH_FAILED——PRD「按钮隐藏并显示相应提示」）；
+> - 交易半边接线（M7 服务不改契约）：DefaultTransactionLedgerService 重放/校验输入改为三类事件全集
+>  （增资建立的持仓即时解锁手动买入 V5 路径——M7 §6 遗留 1 落地）。
+> 回溯：PRD 故事 6.1/6.2/6.3、4.1-5、§9.8、§10-8、全局说明「持仓校准规则」「成本计算规范」、
+> interaction V6/V7、黄金用例 2/3/4/7/8（引擎数值 M4 已守护，接线形状随 M8 数据层测试）。
 
 
 
@@ -228,5 +251,6 @@ interface SettingsService {
 | 交易所端点/去重/500 条 | 故事 4.1、§10 注 | §1/§6 |
 | 错误码→文案 | 全局说明「统一异常处理」 | — |
 | 引擎事件化/重放/指标/费率/校准（M4） | 全局说明「成本计算规范」「持仓校准规则」、故事 7.1/6.4、附录 A | §2 |
+| 资金/校准用例（M8） | 故事 6.1/6.2/6.3、4.1-5、§9.8、全局说明「持仓校准规则」 | §2/§3 |
 | 行情客户端/快照/24h/回填/额度（M5） | 故事 3.2、全局说明「行情数据与时间分辨率规则」、§7.2 模块 6.1 | §5 |
 | 内部服务接口 | ia.md 页面清单、flows.md 状态机 | — |
