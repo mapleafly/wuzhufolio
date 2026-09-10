@@ -255,6 +255,30 @@ interface SettingsService {
 >   preExistingAnomalousCoins，避免同账户回导误读为导入造成）。
 > 回溯：PRD 故事 5.2（9 条）、§9.9、§10-1/2/5/7/8 去重键、附录 A 黄金用例 10、共享规范 §8、ADR-005（含 D24 修订）。
 
+> **M10 补录（设置与日志诊断实现 · 2026-09-10，模块记录 M10.md）**：以下契约随 T10.1–T10.4 落地——
+> - **GeneralSettingsService**（domain/settings）：通用设置用例（PRD §7.2-6.1）——`view()` 视图 +
+>   `setBaseFiat`（候选 USD/EUR/CNY）/ `setPrecision` / `setUsernameEnum` / `addCashCoin` /
+>   `removeCashCoin`（默认白名单 tether/usd-coin/dai/true-usd 固定不可移除，仅扩展可移除）/
+>   `setSmallAmountThreshold`（**自由数值 ≥ 0，0 = 不启用**——走查反馈修复轮废弃预设档，按用户
+>   规模自定） / `setProxyEnabled`。存储 = settings 全局行（键：fiat〔既有〕、
+>   display.precision、login.username.enum〔既有〕、cash.coins〔JSON 扩展项〕、
+>   small.threshold〔基础法币数值串，0 = 不启用〕、network.proxy.enabled）；
+>   扩展白名单经注入 provider 生效（TransactionEventBuilder USD 锚定集合 +
+>   DefaultFundService 可用现金，默认 = 引擎常量，行为不变）。主题/盈亏配色沿用 theme/pnl_scheme
+>   既有键，经 ShellViewModel 写入持久化（顶栏与设置双向同步，PRD 6.1）；
+> - **LogAccess**（domain/settings）+ FileLogAccess（data/logging）：`path()` / `tailLines(max)` /
+>   `exportTo(targetPath)`——查看与导出均逐行经 LogRedactor 兜底（写入侧已脱敏，双保险）；
+> - **DiagnosticsService**（domain/settings）：`generate()` → DiagnosticsReport（应用/OS 版本、
+>   schema 版本〔boot 迁移结果〕、行情调用计数〔额度账本〕、同步调用计数〔sync_logs 累计条数 +
+>   最近同步时刻〕、最近日志片段〔尾部读取+再脱敏〕）；`DiagnosticsReportText.render` 纯渲染
+>   （预览与导出同源）；内容受限清单 = PRD §6，不含密钥与完整响应体；
+> - **FeeRuleService.saveExchangeEdit(id, exchange, buy, sell)**（T10.1 完整 CRUD）：按行 id 编辑
+>   交易所费率；交易所名变更 = 旧键删除 + 新键落库（fee_rules 备份去重键 account+exchange 联动迁移）；
+> - **日志轮转**（T10.2）：LogRotationPolicy 纯规则（1 万条或 90 天先到为准）+ LogRotator（本地日志
+>   启动裁剪/删档，maxHistory 对齐 90 天）+ SyncLogRepository.rotate（sync_logs 同口径，先删过期
+>   再裁 newest N）；SyncLogRepository 增 `countAll()` / `lastSyncAt()`（诊断报告取数）。
+> 回溯：PRD §7.2 模块 6.1/6.3/6.4、§6「日志管理与可追溯性」、§9.11、interaction.md §2.6、ia.md §2.12。
+
 
 
 ## 4. 错误码与提示文案映射（统一异常处理）
