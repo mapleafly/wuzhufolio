@@ -158,7 +158,8 @@ class DataManagementSectionUiTest {
         onNodeWithTag("backup-pwd-confirm").performTextInput("Backup-Pass-1")
         onNodeWithTag("backup-export-confirm").performClick()
         waitUntil(timeoutMillis = 2_000) { svc.exportedTo != null }
-        assertEquals(cproPath, svc.exportedTo!!.toString())
+        // Path 归一化比较（Windows Path.toString() 为反斜杠形态——CI run 34448610233 勘误）
+        assertEquals(Path.of(cproPath), svc.exportedTo, "保存路径透传")
         waitUntil(timeoutMillis = 2_000) { textCount(BackupCopy.EXPORT_SUCCESS_PREFIX) >= 1 }
     }
 
