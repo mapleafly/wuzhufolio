@@ -40,6 +40,29 @@ class DefaultFeeRuleService(
         repository.upsert(requireAccount(), key, buyPercent, sellPercent)
     }
 
+    override suspend fun saveExchangeEdit(
+        id: Long,
+        exchange: String,
+        buyPercent: BigDecimal,
+        sellPercent: BigDecimal,
+    ) {
+        val accountId = requireAccount()
+        val key = exchange.trim().uppercase()
+        require(key.isNotEmpty()) { "交易所名称不能为空" }
+        requirePercent(buyPercent)
+        requirePercent(sellPercent)
+        val current = repository.listEntries(accountId).firstOrNull { it.id.toLong() == id }
+            ?: throw IllegalArgumentException("费率规则不存在或已删除")
+        require(current.exchange != null) { "全局默认费率请在「全局默认费率」行编辑" }
+        if (current.exchange == key) {
+            repository.upsert(accountId, key, buyPercent, sellPercent) // 同键覆盖（编辑费率）
+        } else {
+            // 改名 = 键迁移：新键 upsert + 旧行删除（fee_rules 备份去重键 account+exchange 联动，M10 T10.1）
+            repository.upsert(accountId, key, buyPercent, sellPercent)
+            repository.delete(accountId, id.toInt())
+        }
+    }
+
     override suspend fun removeRule(id: Long) {
         repository.delete(requireAccount(), id.toInt())
     }

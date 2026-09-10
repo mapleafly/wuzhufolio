@@ -26,10 +26,13 @@ import java.time.Instant
  *  （联动扣减，黄金用例 5）；歧义/未命中 -> 按 quote 角色兜底 + estimated（口径登记模块记录 M7 §5）。
  *
  * 引擎为纯确定性重放，本层不引入任何数值语义变更（M4 已通过模块不动）。
+ * [cashCoinIds] = 稳定币白名单运行期读取（M10 T10.1 设置「稳定币白名单」扩展 USD 锚定集合；
+ * 默认 = 引擎 [PortfolioCalculator.DEFAULT_CASH_COIN_IDS]，行为与 M9 前完全一致）。
  */
 class TransactionEventBuilder(
     private val catalog: CoinCatalog,
     private val snapshots: PriceSnapshotRepository,
+    private val cashCoinIds: () -> Set<String> = { PortfolioCalculator.DEFAULT_CASH_COIN_IDS },
 ) {
 
     /** 事件构造结果：可入重放的事件 + 待定价行（展示「估算中」）+ 无法折算暂排除的行。 */
@@ -198,10 +201,10 @@ class TransactionEventBuilder(
         return null
     }
 
-    /** USD 锚定稳定币（与组合现金白名单同源：USDT/USDC/DAI/TUSD——PRD §7.2-6.1 默认白名单）。 */
+    /** USD 锚定稳定币（与组合现金白名单同源；M10 起含设置扩展项——PRD §7.2-6.1）。 */
     private suspend fun isUsdPegged(coinId: Long): Boolean {
         val coin = catalog.getById(coinId) ?: return false
-        return coin.cgId in PortfolioCalculator.DEFAULT_CASH_COIN_IDS
+        return coin.cgId in cashCoinIds()
     }
 
     private data class PriceHit(val price: BigDecimal, val exact: Boolean)

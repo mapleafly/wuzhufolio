@@ -22,6 +22,13 @@ interface FeeRuleService {
     /** 设置/覆盖交易所费率（[exchange] 非空，大写存储）。 */
     suspend fun saveExchange(exchange: String, buyPercent: BigDecimal, sellPercent: BigDecimal)
 
+    /**
+     * 编辑既有交易所费率（M10 T10.1 完整 CRUD）：按行 [id] 定位，写入新名称与新费率。
+     * 交易所名变更 = 旧去重键行删除 + 新键行落库（fee_rules 备份去重键 = account+exchange，
+     * 同账户内键迁移；PRD 5.2-6 去重语义不变）。[id] 不存在或非本账户行时抛 IllegalArgumentException。
+     */
+    suspend fun saveExchangeEdit(id: Long, exchange: String, buyPercent: BigDecimal, sellPercent: BigDecimal)
+
     /** 删除规则（幂等）。 */
     suspend fun removeRule(id: Long)
 }

@@ -6,7 +6,9 @@ import com.wuzhufolio.domain.exchange.SyncStatus
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import java.time.Instant
@@ -85,5 +87,44 @@ class SyncLogRepository(private val gate: DbGate) {
                     message = row[SyncLogsTable.message],
                 )
             }
+    }
+
+    /** 全账户累计记录条数（诊断报告「同步调用计数」口径，M10 T10.3）。 */
+    fun countAll(): Int = gate.readBlocking {
+        SyncLogsTable.selectAll().count().toInt()
+    }
+
+    /** 全账户最近一条同步时刻（诊断报告；无记录返回 null）。 */
+    fun lastSyncAt(): Instant? = gate.readBlocking {
+        SyncLogsTable.selectAll()
+            .orderBy(SyncLogsTable.syncTime to SortOrder.DESC)
+            .limit(1)
+            .firstOrNull()
+            ?.get(SyncLogsTable.syncTime)
+            ?.let { runCatching { Instant.parse(it) }.getOrNull() }
+    }
+
+    /**
+     * 轮转（M10 T10.2 · interaction §2.6「本地日志与 sync_logs 各保留最近 1 万条或 90 天，先到为准」）：
+     * 先删早于 90 天的行，再裁剪到最新 [maxRows] 条；返回（按时间删除数, 按条数删除数）。
+     */
+    fun rotate(now: Instant, maxRows: Int = 10_000, maxAgeDays: Long = 90): Pair<Int, Int> {
+        val cutoff = now.minus(java.time.Duration.ofDays(maxAgeDays))
+        val byAge = gate.writeBlocking {
+            SyncLogsTable.deleteWhere { SyncLogsTable.syncTime less cutoff.toString() }
+        }
+        val byCount = gate.writeBlocking {
+            // 最新 maxRows 条中的最小 id；其之前的行删除（id 越大越新）
+            val keepFromId = SyncLogsTable.selectAll()
+                .orderBy(SyncLogsTable.id to SortOrder.DESC)
+                .limit(maxRows)
+                .minOfOrNull { it[SyncLogsTable.id] }
+            if (keepFromId == null) {
+                0
+            } else {
+                SyncLogsTable.deleteWhere { SyncLogsTable.id less keepFromId }
+            }
+        }
+        return byAge to byCount
     }
 }

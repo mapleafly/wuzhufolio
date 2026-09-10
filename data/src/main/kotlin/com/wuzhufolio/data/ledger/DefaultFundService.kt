@@ -55,6 +55,8 @@ class DefaultFundService(
     private val settings: SettingsRepository,
     private val eventBuilder: TransactionEventBuilder,
     private val assembler: LedgerEventAssembler,
+    /** 稳定币白名单运行期读取（M10 T10.1 设置扩展「可用现金」口径；默认 = 引擎常量，行为不变）。 */
+    private val cashCoinIds: () -> Set<String> = { PortfolioCalculator.DEFAULT_CASH_COIN_IDS },
 ) : FundService {
 
     // ---- 列表 + 总览（T8.2/T8.3） ----
@@ -336,7 +338,7 @@ class DefaultFundService(
             val coin = catalog.getByCgId(cgId) ?: continue
             eventBuilder.currentPrice(coin.id, baseFiat)?.let { prices[cgId] = it }
         }
-        val metrics = PortfolioCalculator().compute(outcome, prices)
+        val metrics = PortfolioCalculator(cashCoinIds = cashCoinIds()).compute(outcome, prices)
         return FundsOverview(
             availableCashFiat = metrics.availableCashFiat,
             investedNetFiat = metrics.investedNetFiat,
