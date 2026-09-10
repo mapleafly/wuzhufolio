@@ -172,8 +172,8 @@ class AuthGateViewModel(private val service: AccountService) {
     }
 
     /**
-     * 向导选择：落到主壳对应页。M6 起「关联交易所 API」为真实路径（落设置页 API 管理分组，
-     * 引导提示替代模块预告）；MANUAL/CSV/RESTORE 占位预告随 M7/M9 替换。
+     * 向导选择：落到主壳对应页。M6 起「关联交易所 API」、M9 起「从备份恢复」为真实路径
+     * （落设置页对应分组，引导提示替代模块预告）；MANUAL/CSV 占位预告随 M7 已替换/M10 收尾。
      */
     fun wizardPick(kind: WizardKind, pageFor: (WizardKind) -> ShellPage) {
         val session = _state.value.session ?: return
@@ -181,15 +181,15 @@ class AuthGateViewModel(private val service: AccountService) {
         scope.launch {
             when (kind) {
                 WizardKind.API -> showToast(WzToastKind.Success, AuthCopy.WIZARD_API_READY_TOAST)
-                else -> {
-                    val module = when (kind) {
-                        WizardKind.MANUAL -> AuthCopy.MODULE_MANUAL
-                        WizardKind.CSV -> AuthCopy.MODULE_CSV
-                        WizardKind.RESTORE -> AuthCopy.MODULE_RESTORE
-                        WizardKind.API -> AuthCopy.MODULE_API
-                    }
-                    showToast(WzToastKind.Failure, String.format(AuthCopy.WIZARD_PICK_TOAST, module))
-                }
+                WizardKind.RESTORE -> showToast(WzToastKind.Success, AuthCopy.WIZARD_RESTORE_READY_TOAST)
+                WizardKind.MANUAL -> showToast(
+                    WzToastKind.Failure,
+                    String.format(AuthCopy.WIZARD_PICK_TOAST, AuthCopy.MODULE_MANUAL),
+                )
+                WizardKind.CSV -> showToast(
+                    WzToastKind.Failure,
+                    String.format(AuthCopy.WIZARD_PICK_TOAST, AuthCopy.MODULE_CSV),
+                )
             }
             enterShellQuiet(session, service.listAccounts())
         }

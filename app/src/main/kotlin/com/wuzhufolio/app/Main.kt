@@ -29,6 +29,8 @@ import com.wuzhufolio.ui.exchange.ApiManagementPage
 import com.wuzhufolio.ui.exchange.SettingsSectionsHost
 import com.wuzhufolio.ui.market.MarketSettingsPage
 import com.wuzhufolio.ui.market.MarketWatchPage
+import com.wuzhufolio.ui.backup.BackupFileNames
+import com.wuzhufolio.ui.backup.DataManagementSection
 import com.wuzhufolio.ui.exchange.TopBarSyncViewModel
 import com.wuzhufolio.ui.ledger.FeeRuleSettingsSection
 import com.wuzhufolio.ui.ledger.FundsPage
@@ -105,6 +107,21 @@ private fun MainWindow(runtime: AppBootstrap.Runtime, onExit: () -> Unit) {
                     },
                     feeContent = {
                         FeeRuleSettingsSection(service = runtime.feeRuleService)
+                    },
+                    backupContent = {
+                        DataManagementSection(
+                            service = runtime.backupService,
+                            // 保存对话框不强制扩展名：用户只输文件名时自动补全（M9 走查反馈修复轮）
+                            pickCproSave = {
+                                FilePicker.pickSave("保存 .cpro 备份")
+                                    ?.let { BackupFileNames.withExtension(it, ".cpro") }
+                            },
+                            pickCproLoad = { FilePicker.pickLoad("选择 .cpro 备份") },
+                            pickCsvSave = { kind ->
+                                FilePicker.pickSave("导出 CSV（" + kind.fileNameHint + "）")
+                                    ?.let { BackupFileNames.withExtension(it, ".csv") }
+                            },
+                        )
                     },
                 )
             },

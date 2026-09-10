@@ -32,6 +32,8 @@ fun SettingsSectionsHost(
     marketContent: @Composable () -> Unit,
     apiContent: @Composable () -> Unit,
     feeContent: (@Composable () -> Unit)? = null,
+    /** M9：数据管理（备份恢复 + CSV 明文导出；null = 不显示分组）。 */
+    backupContent: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val colors = WzTheme.colors
@@ -66,15 +68,25 @@ fun SettingsSectionsHost(
                     testTag = "settings-section-fee",
                 )
             }
+            if (backupContent != null) {
+                WzButton(
+                    text = if (section == SettingsSection.DATA) "● 数据管理" else "○ 数据管理",
+                    onClick = { section = SettingsSection.DATA },
+                    variant = if (section == SettingsSection.DATA) WzButtonVariant.Primary
+                    else WzButtonVariant.Secondary,
+                    testTag = "settings-section-data",
+                )
+            }
         }
         Box(modifier = Modifier.weight(1f)) {
             when (section) {
                 SettingsSection.MARKET -> marketContent()
                 SettingsSection.API -> apiContent()
                 SettingsSection.FEE -> if (feeContent != null) feeContent() else marketContent()
+                SettingsSection.DATA -> if (backupContent != null) backupContent() else marketContent()
             }
         }
     }
 }
 
-private enum class SettingsSection { MARKET, API, FEE }
+private enum class SettingsSection { MARKET, API, FEE, DATA }

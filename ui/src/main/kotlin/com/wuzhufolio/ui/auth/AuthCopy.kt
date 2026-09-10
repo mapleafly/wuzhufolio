@@ -57,11 +57,10 @@ object AuthCopy {
     const val WIZARD_PICK_TOAST = "该功能将在%s模块上线后开放，敬请期待"
     const val MODULE_MANUAL = "交易管理（手动录入）"
     const val MODULE_CSV = "交易管理（CSV 导入）"
-    const val MODULE_API = "交易所同步"
-    const val MODULE_RESTORE = "数据备份恢复"
 
-    // M6：向导「关联交易所 API」已可用（不再占位预告）——落到设置页的 API 管理分组
+    // M6/M9：向导「关联交易所 API」「从备份恢复」已可用（不再占位预告）
     const val WIZARD_API_READY_TOAST = "已进入设置 · 在「API 管理」中添加 Binance 只读密钥后将自动首次同步"
+    const val WIZARD_RESTORE_READY_TOAST = "已进入设置 · 在「数据管理」中选择 .cpro 备份文件即可恢复（PRD 5.2-8：导入数据归入当前账户）"
 
     // 忘记密码
     const val FORGOT_TITLE = "忘记密码"

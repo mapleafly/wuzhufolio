@@ -115,6 +115,8 @@ object AppBootstrap {
         val fundService: FundService,
         /** M8：持仓校准用例（单一来源门 + 差额规划 + 锚点入库 + 日志留痕）。 */
         val calibrationService: CalibrationUseCase,
+        /** M9：备份恢复用例（.cpro 导出/预览/恢复 + CSV 明文导出，数据管理区）。 */
+        val backupService: com.wuzhufolio.domain.backup.BackupService,
         private val deviceStore: DeviceSecretStore,
         private val keyring: MasterKeyStore?,
         private val deviceKeyring: MasterKeyStore?,
@@ -173,6 +175,15 @@ object AppBootstrap {
             market.catalog,
             exchange = exchange,
         )
+        val backup = BackupServicesBundle.run(
+            gate,
+            settings,
+            sessions,
+            market.catalog,
+            exchange = exchange,
+            backupsDir = AppDirs.dataDir().resolve("backups"),
+            logger = logger,
+        )
 
         startKoin { modules(appModule(db, gate, settings)) }
 
@@ -205,6 +216,7 @@ object AppBootstrap {
             feeRuleService = ledger.feeRuleService,
             fundService = ledger.fundService,
             calibrationService = ledger.calibrationService,
+            backupService = backup.backupService,
             deviceStore = market.deviceStore,
             keyring = if (report.backend == KeyStorageBackend.OS_KEYCHAIN) keyring else null,
             deviceKeyring = market.deviceKeyring,
@@ -396,6 +408,53 @@ object AppBootstrap {
                         syncLogs = exchange.syncLogRepository,
                     ),
                 )
+            }
+        }
+    }
+
+    /**
+     * M9 备份恢复服务装配（T9.1–T9.3）：备份读取/快照/设置存储 + 恢复应用器 + 编排服务。
+     * 与 M6/M7/M8 共享会话/目录/密钥仓库；快照仓库独立实例（同表无状态，先例 = SnapshotMarketQuotesService）；
+     * 临时备份目录 = 数据目录/backups（全量覆盖前自动临时备份，PRD 5.2-6）。
+     */
+    class BackupServicesBundle internal constructor(
+        val backupService: com.wuzhufolio.domain.backup.BackupService,
+    ) {
+        companion object {
+            @Suppress("LongParameterList") // 装配袋（gate/设置/会话/目录/交换束/目录/日志），同其他 Bundle 释放链
+            fun run(
+                gate: DbGate,
+                settings: SettingsRepository,
+                sessions: ActiveSessionStore,
+                catalog: SqlCoinCatalog,
+                exchange: ExchangeServicesBundle,
+                backupsDir: Path,
+                logger: Logger,
+            ): BackupServicesBundle {
+                val crypto = CryptoService()
+                val snapshots = PriceSnapshotRepository(gate)
+                val assembler = com.wuzhufolio.data.ledger.LedgerEventAssembler(
+                    catalog,
+                    com.wuzhufolio.data.ledger.TransactionEventBuilder(catalog, snapshots),
+                )
+                val service: com.wuzhufolio.domain.backup.BackupService =
+                    com.wuzhufolio.data.backup.DefaultBackupService(
+                        sessions = sessions,
+                        crypto = crypto,
+                        gate = gate,
+                        catalog = catalog,
+                        settings = settings,
+                        ledgerRead = com.wuzhufolio.data.backup.BackupLedgerReadStore(gate),
+                        feeRules = FeeRuleRepository(gate),
+                        apiKeys = exchange.apiKeyRepository,
+                        assembler = assembler,
+                        settingsStore = com.wuzhufolio.data.backup.BackupSettingsStore(gate),
+                        snapshotStore = com.wuzhufolio.data.backup.BackupSnapshotStore(gate),
+                        restoreStore = com.wuzhufolio.data.backup.BackupRestoreStore(crypto),
+                        backupsDir = backupsDir,
+                        logger = logger,
+                    )
+                return BackupServicesBundle(service)
             }
         }
     }
