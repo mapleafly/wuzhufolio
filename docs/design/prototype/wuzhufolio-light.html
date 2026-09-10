@@ -858,7 +858,7 @@ function saveApi(){
 }
 function openBackup(){
   var h='<div class="modal"><div class="mhead"><h3>数据管理</h3><button class="mclose" aria-label="关闭" type="button" onclick="closeModal()">×</button></div><div class="mbody">';
-  h+='<div class="settings-group"><h3>备份</h3><div class="set-row"><div class="lbl"><div class="t">备份当前账户数据</div><div class="d">.cpro = 明文头部 + AES-256-GCM 加密载荷 · 不含账户信息</div></div><button class="btn primary sm" type="button" onclick="toast(\'请设置备份文件密码（默认填当前账户密码）\')">备份数据</button></div><div class="set-row"><div class="lbl"><div class="t">上次备份时间</div><div class="d">2026-08-26 22:10</div></div></div></div>';
+  h+='<div class="settings-group"><h3>备份</h3><div class="set-row"><div class="lbl"><div class="t">备份当前账户数据</div><div class="d">.cpro = 明文头部 + AES-256-GCM 加密载荷 · 不含账户信息</div></div><button class="btn primary sm" type="button" onclick="toast(\'请设置独立的备份文件密码（不回填账户密码）\')">备份数据</button></div><div class="set-row"><div class="lbl"><div class="t">上次备份时间</div><div class="d">2026-08-26 22:10</div></div></div></div>';
   h+='<div class="settings-group"><h3>恢复</h3><div class="set-row"><div class="lbl"><div class="t">从 .cpro 恢复</div><div class="d">显示摘要 -> 输入备份密码 -> 增量合并（默认）/ 全量覆盖</div></div><button class="btn ghost sm" type="button" onclick="openRestoreWizard()">恢复数据</button></div></div>';
   h+='<div class="settings-group"><h3>明文导出（数据主权）</h3><div class="set-row"><div class="lbl"><div class="t">CSV 导出</div><div class="d">交易记录 / 资金流水 / 持仓汇总 · 不含 API 密钥</div></div><button class="btn ghost sm" type="button" onclick="toast(\'CSV 导出已生成（不含 API 密钥）\')">导出</button></div></div>';
   h+='</div><div class="mfoot"><button class="btn ghost" type="button" onclick="closeModal()">关闭</button></div></div>';
@@ -869,7 +869,7 @@ function openRestoreWizard(){
   h+='<div class="field"><label for="rvAcct">目标账户（恢复前已创建 / 选定）</label><input class="inp" id="rvAcct" type="text" value="'+esc(currentAcct())+'" readonly><div class="hint">全新安装时先创建（或选定）目标账户，再从备份恢复，导入数据归入该账户（PRD 5.2-8 / 流程图 1）</div></div>';
   h+='<div class="field"><label for="rvFile">备份文件</label><input class="inp" id="rvFile" type="text" value="wuzhufolio-20260826.cpro" readonly></div>';
   h+='<div class="sumbox"><b>明文头部摘要</b><br>格式版本 cpro-1 · 应用版本 0.1.0 · 导出时间 2026-08-26 22:10<br>记录：交易 5 · 资金 3 · 校准 0 · 价格快照 412 条 · 时间范围 2026-05-01 ~ 2026-08-18</div>';
-  h+='<div class="field"><label for="rvPw">备份文件密码</label><input class="inp" id="rvPw" type="password" placeholder="••••••••"><div class="hint">独立于当前账户密码（默认填当前账户密码，可修改）· 跨设备/跨账户恢复只依赖该密码</div></div>';
+  h+='<div class="field"><label for="rvPw">备份文件密码</label><input class="inp" id="rvPw" type="password" placeholder="••••••••"><div class="hint">独立于当前账户密码，由用户设置（不回填账户密码）· 跨设备/跨账户恢复只依赖该密码</div></div>';
   h+='<div class="field"><label>导入方式</label><div class="seg"><button type="button" class="on" onclick="segPick(this)">增量合并（默认）</button><button type="button" onclick="segPick(this)">全量覆盖</button></div><div class="hint">增量合并：uuid / 交易所+订单号 / 模糊匹配三级去重；全量覆盖：二次确认 + 覆盖前自动生成临时备份（全局行情缓存保留）</div></div>';
   h+='</div><div class="mfoot"><button class="btn ghost" type="button" onclick="closeModal()">取消</button><button class="btn primary" type="button" onclick="doRestore()">开始恢复</button></div></div>';
   openModal(h);

@@ -232,6 +232,28 @@ interface SettingsService {
 > **M8 修复轮二补录（2026-09-09，模块记录 M8 §8-2）**：候选检索 `FundService.searchCoins` 上限
 > 10→20，且**命中查询的默认币种置顶**（同名符号在目录检索按名称字母序并列，canonical 资产会被
 > 挤出头部——M8 层 pin，M3 目录检索口径不动）。
+>
+> **M9 补录（备份恢复实现 · 2026-09-10，模块记录 M9.md）**：§3 BackupService 已落地并细化——
+> `BackupService`（domain/backup）：`backupMetadata` / `exportBackup(path, password)` /
+> `previewBackup(path)`（明文头部，无需密码）/ `prepareRestore(path, password)`（验证+解密+合并规划
+> 预览，不落库）/ `restoreBackup(path, password, mode[MERGE|FULL_OVERWRITE])` /
+> `exportCsv(kind[TRANSACTIONS|FUNDS|HOLDINGS], path)`。实现要点：
+> - **CproCodec**（ADR-005 §1/§2）：头部 JSON 单行 + '\n' + nonce‖密文；AAD = 头部完整字节；
+>   Argon2id(备份密码, 头部 salt/m/t/p) + AES-256-GCM；载荷币种引用统一 **cg_id**（跨设备键），
+>   导入经本地目录解析回行主键，缺失币种行跳过并计数；`CproDecodeException` 三态
+>   （MALFORMED_FILE / UNSUPPORTED_FORMAT / WRONG_PASSWORD_OR_CORRUPTED——§4 BACKUP_INVALID 映射）；
+> - **合并规划**（BackupMergePlanner 纯规则）：业务记录 uuid → 交易所+订单号（v1 模糊级无输入面）；
+>   api_keys (exchange+别名) 跳过；fee_rules/settings 备份优先覆盖；快照 币种+法币+小时桶 幂等
+>  （本地同桶行保留）；全量覆盖 = 单写事务清账户业务表后全量插入（全局公共表不动）+ 临时备份；
+> - **恢复编排**（DefaultBackupService）：规划 → 单写事务应用（BackupRestoreStore：api_keys 先插后包
+>   目标账户 DEK 重加密）→ 恢复后全量重放（LENIENT）出「持仓异常」清单；全量覆盖前临时备份
+>   `~/.wuzhufolio/backups/pre-restore-*.cpro`（同备份密码加密，不记 backup.last_at）；
+> - **CSV 明文导出**（PRD §9.9）：交易/资金流水/持仓汇总，不含任何 API 密钥（§5 回溯行见 M9）；
+> - **备份文件密码 = 用户设置独立密码（D24，2026-09-10 人工裁决）**：不回填当前账户密码（密码不留存
+>   架构下不可回填）、禁止空密码（导出侧 AccountPolicy 同账户门槛校验，恢复侧空密码不可提交）；
+>   恢复摘要异常口径 = 「本次导入新产生」与「账户既存」分开列示（RestoreSummary.anomalousCoins /
+>   preExistingAnomalousCoins，避免同账户回导误读为导入造成）。
+> 回溯：PRD 故事 5.2（9 条）、§9.9、§10-1/2/5/7/8 去重键、附录 A 黄金用例 10、共享规范 §8、ADR-005（含 D24 修订）。
 
 
 
@@ -264,4 +286,5 @@ interface SettingsService {
 | 引擎事件化/重放/指标/费率/校准（M4） | 全局说明「成本计算规范」「持仓校准规则」、故事 7.1/6.4、附录 A | §2 |
 | 资金/校准用例（M8） | 故事 6.1/6.2/6.3、4.1-5、§9.8、全局说明「持仓校准规则」 | §2/§3 |
 | 行情客户端/快照/24h/回填/额度（M5） | 故事 3.2、全局说明「行情数据与时间分辨率规则」、§7.2 模块 6.1 | §5 |
+| 备份格式/合并/恢复/CSV（M9） | 故事 5.2、§9.9、附录 A 用例 10 | §8 |
 | 内部服务接口 | ia.md 页面清单、flows.md 状态机 | — |
