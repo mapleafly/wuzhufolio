@@ -5,12 +5,17 @@ import com.wuzhufolio.domain.settings.PnlColorScheme
 import com.wuzhufolio.domain.settings.ThemeMode
 import com.wuzhufolio.ui.components.WzToast
 import com.wuzhufolio.ui.components.WzToastKind
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 /**
- * 主壳一级页面（ia.md §1：侧边栏五个一级入口 + M0 开发期组件走查页）。
+ * 主壳一级页面（ia.md §1：侧边栏六个一级入口 + M0 开发期组件走查页）。
  */
 enum class ShellPage(val label: String) {
     DASHBOARD("仪表盘"),
@@ -31,12 +36,20 @@ enum class ShellPage(val label: String) {
     }
 }
 
-/** 主壳状态（ADR-001：ViewModel + StateFlow）。 */
+/**
+ * 主壳状态（ADR-001：ViewModel + StateFlow）。
+ * 主题/盈亏配色 = 单一状态源：顶栏 ☾ 快捷切换与设置页「主题（明/暗）」双向同步（PRD 6.1）；
+ * 变更经 [onPreferenceChange] 异步持久化（M10：settings 全局行 theme / pnl_scheme，键与启动链同源）。
+ */
 class ShellViewModel(
     initialTheme: ThemeMode,
     initialPnlScheme: PnlColorScheme,
     initialPage: ShellPage = ShellPage.DASHBOARD,
+    /** 偏好持久化钩子（key/value；实现 = settings 全局行写入，注入自 app 组合根）。 */
+    private val onPreferenceChange: suspend (key: String, value: String) -> Unit = { _, _ -> },
 ) : ViewModel() {
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val _themeMode = MutableStateFlow(initialTheme)
     val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
@@ -51,11 +64,19 @@ class ShellViewModel(
     val toast: StateFlow<WzToast?> = _toast.asStateFlow()
 
     fun toggleTheme() {
-        _themeMode.value = if (_themeMode.value == ThemeMode.LIGHT) ThemeMode.DARK else ThemeMode.LIGHT
+        setTheme(if (_themeMode.value == ThemeMode.LIGHT) ThemeMode.DARK else ThemeMode.LIGHT)
     }
 
+    /** 设置主题（顶栏/设置页共用入口；即时重渲染 + 持久化）。 */
+    fun setTheme(mode: ThemeMode) {
+        _themeMode.value = mode
+        scope.launch { onPreferenceChange("theme", mode.storageValue) }
+    }
+
+    /** 设置盈亏配色方案（设置页入口；即时重渲染 + 持久化）。 */
     fun setPnlScheme(scheme: PnlColorScheme) {
         _pnlScheme.value = scheme
+        scope.launch { onPreferenceChange("pnl_scheme", scheme.storageValue) }
     }
 
     fun selectPage(page: ShellPage) {
@@ -68,5 +89,9 @@ class ShellViewModel(
 
     fun dismissToast() {
         _toast.value = null
+    }
+
+    override fun onCleared() {
+        scope.cancel()
     }
 }

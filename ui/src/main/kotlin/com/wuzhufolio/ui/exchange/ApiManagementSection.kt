@@ -1,17 +1,11 @@
 package com.wuzhufolio.ui.exchange
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -39,12 +33,12 @@ import com.wuzhufolio.ui.theme.WzTheme
 import java.time.Instant
 
 /**
- * API 管理页（T6.4 · task-breakdown §3 M6；挂载到设置页占位宿主，见 app/Main 组合）。
- * 原型 API 管理走查：列表（别名/交易所/掩码/最后同步/状态）+ 添加弹窗（验证后保存 + 保存即首次同步）+
- * 状态与同步记录展示（ia.md §2.14）；API 同步间隔 15/30/60（设置键 sync.interval_minutes）。
+ * 设置页 · API 管理分组（T6.4 → M10 嵌入完整设置页）：
+ * 列表（别名/交易所/掩码/最后同步/状态）+ 添加/编辑弹窗（验证后保存 + 保存即首次同步）+
+ * 状态与同步记录展示（ia.md §2.14）。API 同步间隔行已按 M6 遗留归位「行情与同步」分组（M10）。
  */
 @Composable
-fun ApiManagementPage(
+fun ApiManagementSection(
     service: ExchangeSyncService,
     modifier: Modifier = Modifier,
 ) {
@@ -53,28 +47,10 @@ fun ApiManagementPage(
     val state by vm.state.collectAsState()
     val colors = WzTheme.colors
 
-    Box(modifier = modifier.fillMaxSize().testTag("api-management")) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp),
-        ) {
-            Text(text = "API 管理（交易所同步）", color = colors.ink, style = WzTheme.typography.pageTitle)
-            Text(
-                text = ApiCopy.PAGE_SUB,
-                color = colors.ink3,
-                style = WzTheme.typography.caption,
-                modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
-            )
-
-            SyncIntervalRow(
-                minutes = state.intervalMinutes,
-                onSelect = vm::selectInterval,
-            )
-
+    Box(modifier = modifier.testTag("api-management")) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Text(text = "已保存 API 密钥", color = colors.ink2, style = WzTheme.typography.body,
-                modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
+                modifier = Modifier.padding(bottom = 4.dp))
             if (state.keys.isEmpty()) {
                 Text(
                     text = ApiCopy.EMPTY_HINT,
@@ -142,33 +118,6 @@ fun ApiManagementPage(
                     onSave = vm::save,
                     onTest = vm::test,
                     onClose = vm::closeDialog,
-                )
-            }
-        }
-    }
-}
-
-/** 间隔档位（15/30/60，原型 settingsRow 分段口径）。 */
-@Composable
-private fun SyncIntervalRow(minutes: Int, onSelect: (Int) -> Unit) {
-    val colors = WzTheme.colors
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).testTag("api-sync-interval"),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = ApiCopy.SYNC_INTERVAL_LABEL, color = colors.ink, style = WzTheme.typography.body)
-            Text(text = ApiCopy.SYNC_INTERVAL_SUB, color = colors.ink3, style = WzTheme.typography.caption,
-                modifier = Modifier.padding(top = 2.dp))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf(15, 30, 60).forEach { candidate ->
-                val selected = candidate == minutes
-                WzButton(
-                    text = if (selected) "● " + candidate + " 分钟" else "○ " + candidate + " 分钟",
-                    onClick = { onSelect(candidate) },
-                    variant = if (selected) WzButtonVariant.Primary else WzButtonVariant.Secondary,
-                    testTag = "api-interval-" + candidate,
                 )
             }
         }

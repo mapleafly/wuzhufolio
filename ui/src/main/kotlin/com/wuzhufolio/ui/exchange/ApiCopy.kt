@@ -30,8 +30,7 @@ object ApiCopy {
     const val SYNC_ALL_EMPTY = "尚未添加 API 密钥：请先添加只读密钥，再执行同步"
     const val EMPTY_HINT = "尚未添加 API 密钥 · 添加后每个密钥行内提供「立即同步」，也可用下方「立即同步（全部密钥）」"
 
-    const val SYNC_INTERVAL_LABEL = "API 同步间隔（交易数据）"
-    const val SYNC_INTERVAL_SUB = "自动增量同步的间隔（默认 30 分钟）"
+    // （API 同步间隔文案随 M10 归位 ui/settings/SettingsCopy.kt——M6 遗留「行情与同步」分组归位）
 
     // ---- 添加弹窗（原型 openApiAdd 逐字口径） ----
 

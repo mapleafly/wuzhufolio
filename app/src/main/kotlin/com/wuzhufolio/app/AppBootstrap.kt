@@ -17,8 +17,12 @@ import com.wuzhufolio.data.accounts.AccountRepository
 import com.wuzhufolio.data.accounts.DefaultAccountService
 import com.wuzhufolio.data.security.RememberMeStore
 import com.wuzhufolio.data.security.RememberMeStoreFactory
+import com.wuzhufolio.data.settings.DefaultDiagnosticsService
+import com.wuzhufolio.data.settings.DefaultGeneralSettingsService
 import com.wuzhufolio.data.settings.SettingsRepository
 import com.wuzhufolio.data.catalog.SqlCoinCatalog
+import com.wuzhufolio.data.logging.FileLogAccess
+import com.wuzhufolio.data.logging.LogRotator
 import com.wuzhufolio.data.market.CmcMarketClient
 import com.wuzhufolio.data.market.CoingeckoMarketClient
 import com.wuzhufolio.data.market.DefaultMarketRefreshService
@@ -27,8 +31,8 @@ import com.wuzhufolio.data.market.DeviceSecretStore
 import com.wuzhufolio.data.market.PriceSnapshotRepository
 import com.wuzhufolio.data.market.RefreshableRankProvider
 import com.wuzhufolio.data.market.SettingsMarketWatchService
-import com.wuzhufolio.data.market.SnapshotMarketQuotesService
 import com.wuzhufolio.data.market.SettingsQuotaLedger
+import com.wuzhufolio.data.market.SnapshotMarketQuotesService
 import com.wuzhufolio.data.market.newOkHttpMarketClient
 import com.wuzhufolio.data.exchange.ApiKeyRepository
 import com.wuzhufolio.data.exchange.BinanceAdapter
@@ -59,6 +63,9 @@ import com.wuzhufolio.domain.market.MarketSettingsService
 import com.wuzhufolio.domain.market.MarketWatchService
 import com.wuzhufolio.domain.accounts.AccountService
 import com.wuzhufolio.domain.redaction.LogRedactor
+import com.wuzhufolio.domain.settings.DiagnosticsService
+import com.wuzhufolio.domain.settings.GeneralSettingsService
+import com.wuzhufolio.domain.settings.LogAccess
 import com.wuzhufolio.domain.settings.PnlColorScheme
 import com.wuzhufolio.domain.settings.ThemeMode
 import org.koin.core.context.startKoin
@@ -117,6 +124,12 @@ object AppBootstrap {
         val calibrationService: CalibrationUseCase,
         /** M9：备份恢复用例（.cpro 导出/预览/恢复 + CSV 明文导出，数据管理区）。 */
         val backupService: com.wuzhufolio.domain.backup.BackupService,
+        /** M10：通用设置用例（T10.1：法币/精度/枚举开关/稳定币白名单/阈值/代理开关）。 */
+        val generalSettingsService: GeneralSettingsService,
+        /** M10：诊断报告用例（T10.3：版本/schema/脱敏日志片段/调用计数）。 */
+        val diagnosticsService: DiagnosticsService,
+        /** M10：本地日志查看/导出（T10.2：查看/导出均逐行脱敏）。 */
+        val logAccess: LogAccess,
         private val deviceStore: DeviceSecretStore,
         private val keyring: MasterKeyStore?,
         private val deviceKeyring: MasterKeyStore?,
@@ -159,6 +172,18 @@ object AppBootstrap {
         )
         val hello = HelloChain(db, settings, logger).run()
 
+        // M10 T10.2：日志轮转（本地日志 1 万条/90 天 + sync_logs 同口径）——启动执行一次，摘要入日志
+        val logRotation = LogRotator.rotate(AppDirs.logDir())
+        val syncRotation = SyncLogRepository(gate).rotate(java.time.Instant.now())
+        logger.info(
+            LogRedactor.redact(
+                "log rotation ok | files: " + logRotation +
+                    " | sync_logs removed byAge=" + syncRotation.first + " byCount=" + syncRotation.second,
+            ),
+        )
+
+        val generalSettings: GeneralSettingsService = DefaultGeneralSettingsService(settings)
+
         val market = MarketServicesBundle.run(gate, settings, logger)
         val exchange = ExchangeServicesBundle.run(
             gate,
@@ -174,6 +199,7 @@ object AppBootstrap {
             sessions,
             market.catalog,
             exchange = exchange,
+            cashCoinIds = { (generalSettings as DefaultGeneralSettingsService).cashCoinIds() },
         )
         val backup = BackupServicesBundle.run(
             gate,
@@ -183,6 +209,14 @@ object AppBootstrap {
             exchange = exchange,
             backupsDir = AppDirs.dataDir().resolve("backups"),
             logger = logger,
+        )
+        val diagnostics: DiagnosticsService = DefaultDiagnosticsService(
+            appVersion = com.wuzhufolio.data.backup.DefaultBackupService.APP_VERSION,
+            schemaVersion = hello.schemaVersion,
+            quota = SettingsQuotaLedger(settings),
+            syncCount = { SyncLogRepository(gate).countAll() },
+            lastSyncAt = { SyncLogRepository(gate).lastSyncAt() },
+            logTail = { LogRotator.tailLines(AppDirs.logDir().resolve("wuzhufolio.log"), 100) },
         )
 
         startKoin { modules(appModule(db, gate, settings)) }
@@ -217,6 +251,9 @@ object AppBootstrap {
             fundService = ledger.fundService,
             calibrationService = ledger.calibrationService,
             backupService = backup.backupService,
+            generalSettingsService = generalSettings,
+            diagnosticsService = diagnostics,
+            logAccess = FileLogAccess(AppDirs.logDir()),
             deviceStore = market.deviceStore,
             keyring = if (report.backend == KeyStorageBackend.OS_KEYCHAIN) keyring else null,
             deviceKeyring = market.deviceKeyring,
@@ -346,7 +383,7 @@ object AppBootstrap {
      * 与 M6 同步编排共享同一币种目录（market.catalog——事件 FK->cg_id 解析、CSV/手动消歧同口径）；
      * 快照仓库独立实例（同表无状态，先例 = SnapshotMarketQuotesService）。
      */
-    @Suppress("LongParameterList") // 装配袋（两服务共用的仓库/构造器注入），拆散反损可读性
+    @Suppress("LongParameterList") // 装配袋（gate/设置/会话/目录/交换束/日志轮转），同 Runtime 释放链
     class LedgerServicesBundle internal constructor(
         val transactionLedgerService: TransactionLedgerService,
         val feeRuleService: FeeRuleService,
@@ -360,13 +397,17 @@ object AppBootstrap {
                 sessions: ActiveSessionStore,
                 catalog: SqlCoinCatalog,
                 exchange: ExchangeServicesBundle,
+                /** M10 T10.1：稳定币白名单运行期读取（设置扩展 → 事件构造 USD 锚定 + 资金总览可用现金）。 */
+                cashCoinIds: () -> Set<String> = {
+                    com.wuzhufolio.domain.engine.PortfolioCalculator.DEFAULT_CASH_COIN_IDS
+                },
             ): LedgerServicesBundle {
                 val feeRules = FeeRuleRepository(gate)
                 val txRepository = LedgerTransactionRepository(gate)
                 val fundRepository = FundFlowRepository(gate)
                 val reconRepository = ReconciliationRepository(gate)
                 val snapshots = PriceSnapshotRepository(gate)
-                val eventBuilder = TransactionEventBuilder(catalog, snapshots)
+                val eventBuilder = TransactionEventBuilder(catalog, snapshots, cashCoinIds)
                 val assembler = LedgerEventAssembler(catalog, eventBuilder)
                 val service: TransactionLedgerService = DefaultTransactionLedgerService(
                     sessions = sessions,
@@ -392,6 +433,7 @@ object AppBootstrap {
                         settings = settings,
                         eventBuilder = eventBuilder,
                         assembler = assembler,
+                        cashCoinIds = cashCoinIds,
                     ),
                     calibrationService = DefaultCalibrationService(
                         sessions = sessions,

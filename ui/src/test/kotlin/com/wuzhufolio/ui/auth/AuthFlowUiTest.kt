@@ -29,7 +29,7 @@ class AuthFlowUiTest {
                 authService = service,
                 themeMode = ThemeMode.LIGHT,
                 pnlScheme = PnlColorScheme.GREEN_UP,
-                usernameEnumEnabled = true,
+                usernameEnumEnabled = { true },
             )
         }
     }

@@ -1,17 +1,12 @@
 package com.wuzhufolio.ui.market
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -34,17 +29,19 @@ import com.wuzhufolio.domain.market.PriceSource
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
 import com.wuzhufolio.ui.components.WzModal
+import com.wuzhufolio.ui.components.WzSelect
 import com.wuzhufolio.ui.components.WzTextField
 import com.wuzhufolio.ui.components.WzToastHost
 import com.wuzhufolio.ui.theme.WzTheme
 import java.net.URI
 
 /**
- * 设置页 · 行情数据源分组（T5.5；原型设置页「行情数据源」+「行情与同步」文案基准；
- * 与 M10 设置页其余分组汇合——本页为 M5 独立占位宿主，M10 整页接管后复用本分组）。
+ * 设置页 · 行情与同步分组 · 行情数据源段（T5.5 → M10 嵌入完整设置页）：
+ * 原型「行情与同步」分组内容 = 刷新频率（下拉）+ CG/CMC Key 行 + 数据源指示/上次刷新/立即刷新。
+ * M10 起由 SettingsPage 单页分组合流挂载（宿主 SettingsSectionsHost 已随 M10 移除——M5/M6 遗留闭环）。
  */
 @Composable
-fun MarketSettingsPage(
+fun MarketSettingsSection(
     settingsService: MarketSettingsService,
     refreshService: MarketRefreshService,
     modifier: Modifier = Modifier,
@@ -54,23 +51,10 @@ fun MarketSettingsPage(
         onDispose { vm.dispose() }
     }
     val state by vm.state.collectAsState()
-    val colors = WzTheme.colors
     var input by remember { mutableStateOf("") }
 
-    Box(modifier = modifier.fillMaxSize().testTag("market-settings")) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp),
-        ) {
-            Text(text = "设置", color = colors.ink, style = WzTheme.typography.pageTitle)
-            Text(
-                text = "行情数据源分组（M10 将并入完整设置页）",
-                color = colors.ink3,
-                style = WzTheme.typography.caption,
-                modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
-            )
+    Box(modifier = modifier.testTag("market-settings")) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             MarketGroup(title = MarketCopy.GROUP_TITLE, testTag = "group-market") {
                 FrequencyRow(
                     minutes = state.refreshMinutes,
@@ -193,6 +177,7 @@ private fun KeyRow(
     }
 }
 
+/** 刷新频率行（M10 组件化：M5 分段按钮 → 下拉，M5 §5-6-② 登记项闭环）。 */
 @Composable
 private fun FrequencyRow(minutes: Int, onSelect: (Int) -> Unit) {
     val colors = WzTheme.colors
@@ -212,17 +197,13 @@ private fun FrequencyRow(minutes: Int, onSelect: (Int) -> Unit) {
                 modifier = Modifier.padding(top = 2.dp),
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf(5, 15, 30).forEach { candidate ->
-                val selected = candidate == minutes
-                WzButton(
-                    text = if (selected) "● ${candidate} 分钟" else "○ ${candidate} 分钟",
-                    onClick = { onSelect(candidate) },
-                    variant = if (selected) WzButtonVariant.Primary else WzButtonVariant.Secondary,
-                    testTag = "freq-$candidate",
-                )
-            }
-        }
+        WzSelect(
+            options = listOf(5, 15, 30),
+            selected = minutes,
+            onSelect = onSelect,
+            labelOf = { "$it 分钟" },
+            testTag = "freq-select",
+        )
     }
 }
 

@@ -29,7 +29,7 @@ import kotlin.test.assertTrue
  * （GUI 共性约束 7.3：首输入框聚焦 + performTextInput 键盘路径）/校验文案/保存即首次同步 toast/移除。
  */
 @OptIn(ExperimentalTestApi::class)
-class ApiManagementPageUiTest {
+class ApiManagementSectionUiTest {
 
     private class FakeSyncService : ExchangeSyncService {
         var keys: MutableList<ApiKeyInfo> = mutableListOf()
@@ -96,7 +96,7 @@ class ApiManagementPageUiTest {
 
     @Test
     fun `empty state shows add button and no key rows`() = runComposeUiTest {
-        setContent { ApiManagementPage(FakeSyncService()) }
+        setContent { ApiManagementSection(FakeSyncService()) }
         onNodeWithTag("api-management").assertIsDisplayed()
         onNodeWithTag("api-empty").assertIsDisplayed()
         onNodeWithTag("api-add").assertIsDisplayed()
@@ -107,7 +107,7 @@ class ApiManagementPageUiTest {
     @Test
     fun `sync all with no keys shows guidance toast`() = runComposeUiTest {
         val svc = FakeSyncService()
-        setContent { ApiManagementPage(svc) }
+        setContent { ApiManagementSection(svc) }
         onNodeWithTag("api-sync-all").performClick()
         waitUntil(timeoutMillis = 2_000) { textCount(ApiCopy.SYNC_ALL_EMPTY) >= 1 }
         assertTrue(svc.syncNowIds.isEmpty(), "无密钥不得触达同步服务")
@@ -118,7 +118,7 @@ class ApiManagementPageUiTest {
         val svc = FakeSyncService().apply {
             keys.add(ApiKeyInfo(7L, 1L, "主号", "BINANCE", Instant.now(), "OK", true))
         }
-        setContent { ApiManagementPage(svc) }
+        setContent { ApiManagementSection(svc) }
         waitUntil(timeoutMillis = 2_000) { textCount("主号") >= 1 }
         onNodeWithTag("api-sync-all").performClick()
         waitUntil(timeoutMillis = 2_000) { svc.syncNowIds.isNotEmpty() }
@@ -129,7 +129,7 @@ class ApiManagementPageUiTest {
     @Test
     fun `add modal focuses alias input and save triggers first sync toast`() = runComposeUiTest {
         val svc = FakeSyncService()
-        setContent { ApiManagementPage(svc) }
+        setContent { ApiManagementSection(svc) }
         onNodeWithTag("api-add").performClick()
         onNodeWithTag("api-modal", useUnmergedTree = true).assertIsDisplayed()
         waitUntil(timeoutMillis = 2_000) {
@@ -147,7 +147,7 @@ class ApiManagementPageUiTest {
     @Test
     fun `empty fields show validation errors`() = runComposeUiTest {
         val svc = FakeSyncService()
-        setContent { ApiManagementPage(svc) }
+        setContent { ApiManagementSection(svc) }
         onNodeWithTag("api-add").performClick()
         onNodeWithTag("api-save", useUnmergedTree = true).performClick()
         waitUntil(timeoutMillis = 2_000) { textCount(ApiCopy.ERR_NAME_EMPTY) >= 1 }
@@ -159,7 +159,7 @@ class ApiManagementPageUiTest {
         val svc = FakeSyncService().apply {
             testResult = CredentialValidation.Failed(ExchangeError.InvalidKey)
         }
-        setContent { ApiManagementPage(svc) }
+        setContent { ApiManagementSection(svc) }
         onNodeWithTag("api-add").performClick()
         onNodeWithTag("api-name-input").performTextInput("bad")
         onNodeWithTag("api-key-input").performTextInput("bad-key")
@@ -171,19 +171,17 @@ class ApiManagementPageUiTest {
     }
 
     @Test
-    fun `key list renders status and interval selector persists`() = runComposeUiTest {
+    fun `key list renders status and sync logs`() = runComposeUiTest {
         val svc = FakeSyncService().apply {
             keys.add(ApiKeyInfo(7L, 1L, "主号", "BINANCE", Instant.now(), "OK", true))
             logs.add(SyncLogRow(1L, 1L, 7L, Instant.parse("2026-09-04T09:00:00Z"),
                 SyncStatus.OK, 3, "同步成功 · 新增 3"))
         }
-        setContent { ApiManagementPage(svc) }
+        setContent { ApiManagementSection(svc) }
         waitUntil(timeoutMillis = 2_000) { textCount("主号") >= 1 }
         onNodeWithTag("api-key-row-7").assertIsDisplayed()
         onNodeWithTag("api-sync-logs").assertIsDisplayed()
-        onNodeWithTag("api-interval-15").performClick()
-        waitUntil(timeoutMillis = 2_000) { svc.interval == 15 }
-        assertEquals(15, svc.interval)
+        // API 同步间隔行已随 M10 归位设置页「行情与同步」分组（M6 遗留 2）——本页不再渲染间隔选择器
     }
 
     @Test
@@ -191,7 +189,7 @@ class ApiManagementPageUiTest {
         val svc = FakeSyncService().apply {
             keys.add(ApiKeyInfo(7L, 1L, "主号", "BINANCE", Instant.now(), "OK", true))
         }
-        setContent { ApiManagementPage(svc) }
+        setContent { ApiManagementSection(svc) }
         waitUntil(timeoutMillis = 2_000) { textCount("主号") >= 1 }
         onNodeWithTag("api-key-remove-7").performClick()
         waitUntil(timeoutMillis = 2_000) { svc.removedId == 7L }
@@ -203,7 +201,7 @@ class ApiManagementPageUiTest {
         val svc = FakeSyncService().apply {
             keys.add(ApiKeyInfo(7L, 1L, "主号", "BINANCE", Instant.now(), "OK", true))
         }
-        setContent { ApiManagementPage(svc) }
+        setContent { ApiManagementSection(svc) }
         waitUntil(timeoutMillis = 2_000) { textCount("主号") >= 1 }
         onNodeWithTag("api-key-edit-7").performClick()
         onNodeWithTag("api-modal", useUnmergedTree = true).assertIsDisplayed()
@@ -224,7 +222,7 @@ class ApiManagementPageUiTest {
         val svc = FakeSyncService().apply {
             keys.add(ApiKeyInfo(7L, 1L, "主号", "BINANCE", Instant.now(), "OK", true))
         }
-        setContent { ApiManagementPage(svc) }
+        setContent { ApiManagementSection(svc) }
         waitUntil(timeoutMillis = 2_000) { textCount("主号") >= 1 }
         onNodeWithTag("api-key-edit-7").performClick()
         onNodeWithTag("api-key-input").performTextInput("ak-only")

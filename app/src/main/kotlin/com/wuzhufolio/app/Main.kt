@@ -25,19 +25,19 @@ import com.wuzhufolio.domain.settings.ThemeMode
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
 import com.wuzhufolio.ui.auth.AuthGate
-import com.wuzhufolio.ui.exchange.ApiManagementPage
-import com.wuzhufolio.ui.exchange.SettingsSectionsHost
-import com.wuzhufolio.ui.market.MarketSettingsPage
-import com.wuzhufolio.ui.market.MarketWatchPage
 import com.wuzhufolio.ui.backup.BackupFileNames
 import com.wuzhufolio.ui.backup.DataManagementSection
 import com.wuzhufolio.ui.exchange.TopBarSyncViewModel
-import com.wuzhufolio.ui.ledger.FeeRuleSettingsSection
 import com.wuzhufolio.ui.ledger.FundsPage
 import com.wuzhufolio.ui.ledger.TransactionsPage
+import com.wuzhufolio.ui.market.MarketWatchPage
+import com.wuzhufolio.ui.settings.SettingsFilePickers
+import com.wuzhufolio.ui.settings.SettingsPage
 import com.wuzhufolio.ui.theme.WuzhuTheme
 import com.wuzhufolio.ui.theme.WzTheme
 import org.slf4j.LoggerFactory
+import java.nio.file.Files
+import java.nio.file.StandardOpenOption
 
 /**
  * 应用入口（M1 起）：引导（AppBootstrap）→ 主壳；引导失败渲染致命提示窗口
@@ -92,37 +92,37 @@ private fun MainWindow(runtime: AppBootstrap.Runtime, onExit: () -> Unit) {
             authService = runtime.session.authService,
             themeMode = runtime.uiState.theme,
             pnlScheme = runtime.uiState.pnlScheme,
-            usernameEnumEnabled = usernameEnumEnabled(runtime),
+            // M10：登录页每次进入重读（设置页枚举开关关闭后无需重启即生效）
+            usernameEnumEnabled = { usernameEnumEnabled(runtime) },
             startupNotice = runtime.uiState.securityNotice,
-            marketSettingsContent = {
-                SettingsSectionsHost(
-                    marketContent = {
-                        MarketSettingsPage(
-                            settingsService = runtime.marketSettingsService,
-                            refreshService = runtime.marketRefreshService,
-                        )
-                    },
-                    apiContent = {
-                        ApiManagementPage(service = runtime.exchangeSyncService)
-                    },
-                    feeContent = {
-                        FeeRuleSettingsSection(service = runtime.feeRuleService)
-                    },
-                    backupContent = {
-                        DataManagementSection(
-                            service = runtime.backupService,
-                            // 保存对话框不强制扩展名：用户只输文件名时自动补全（M9 走查反馈修复轮）
-                            pickCproSave = {
-                                FilePicker.pickSave("保存 .cpro 备份")
-                                    ?.let { BackupFileNames.withExtension(it, ".cpro") }
-                            },
-                            pickCproLoad = { FilePicker.pickLoad("选择 .cpro 备份") },
-                            pickCsvSave = { kind ->
-                                FilePicker.pickSave("导出 CSV（" + kind.fileNameHint + "）")
-                                    ?.let { BackupFileNames.withExtension(it, ".csv") }
-                            },
-                        )
-                    },
+            // M10：主题/盈亏配色持久化（顶栏 ☾ 与设置页「主题（明/暗）」双向同步，PRD 6.1）
+            onShellPreferenceChange = { key, value -> runtime.settings.putGlobal(key, value) },
+            settingsPageContent = { shellViewModel ->
+                SettingsPage(
+                    shellViewModel = shellViewModel,
+                    generalSettings = runtime.generalSettingsService,
+                    marketSettingsService = runtime.marketSettingsService,
+                    marketRefreshService = runtime.marketRefreshService,
+                    syncService = runtime.exchangeSyncService,
+                    feeRuleService = runtime.feeRuleService,
+                    diagnosticsService = runtime.diagnosticsService,
+                    logAccess = runtime.logAccess,
+                    backupService = runtime.backupService,
+                    appVersion = com.wuzhufolio.data.backup.DefaultBackupService.APP_VERSION,
+                    pickers = SettingsFilePickers(
+                        pickLogSave = { title -> FilePicker.pickSave(title) },
+                        pickReportSave = { title -> FilePicker.pickSave(title) },
+                        writeTextFile = ::writeTextFile,
+                        pickCproSave = {
+                            FilePicker.pickSave("保存 .cpro 备份")
+                                ?.let { BackupFileNames.withExtension(it, ".cpro") }
+                        },
+                        pickCproLoad = { FilePicker.pickLoad("选择 .cpro 备份") },
+                        pickCsvSave = { kind ->
+                            FilePicker.pickSave("导出 CSV（" + kind.fileNameHint + "）")
+                                ?.let { BackupFileNames.withExtension(it, ".csv") }
+                        },
+                    ),
                 )
             },
             watchPageContent = {
@@ -179,9 +179,21 @@ private object FilePicker {
     }
 }
 
-/** 登录页用户名枚举开关（设置 通用，默认开；M10 提供设置 UI 写入该键）。 */
+/** 登录页用户名枚举开关（设置 通用，默认开；M10 起设置页可切换，登录页每次进入重读）。 */
 private fun usernameEnumEnabled(runtime: AppBootstrap.Runtime): Boolean =
     runtime.settings.getGlobal("login.username.enum")?.let { it != "off" } ?: true
+
+/** 诊断报告文本写盘（M10 T10.3；目录不存在自动创建）。 */
+private fun writeTextFile(path: String, content: String) {
+    val target = java.nio.file.Path.of(path)
+    target.parent?.let { Files.createDirectories(it) }
+    Files.write(
+        target,
+        content.toByteArray(Charsets.UTF_8),
+        StandardOpenOption.CREATE,
+        StandardOpenOption.TRUNCATE_EXISTING,
+    )
+}
 
 @Composable
 private fun FatalWindow(outcome: Outcome.Fatal, onExit: () -> Unit) {

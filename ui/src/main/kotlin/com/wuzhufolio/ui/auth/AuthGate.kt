@@ -41,11 +41,14 @@ fun AuthGate(
     authService: AccountService,
     themeMode: ThemeMode,
     pnlScheme: PnlColorScheme,
-    usernameEnumEnabled: Boolean,
+    /** 登录页用户名枚举开关读取器（M10：登录页每次进入时重读——设置页开关关闭后即时生效）。 */
+    usernameEnumEnabled: () -> Boolean,
     /** M1：钥匙串降级等启动安全说明（非空弹一次）。 */
     startupNotice: String? = null,
-    /** M5：设置页内容（行情数据源分组；null = 占位页）。 */
-    marketSettingsContent: (@Composable () -> Unit)? = null,
+    /** M10：完整设置页内容（参数 = ShellViewModel，主题/盈亏配色双向同步；null = 占位页）。 */
+    settingsPageContent: (@Composable (ShellViewModel) -> Unit)? = null,
+    /** M10：主壳偏好持久化钩子（theme / pnl_scheme → settings 全局行）。 */
+    onShellPreferenceChange: suspend (key: String, value: String) -> Unit = { _, _ -> },
     /** D21：行情页内容（null = 占位页）。 */
     watchPageContent: (@Composable () -> Unit)? = null,
     /** M7：交易管理页内容（null = 占位页）。 */
@@ -80,7 +83,8 @@ fun AuthGate(
                 }
                 GateStage.LOGIN -> LoginPage(
                     accounts = state.accounts,
-                    usernameEnumEnabled = usernameEnumEnabled,
+                    // M10：登录页进入时重读设置（枚举开关关闭后无需重启即生效）
+                    usernameEnumEnabled = remember(state.stage) { usernameEnumEnabled() },
                     busyText = state.busyText,
                     formError = state.formError,
                     onLogin = vm::submitLogin,
@@ -112,7 +116,12 @@ fun AuthGate(
                     val session = state.session
                     if (session != null) {
                         val shellViewModel = remember(session.account.id) {
-                            ShellViewModel(themeMode, pnlScheme, initialPage = initialShellPage)
+                            ShellViewModel(
+                                initialTheme = themeMode,
+                                initialPnlScheme = pnlScheme,
+                                initialPage = initialShellPage,
+                                onPreferenceChange = onShellPreferenceChange,
+                            )
                         }
                         MainShell(
                             viewModel = shellViewModel,
@@ -122,7 +131,7 @@ fun AuthGate(
                                     onClick = vm::openAccountMenu,
                                 )
                             },
-                            settingsPageContent = marketSettingsContent,
+                            settingsPageContent = settingsPageContent,
                             watchPageContent = watchPageContent,
                             transactionsPageContent = transactionsPageContent,
                             fundsPageContent = fundsPageContent,

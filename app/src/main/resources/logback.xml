@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- 日志配置（PRD §6：脱敏 + 轮转）。脱敏在消息构建时经 LogRedactor 完成（M0），M10 补齐条数/天数轮转与导出。 -->
+<!-- 日志配置（PRD §6：脱敏 + 轮转）。脱敏在消息构建时经 LogRedactor 完成（M0）；
+     轮转 = 应用内 LogRotator（1 万条/90 天，启动执行）+ logback 5MB 分卷护栏；maxHistory 对齐 PRD 90 天。 -->
 <configuration>
     <property name="LOG_DIR" value="${wuzhufolio.logdir:-${user.home}/.wuzhufolio/logs}"/>
 
@@ -14,7 +15,7 @@
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
             <fileNamePattern>${LOG_DIR}/wuzhufolio.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
             <maxFileSize>5MB</maxFileSize>
-            <maxHistory>30</maxHistory>
+            <maxHistory>90</maxHistory>
             <totalSizeCap>100MB</totalSizeCap>
         </rollingPolicy>
         <encoder>

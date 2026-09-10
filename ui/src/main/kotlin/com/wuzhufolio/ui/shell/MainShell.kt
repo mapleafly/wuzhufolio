@@ -50,8 +50,8 @@ fun MainShell(
     startupNotice: String? = null,
     /** M2：侧边栏底部账户区（原型 acctBtn：切换账户/登出入口）。 */
     accountArea: @Composable () -> Unit = {},
-    /** M5：设置页内容（行情数据源分组宿主；null = 占位页，M10 整页接管后移除回退）。 */
-    settingsPageContent: (@Composable () -> Unit)? = null,
+    /** M10：设置页内容（参数 = ShellViewModel，主题/盈亏配色双向同步；null = 占位页）。 */
+    settingsPageContent: (@Composable (ShellViewModel) -> Unit)? = null,
     /** D21：行情页内容（行情浏览 + 自选；null = 占位页）。 */
     watchPageContent: (@Composable () -> Unit)? = null,
     /** M7：交易管理页内容（null = 占位页）。 */
@@ -95,7 +95,7 @@ fun MainShell(
                                             .fillMaxSize()
                                             .testTag("page-" + page.name),
                                     ) {
-                                        settingsPageContent()
+                                        settingsPageContent(viewModel)
                                     }
                                 } else {
                                     PlaceholderPage(page)

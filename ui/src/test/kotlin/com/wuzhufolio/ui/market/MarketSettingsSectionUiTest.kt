@@ -26,7 +26,7 @@ import kotlin.test.assertTrue
  * 数据源指示 + 429 提示文案可达（MarketCopy 映射）。
  */
 @OptIn(ExperimentalTestApi::class)
-class MarketSettingsPageUiTest {
+class MarketSettingsSectionUiTest {
 
     private class FakeSettings : MarketSettingsService {
         var status = MarketKeyStatus(cgConfigured = false, cmcConfigured = false)
@@ -98,7 +98,7 @@ class MarketSettingsPageUiTest {
 
     @Test
     fun `page renders rows with keyless defaults and frequency markers`() = runComposeUiTest {
-        setContent { MarketSettingsPage(FakeSettings(), FakeRefresh()) }
+        setContent { MarketSettingsSection(FakeSettings(), FakeRefresh()) }
         onNodeWithTag("row-cg-key").assertIsDisplayed()
         onNodeWithTag("row-cmc-key").assertIsDisplayed()
         onNodeWithTag("row-freq").assertIsDisplayed()
@@ -109,16 +109,18 @@ class MarketSettingsPageUiTest {
     @Test
     fun `frequency selection persists via settings service`() = runComposeUiTest {
         val settings = FakeSettings()
-        setContent { MarketSettingsPage(settings, FakeRefresh()) }
-        onNodeWithTag("freq-15").performClick()
+        setContent { MarketSettingsSection(settings, FakeRefresh()) }
+        // M10 组件化：分段按钮 → 下拉（M5 §5-6-② 登记项闭环）
+        onNodeWithTag("freq-select").performClick()
+        waitUntil(timeoutMillis = 2_000) { textCount("15 分钟") >= 1 }
+        onNodeWithTag("freq-select-opt-1", useUnmergedTree = true).performClick()
         waitUntil(timeoutMillis = 2_000) { settings.frequency == 15 }
-        assertTrue(textCount("● 15 分钟") >= 1, "选中态标记随状态切换")
     }
 
     @Test
     fun `empty key save shows validation error without calling service`() = runComposeUiTest {
         val settings = FakeSettings()
-        setContent { MarketSettingsPage(settings, FakeRefresh()) }
+        setContent { MarketSettingsSection(settings, FakeRefresh()) }
         onNodeWithTag("row-cg-key-action").performClick()
         onNodeWithTag("market-key-modal").assertIsDisplayed()
         onNodeWithTag("market-key-save").performClick()
@@ -129,7 +131,7 @@ class MarketSettingsPageUiTest {
     @Test
     fun `cg key save applies immediately and remove returns to keyless`() = runComposeUiTest {
         val settings = FakeSettings()
-        setContent { MarketSettingsPage(settings, FakeRefresh()) }
+        setContent { MarketSettingsSection(settings, FakeRefresh()) }
         onNodeWithTag("row-cg-key-action").performClick()
         onNodeWithTag("market-key-modal").assertIsDisplayed()
         // 共性约束 7.3-②：打开即聚焦首输入框（键盘/IME 立即可用，无需先点按）
@@ -157,7 +159,7 @@ class MarketSettingsPageUiTest {
                 error = MarketRefreshError.RateLimited(PriceSource.COINGECKO, keylessHint = true),
             ),
         )
-        setContent { MarketSettingsPage(FakeSettings(), refresh) }
+        setContent { MarketSettingsSection(FakeSettings(), refresh) }
         onNodeWithTag("market-refresh-now").performClick()
         val expected = MarketCopy.errorText(MarketRefreshError.RateLimited(PriceSource.COINGECKO, keylessHint = true))
         waitUntil(timeoutMillis = 3_000) { textCount(expected) >= 1 }
@@ -166,7 +168,7 @@ class MarketSettingsPageUiTest {
     @Test
     fun `cmc fallback source indicator is displayed after refresh`() = runComposeUiTest {
         val refresh = FakeRefresh(keyedResult(PriceSource.COINMARKETCAP))
-        setContent { MarketSettingsPage(FakeSettings(), refresh) }
+        setContent { MarketSettingsSection(FakeSettings(), refresh) }
         onNodeWithTag("market-refresh-now").performClick()
         waitUntil(timeoutMillis = 3_000) { refresh.refreshCalls == 1 }
         onNodeWithTag("market-source-status").assertIsDisplayed()
@@ -176,7 +178,7 @@ class MarketSettingsPageUiTest {
     @Test
     fun `source indicator reflects configured key before any refresh`() = runComposeUiTest {
         val settings = FakeSettings().apply { status = MarketKeyStatus(cgConfigured = true, cmcConfigured = false) }
-        setContent { MarketSettingsPage(settings, FakeRefresh()) }
+        setContent { MarketSettingsSection(settings, FakeRefresh()) }
         // 修复轮：已配置 Key（保存即生效）但尚无刷新 → 专属额度 + （尚无刷新）
         waitUntil(timeoutMillis = 2_000) {
             textCount(MarketCopy.SOURCE_CG_KEYED + "（尚无刷新）") >= 1

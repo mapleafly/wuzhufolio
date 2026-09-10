@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.wuzhufolio.domain.ledger.FeeRuleRow
@@ -24,7 +25,11 @@ class FeeRuleSettingsUiTest {
         val rules: MutableList<FeeRuleRow> = mutableListOf()
         var globalSaved: Pair<BigDecimal, BigDecimal>? = null
         var exchangeSaved: Triple<String, BigDecimal, BigDecimal>? = null
+        var exchangeEditSaved: Quad<Long, String, BigDecimal, BigDecimal>? = null
         var removedId: Long? = null
+
+        /** 四元组（编辑用；Kotlin 无内建 Quad）。 */
+        data class Quad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 
         override suspend fun listRules(): List<FeeRuleRow> = rules.toList()
 
@@ -38,6 +43,18 @@ class FeeRuleSettingsUiTest {
             exchangeSaved = Triple(exchange, buyPercent, sellPercent)
             rules.removeAll { it.exchange == exchange.uppercase() }
             rules.add(FeeRuleRow(200L, exchange.uppercase(), buyPercent, sellPercent))
+        }
+
+        override suspend fun saveExchangeEdit(
+            id: Long,
+            exchange: String,
+            buyPercent: BigDecimal,
+            sellPercent: BigDecimal,
+        ) {
+            exchangeEditSaved = Quad(id, exchange, buyPercent, sellPercent)
+            rules.removeAll { it.id == id }
+            rules.removeAll { it.exchange == exchange.uppercase() }
+            rules.add(FeeRuleRow(201L, exchange.uppercase(), buyPercent, sellPercent))
         }
 
         override suspend fun removeRule(id: Long) {
@@ -89,5 +106,57 @@ class FeeRuleSettingsUiTest {
         onNodeWithTag("fee-global-save").performClick()
         waitUntil(timeoutMillis = 2_000) { textCount("费率不能为负") >= 1 }
         assertEquals(null, svc.globalSaved, "非法费率不得触达服务")
+    }
+
+    @Test
+    fun exchangeSuggestionClickFillsInput() = runComposeUiTest {
+        // M10 修复轮：交易所 = 可搜索选择（输入过滤候选，点击填入；自由输入保留）
+        val svc = FakeFeeRuleService()
+        setContent { FeeRuleSettingsSection(svc) }
+        waitUntil(timeoutMillis = 2_000) { textCount("候选交易所") >= 1 }
+        onNodeWithTag("fee-exchange-suggest-BINANCE", useUnmergedTree = true).performClick()
+        onNodeWithTag("fee-exchange-buy").performTextInput("0.05")
+        onNodeWithTag("fee-exchange-sell").performTextInput("0.05")
+        onNodeWithTag("fee-exchange-save").performClick()
+        waitUntil(timeoutMillis = 2_000) { svc.exchangeSaved != null }
+        assertEquals("BINANCE", svc.exchangeSaved!!.first, "点击候选填入后走正常保存路由")
+    }
+
+    @Test
+    fun exchangeSuggestionsFilterByTypedQuery() = runComposeUiTest {
+        val svc = FakeFeeRuleService().apply {
+            rules.add(FeeRuleRow(200L, "BINANCE", BigDecimal("0.05"), BigDecimal("0.05")))
+        }
+        setContent { FeeRuleSettingsSection(svc) }
+        waitUntil(timeoutMillis = 2_000) { textCount("候选交易所") >= 1 }
+        // 输入不匹配前缀 → 候选过滤为空（建议行消失）
+        onNodeWithTag("fee-exchange-name").performTextInput("OKX")
+        waitUntil(timeoutMillis = 2_000) { textCount("候选交易所") == 0 }
+        // 自由输入仍可保存（不依赖候选）
+        onNodeWithTag("fee-exchange-buy").performTextInput("0.02")
+        onNodeWithTag("fee-exchange-sell").performTextInput("0.02")
+        onNodeWithTag("fee-exchange-save").performClick()
+        waitUntil(timeoutMillis = 2_000) { svc.exchangeSaved != null }
+        assertEquals("OKX", svc.exchangeSaved!!.first)
+    }
+
+    @Test
+    fun exchangeRuleEditPrefillsAndRoutesToEdit() = runComposeUiTest {
+        // M10 T10.1：编辑既有规则（表单预填 → 保存修改 → saveExchangeEdit 路由）
+        val svc = FakeFeeRuleService().apply {
+            rules.add(FeeRuleRow(200L, "BINANCE", BigDecimal("0.05"), BigDecimal("0.06")))
+        }
+        setContent { FeeRuleSettingsSection(svc) }
+        waitUntil(timeoutMillis = 2_000) { textCount("BINANCE") >= 1 }
+        onNodeWithTag("fee-rule-edit-BINANCE").performClick()
+        waitUntil(timeoutMillis = 2_000) { textCount("保存修改") >= 1 }
+        onNodeWithTag("fee-exchange-buy").performTextClearance()
+        onNodeWithTag("fee-exchange-buy").performTextInput("0.1")
+        onNodeWithTag("fee-exchange-save").performClick()
+        waitUntil(timeoutMillis = 2_000) { svc.exchangeEditSaved != null }
+        assertEquals(200L, svc.exchangeEditSaved!!.first)
+        assertEquals("BINANCE", svc.exchangeEditSaved!!.second)
+        assertEquals(0, BigDecimal("0.1").compareTo(svc.exchangeEditSaved!!.third))
+        assertTrue(svc.exchangeSaved == null, "编辑不得走新增路由")
     }
 }

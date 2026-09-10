@@ -6,7 +6,6 @@ import com.wuzhufolio.domain.exchange.ApiKeyInput
 import com.wuzhufolio.domain.exchange.ApiKeySyncResult
 import com.wuzhufolio.domain.exchange.CredentialValidation
 import com.wuzhufolio.domain.exchange.CredentialValidationFailed
-import com.wuzhufolio.domain.exchange.ExchangeCadence
 import com.wuzhufolio.domain.exchange.ExchangeSyncService
 import com.wuzhufolio.domain.exchange.SyncLogRow
 import com.wuzhufolio.domain.exchange.SyncStatus
@@ -29,7 +28,6 @@ enum class ApiDialog { NONE, ADD, EDIT }
 data class ApiManagementUiState(
     val keys: List<ApiKeyInfo> = emptyList(),
     val syncLogs: List<SyncLogRow> = emptyList(),
-    val intervalMinutes: Int = ExchangeCadence.DEFAULT_MINUTES,
     val dialog: ApiDialog = ApiDialog.NONE,
     val editingKey: ApiKeyInfo? = null,
     val dialogBusy: Boolean = false,
@@ -43,6 +41,7 @@ data class ApiManagementUiState(
 /**
  * API 管理 VM（T6.4 · 契约 = ExchangeSyncService）：列表/最近同步记录/间隔档位加载；
  * 添加（测试请求 → 保存即首次同步）/移除/单 key 立即同步；状态经 UI 状态流，明文 Key 只驻留输入框。
+ * （API 同步间隔行随 M10 归位设置页「行情与同步」分组——本 VM 不再持有间隔状态。）
  */
 @Suppress("TooManyFunctions", "SwallowedException", "CyclomaticComplexMethod") // 保存路由（新增/编辑）+ 异常映射（脱敏口径），复杂度来自分支固有
 class ApiManagementViewModel(private val service: ExchangeSyncService) : ViewModel() {
@@ -59,8 +58,7 @@ class ApiManagementViewModel(private val service: ExchangeSyncService) : ViewMod
             runCatching {
                 val keys = service.listKeys()
                 val logs = service.recentSyncLogs(5)
-                val interval = service.syncIntervalMinutes()
-                _state.update { it.copy(keys = keys, syncLogs = logs, intervalMinutes = interval) }
+                _state.update { it.copy(keys = keys, syncLogs = logs) }
             }.onFailure { t -> toast(WzToastKind.Failure, t.message ?: ApiCopy.ERR_GENERIC) }
         }
     }
@@ -200,15 +198,6 @@ class ApiManagementViewModel(private val service: ExchangeSyncService) : ViewMod
             } finally {
                 _state.update { it.copy(syncingAll = false) }
             }
-        }
-    }
-
-    fun selectInterval(minutes: Int) {
-        if (minutes == _state.value.intervalMinutes) return
-        scope.launch {
-            runCatching { service.saveSyncIntervalMinutes(minutes) }
-                .onSuccess { _state.update { it.copy(intervalMinutes = minutes) } }
-                .onFailure { toast(WzToastKind.Failure, it.message ?: ApiCopy.ERR_GENERIC) }
         }
     }
 

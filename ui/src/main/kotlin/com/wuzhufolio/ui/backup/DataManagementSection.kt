@@ -6,12 +6,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Text
@@ -58,12 +56,11 @@ fun DataManagementSection(
     val state by vm.state.collectAsState()
     val colors = WzTheme.colors
 
-    Box(modifier = modifier.fillMaxSize().testTag("backup-section")) {
+    // M10：嵌入完整设置页「数据管理」分组——页面滚动/内边距由 SettingsPage 提供（原独立滚动移除）
+    Box(modifier = modifier.testTag("backup-section")) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp),
+                .fillMaxWidth(),
         ) {
             SectionCard(title = BackupCopy.BACKUP_GROUP_TITLE, testTag = "backup-group") {
                 MetadataLine(
