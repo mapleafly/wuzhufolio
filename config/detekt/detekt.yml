@@ -19,6 +19,10 @@ style:
   MagicNumber:
     # design token 色值/尺寸/延时为声明式字面量（design-tokens.md 单源映射），命名常量反而割裂单源
     active: false
+  MaxLineLength:
+    # i18n 目录为 zh/en 文案表：单条文案是完整句子，换行会破坏文案本身与全文检索（M12 T12.4）。
+    # 注意：显式写 excludes 会**覆盖** detekt 默认的测试目录排除，故此处必须显式带回默认测试排除。
+    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/i18n/**']
   UnusedPrivateMember:
     ignoreAnnotated: [ 'Preview', 'Composable' ]
 
@@ -33,6 +37,10 @@ complexity:
   LongParameterList:
     # Compose 组件参数列表普遍较长，以默认值+Modifier 惯例约束
     ignoreAnnotated: [ 'Composable' ]
+  TooManyFunctions:
+    # i18n 目录为文案表（接口 + zh/en 两实现，词条数天然超过函数数阈值），非逻辑复杂度（M12 T12.4）。
+    # 同理必须显式带回默认测试排除，否则测试类（每个用例一个函数）会被误判。
+    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/i18n/**']
 
 exceptions:
   active: true

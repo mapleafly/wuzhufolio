@@ -23,11 +23,15 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.wuzhufolio.domain.accounts.AccountService
 import com.wuzhufolio.domain.accounts.AccountSummary
+import com.wuzhufolio.domain.settings.AppLanguage
 import com.wuzhufolio.domain.settings.PnlColorScheme
 import com.wuzhufolio.domain.settings.ThemeMode
 import com.wuzhufolio.ui.components.WzToastHost
+import com.wuzhufolio.ui.i18n.authStrings
+import com.wuzhufolio.ui.i18n.shellStrings
 import com.wuzhufolio.ui.shell.MainShell
 import com.wuzhufolio.ui.shell.ShellPage
+import com.wuzhufolio.ui.shell.ShellStatus
 import com.wuzhufolio.ui.shell.ShellViewModel
 import com.wuzhufolio.ui.theme.WuzhuTheme
 import com.wuzhufolio.ui.theme.WzTheme
@@ -41,16 +45,24 @@ fun AuthGate(
     authService: AccountService,
     themeMode: ThemeMode,
     pnlScheme: PnlColorScheme,
+    /** M12 T12.4：界面语言（驱动主题整树重建；登录链路与主壳共用一档）。 */
+    language: AppLanguage = AppLanguage.ZH,
     /** 登录页用户名枚举开关读取器（M10：登录页每次进入时重读——设置页开关关闭后即时生效）。 */
     usernameEnumEnabled: () -> Boolean,
     /** M1：钥匙串降级等启动安全说明（非空弹一次）。 */
     startupNotice: String? = null,
     /** M10：完整设置页内容（参数 = ShellViewModel，主题/盈亏配色双向同步；null = 占位页）。 */
     settingsPageContent: (@Composable (ShellViewModel) -> Unit)? = null,
-    /** M10：主壳偏好持久化钩子（theme / pnl_scheme → settings 全局行）。 */
+    /** M10：主壳偏好持久化钩子（theme / pnl_scheme / ui.language → settings 全局行）。 */
     onShellPreferenceChange: suspend (key: String, value: String) -> Unit = { _, _ -> },
     /** D21：行情页内容（null = 占位页）。 */
     watchPageContent: (@Composable () -> Unit)? = null,
+    /** M12：仪表盘（聚合页；参数 = 当前账户名；null = 占位页）。 */
+    dashboardPageContent: (@Composable (accountName: String) -> Unit)? = null,
+    /** M12：资产列表（聚合页；参数 = 打开币种详情回调；null = 占位页）。 */
+    assetsPageContent: (@Composable (onOpenCoin: (String) -> Unit) -> Unit)? = null,
+    /** M12：币种资产详情（参数 = cg_id + 返回回调；null = 占位页）。 */
+    coinDetailPageContent: (@Composable (cgId: String, onBack: () -> Unit) -> Unit)? = null,
     /** M7：交易管理页内容（null = 占位页）。 */
     transactionsPageContent: (@Composable () -> Unit)? = null,
     /** M8：资金管理页内容（增资/撤资/校准；null = 占位页）。 */
@@ -60,9 +72,16 @@ fun AuthGate(
     manualSyncing: Boolean = false,
     manualSyncToast: com.wuzhufolio.ui.components.WzToast? = null,
     onManualSyncToastDismiss: () -> Unit = {},
+    /** M12 补口：顶栏手动刷新行情（null = 不显示按钮）。 */
+    onRefreshQuotes: (() -> Unit)? = null,
+    refreshQuotesBusy: Boolean = false,
+    refreshQuotesToast: com.wuzhufolio.ui.components.WzToast? = null,
+    onRefreshQuotesToastDismiss: () -> Unit = {},
     /** M11 T11.3：状态栏代理指示（直连 / 系统代理；PRD 4.2 验收 3）。 */
     proxyStatus: com.wuzhufolio.domain.proxy.ProxyStatus =
         com.wuzhufolio.domain.proxy.ProxyStatus.DEFAULT,
+    /** M12：状态栏数据源（同步状态/数据源/额度/备份提醒/断链）。 */
+    shellStatus: ShellStatus = ShellStatus(),
 ) {
     val vm = remember { AuthGateViewModel(authService).also { it.start() } }
     DisposableEffect(vm) {
@@ -72,13 +91,13 @@ fun AuthGate(
     val initialShellPage by vm.shellToPage.collectAsState()
     var showStartupNotice by remember { mutableStateOf(startupNotice != null) }
 
-    WuzhuTheme(themeMode = themeMode, pnlScheme = pnlScheme) {
+    WuzhuTheme(themeMode = themeMode, pnlScheme = pnlScheme, language = language) {
         val colors = WzTheme.colors
         Box(modifier = Modifier.fillMaxSize().background(colors.bg).testTag("auth-gate")) {
             when (state.stage) {
                 GateStage.RESTORING -> GateCard(width = 400) {
                     Text(
-                        text = "加载会话…",
+                        text = authStrings.loadingSession,
                         color = colors.ink2,
                         style = WzTheme.typography.body,
                         modifier = Modifier.padding(top = 20.dp),
@@ -123,11 +142,14 @@ fun AuthGate(
                                 initialTheme = themeMode,
                                 initialPnlScheme = pnlScheme,
                                 initialPage = initialShellPage,
+                                initialLanguage = language,
                                 onPreferenceChange = onShellPreferenceChange,
                             )
                         }
                         MainShell(
                             viewModel = shellViewModel,
+                            accountName = session.account.username,
+                            language = language,
                             accountArea = {
                                 AccountChip(
                                     username = session.account.username,
@@ -136,13 +158,21 @@ fun AuthGate(
                             },
                             settingsPageContent = settingsPageContent,
                             watchPageContent = watchPageContent,
+                            dashboardPageContent = dashboardPageContent,
+                            assetsPageContent = assetsPageContent,
+                            coinDetailPageContent = coinDetailPageContent,
                             transactionsPageContent = transactionsPageContent,
                             fundsPageContent = fundsPageContent,
                             onManualSync = onManualSync,
                             manualSyncing = manualSyncing,
                             manualSyncToast = manualSyncToast,
                             onManualSyncToastDismiss = onManualSyncToastDismiss,
+                            onRefreshQuotes = onRefreshQuotes,
+                            refreshQuotesBusy = refreshQuotesBusy,
+                            refreshQuotesToast = refreshQuotesToast,
+                            onRefreshQuotesToastDismiss = onRefreshQuotesToastDismiss,
                             proxyStatus = proxyStatus,
+                            shellStatus = shellStatus,
                         )
                     }
                 }
@@ -188,10 +218,14 @@ fun AuthGate(
             }
             WzToastHost(toast = state.toast, onDismiss = vm::dismissToast)
             if (showStartupNotice && startupNotice != null) {
-                InPlaceModal(title = "安全提示", onDismiss = { showStartupNotice = false }, testTag = "startup-notice") {
+                InPlaceModal(
+                    title = shellStrings.startupNoticeTitle,
+                    onDismiss = { showStartupNotice = false },
+                    testTag = "startup-notice",
+                ) {
                     Text(text = startupNotice, color = colors.ink2, style = WzTheme.typography.body)
                     com.wuzhufolio.ui.components.WzButton(
-                        text = "我知道了",
+                        text = shellStrings.startupNoticeOk,
                         onClick = { showStartupNotice = false },
                         modifier = Modifier.padding(top = 16.dp),
                         testTag = "startup-notice-ok",

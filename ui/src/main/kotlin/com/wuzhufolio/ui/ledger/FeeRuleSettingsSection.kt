@@ -27,6 +27,7 @@ import com.wuzhufolio.ui.components.WzTextField
 import com.wuzhufolio.ui.components.WzToast
 import com.wuzhufolio.ui.components.WzToastHost
 import com.wuzhufolio.ui.components.WzToastKind
+import com.wuzhufolio.ui.i18n.ledgerStrings
 import com.wuzhufolio.ui.theme.WzTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -118,20 +119,19 @@ class FeeRuleSettingsViewModel(private val service: FeeRuleService) : ViewModel(
     fun saveGlobal() {
         val buyInput = _state.value.globalBuy.trim().toBigDecimalOrNull()
         val sellInput = _state.value.globalSell.trim().toBigDecimalOrNull()
-        FeeRulePolicy.validate(buyInput)?.let { return fail(it) }
-        FeeRulePolicy.validate(sellInput)?.let { return fail(it) }
-        val buy: BigDecimal = buyInput ?: return fail("请输入买入费率")
-        val sell: BigDecimal = sellInput ?: return fail("请输入卖出费率")
+        FeeRulePolicy.validate(buyInput)?.let { return fail(ledgerStrings.feeRuleInvalid(it)) }
+        FeeRulePolicy.validate(sellInput)?.let { return fail(ledgerStrings.feeRuleInvalid(it)) }
+        val buy: BigDecimal = buyInput ?: return fail(ledgerStrings.feeEnterBuyRate)
+        val sell: BigDecimal = sellInput ?: return fail(ledgerStrings.feeEnterSellRate)
         scope.launch {
             runCatching { service.saveGlobal(buy, sell) }
                 .onSuccess {
                     toast(
                         WzToastKind.Success,
-                        "全局默认费率已保存（买入 " + buy.toPlainString() +
-                            "% / 卖出 " + sell.toPlainString() + "%）",
+                        ledgerStrings.feeGlobalSaved(buy.toPlainString(), sell.toPlainString()),
                     )
                 }
-                .onFailure { fail(it.message ?: "保存失败") }
+                .onFailure { fail(it.message ?: ledgerStrings.feeSaveFailed) }
             reload()
         }
     }
@@ -141,13 +141,13 @@ class FeeRuleSettingsViewModel(private val service: FeeRuleService) : ViewModel(
     fun saveExchange() {
         val editingId = _state.value.editingRuleId
         val name = _state.value.exchangeName.trim()
-        if (name.isEmpty()) return fail("请填写交易所名称（如 BINANCE）")
+        if (name.isEmpty()) return fail(ledgerStrings.feeEnterExchangeName)
         val buyInput = _state.value.exchangeBuy.trim().toBigDecimalOrNull()
         val sellInput = _state.value.exchangeSell.trim().toBigDecimalOrNull()
-        FeeRulePolicy.validate(buyInput)?.let { return fail(it) }
-        FeeRulePolicy.validate(sellInput)?.let { return fail(it) }
-        val buy: BigDecimal = buyInput ?: return fail("请输入买入费率")
-        val sell: BigDecimal = sellInput ?: return fail("请输入卖出费率")
+        FeeRulePolicy.validate(buyInput)?.let { return fail(ledgerStrings.feeRuleInvalid(it)) }
+        FeeRulePolicy.validate(sellInput)?.let { return fail(ledgerStrings.feeRuleInvalid(it)) }
+        val buy: BigDecimal = buyInput ?: return fail(ledgerStrings.feeEnterBuyRate)
+        val sell: BigDecimal = sellInput ?: return fail(ledgerStrings.feeEnterSellRate)
         scope.launch {
             runCatching {
                 if (editingId != null) {
@@ -163,11 +163,22 @@ class FeeRuleSettingsViewModel(private val service: FeeRuleService) : ViewModel(
                     }
                     toast(
                         WzToastKind.Success,
-                        (if (renamed) "已更新 " else "已保存 ") + name.uppercase() + " 费率（买入 " +
-                            buy.toPlainString() + "% / 卖出 " + sell.toPlainString() + "%）",
+                        if (renamed) {
+                            ledgerStrings.feeExchangeUpdated(
+                                name.uppercase(),
+                                buy.toPlainString(),
+                                sell.toPlainString(),
+                            )
+                        } else {
+                            ledgerStrings.feeExchangeAdded(
+                                name.uppercase(),
+                                buy.toPlainString(),
+                                sell.toPlainString(),
+                            )
+                        },
                     )
                 }
-                .onFailure { fail(it.message ?: "保存失败") }
+                .onFailure { fail(it.message ?: ledgerStrings.feeSaveFailed) }
             reload()
         }
     }
@@ -177,9 +188,9 @@ class FeeRuleSettingsViewModel(private val service: FeeRuleService) : ViewModel(
             runCatching { service.removeRule(id) }
                 .onSuccess {
                     if (_state.value.editingRuleId == id) cancelEdit()
-                    toast(WzToastKind.Success, "费率规则已删除")
+                    toast(WzToastKind.Success, ledgerStrings.feeRuleDeleted)
                 }
-                .onFailure { fail(it.message ?: "删除失败") }
+                .onFailure { fail(it.message ?: ledgerStrings.feeDeleteFailed) }
             reload()
         }
     }
@@ -216,7 +227,7 @@ fun FeeRuleSettingsSection(service: FeeRuleService, modifier: Modifier = Modifie
     Box(modifier = modifier.testTag("fee-rule-settings")) {
         Column(modifier = Modifier.fillMaxWidth()) {
             // 全局默认
-            Text(text = "全局默认费率", color = colors.ink, style = WzTheme.typography.bodyStrong)
+            Text(text = ledgerStrings.feeGlobalTitle, color = colors.ink, style = WzTheme.typography.bodyStrong)
             Row(
                 modifier = Modifier.padding(top = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -225,7 +236,7 @@ fun FeeRuleSettingsSection(service: FeeRuleService, modifier: Modifier = Modifie
                 WzTextField(
                     value = state.globalBuy,
                     onValueChange = vm::onGlobalBuy,
-                    label = "买入费率 %",
+                    label = ledgerStrings.feeBuyRateLabel,
                     placeholder = "0.1",
                     modifier = Modifier.width(160.dp),
                     testTag = "fee-global-buy",
@@ -233,24 +244,28 @@ fun FeeRuleSettingsSection(service: FeeRuleService, modifier: Modifier = Modifie
                 WzTextField(
                     value = state.globalSell,
                     onValueChange = vm::onGlobalSell,
-                    label = "卖出费率 %",
+                    label = ledgerStrings.feeSellRateLabel,
                     placeholder = "0.1",
                     modifier = Modifier.width(160.dp),
                     testTag = "fee-global-sell",
                 )
-                WzButton(text = "保存全局费率", onClick = vm::saveGlobal, testTag = "fee-global-save")
+                WzButton(
+                    text = ledgerStrings.feeSaveGlobalButton,
+                    onClick = vm::saveGlobal,
+                    testTag = "fee-global-save",
+                )
             }
 
             // 交易所费率
             Text(
-                text = "交易所费率（覆盖全局）",
+                text = ledgerStrings.feeExchangeTitle,
                 color = colors.ink,
                 style = WzTheme.typography.bodyStrong,
                 modifier = Modifier.padding(top = 20.dp),
             )
             if (state.rules.none { it.exchange != null }) {
                 Text(
-                    text = "尚未添加交易所费率（可选）",
+                    text = ledgerStrings.feeExchangeEmpty,
                     color = colors.ink3,
                     style = WzTheme.typography.caption,
                     modifier = Modifier.padding(top = 6.dp).testTag("fee-exchange-empty"),
@@ -268,20 +283,22 @@ fun FeeRuleSettingsSection(service: FeeRuleService, modifier: Modifier = Modifie
                             modifier = Modifier.width(140.dp),
                         )
                         Text(
-                            text = "买入 " + rule.buyPercent.stripTrailingZeros().toPlainString() + "%" +
-                                " · 卖出 " + rule.sellPercent.stripTrailingZeros().toPlainString() + "%",
+                            text = ledgerStrings.feeExchangeLine(
+                                rule.buyPercent.stripTrailingZeros().toPlainString(),
+                                rule.sellPercent.stripTrailingZeros().toPlainString(),
+                            ),
                             color = colors.ink2,
                             style = WzTheme.typography.body,
                             modifier = Modifier.weight(1f),
                         )
                         WzButton(
-                            text = "编辑",
+                            text = ledgerStrings.btnEdit,
                             onClick = { vm.beginEdit(rule) },
                             variant = WzButtonVariant.Secondary,
                             testTag = "fee-rule-edit-" + rule.exchange,
                         )
                         WzButton(
-                            text = "删除",
+                            text = ledgerStrings.btnDelete,
                             onClick = { vm.removeRule(rule.id) },
                             variant = WzButtonVariant.Danger,
                             modifier = Modifier.padding(start = 8.dp),
@@ -298,7 +315,7 @@ fun FeeRuleSettingsSection(service: FeeRuleService, modifier: Modifier = Modifie
                 WzTextField(
                     value = state.exchangeName,
                     onValueChange = vm::onExchangeName,
-                    label = "交易所",
+                    label = ledgerStrings.labelExchange,
                     placeholder = "BINANCE",
                     modifier = Modifier.width(160.dp),
                     testTag = "fee-exchange-name",
@@ -306,7 +323,7 @@ fun FeeRuleSettingsSection(service: FeeRuleService, modifier: Modifier = Modifie
                 WzTextField(
                     value = state.exchangeBuy,
                     onValueChange = vm::onExchangeBuy,
-                    label = "买入费率 %",
+                    label = ledgerStrings.feeBuyRateLabel,
                     placeholder = "0.1",
                     modifier = Modifier.width(140.dp),
                     testTag = "fee-exchange-buy",
@@ -314,27 +331,27 @@ fun FeeRuleSettingsSection(service: FeeRuleService, modifier: Modifier = Modifie
                 WzTextField(
                     value = state.exchangeSell,
                     onValueChange = vm::onExchangeSell,
-                    label = "卖出费率 %",
+                    label = ledgerStrings.feeSellRateLabel,
                     placeholder = "0.1",
                     modifier = Modifier.width(140.dp),
                     testTag = "fee-exchange-sell",
                 )
                 if (editing) {
                     WzButton(
-                        text = "保存修改",
+                        text = ledgerStrings.feeSaveEditButton,
                         onClick = vm::saveExchange,
                         variant = WzButtonVariant.Primary,
                         testTag = "fee-exchange-save",
                     )
                     WzButton(
-                        text = "取消",
+                        text = ledgerStrings.btnCancel,
                         onClick = vm::cancelEdit,
                         variant = WzButtonVariant.Secondary,
                         testTag = "fee-exchange-cancel",
                     )
                 } else {
                     WzButton(
-                        text = "添加 / 覆盖交易所费率",
+                        text = ledgerStrings.feeSaveExchangeButton,
                         onClick = vm::saveExchange,
                         variant = WzButtonVariant.Secondary,
                         testTag = "fee-exchange-save",
@@ -382,7 +399,7 @@ private fun ExchangeSuggestions(
     if (suggestions.isEmpty()) return
     Column(modifier = Modifier.padding(top = 6.dp).testTag("fee-exchange-suggestions")) {
         Text(
-            text = if (trimmed.isEmpty()) "候选交易所（点击填入，也可直接输入其他交易所）：" else "候选（按输入过滤）：",
+            text = if (trimmed.isEmpty()) ledgerStrings.feeCandidateAll else ledgerStrings.feeCandidateFiltered,
             color = colors.ink3,
             style = WzTheme.typography.caption,
         )

@@ -120,7 +120,7 @@ class MarketSettingsViewModel(
                 _state.update { it.copy(keyStatus = status, dialog = MarketKeyDialog.NONE, dialogError = null) }
                 onSuccess()
             } catch (t: Throwable) {
-                _state.update { it.copy(dialogError = t.message ?: "保存失败") }
+                _state.update { it.copy(dialogError = t.message ?: MarketCopy.SAVE_FAILED) }
             } finally {
                 _state.update { it.copy(dialogBusy = false) }
             }
@@ -134,7 +134,7 @@ class MarketSettingsViewModel(
         scope.launch {
             runCatching { settingsService.saveRefreshFrequencyMinutes(minutes) }
                 .onSuccess { _state.update { it.copy(refreshMinutes = minutes) } }
-                .onFailure { toast(WzToastKind.Failure, "保存刷新频率失败：" + (it.message ?: "")) }
+                .onFailure { toast(WzToastKind.Failure, MarketCopy.saveFrequencyFailed(it.message ?: "")) }
         }
     }
 
@@ -149,7 +149,7 @@ class MarketSettingsViewModel(
                 _state.update { it.copy(lastRefresh = result, keyStatus = settingsService.keyStatus()) }
                 onRefreshResult(result)
             } catch (t: Throwable) {
-                toast(WzToastKind.Failure, t.message ?: "行情刷新失败")
+                toast(WzToastKind.Failure, t.message ?: MarketCopy.REFRESH_FAILED)
             } finally {
                 _state.update { it.copy(refreshBusy = false) }
             }
@@ -167,11 +167,11 @@ class MarketSettingsViewModel(
             return
         }
         val text = when (result.source) {
-            PriceSource.COINMARKETCAP -> "行情已刷新（数据源：CoinMarketCap 兜底）"
+            PriceSource.COINMARKETCAP -> MarketCopy.TOAST_REFRESH_CMC
             else -> if (result.cgConfigured) {
-                "行情已刷新（CoinGecko 专属额度）"
+                MarketCopy.TOAST_REFRESH_CG_KEYED
             } else {
-                "行情已刷新（CoinGecko 无 Key 公共 API）"
+                MarketCopy.TOAST_REFRESH_CG_KEYLESS
             }
         }
         toast(WzToastKind.Success, text)

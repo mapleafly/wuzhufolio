@@ -339,10 +339,13 @@ class TransactionsViewModel(
                 }.also {
                     toast(
                         WzToastKind.Success,
-                        "已按 " + form.exchange.uppercase() + " " +
-                            (if (form.side == Side.BUY) "买入" else "卖出") +
-                            " 费率 " + r.ratePercent.stripTrailingZeros().toPlainString() +
-                            "% 计算：" + r.coinQty.stripTrailingZeros().toPlainString() + " " + form.feeSymbol.uppercase(),
+                        TransactionCopy.feeCalculated(
+                            exchange = form.exchange.uppercase(),
+                            side = form.side,
+                            rate = r.ratePercent.stripTrailingZeros().toPlainString(),
+                            quantity = r.coinQty.stripTrailingZeros().toPlainString(),
+                            feeSymbol = form.feeSymbol.uppercase(),
+                        ),
                     )
                 }
             }
@@ -445,7 +448,7 @@ class TransactionsViewModel(
                                 WzToastKind.Failure,
                                 (t as? LedgerValidationException)?.let { e ->
                                     TransactionCopy.validationCopy(e)
-                                } ?: t.message ?: "删除失败",
+                                } ?: t.message ?: TransactionCopy.DELETE_FAILED,
                             ),
                         )
                     }
@@ -484,7 +487,7 @@ class TransactionsViewModel(
                     _state.update { st ->
                         st.copy(
                             csv = st.csv?.copy(busy = false),
-                            toast = WzToast(WzToastKind.Failure, "CSV 解析失败：" + (t.message ?: "")),
+                            toast = WzToast(WzToastKind.Failure, TransactionCopy.csvParseFailed(t.message ?: "")),
                         )
                     }
                 }
@@ -499,9 +502,9 @@ class TransactionsViewModel(
             runCatching {
                 Files.writeString(Path.of(path), service.csvTemplateCsv())
             }.onSuccess {
-                toast(WzToastKind.Success, "标准模板已下载：" + Path.of(path).fileName)
+                toast(WzToastKind.Success, TransactionCopy.csvTemplateDownloaded(Path.of(path).fileName.toString()))
             }.onFailure { t ->
-                toast(WzToastKind.Failure, "模板下载失败：" + (t.message ?: ""))
+                toast(WzToastKind.Failure, TransactionCopy.csvTemplateFailed(t.message ?: ""))
             }
         }
     }
@@ -531,16 +534,12 @@ class TransactionsViewModel(
         scope.launch {
             runCatching { service.confirmCsvImport(preview.sessionId, csv.choices, csv.includeKeys) }
                 .onSuccess { summary ->
-                    val message = buildString {
-                        append("导入完成 · 新增 ").append(summary.imported)
-                        if (summary.duplicatesSkipped > 0) append(" · 跳过重复 ").append(summary.duplicatesSkipped)
-                        if (summary.unresolvedSkipped > 0) append(" · 未解析跳过 ").append(summary.unresolvedSkipped)
-                    }
-                    val toastMsg = if (summary.anomalousCoins.isNotEmpty()) {
-                        message + " · 持仓异常币种：" + summary.anomalousCoins.joinToString("、") + "（请补录增资或校准）"
-                    } else {
-                        message
-                    }
+                    val toastMsg = TransactionCopy.csvImported(
+                        imported = summary.imported,
+                        duplicatesSkipped = summary.duplicatesSkipped,
+                        unresolvedSkipped = summary.unresolvedSkipped,
+                        anomalousCoins = summary.anomalousCoins,
+                    )
                     _state.update { st ->
                         st.copy(csv = null, toast = WzToast(WzToastKind.Success, toastMsg))
                     }
@@ -550,7 +549,7 @@ class TransactionsViewModel(
                     _state.update { st ->
                         st.copy(
                             csv = st.csv?.copy(importing = false),
-                            toast = WzToast(WzToastKind.Failure, "导入失败：" + (t.message ?: "")),
+                            toast = WzToast(WzToastKind.Failure, TransactionCopy.csvImportFailed(t.message ?: "")),
                         )
                     }
                 }

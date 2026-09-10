@@ -11,6 +11,7 @@ import com.wuzhufolio.domain.exchange.SyncLogRow
 import com.wuzhufolio.domain.exchange.SyncStatus
 import com.wuzhufolio.ui.components.WzToast
 import com.wuzhufolio.ui.components.WzToastKind
+import com.wuzhufolio.ui.i18n.exchangeStrings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -187,9 +188,9 @@ class ApiManagementViewModel(private val service: ExchangeSyncService) : ViewMod
                 val newTrades = results.sumOf { it.newTrades }
                 val failed = results.count { it.status == SyncStatus.FAILED }
                 val message = if (failed > 0) {
-                    "同步完成（部分失败 " + failed + " 个密钥）· 新增 " + newTrades
+                    exchangeStrings.syncAllPartial(failed, newTrades)
                 } else {
-                    "同步完成 · " + results.size + " 个密钥 · 新增 " + newTrades
+                    exchangeStrings.syncAllDone(results.size, newTrades)
                 }
                 toast(if (failed > 0) WzToastKind.Failure else WzToastKind.Success, message)
                 load()
@@ -210,7 +211,7 @@ class ApiManagementViewModel(private val service: ExchangeSyncService) : ViewMod
             toast(WzToastKind.Failure, ApiCopy.errorText(error))
             return
         }
-        toast(WzToastKind.Success, ApiCopy.SAVE_AND_SYNC_TOAST + " 结果：" + result.message)
+        toast(WzToastKind.Success, exchangeStrings.saveAndSyncWithResult(result.message))
     }
 
     private fun onSyncResult(result: ApiKeySyncResult) {
@@ -220,9 +221,9 @@ class ApiManagementViewModel(private val service: ExchangeSyncService) : ViewMod
             return
         }
         val text = if (result.partial) {
-            ApiCopy.SYNC_PARTIAL_TOAST.format(result.newTrades, result.queuedSymbols)
+            exchangeStrings.syncPartial(result.newTrades, result.queuedSymbols)
         } else {
-            ApiCopy.SYNC_DONE_TOAST.format(result.newTrades, result.duplicatesSkipped)
+            exchangeStrings.syncDone(result.newTrades, result.duplicatesSkipped)
         }
         toast(WzToastKind.Success, text)
     }

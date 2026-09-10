@@ -234,7 +234,7 @@ private fun BackupExportModal(
             modifier = Modifier.padding(top = 8.dp),
         )
         WzButton(
-            text = if (state.busy) "生成中…" else BackupCopy.EXPORT_CONFIRM,
+            text = if (state.busy) BackupCopy.EXPORT_BUSY else BackupCopy.EXPORT_CONFIRM,
             onClick = onConfirm,
             variant = WzButtonVariant.Primary,
             enabled = !state.busy,
@@ -317,7 +317,7 @@ private fun RestoreWizardModal(
                     )
                 }
                 WzButton(
-                    text = if (state.busy) "验证中…" else BackupCopy.RESTORE_UNLOCK,
+                    text = if (state.busy) BackupCopy.RESTORE_VERIFYING else BackupCopy.RESTORE_UNLOCK,
                     onClick = onUnlock,
                     variant = WzButtonVariant.Primary,
                     enabled = !state.busy && state.password.isNotEmpty(),
@@ -333,10 +333,11 @@ private fun RestoreWizardModal(
                 )
                 state.preview?.let { preview ->
                     Text(
-                        text = BackupCopy.MERGE_PREVIEW_PREFIX +
-                            preview.plan.businessInserts + BackupCopy.MERGE_PREVIEW_DUP +
-                            preview.plan.duplicateSkipped + BackupCopy.MERGE_PREVIEW_MISSING +
-                            preview.plan.missingCoinSkipped + "条",
+                        text = BackupCopy.mergePreview(
+                            inserts = preview.plan.businessInserts,
+                            duplicates = preview.plan.duplicateSkipped,
+                            missingCoins = preview.plan.missingCoinSkipped,
+                        ),
                         color = colors.ink3,
                         style = WzTheme.typography.caption,
                         modifier = Modifier.padding(top = 4.dp).testTag("restore-plan"),
@@ -381,7 +382,7 @@ private fun RestoreWizardModal(
                     )
                 }
                 WzButton(
-                    text = if (state.busy) "恢复中…" else BackupCopy.RESTORE_EXECUTE,
+                    text = if (state.busy) BackupCopy.RESTORE_RUNNING else BackupCopy.RESTORE_EXECUTE,
                     onClick = onExecute,
                     variant = WzButtonVariant.Primary,
                     enabled = !state.busy &&
@@ -394,13 +395,14 @@ private fun RestoreWizardModal(
                 state.result?.let { result ->
                     val imported = result.imported
                     Text(
-                        text = BackupCopy.RESULT_IMPORTED_PREFIX +
-                            "${BackupCopy.COUNTS_TX}${imported.transactions} / " +
-                            "${BackupCopy.COUNTS_FLOW}${imported.capitalFlows} / " +
-                            "${BackupCopy.COUNTS_RECON}${imported.reconciliationRecords} / " +
-                            "${BackupCopy.COUNTS_FEE}${imported.feeRules} / " +
-                            "${BackupCopy.COUNTS_KEYS}${imported.apiKeys} / " +
-                            BackupCopy.COUNTS_SNAPSHOTS + imported.priceSnapshots,
+                        text = BackupCopy.importedSummary(
+                            transactions = imported.transactions,
+                            capitalFlows = imported.capitalFlows,
+                            reconciliationRecords = imported.reconciliationRecords,
+                            feeRules = imported.feeRules,
+                            apiKeys = imported.apiKeys,
+                            priceSnapshots = imported.priceSnapshots,
+                        ),
                         color = colors.ink2,
                         style = WzTheme.typography.body,
                         modifier = Modifier.testTag("restore-result"),
@@ -490,13 +492,14 @@ private fun HeaderSummary(header: BackupPreview) {
         SummaryLine(BackupCopy.SUMMARY_EXPORTED_AT + BackupViewModel.formatInstant(header.exportedAt))
         SummaryLine(BackupCopy.SUMMARY_RANGE + range)
         SummaryLine(
-            BackupCopy.SUMMARY_COUNTS +
-                BackupCopy.COUNTS_TX + counts.transactions + " · " +
-                BackupCopy.COUNTS_FLOW + counts.capitalFlows + " · " +
-                BackupCopy.COUNTS_RECON + counts.reconciliationRecords + " · " +
-                BackupCopy.COUNTS_FEE + counts.feeRules + " · " +
-                BackupCopy.COUNTS_KEYS + counts.apiKeys + " · " +
-                BackupCopy.COUNTS_SNAPSHOTS + counts.priceSnapshots,
+            BackupCopy.recordCountsSummary(
+                transactions = counts.transactions,
+                capitalFlows = counts.capitalFlows,
+                reconciliationRecords = counts.reconciliationRecords,
+                feeRules = counts.feeRules,
+                apiKeys = counts.apiKeys,
+                priceSnapshots = counts.priceSnapshots,
+            ),
         )
     }
 }

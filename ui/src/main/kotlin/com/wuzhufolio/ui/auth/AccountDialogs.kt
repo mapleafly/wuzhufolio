@@ -21,6 +21,7 @@ import com.wuzhufolio.domain.accounts.AccountSummary
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
 import com.wuzhufolio.ui.components.WzTextField
+import com.wuzhufolio.ui.i18n.authStrings
 import com.wuzhufolio.ui.theme.WzTheme
 
 /** 创建前风险确认弹窗（PRD 1.1-6：勾选「我已了解上述风险」前「确认创建」disabled 硬门控）。 */
@@ -87,7 +88,7 @@ fun AccountMenuModal(
                 val isCurrent = account.id == current?.id
                 Text(
                     text = if (isCurrent) {
-                        String.format(AuthCopy.ACCOUNT_CURRENT, account.username)
+                        authStrings.accountCurrent(account.username)
                     } else {
                         account.username
                     },
@@ -135,7 +136,7 @@ fun SwitchAccountModal(
 ) {
     var password by remember(target) { mutableStateOf("") }
     InPlaceModal(
-        title = String.format(AuthCopy.SWITCH_TITLE, target.username),
+        title = authStrings.switchTitle(target.username),
         onDismiss = onDismiss,
         width = 380.dp,
         testTag = "switch-modal",
@@ -203,7 +204,7 @@ fun ChangePasswordModal(
             WzTextField(
                 value = newPw,
                 onValueChange = { newPw = it; newError = null },
-                label = "新密码",
+                label = authStrings.changePwNewLabel,
                 placeholder = AuthCopy.CHANGE_PW_NEW_PLACEHOLDER,
                 error = newError,
                 isPassword = true,
@@ -212,7 +213,7 @@ fun ChangePasswordModal(
             WzTextField(
                 value = newPw2,
                 onValueChange = { newPw2 = it; new2Error = null },
-                label = "确认新密码",
+                label = authStrings.changePwNew2Label,
                 placeholder = AuthCopy.CHANGE_PW_NEW2_PLACEHOLDER,
                 error = new2Error,
                 isPassword = true,

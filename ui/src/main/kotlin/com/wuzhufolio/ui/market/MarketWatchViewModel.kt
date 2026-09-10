@@ -102,9 +102,28 @@ class MarketWatchViewModel(
         scope.launch {
             runCatching { watchService.addCoin(cgId) }
                 .onSuccess { clearSearch(); reloadAll() }
-                .onFailure { toast(WzToastKind.Failure, it.message ?: "添加失败") }
+                .onFailure { error ->
+                    // 自选上限（interaction.md §2.7「自选已达上限（50）」）：数据层以 require 抛出，
+                    // 消息前缀见 WATCH_FULL_PREFIX；其余失败沿用异常文本 / 通用兜底文案。
+                    toast(WzToastKind.Failure, addFailureText(error))
+                }
         }
     }
+
+    /** 添加失败文案：自选已满 → 上限提示；其余 → 异常文本或通用兜底。 */
+    private fun addFailureText(error: Throwable): String = if (error.isWatchListFull()) {
+        MarketCopy.watchLimitReached(MarketWatchService.WATCH_LIMIT)
+    } else {
+        error.message ?: MarketCopy.ADD_FAILED
+    }
+
+    /**
+     * 自选已满判定：数据层 `require(size < WATCH_LIMIT)` 抛 [IllegalArgumentException]，消息以
+     * [WATCH_FULL_PREFIX] 开头。此处只做**判定**、不展示原文（若要摆脱消息耦合，需领域/数据层
+     * 引入类型化错误——超出本模块文件范围，登记为遗留）。
+     */
+    private fun Throwable.isWatchListFull(): Boolean =
+        this is IllegalArgumentException && message?.startsWith(WATCH_FULL_PREFIX) == true
 
     fun removeCoin(cgId: String) {
         scope.launch {
@@ -131,7 +150,7 @@ class MarketWatchViewModel(
                 reloadAll()
                 onRefreshResult(result)
             } catch (t: Throwable) {
-                toast(WzToastKind.Failure, t.message ?: "行情刷新失败")
+                toast(WzToastKind.Failure, t.message ?: MarketCopy.REFRESH_FAILED)
             } finally {
                 _state.update { it.copy(refreshBusy = false) }
             }
@@ -152,11 +171,11 @@ class MarketWatchViewModel(
             return
         }
         val text = when (result.source) {
-            PriceSource.COINMARKETCAP -> "行情已刷新（数据源：CoinMarketCap 兜底）"
+            PriceSource.COINMARKETCAP -> MarketCopy.TOAST_REFRESH_CMC
             else -> if (result.cgConfigured) {
-                "行情已刷新（CoinGecko 专属额度）"
+                MarketCopy.TOAST_REFRESH_CG_KEYED
             } else {
-                "行情已刷新（CoinGecko 无 Key 公共 API）"
+                MarketCopy.TOAST_REFRESH_CG_KEYLESS
             }
         }
         toast(WzToastKind.Success, text)
@@ -177,5 +196,10 @@ class MarketWatchViewModel(
     /** 页面卸载显式释放（Compose remember VM 无宿主时调用）。 */
     fun dispose() {
         scope.cancel()
+    }
+
+    private companion object {
+        /** 数据层自选已满的 `require` 消息前缀（data/market/MarketWatchServices，英文内部协议串，不展示）。 */
+        const val WATCH_FULL_PREFIX = "watch list is full"
     }
 }

@@ -34,9 +34,8 @@ import com.wuzhufolio.ui.components.WzButtonVariant
 import com.wuzhufolio.ui.components.WzModal
 import com.wuzhufolio.ui.components.WzTextField
 import com.wuzhufolio.ui.components.WzToastHost
+import com.wuzhufolio.ui.i18n.WzFormat
 import com.wuzhufolio.ui.theme.WzTheme
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 /**
  * 交易管理页（M7 · T7.4 · PRD §9.6/§7.2-3 + 原型交易页逐字口径）：
@@ -196,7 +195,7 @@ private fun Toolbar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Text(text = "按类型筛选：", color = colors.ink3, style = WzTheme.typography.caption)
+            Text(text = TransactionCopy.FILTER_TYPE_LABEL, color = colors.ink3, style = WzTheme.typography.caption)
             FilterButton(TransactionCopy.FILTER_ALL, sideFilter == null, "tx-filter-all") { onSideFilterChange(null) }
             FilterButton(TransactionCopy.FILTER_BUY, sideFilter == Side.BUY, "tx-filter-buy") {
                 onSideFilterChange(if (sideFilter == Side.BUY) null else Side.BUY)
@@ -290,7 +289,7 @@ private fun TxRow(
             )
             if (row.estimated) {
                 Text(
-                    text = "估算中",
+                    text = TransactionCopy.ESTIMATING,
                     color = colors.warn,
                     style = WzTheme.typography.caption,
                     modifier = Modifier.testTag("tx-est-" + row.id),
@@ -385,7 +384,7 @@ private fun DeleteConfirmModal(count: Int, onCancel: () -> Unit, onConfirm: () -
                 testTag = "tx-delete-cancel",
             )
             WzButton(
-                text = "确认删除",
+                text = TransactionCopy.CONFIRM_DELETE,
                 onClick = onConfirm,
                 variant = WzButtonVariant.Danger,
                 modifier = Modifier.padding(start = 8.dp),
@@ -397,5 +396,4 @@ private fun DeleteConfirmModal(count: Int, onCancel: () -> Unit, onConfirm: () -
 
 private fun dec(v: java.math.BigDecimal): String = v.stripTrailingZeros().toPlainString()
 
-private fun timeText(at: java.time.Instant): String =
-    at.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+private fun timeText(at: java.time.Instant): String = WzFormat.dateTime(at)

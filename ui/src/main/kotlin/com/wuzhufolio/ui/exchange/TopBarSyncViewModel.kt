@@ -44,9 +44,9 @@ class TopBarSyncViewModel(private val service: ExchangeSyncService) : ViewModel(
                     val newTrades = results.sumOf { it.newTrades }
                     val failed = results.count { it.status == SyncStatus.FAILED }
                     val message = if (failed > 0) {
-                        "同步完成（部分失败 " + failed + " 个密钥）· 新增 " + newTrades
+                        ApiCopy.syncAllPartial(failedKeys = failed, newTrades = newTrades)
                     } else {
-                        "同步完成 · " + results.size + " 个密钥 · 新增 " + newTrades
+                        ApiCopy.syncAllDone(keys = results.size, newTrades = newTrades)
                     }
                     WzToast(if (failed > 0) WzToastKind.Failure else WzToastKind.Success, message)
                 }

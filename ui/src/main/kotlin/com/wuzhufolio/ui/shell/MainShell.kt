@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.wuzhufolio.domain.proxy.ProxyStatus
+import com.wuzhufolio.domain.settings.AppLanguage
 import com.wuzhufolio.domain.settings.ThemeMode
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
@@ -36,13 +37,18 @@ import com.wuzhufolio.ui.components.WzStatusBar
 import com.wuzhufolio.ui.components.WzToast
 import com.wuzhufolio.ui.components.WzToastHost
 import com.wuzhufolio.ui.gallery.ComponentGallery
+import com.wuzhufolio.ui.i18n.shellStrings
 import com.wuzhufolio.ui.theme.WuzhuTheme
 import com.wuzhufolio.ui.theme.WzTheme
 
 /**
- * 主壳导航骨架（T0.6）：左 220dp 侧边栏（五页空壳 + 走查页）+ 顶栏（标题/代理指示/主题切换）+ 底部状态栏。
- * 主题由 ViewModel 驱动，切换即时重渲染（单一真源 + 双主题，已决策事项 16）。
+ * 主壳（T0.6 骨架 → M12 T12.1 整合）：左 220dp 侧边栏（六页）+ 顶栏（标题/数据源徽章/手动刷新行情/
+ * 手动同步/主题切换）+ 底部状态栏（代理指示 / 同步状态 / 数据源 / 额度·备份·断链提示 / 版本）。
+ *
+ * 语言（M12 T12.4）：由 [language] 驱动 [WuzhuTheme]，切换后整棵子树重建（文案为动态取值）。
+ * 页槽：null = 未接线的占位页（仅开发期可见）；资产列表页内可切换到币种资产详情子页（[ShellViewModel.coinDetailId]）。
  */
+@Suppress("LongParameterList", "LongMethod") // 主壳装配点：页槽 + 顶栏/状态栏数据源全部在此汇合，拆参数反而更难追
 @Composable
 fun MainShell(
     viewModel: ShellViewModel,
@@ -51,10 +57,20 @@ fun MainShell(
     startupNotice: String? = null,
     /** M2：侧边栏底部账户区（原型 acctBtn：切换账户/登出入口）。 */
     accountArea: @Composable () -> Unit = {},
-    /** M10：设置页内容（参数 = ShellViewModel，主题/盈亏配色双向同步；null = 占位页）。 */
+    /** 当前账户名（仪表盘副标题用；PRD §6 账户清晰性）。 */
+    accountName: String = "",
+    /** M12 T12.4：界面语言（驱动主题内的整树重建，见 theme/Theme.kt）。 */
+    language: AppLanguage = AppLanguage.ZH,
+    /** M10：设置页内容（参数 = ShellViewModel，主题/盈亏配色/语言双向同步；null = 占位页）。 */
     settingsPageContent: (@Composable (ShellViewModel) -> Unit)? = null,
     /** D21：行情页内容（行情浏览 + 自选；null = 占位页）。 */
     watchPageContent: (@Composable () -> Unit)? = null,
+    /** M12：仪表盘（聚合页；参数 = 当前账户名；null = 占位页）。 */
+    dashboardPageContent: (@Composable (accountName: String) -> Unit)? = null,
+    /** M12：资产列表（聚合页；参数 = 打开币种详情的回调；null = 占位页）。 */
+    assetsPageContent: (@Composable (onOpenCoin: (String) -> Unit) -> Unit)? = null,
+    /** M12：币种资产详情（参数 = cg_id + 返回回调；null = 占位页）。 */
+    coinDetailPageContent: (@Composable (cgId: String, onBack: () -> Unit) -> Unit)? = null,
     /** M7：交易管理页内容（null = 占位页）。 */
     transactionsPageContent: (@Composable () -> Unit)? = null,
     /** M8：资金管理页内容（增资/撤资/校准；null = 占位页）。 */
@@ -66,16 +82,26 @@ fun MainShell(
     /** 顶栏手动同步结果 toast（与主壳 toast 合并展示）。 */
     manualSyncToast: WzToast? = null,
     onManualSyncToastDismiss: () -> Unit = {},
+    /** M12 补口：顶栏手动刷新行情（null = 不显示按钮）。 */
+    onRefreshQuotes: (() -> Unit)? = null,
+    /** 顶栏手动刷新行情进行中。 */
+    refreshQuotesBusy: Boolean = false,
+    /** 顶栏手动刷新行情结果 toast（与同步结果/主壳 toast 合并展示）。 */
+    refreshQuotesToast: WzToast? = null,
+    onRefreshQuotesToastDismiss: () -> Unit = {},
     /** M11 T11.3：状态栏代理指示（直连 / 系统代理 + 悬停提示；PRD 4.2 验收 3）。 */
     proxyStatus: ProxyStatus = ProxyStatus.DEFAULT,
+    /** M12：状态栏数据源（同步状态 / 数据源徽章 / 额度提示 / 备份提醒 / 断链）。 */
+    shellStatus: ShellStatus = ShellStatus(syncText = "", dataSourceText = "", version = ""),
 ) {
     val themeMode by viewModel.themeMode.collectAsState()
     val pnlScheme by viewModel.pnlScheme.collectAsState()
     val page by viewModel.page.collectAsState()
+    val coinDetailId by viewModel.coinDetailId.collectAsState()
     val toast by viewModel.toast.collectAsState()
     var showStartupNotice by remember { mutableStateOf(startupNotice != null) }
 
-    WuzhuTheme(themeMode = themeMode, pnlScheme = pnlScheme) {
+    WuzhuTheme(themeMode = themeMode, pnlScheme = pnlScheme, language = language) {
         val colors = WzTheme.colors
         Box(modifier = modifier.fillMaxSize().background(colors.bg).testTag("main-shell")) {
             Column(modifier = Modifier.fillMaxSize()) {
@@ -88,71 +114,43 @@ fun MainShell(
                             onToggleTheme = viewModel::toggleTheme,
                             onManualSync = onManualSync,
                             manualSyncing = manualSyncing,
+                            onRefreshQuotes = onRefreshQuotes,
+                            refreshQuotesBusy = refreshQuotesBusy,
+                            status = shellStatus,
                         )
                         Box(modifier = Modifier.weight(1f)) {
-                            when (page) {
-                                ShellPage.GALLERY -> ComponentGallery(viewModel)
-                                ShellPage.SETTINGS -> if (settingsPageContent != null) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .testTag("page-" + page.name),
-                                    ) {
-                                        settingsPageContent(viewModel)
-                                    }
-                                } else {
-                                    PlaceholderPage(page)
-                                }
-                                ShellPage.QUOTES -> if (watchPageContent != null) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .testTag("page-" + page.name),
-                                    ) {
-                                        watchPageContent()
-                                    }
-                                } else {
-                                    PlaceholderPage(page)
-                                }
-                                ShellPage.TRANSACTIONS -> if (transactionsPageContent != null) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .testTag("page-" + page.name),
-                                    ) {
-                                        transactionsPageContent()
-                                    }
-                                } else {
-                                    PlaceholderPage(page)
-                                }
-                                ShellPage.FUNDS -> if (fundsPageContent != null) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .testTag("page-" + page.name),
-                                    ) {
-                                        fundsPageContent()
-                                    }
-                                } else {
-                                    PlaceholderPage(page)
-                                }
-                                else -> PlaceholderPage(page)
-                            }
+                            PageHost(
+                                page = page,
+                                coinDetailId = coinDetailId,
+                                accountName = accountName,
+                                viewModel = viewModel,
+                                settingsPageContent = settingsPageContent,
+                                watchPageContent = watchPageContent,
+                                dashboardPageContent = dashboardPageContent,
+                                assetsPageContent = assetsPageContent,
+                                coinDetailPageContent = coinDetailPageContent,
+                                transactionsPageContent = transactionsPageContent,
+                                fundsPageContent = fundsPageContent,
+                            )
                         }
                     }
                 }
                 WzStatusBar(
                     proxyStatus = proxyStatus,
-                    syncStatus = "同步：空闲（M5/M6 接入）",
-                    dataSource = "数据源：CoinGecko",
-                    version = "v0.1.0-m0",
+                    syncStatus = shellStatus.syncText,
+                    dataSource = shellStatus.dataSourceText,
+                    version = shellStatus.version,
+                    notice = shellStatus.notice,
+                    noticeWarn = shellStatus.noticeWarn,
+                    offline = shellStatus.offline,
                 )
             }
-            // 顶栏同步结果与主壳 toast 共用宿主（同一位置，先显示同步结果）
+            // 顶栏同步/刷新结果与主壳 toast 共用宿主（同一位置；顶栏动作结果优先）
             WzToastHost(
-                toast = manualSyncToast ?: toast,
+                toast = manualSyncToast ?: refreshQuotesToast ?: toast,
                 onDismiss = {
                     onManualSyncToastDismiss()
+                    onRefreshQuotesToastDismiss()
                     viewModel.dismissToast()
                 },
             )
@@ -163,18 +161,68 @@ fun MainShell(
     }
 }
 
+/** 页槽分发（一级页面 + 资产列表内的币种详情子页）。 */
+@Composable
+private fun PageHost(
+    page: ShellPage,
+    coinDetailId: String?,
+    accountName: String,
+    viewModel: ShellViewModel,
+    settingsPageContent: (@Composable (ShellViewModel) -> Unit)?,
+    watchPageContent: (@Composable () -> Unit)?,
+    dashboardPageContent: (@Composable (accountName: String) -> Unit)?,
+    assetsPageContent: (@Composable (onOpenCoin: (String) -> Unit) -> Unit)?,
+    coinDetailPageContent: (@Composable (cgId: String, onBack: () -> Unit) -> Unit)?,
+    transactionsPageContent: (@Composable () -> Unit)?,
+    fundsPageContent: (@Composable () -> Unit)?,
+) {
+    when (page) {
+        ShellPage.GALLERY -> ComponentGallery(viewModel)
+        ShellPage.DASHBOARD -> SlotOrPlaceholder(page, dashboardPageContent?.let { slot -> { slot(accountName) } })
+        ShellPage.ASSETS -> {
+            if (coinDetailId != null && coinDetailPageContent != null) {
+                Box(modifier = Modifier.fillMaxSize().testTag("page-COIN-DETAIL")) {
+                    coinDetailPageContent(coinDetailId, viewModel::closeCoinDetail)
+                }
+            } else {
+                SlotOrPlaceholder(page, assetsPageContent?.let { slot -> { slot(viewModel::openCoinDetail) } })
+            }
+        }
+        ShellPage.SETTINGS -> {
+            val slot = settingsPageContent
+            if (slot == null) {
+                PlaceholderPage(page)
+            } else {
+                Box(modifier = Modifier.fillMaxSize().testTag("page-" + page.name)) { slot(viewModel) }
+            }
+        }
+        ShellPage.QUOTES -> SlotOrPlaceholder(page, watchPageContent)
+        ShellPage.TRANSACTIONS -> SlotOrPlaceholder(page, transactionsPageContent)
+        ShellPage.FUNDS -> SlotOrPlaceholder(page, fundsPageContent)
+    }
+}
+
+@Composable
+private fun SlotOrPlaceholder(page: ShellPage, slot: (@Composable () -> Unit)?) {
+    if (slot == null) {
+        PlaceholderPage(page)
+    } else {
+        Box(modifier = Modifier.fillMaxSize().testTag("page-" + page.name)) { slot() }
+    }
+}
+
 /** 启动安全说明模态（T1.1「无钥匙串降级提示」）。 */
 @Composable
 private fun StartupNoticeModal(notice: String, onDismiss: () -> Unit) {
     val colors = WzTheme.colors
-    WzModal(title = "安全提示", onDismiss = onDismiss, testTag = "startup-notice") {
+    WzModal(title = shellStrings.startupNoticeTitle, onDismiss = onDismiss, testTag = "startup-notice") {
         Text(
             text = notice,
             color = colors.ink2,
             style = WzTheme.typography.body,
         )
         WzButton(
-            text = "我知道了",
+            text = shellStrings.startupNoticeOk,
             onClick = onDismiss,
             variant = WzButtonVariant.Primary,
             modifier = Modifier.padding(top = 16.dp).align(Alignment.End),
@@ -200,13 +248,13 @@ private fun Sidebar(
             .testTag("sidebar"),
     ) {
         Text(
-            text = "WuZhuFolio",
+            text = shellStrings.appName,
             color = colors.ink,
             style = WzTheme.typography.pageTitle,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
         Text(
-            text = "本地 · 隐私 · 账本",
+            text = shellStrings.tagline,
             color = colors.ink3,
             style = WzTheme.typography.caption,
             modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 12.dp),
@@ -221,7 +269,7 @@ private fun Sidebar(
         }
         Box(modifier = Modifier.weight(1f))
         SidebarNavItem(
-            label = ShellPage.GALLERY.label + "（DEV）",
+            label = shellStrings.navGallery,
             active = currentPage == ShellPage.GALLERY,
             onClick = { onSelect(ShellPage.GALLERY) },
             testTag = "nav-" + ShellPage.GALLERY.name,
@@ -275,6 +323,9 @@ private fun TopBar(
     onToggleTheme: () -> Unit,
     onManualSync: (() -> Unit)?,
     manualSyncing: Boolean,
+    onRefreshQuotes: (() -> Unit)?,
+    refreshQuotesBusy: Boolean,
+    status: ShellStatus,
 ) {
     val colors = WzTheme.colors
     Row(
@@ -288,16 +339,28 @@ private fun TopBar(
     ) {
         Text(text = title, color = colors.ink, style = WzTheme.typography.pageTitle)
         Box(modifier = Modifier.weight(1f))
+        // 行情数据源徽章（ia.md §1.1 顶栏：CoinGecko/CoinMarketCap/上次成功时间戳）
         Text(
-            text = "直连",
+            text = status.dataSourceText,
             color = colors.ink3,
             style = WzTheme.typography.caption,
-            modifier = Modifier.padding(end = 12.dp),
+            modifier = Modifier.padding(end = 12.dp).testTag("topbar-datasource"),
         )
+        // 手动刷新行情（PRD 故事 3.2-6；ia.md 顶栏「手动刷新行情按钮」）
+        if (onRefreshQuotes != null) {
+            WzButton(
+                text = if (refreshQuotesBusy) shellStrings.refreshingShort else shellStrings.refreshQuotesShort,
+                onClick = onRefreshQuotes,
+                variant = WzButtonVariant.Secondary,
+                enabled = !refreshQuotesBusy,
+                testTag = "topbar-refresh-quotes",
+            )
+            Box(modifier = Modifier.width(8.dp))
+        }
         // 手动同步交易（PRD 故事 4.3：任何页面常驻可达；同步中指示）
         if (onManualSync != null) {
             WzButton(
-                text = if (manualSyncing) "同步中…" else "立即同步",
+                text = if (manualSyncing) shellStrings.syncing else shellStrings.manualSync,
                 onClick = onManualSync,
                 variant = WzButtonVariant.Secondary,
                 enabled = !manualSyncing,
@@ -317,7 +380,7 @@ private fun TopBar(
     }
 }
 
-/** 五页空壳（P4 模块页面按垂直切片计划填充，task-breakdown §2）。 */
+/** 未接线页占位（P4 垂直切片模块页均已接线，此分支仅剩开发期用途）。 */
 @Composable
 private fun PlaceholderPage(page: ShellPage) {
     val colors = WzTheme.colors
@@ -330,7 +393,7 @@ private fun PlaceholderPage(page: ShellPage) {
             style = WzTheme.typography.display,
         )
         Text(
-            text = "P4 模块页面占位（依赖顺序见 docs/tech/task-breakdown.md §2）",
+            text = shellStrings.placeholder,
             color = colors.ink2,
             style = WzTheme.typography.body,
             modifier = Modifier.padding(top = 8.dp),

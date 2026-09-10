@@ -12,11 +12,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.wuzhufolio.domain.catalog.CatalogCoin
@@ -33,8 +37,12 @@ import com.wuzhufolio.ui.theme.WzTheme
 import java.math.BigDecimal
 
 /**
- * 行情页（D21 · docs/dev/decisions/D21-行情浏览页-范围增量.md）：只读现价列表 + 持久化自选 +
- * 目录搜索添加；手动/自动刷新（页面可见期轮询）；无图表/交易（Out of Scope 维持）。
+ * 行情页（D21 · docs/dev/decisions/D21-行情浏览页-范围增量.md；M12 T12.1 收尾）：只读现价列表 +
+ * 持久化自选 + 目录搜索添加；手动/自动刷新（页面可见期轮询）；无图表/交易（Out of Scope 维持）。
+ *
+ * M12 收尾对齐原型第六页（`pageQuotes`）：① 命令区置顶（立即刷新行情 + 数据源徽章 + 搜索）；
+ * ② 自动轮询说明行；③ 搜索输入框**打开即聚焦**（interaction.md §2.7 输入聚焦 + AGENTS.md §7.3-②）。
+ * 自选上限 50 的拒绝提示（interaction.md §2.7「已达 50 → 阻止添加并提示」）由页面捕获服务异常呈现。
  */
 @Composable
 fun MarketWatchPage(
@@ -52,6 +60,14 @@ fun MarketWatchPage(
     }
     val state by vm.state.collectAsState()
     val colors = WzTheme.colors
+    // 数据源徽章（原型「数据源：CoinGecko · 专属额度/无 Key 公共 API」）：实时读 Key 配置态
+    var cgConfigured by remember { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(state.rows.size, state.refreshBusy) {
+        cgConfigured = runCatching { settingsService.keyStatus().cgConfigured }.getOrNull()
+    }
+    val searchFocus = remember { FocusRequester() }
+    // 输入聚焦（interaction.md §2.7）：页面打开即聚焦搜索框，键盘可直接录入
+    LaunchedEffect(Unit) { runCatching { searchFocus.requestFocus() } }
 
     Box(modifier = modifier.fillMaxSize().testTag("market-watch")) {
         Column(
@@ -68,7 +84,33 @@ fun MarketWatchPage(
                 modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
             )
 
-            // 搜索添加行
+            // 命令区（原型 toolbar：刷新 + 数据源徽章 + 搜索）
+            Row(
+                modifier = Modifier.fillMaxWidth().testTag("watch-toolbar"),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                WzButton(
+                    text = if (state.refreshBusy) MarketCopy.REFRESHING else MarketCopy.REFRESH_BUTTON,
+                    onClick = vm::refreshNow,
+                    enabled = !state.refreshBusy,
+                    testTag = "watch-refresh-now",
+                )
+                Text(
+                    text = MarketCopy.watchSourceBadge(cgConfigured == true),
+                    color = colors.ink3,
+                    style = WzTheme.typography.caption,
+                    modifier = Modifier.padding(start = 12.dp).testTag("watch-source-badge"),
+                )
+            }
+
+            // 自动轮询说明（原型 hint 行；interaction.md §2.7）
+            Text(
+                text = MarketCopy.WATCH_AUTO_HINT,
+                color = colors.ink3,
+                style = WzTheme.typography.caption,
+                modifier = Modifier.padding(top = 6.dp, bottom = 10.dp).testTag("watch-auto-hint"),
+            )
+
             WatchSearchBar(
                 query = state.query,
                 candidates = state.candidates,
@@ -76,6 +118,7 @@ fun MarketWatchPage(
                 watchCgIds = state.rows.map { it.cgId }.toSet(),
                 onQueryChange = vm::onQueryChange,
                 onAdd = vm::addCoin,
+                focusRequester = searchFocus,
             )
 
             // 报价表
@@ -92,19 +135,6 @@ fun MarketWatchPage(
                     WatchQuoteRowLine(row = row, onRemove = { vm.removeCoin(row.cgId) })
                 }
             }
-
-            // 刷新动作（手动）
-            Row(
-                modifier = Modifier.padding(top = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                WzButton(
-                    text = if (state.refreshBusy) MarketCopy.REFRESHING else MarketCopy.REFRESH_BUTTON,
-                    onClick = vm::refreshNow,
-                    enabled = !state.refreshBusy,
-                    testTag = "watch-refresh-now",
-                )
-            }
         }
         WzToastHost(toast = state.toast, onDismiss = vm::dismissToast)
     }
@@ -118,6 +148,7 @@ private fun WatchSearchBar(
     watchCgIds: Set<String>,
     onQueryChange: (String) -> Unit,
     onAdd: (String) -> Unit,
+    focusRequester: FocusRequester,
 ) {
     val colors = WzTheme.colors
     Column(modifier = Modifier.fillMaxWidth().testTag("watch-search")) {
@@ -128,6 +159,7 @@ private fun WatchSearchBar(
             placeholder = MarketCopy.WATCH_SEARCH_PLACEHOLDER,
             modifier = Modifier.fillMaxWidth(),
             testTag = "watch-search-input",
+            fieldFocusRequester = focusRequester,
         )
         if (candidates.isNotEmpty()) {
             Column(
@@ -187,7 +219,7 @@ private fun WatchQuoteHeader(fiat: String) {
             Text(MarketCopy.WATCH_COL_COIN, color = colors.ink2, style = WzTheme.typography.caption)
         }
         Column(modifier = Modifier.weight(1.4f)) {
-            Text("现价（$fiat）", color = colors.ink2, style = WzTheme.typography.caption)
+            Text(MarketCopy.watchColPrice(fiat), color = colors.ink2, style = WzTheme.typography.caption)
         }
         Column(modifier = Modifier.weight(1.2f)) {
             Text(MarketCopy.WATCH_COL_SOURCE, color = colors.ink2, style = WzTheme.typography.caption)

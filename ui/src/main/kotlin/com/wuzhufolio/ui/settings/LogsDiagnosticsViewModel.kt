@@ -6,6 +6,7 @@ import com.wuzhufolio.domain.settings.DiagnosticsReportText
 import com.wuzhufolio.domain.settings.LogAccess
 import com.wuzhufolio.ui.components.WzToast
 import com.wuzhufolio.ui.components.WzToastKind
+import com.wuzhufolio.ui.i18n.settingsStrings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -68,12 +69,12 @@ class LogsDiagnosticsViewModel(
     /** 导出日志第二步：用户已确认 → 选路径 → 脱敏导出。 */
     fun confirmExport() {
         _state.update { it.copy(dialog = LogsDialog.NONE) }
-        val target = pickSave("导出日志（已脱敏）") ?: return
+        val target = pickSave(settingsStrings.logsExportDialogTitle) ?: return
         scope.launch {
             runCatching { logAccess.exportTo(target) }
                 .onSuccess { count ->
                     _state.update {
-                        val msg = SettingsCopy.LOGS_EXPORTED_TOAST + target + "（" + count + " 行）"
+                        val msg = SettingsCopy.LOGS_EXPORTED_TOAST + target + settingsStrings.logLineCount(count)
                         it.copy(toast = WzToast(WzToastKind.Success, msg))
                     }
                 }
@@ -106,7 +107,7 @@ class LogsDiagnosticsViewModel(
     /** 诊断报告保存到文件（用户选路径）。 */
     fun saveReport() {
         val text = _state.value.reportText ?: return
-        val target = pickSave("保存诊断报告") ?: return
+        val target = pickSave(settingsStrings.diagnosticsSaveDialogTitle) ?: return
         scope.launch {
             runCatching { writeTextFile(target, text) }
                 .onSuccess {

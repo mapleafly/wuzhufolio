@@ -7,10 +7,13 @@ import com.wuzhufolio.domain.settings.PrecisionPreset
 import java.math.BigDecimal
 import com.wuzhufolio.ui.components.WzToast
 import com.wuzhufolio.ui.components.WzToastKind
+import com.wuzhufolio.ui.i18n.settingsStrings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -46,6 +49,15 @@ class GeneralSettingsViewModel(
     private val _state = MutableStateFlow(GeneralSettingsUiState())
     val state: StateFlow<GeneralSettingsUiState> = _state.asStateFlow()
 
+    /**
+     * 写入串行化锁（M12 统一：**M11 §6 遗留闭环**）。
+     *
+     * 原实现为「busy 中直接 return」防重入，会**静默丢弃**用户在写入未完成时的第二次操作
+     * （连续改两项设置即触发，表现为「点了没反应」）。M11 的 `DesktopSettingsViewModel` 已改排队串行，
+     * 本模块同步统一：busy 仅用于 UI 置忙，动作一律排队执行，不吞。
+     */
+    private val writeLock = Mutex()
+
     /** 阈值输入框是否已用存储值回填（仅首次；后续 reload 不打断编辑中）。 */
     private var thresholdInitialized = false
 
@@ -70,19 +82,19 @@ class GeneralSettingsViewModel(
                     }
                     thresholdInitialized = true
                 }
-                .onFailure { t -> _state.update { it.copy(error = t.message ?: "读取设置失败") } }
+                .onFailure { t -> _state.update { it.copy(error = t.message ?: settingsStrings.loadFailed) } }
         }
     }
 
     fun onCashInput(value: String) = _state.update { it.copy(cashInput = value, error = null) }
 
-    fun setBaseFiat(code: String) = launch({ service.setBaseFiat(code) }, "基础法币已切换为 " + code)
+    fun setBaseFiat(code: String) = launch({ service.setBaseFiat(code) }, settingsStrings.baseFiatSwitched(code))
 
-    fun setPrecision(preset: PrecisionPreset) = launch({ service.setPrecision(preset) }, "默认精度已保存")
+    fun setPrecision(preset: PrecisionPreset) = launch({ service.setPrecision(preset) }, settingsStrings.precisionSaved)
 
     fun setUsernameEnum(on: Boolean) = launch(
         { service.setUsernameEnum(on) },
-        if (on) "登录页用户名枚举已开启" else "登录页用户名枚举已关闭",
+        settingsStrings.usernameEnumSet(on),
     )
 
     fun addCashCoin() {
@@ -91,11 +103,11 @@ class GeneralSettingsViewModel(
             _state.update { it.copy(error = SettingsCopy.CASH_INPUT_LABEL) }
             return
         }
-        launch({ service.addCashCoin(input) }, "已加入稳定币白名单：" + input.lowercase())
+        launch({ service.addCashCoin(input) }, settingsStrings.cashCoinAdded(input.lowercase()))
             .also { _state.update { s -> s.copy(cashInput = "") } }
     }
 
-    fun removeCashCoin(cgId: String) = launch({ service.removeCashCoin(cgId) }, "已移除：" + cgId)
+    fun removeCashCoin(cgId: String) = launch({ service.removeCashCoin(cgId) }, settingsStrings.cashCoinRemoved(cgId))
 
     fun onThresholdInput(value: String) = _state.update { it.copy(thresholdInput = value, error = null) }
 
@@ -108,7 +120,7 @@ class GeneralSettingsViewModel(
         }
         val canonical = parsed.stripTrailingZeros().toPlainString()
         _state.update { it.copy(thresholdInput = canonical) }
-        launch({ service.setSmallAmountThreshold(parsed) }, "小额阈值已保存（" + canonical + "）")
+        launch({ service.setSmallAmountThreshold(parsed) }, settingsStrings.thresholdSaved(canonical))
     }
 
     fun setProxyEnabled(on: Boolean) = launch(
@@ -117,26 +129,30 @@ class GeneralSettingsViewModel(
             // 落盘后即时切换请求走向（PRD 6.2：关 = 直连 / 开 = 自动检测系统代理），无需重启
             onProxyEnabledChange(on)
         },
-        if (on) "系统代理已开启（自动检测）" else "系统代理已关闭（直连）",
+        settingsStrings.proxySet(on),
     )
 
     fun dismissToast() = _state.update { it.copy(toast = null) }
 
     private fun launch(block: suspend () -> Unit, successMessage: String) {
-        if (_state.value.busy) return
-        _state.update { it.copy(busy = true, error = null) }
         scope.launch {
-            runCatching { block() }
-                .onSuccess {
-                    reload()
-                    _state.update { it.copy(toast = WzToast(WzToastKind.Success, successMessage)) }
-                }
-                .onFailure { t ->
-                    _state.update {
-                        it.copy(error = t.message ?: "保存失败", toast = WzToast(WzToastKind.Failure, t.message ?: "保存失败"))
+            writeLock.withLock {
+                _state.update { it.copy(busy = true, error = null) }
+                runCatching { block() }
+                    .onSuccess {
+                        reload()
+                        _state.update { it.copy(toast = WzToast(WzToastKind.Success, successMessage)) }
                     }
-                }
-            _state.update { it.copy(busy = false) }
+                    .onFailure { t ->
+                        _state.update {
+                            it.copy(
+                                error = t.message ?: settingsStrings.saveFailed,
+                                toast = WzToast(WzToastKind.Failure, t.message ?: settingsStrings.saveFailed),
+                            )
+                        }
+                    }
+                _state.update { it.copy(busy = false) }
+            }
         }
     }
 

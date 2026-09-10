@@ -26,6 +26,7 @@ import com.wuzhufolio.domain.ledger.CsvPreview
 import com.wuzhufolio.domain.ledger.CsvPreviewRow
 import com.wuzhufolio.domain.ledger.CsvRowStatus
 import com.wuzhufolio.domain.ledger.CoinResolutionException
+import com.wuzhufolio.domain.ledger.CoinResolutionKind
 import com.wuzhufolio.domain.ledger.FeeQuoteRequest
 import com.wuzhufolio.domain.ledger.FeeQuoteResult
 import com.wuzhufolio.domain.ledger.LedgerValidationException
@@ -586,8 +587,13 @@ class DefaultTransactionLedgerService(
             is Resolution.Ambiguous -> throw CoinResolutionException(
                 norm,
                 "歧义（同名资产 " + res.candidates.size + " 个，请从候选选择或更新币种目录）",
+                CoinResolutionKind.AMBIGUOUS,
             )
-            Resolution.NotFound -> throw CoinResolutionException(norm, "未收录（币种目录无此资产，请更新目录或检查拼写）")
+            Resolution.NotFound -> throw CoinResolutionException(
+                norm,
+                "未收录（币种目录无此资产，请更新目录或检查拼写）",
+                CoinResolutionKind.NOT_FOUND,
+            )
         }
     }
 
@@ -598,6 +604,7 @@ class DefaultTransactionLedgerService(
             is FiatLeg.ThirdCurrency -> throw CoinResolutionException(
                 symbol.trim().uppercase(),
                 "法币计价无同币种稳定币映射（当前版本请使用稳定币交易对记录）",
+                CoinResolutionKind.FIAT_UNSUPPORTED,
             )
             null -> resolveManualSymbol(exchange, symbol)
         }

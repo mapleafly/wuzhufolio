@@ -28,6 +28,7 @@ import com.wuzhufolio.domain.ledger.FundsOverview
 import com.wuzhufolio.domain.ledger.ReconciliationRow
 import java.math.BigDecimal
 import java.time.Instant
+import com.wuzhufolio.ui.i18n.ledgerStrings
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -295,7 +296,10 @@ class FundsPageUiTest {
         waitUntil(timeoutMillis = 2_000) {
             runCatching { onNodeWithTag("cal-error", useUnmergedTree = true).assertIsDisplayed() }.isSuccess
         }
-        waitUntil(timeoutMillis = 2_000) { textCount("提示：MULTI_SOURCE") >= 1 }
+        // M12 T12.4：阻断原因改由领域层类型化 Reason 映射为本地化文案（不再消费异常 message 正文）
+        waitUntil(timeoutMillis = 2_000) {
+            textCount(ledgerStrings.calibrationBlocked(CalibrationBlockedException.Reason.MULTI_SOURCE)) >= 1
+        }
         assertTrue(cal.executedCoin == null, "被阻止时不得执行")
     }
 

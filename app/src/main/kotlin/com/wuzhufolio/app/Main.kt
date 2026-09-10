@@ -9,9 +9,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -30,9 +33,15 @@ import com.wuzhufolio.ui.auth.AuthGate
 import com.wuzhufolio.ui.backup.BackupFileNames
 import com.wuzhufolio.ui.backup.DataManagementSection
 import com.wuzhufolio.ui.exchange.TopBarSyncViewModel
+import com.wuzhufolio.ui.i18n.WzFormat
 import com.wuzhufolio.ui.ledger.FundsPage
 import com.wuzhufolio.ui.ledger.TransactionsPage
 import com.wuzhufolio.ui.market.MarketWatchPage
+import com.wuzhufolio.ui.portfolio.AssetsPage
+import com.wuzhufolio.ui.portfolio.CoinDetailPage
+import com.wuzhufolio.ui.portfolio.DashboardPage
+import com.wuzhufolio.ui.shell.ShellStatusViewModel
+import com.wuzhufolio.ui.shell.TopBarRefreshViewModel
 import com.wuzhufolio.ui.settings.SettingsFilePickers
 import com.wuzhufolio.ui.settings.SettingsPage
 import com.wuzhufolio.ui.theme.WuzhuTheme
@@ -83,6 +92,9 @@ private sealed interface Outcome {
 
 /**
  * 主窗口内容（M11 起由 [AppHost] 的 `Window` 承载——窗口本身与托盘/可见性同源，故窗口包装留在 AppHost）。
+ *
+ * M12 增补：聚合页槽位（仪表盘/资产列表/币种详情）+ 顶栏手动刷新行情 + 状态栏数据源与额度提示 +
+ * 界面语言/精度档透传（T12.4）。
  */
 @Composable
 internal fun MainWindowContent(
@@ -92,15 +104,50 @@ internal fun MainWindowContent(
 ) {
     // 顶栏手动同步（PRD 故事 4.3）：VM 持有同步状态与结果 toast
     val syncViewModel = remember { TopBarSyncViewModel(runtime.exchangeSyncService) }
-    DisposableEffect(syncViewModel) {
-        onDispose { syncViewModel.dispose() }
+    // M12：状态栏数据源（同步状态/数据源徽章/额度提示/备份提醒）+ 顶栏手动刷新行情
+    val statusViewModel = remember {
+        ShellStatusViewModel(
+            marketRefreshService = runtime.marketRefreshService,
+            exchangeSyncService = runtime.exchangeSyncService,
+            backupReminderDays = runtime.backupReminderDaysProvider,
+            syncingProvider = { syncViewModel.syncing.value },
+            appVersion = com.wuzhufolio.data.backup.DefaultBackupService.APP_VERSION,
+        )
+    }
+    val refreshViewModel = remember {
+        TopBarRefreshViewModel(
+            refreshService = runtime.marketRefreshService,
+            marketSettingsService = runtime.marketSettingsService,
+            watchService = runtime.marketWatchService,
+            portfolioService = runtime.portfolioService,
+            onRefreshed = statusViewModel::refresh,
+        )
+    }
+    DisposableEffect(syncViewModel, statusViewModel, refreshViewModel) {
+        onDispose {
+            syncViewModel.dispose()
+            statusViewModel.dispose()
+            refreshViewModel.dispose()
+        }
     }
     val manualSyncing by syncViewModel.syncing.collectAsState()
     val manualSyncToast by syncViewModel.toast.collectAsState()
+    val refreshBusy by refreshViewModel.refreshing.collectAsState()
+    val refreshToast by refreshViewModel.toast.collectAsState()
+    val status by statusViewModel.state.collectAsState()
+    // 同步结束后刷新状态栏（否则要等下一次轮询才更新）
+    LaunchedEffect(manualSyncing) { statusViewModel.refresh() }
+    // M12 T12.4：启动期载入默认精度档（设置页内改动由 SettingsPage 即时回写）
+    LaunchedEffect(Unit) {
+        runCatching { runtime.generalSettingsService.view() }.getOrNull()?.let { WzFormat.precision = it.precision }
+    }
+
     AuthGate(
         authService = runtime.session.authService,
         themeMode = runtime.uiState.theme,
         pnlScheme = runtime.uiState.pnlScheme,
+        // M12 T12.4：界面语言（设置页「通用 → 界面语言」切换，持久化于 settings 全局行）
+        language = runtime.uiState.language,
         // M11 T11.3：状态栏代理指示（直连 / 系统代理，PRD 4.2 验收 3）
         proxyStatus = proxyStatus,
         // M10：登录页每次进入重读（设置页枚举开关关闭后无需重启即生效）
@@ -147,6 +194,36 @@ internal fun MainWindowContent(
                 settingsService = runtime.marketSettingsService,
             )
         },
+        // M12 T12.1：聚合页（仪表盘 / 资产列表 / 币种详情）
+        dashboardPageContent = { accountName ->
+            var lastBackup by remember { mutableStateOf<java.time.Instant?>(null) }
+            LaunchedEffect(runtime) { lastBackup = runtime.lastBackupAtProvider() }
+            DashboardPage(
+                portfolioService = runtime.portfolioService,
+                refreshService = runtime.marketRefreshService,
+                generalSettings = runtime.generalSettingsService,
+                accountName = accountName,
+                lastBackupAt = lastBackup,
+            )
+        },
+        assetsPageContent = { onOpenCoin ->
+            AssetsPage(
+                portfolioService = runtime.portfolioService,
+                refreshService = runtime.marketRefreshService,
+                generalSettings = runtime.generalSettingsService,
+                onOpenCoin = onOpenCoin,
+            )
+        },
+        coinDetailPageContent = { cgId, onBack ->
+            CoinDetailPage(
+                cgId = cgId,
+                portfolioService = runtime.portfolioService,
+                ledgerService = runtime.transactionLedgerService,
+                calibrationUseCase = runtime.calibrationService,
+                catalog = runtime.coinCatalog,
+                onBack = onBack,
+            )
+        },
         transactionsPageContent = {
             TransactionsPage(
                 service = runtime.transactionLedgerService,
@@ -164,6 +241,11 @@ internal fun MainWindowContent(
         manualSyncing = manualSyncing,
         manualSyncToast = manualSyncToast,
         onManualSyncToastDismiss = syncViewModel::dismissToast,
+        onRefreshQuotes = refreshViewModel::refreshNow,
+        refreshQuotesBusy = refreshBusy,
+        refreshQuotesToast = refreshToast,
+        onRefreshQuotesToastDismiss = refreshViewModel::dismissToast,
+        shellStatus = status,
     )
 }
 

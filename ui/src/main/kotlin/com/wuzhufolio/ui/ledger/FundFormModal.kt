@@ -119,7 +119,7 @@ fun FundFormModal(
                     value = state.sourceDest,
                     onValueChange = { vm.onFieldChange(FundField.SOURCE_DEST, it) },
                     label = if (state.kind == FlowKind.DEPOSIT) FundsCopy.LABEL_SOURCE else FundsCopy.LABEL_DEST,
-                    placeholder = "可选",
+                    placeholder = FundsCopy.PLACEHOLDER_OPTIONAL,
                     modifier = Modifier.padding(top = 10.dp),
                     testTag = "fund-source-input",
                 )
@@ -127,7 +127,7 @@ fun FundFormModal(
                     value = state.notes,
                     onValueChange = { vm.onFieldChange(FundField.NOTES, it) },
                     label = FundsCopy.LABEL_NOTES,
-                    placeholder = "可选",
+                    placeholder = FundsCopy.PLACEHOLDER_OPTIONAL,
                     modifier = Modifier.padding(top = 10.dp),
                     testTag = "fund-notes-input",
                 )
@@ -229,7 +229,7 @@ private fun FundSuggestionList(candidates: List<CatalogCoin>, onPick: (CatalogCo
                             .testTag("fund-suggestion-" + coin.id),
                     ) {
                         Text(
-                            text = coin.symbol + " · " + coin.name + "（" + coin.cgId + "）",
+                            text = FundsCopy.coinLabel(coin.symbol, coin.name, coin.cgId),
                             color = colors.ink,
                             style = WzTheme.typography.body,
                         )

@@ -1,83 +1,104 @@
 package com.wuzhufolio.ui.exchange
 
 import com.wuzhufolio.domain.exchange.ExchangeError
+import com.wuzhufolio.ui.i18n.commonStrings
+import com.wuzhufolio.ui.i18n.exchangeStrings
 
 /**
  * API 管理页文案（T6.4 · 以 P1 原型 wuzhufolio-light.html API 管理/添加弹窗为逐字基准 + PRD 4.1）。
+ *
+ * M12 T12.4 i18n：成员一律为**动态取值属性**（`val X: String get() = exchangeStrings.x`），
+ * 每次读取按当前语言解析（见 `i18n/I18n.kt`）——成员名与类型保持不变，调用点零改动；
+ * 模块文案本体在 `ui/i18n/ExchangeStrings.kt`（zh 档与改版前逐字一致）。
+ *
+ * 两处例外，均为跨模块通用按钮（避免与公共词条重复）：[SAVE_BUTTON] / [REMOVE] 取 [commonStrings]。
  */
 object ApiCopy {
 
     // ---- 设置页行 / 页面标题 ----
 
-    const val GROUP_TITLE = "API 管理"
-    const val GROUP_SUB = "Binance 只读密钥（字段级加密存储 · 自动增量同步）"
-    const val PAGE_SUB = "添加交易所只读 API 后自动同步新成交（增量去重）· 仅返回最近 500 条，更早请 CSV 导入"
+    val GROUP_TITLE: String get() = exchangeStrings.groupTitle
+    val GROUP_SUB: String get() = exchangeStrings.groupSub
+    val PAGE_SUB: String get() = exchangeStrings.pageSub
 
-    const val STATUS_CONFIGURED = "已配置"
-    const val STATUS_UNCONFIGURED = "未配置"
-    const val KEY_MASK = "••••••••"
+    val STATUS_CONFIGURED: String get() = exchangeStrings.statusConfigured
+    val STATUS_UNCONFIGURED: String get() = exchangeStrings.statusUnconfigured
+    val KEY_MASK: String get() = exchangeStrings.keyMask
 
-    const val LAST_SYNC_NEVER = "从未同步"
-    const val LAST_SYNC_PREFIX = "最后同步"
+    val LAST_SYNC_NEVER: String get() = exchangeStrings.lastSyncNever
+    val LAST_SYNC_PREFIX: String get() = exchangeStrings.lastSyncPrefix
 
-    const val ADD_BUTTON = "＋ 添加 API（Binance 只读）"
-    const val REMOVE = "移除"
-    const val SYNC_NOW = "立即同步"
-    const val SYNCING = "同步中…"
+    val ADD_BUTTON: String get() = exchangeStrings.addButton
+    val REMOVE: String get() = commonStrings.remove
+    val SYNC_NOW: String get() = exchangeStrings.syncNow
+    val SYNCING: String get() = exchangeStrings.syncing
 
     /** 页面级手动同步（PRD 故事 4.3；2026-09-08 走查补口：入口不随密钥列表为空而消失）。 */
-    const val SYNC_ALL_BUTTON = "立即同步（全部密钥）"
-    const val SYNC_ALL_EMPTY = "尚未添加 API 密钥：请先添加只读密钥，再执行同步"
-    const val EMPTY_HINT = "尚未添加 API 密钥 · 添加后每个密钥行内提供「立即同步」，也可用下方「立即同步（全部密钥）」"
+    val SYNC_ALL_BUTTON: String get() = exchangeStrings.syncAllButton
+    val SYNC_ALL_EMPTY: String get() = exchangeStrings.syncAllEmpty
+
+    /** 顶栏手动同步汇总（全部成功）。 */
+    fun syncAllDone(keys: Int, newTrades: Int): String = exchangeStrings.syncAllDone(keys, newTrades)
+
+    /** 顶栏手动同步汇总（部分失败）。 */
+    fun syncAllPartial(failedKeys: Int, newTrades: Int): String =
+        exchangeStrings.syncAllPartial(failedKeys, newTrades)
+    val EMPTY_HINT: String get() = exchangeStrings.emptyHint
 
     // （API 同步间隔文案随 M10 归位 ui/settings/SettingsCopy.kt——M6 遗留「行情与同步」分组归位）
 
     // ---- 添加弹窗（原型 openApiAdd 逐字口径） ----
 
-    const val ADD_TITLE = "添加 API（Binance 只读）"
-    const val EDIT_TITLE = "编辑 API（Binance 只读）"
-    const val NAME_LABEL = "别名"
-    const val NAME_PLACEHOLDER = "如：币安主号"
-    const val EXCHANGE_LABEL = "交易所"
-    const val EXCHANGE_VALUE = "Binance（MVP）"
-    const val API_KEY_LABEL = "API Key"
-    const val API_KEY_PLACEHOLDER = "输入只读 API Key"
-    const val SECRET_LABEL = "Secret Key"
-    const val SECRET_PLACEHOLDER = "••••••••"
-    const val HINT_READONLY = "· 仅需要只读权限（创建教程：交易所 API 管理页，浏览器打开）"
-    const val HINT_ENCRYPTED = "· 密钥字段级加密存储（AES-256-GCM），仅存本地、不上传"
-    const val HINT_ACCOUNT = "· 该 API 将关联当前登录账户"
-    const val TEST_BUTTON = "测试请求"
-    const val TEST_PASSED = "测试请求通过 · 已用该密钥获取账户信息（只读）"
-    const val SAVE_BUTTON = "保存"
-    const val SAVE_AND_SYNC_TOAST = "密钥已加密保存 · 请清理系统剪贴板 · 立即执行首次同步（增量去重）…"
-    const val SAVE_AND_SYNC_RESULT = "首次同步完成 · 新增 %d"
-    const val REMOVED_TOAST = "已移除 API 密钥"
-    const val KEY_UPDATED_TOAST = "已更新 · 密钥已重新加密保存"
-    const val SYNC_DONE_TOAST = "同步完成 · 新增 %d · 去重跳过 %d"
-    const val SYNC_PARTIAL_TOAST = "同步完成（部分）· 新增 %d · 剩余 %d 个交易对下轮续传"
+    val ADD_TITLE: String get() = exchangeStrings.addTitle
+    val EDIT_TITLE: String get() = exchangeStrings.editTitle
+    val NAME_LABEL: String get() = exchangeStrings.nameLabel
+    val NAME_PLACEHOLDER: String get() = exchangeStrings.namePlaceholder
+    val EXCHANGE_LABEL: String get() = exchangeStrings.exchangeLabel
+    val EXCHANGE_VALUE: String get() = exchangeStrings.exchangeValue
+    val API_KEY_LABEL: String get() = exchangeStrings.apiKeyLabel
+    val API_KEY_PLACEHOLDER: String get() = exchangeStrings.apiKeyPlaceholder
+    val SECRET_LABEL: String get() = exchangeStrings.secretLabel
+    val SECRET_PLACEHOLDER: String get() = exchangeStrings.secretPlaceholder
+    val HINT_READONLY: String get() = exchangeStrings.hintReadOnly
+    val HINT_ENCRYPTED: String get() = exchangeStrings.hintEncrypted
+    val HINT_ACCOUNT: String get() = exchangeStrings.hintAccount
+    val TEST_BUTTON: String get() = exchangeStrings.testButton
+    val TEST_PASSED: String get() = exchangeStrings.testPassed
+    val SAVE_BUTTON: String get() = commonStrings.save
+    val SAVE_AND_SYNC_TOAST: String get() = exchangeStrings.saveAndSyncToast
+
+    /** 首次同步完成 toast（`%d` 模板；参数化入口见 `exchangeStrings.firstSyncDone`）。 */
+    val SAVE_AND_SYNC_RESULT: String get() = exchangeStrings.firstSyncDoneTemplate
+    val REMOVED_TOAST: String get() = exchangeStrings.removedToast
+    val KEY_UPDATED_TOAST: String get() = exchangeStrings.keyUpdatedToast
+
+    /** 同步完成 toast（`%d` = 新增 / 去重跳过；参数化入口见 `exchangeStrings.syncDone`）。 */
+    val SYNC_DONE_TOAST: String get() = exchangeStrings.syncDoneTemplate
+
+    /** 部分同步 toast（`%d` = 新增 / 下轮续传交易对数；参数化入口见 `exchangeStrings.syncPartial`）。 */
+    val SYNC_PARTIAL_TOAST: String get() = exchangeStrings.syncPartialTemplate
 
     // ---- 校验 ----
 
-    const val ERR_NAME_EMPTY = "请输入别名"
-    const val ERR_KEY_EMPTY = "请输入 API Key"
-    const val ERR_SECRET_EMPTY = "请输入 Secret Key"
-    const val ERR_UPDATE_CREDS_PAIR = "换密钥需同时填写 API Key 与 Secret Key（留空 = 仅更新别名）"
-    const val ERR_DUPLICATE = "同名 API 已存在（同一交易所内别名需唯一）"
-    const val ERR_GENERIC = "操作失败，请重试"
+    val ERR_NAME_EMPTY: String get() = exchangeStrings.errNameEmpty
+    val ERR_KEY_EMPTY: String get() = exchangeStrings.errKeyEmpty
+    val ERR_SECRET_EMPTY: String get() = exchangeStrings.errSecretEmpty
+    val ERR_UPDATE_CREDS_PAIR: String get() = exchangeStrings.errUpdateCredsPair
+    val ERR_DUPLICATE: String get() = exchangeStrings.errDuplicate
+    val ERR_GENERIC: String get() = exchangeStrings.errGeneric
 
     // ---- 编辑回显（安全口径：密钥不回显明文/掩码，留空 = 保持不变） ----
 
-    const val EDIT_KEY_PLACEHOLDER = "留空 = 保持不变"
-    const val EDIT_SECRET_PLACEHOLDER = "留空 = 保持不变"
+    val EDIT_KEY_PLACEHOLDER: String get() = exchangeStrings.editKeyPlaceholder
+    val EDIT_SECRET_PLACEHOLDER: String get() = exchangeStrings.editSecretPlaceholder
 
     /** ExchangeError → 弹窗/行内文案（api-contracts §4 错误码映射）。 */
     fun errorText(error: ExchangeError): String = when (error) {
-        ExchangeError.InvalidKey, ExchangeError.SignatureInvalid -> "Binance API 密钥已失效，请检查或更新（B2）"
-        ExchangeError.RateLimited -> "Binance 限流触发，请稍后重试"
-        ExchangeError.TimestampSkew -> "Binance 时间偏差，请稍后重试"
-        ExchangeError.Network -> "网络不可达 Binance，请检查网络后重试"
-        is ExchangeError.Http -> "Binance 请求失败（HTTP " + error.code + "）"
-        is ExchangeError.Internal -> "内部错误：请查看日志后重试"
+        ExchangeError.InvalidKey, ExchangeError.SignatureInvalid -> exchangeStrings.errKeyInvalidB2
+        ExchangeError.RateLimited -> exchangeStrings.errRateLimited
+        ExchangeError.TimestampSkew -> exchangeStrings.errTimestampSkew
+        ExchangeError.Network -> exchangeStrings.errNetwork
+        is ExchangeError.Http -> exchangeStrings.errHttp(error.code)
+        is ExchangeError.Internal -> exchangeStrings.errInternal
     }
 }

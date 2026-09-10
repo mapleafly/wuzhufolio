@@ -115,7 +115,7 @@ fun TransactionFormModal(
                         WzTextField(
                             value = state.baseSymbol,
                             onValueChange = vm::onBaseSymbolChange,
-                            label = TransactionCopy.LABEL_PAIR + "（基础币）",
+                            label = TransactionCopy.LABEL_PAIR + TransactionCopy.LABEL_PAIR_BASE,
                             placeholder = "BTC",
                             error = state.errors[TxField.PAIR.key],
                             fieldFocusRequester = baseFocus,
@@ -127,7 +127,7 @@ fun TransactionFormModal(
                         WzTextField(
                             value = state.quoteSymbol,
                             onValueChange = vm::onQuoteSymbolChange,
-                            label = "计价币（可检索）",
+                            label = TransactionCopy.LABEL_QUOTE,
                             placeholder = "USDT",
                             error = state.errors[TxField.PAIR.key],
                             testTag = "tx-quote-input",
@@ -175,7 +175,7 @@ fun TransactionFormModal(
                     WzTextField(
                         value = state.fee,
                         onValueChange = { vm.onFieldChange(TxField.FEE, it) },
-                        label = TransactionCopy.LABEL_FEE + "（可为 0）",
+                        label = TransactionCopy.LABEL_FEE + TransactionCopy.LABEL_FEE_OPTIONAL,
                         placeholder = "0",
                         error = state.errors[TxField.FEE.key],
                         modifier = Modifier.weight(1f),
@@ -208,7 +208,9 @@ fun TransactionFormModal(
                             ) { vm.setFeeRole(FeeRole.CUSTOM) }
                         }
                         Text(
-                            text = "当前：" + state.feeSymbol.ifBlank { "计价币种" },
+                            text = TransactionCopy.currentFee(
+                                state.feeSymbol.ifBlank { TransactionCopy.FEE_ROLE_QUOTE },
+                            ),
                             color = colors.ink3,
                             style = WzTheme.typography.caption,
                             modifier = Modifier.padding(top = 4.dp),
@@ -219,7 +221,7 @@ fun TransactionFormModal(
                     WzTextField(
                         value = state.feeCustom,
                         onValueChange = vm::onFeeCustomChange,
-                        label = "自定义手续费币种",
+                        label = TransactionCopy.LABEL_FEE_CUSTOM,
                         placeholder = "BNB",
                         error = state.errors[TxField.FEE_CUSTOM.key],
                         modifier = Modifier.padding(top = 10.dp),
@@ -286,7 +288,7 @@ fun TransactionFormModal(
                         value = state.notes,
                         onValueChange = { vm.onFieldChange(TxField.NOTES, it) },
                         label = TransactionCopy.LABEL_NOTES,
-                        placeholder = "可选",
+                        placeholder = TransactionCopy.PLACEHOLDER_OPTIONAL,
                         modifier = Modifier.weight(1.4f),
                         testTag = "tx-notes-input",
                     )

@@ -1,94 +1,144 @@
 package com.wuzhufolio.ui.backup
 
+import com.wuzhufolio.ui.i18n.backupStrings
+
 /**
  * 数据管理（备份恢复）文案单源（M9 · T9.4 · ia.md §2.15 / PRD §9.9 / interaction §3 / flows §6）。
  * 文案口径与原型数据管理走查一致；错误文案映射服务层异常（CproDecodeException 三态）。
+ *
+ * M12 T12.4 i18n：本对象降级为**模块取词门面**——成员一律动态取值
+ * （`val X: String get() = backupStrings.x`，每次读取按当前语言解析），调用点不变；
+ * zh/en 真源见 [com.wuzhufolio.ui.i18n.BackupStrings]。
+ * 前缀型成员（`*_PREFIX`）保持原契约由调用点拼值；整句计数/预览改为函数，调用点不再拼字面量。
  */
+@Suppress("TooManyFunctions") // 备份域文案门面（原 const 成员一一保留，调用点零改动）
 object BackupCopy {
 
     // ---- 分区 ----
-    const val BACKUP_GROUP_TITLE = "备份"
-    const val RESTORE_GROUP_TITLE = "恢复"
-    const val CSV_GROUP_TITLE = "明文导出（CSV，不含 API 密钥）"
-    const val BACKUP_BUTTON = "备份数据"
-    const val RESTORE_BUTTON = "恢复数据"
-    const val CSV_TRANSACTIONS = "导出交易记录"
-    const val CSV_FUNDS = "导出资金流水"
-    const val CSV_HOLDINGS = "导出持仓汇总"
-    const val LAST_BACKUP_PREFIX = "上次备份："
-    const val LAST_RESTORE_PREFIX = "上次恢复："
-    const val NEVER_DONE = "—"
-    const val CSV_NOTE = "CSV 为明文导出（数据主权），仅含交易 / 资金 / 持仓汇总，不含任何 API 密钥；" +
-        "交易 CSV 与导入模板同列，可直接回导。"
+    val BACKUP_GROUP_TITLE: String get() = backupStrings.backupGroupTitle
+    val RESTORE_GROUP_TITLE: String get() = backupStrings.restoreGroupTitle
+    val CSV_GROUP_TITLE: String get() = backupStrings.csvGroupTitle
+    val BACKUP_BUTTON: String get() = backupStrings.backupButton
+    val RESTORE_BUTTON: String get() = backupStrings.restoreButton
+    val CSV_TRANSACTIONS: String get() = backupStrings.csvTransactions
+    val CSV_FUNDS: String get() = backupStrings.csvFunds
+    val CSV_HOLDINGS: String get() = backupStrings.csvHoldings
+    val LAST_BACKUP_PREFIX: String get() = backupStrings.lastBackupPrefix
+    val LAST_RESTORE_PREFIX: String get() = backupStrings.lastRestorePrefix
+    val NEVER_DONE: String get() = backupStrings.neverDone
+    val CSV_NOTE: String get() = backupStrings.csvNote
 
     // ---- 备份弹窗 ----
-    const val EXPORT_TITLE = "备份数据"
-    const val EXPORT_PWD_LABEL = "备份文件密码"
-    const val EXPORT_PWD_CONFIRM_LABEL = "确认备份文件密码"
-    const val EXPORT_PWD_RULE = "至少 8 位且包含字母与数字（与账户密码同一最低门槛）"
-    const val EXPORT_SENSITIVE_WARNING =
-        "备份文件包含 API 密钥等敏感数据，请妥善保管。"
-    const val EXPORT_PWD_NOTE =
-        "为保护安全，应用不会回填或存储您的账户密码，请为此备份设置独立密码并妥善保管；" +
-            "任何设备导入该备份只需此文件密码（与账户密码无关）。"
-    const val EXPORT_CONFIRM = "选择保存位置并生成"
-    const val EXPORT_ERROR_PWD = "备份密码须至少 8 位且包含字母与数字"
-    const val EXPORT_ERROR_MISMATCH = "两次输入的密码不一致"
-    const val EXPORT_SUCCESS_PREFIX = "备份完成："
-    const val EXPORT_FAILED_PREFIX = "备份失败："
+    val EXPORT_TITLE: String get() = backupStrings.exportTitle
+    val EXPORT_PWD_LABEL: String get() = backupStrings.exportPwdLabel
+    val EXPORT_PWD_CONFIRM_LABEL: String get() = backupStrings.exportPwdConfirmLabel
+    val EXPORT_PWD_RULE: String get() = backupStrings.exportPwdRule
+    val EXPORT_SENSITIVE_WARNING: String get() = backupStrings.exportSensitiveWarning
+
+    /** D24：备份密码独立设置（不回填账户密码、禁止空密码）——逐字安全说明。 */
+    val EXPORT_PWD_NOTE: String get() = backupStrings.exportPwdNote
+    val EXPORT_CONFIRM: String get() = backupStrings.exportConfirm
+    val EXPORT_BUSY: String get() = backupStrings.exportBusy
+    val EXPORT_ERROR_PWD: String get() = backupStrings.exportErrorPwd
+    val EXPORT_ERROR_MISMATCH: String get() = backupStrings.exportErrorMismatch
+    val EXPORT_SUCCESS_PREFIX: String get() = backupStrings.exportSuccessPrefix
+    val EXPORT_FAILED_PREFIX: String get() = backupStrings.exportFailedPrefix
 
     // ---- 恢复向导 ----
-    const val RESTORE_TITLE = "恢复数据"
-    const val RESTORE_PICK_BUTTON = "选择 .cpro 文件"
-    const val RESTORE_PICK_HINT = "选择此前导出的 .cpro 备份文件（恢复只依赖备份文件密码）。"
-    const val SUMMARY_VERSION = "格式版本："
-    const val SUMMARY_APP = "应用版本："
-    const val SUMMARY_EXPORTED_AT = "导出时间："
-    const val SUMMARY_RANGE = "数据时间范围："
-    const val SUMMARY_COUNTS = "记录条数："
-    const val COUNTS_TX = "交易 "
-    const val COUNTS_FLOW = "资金 "
-    const val COUNTS_RECON = "校准 "
-    const val COUNTS_FEE = "费率 "
-    const val COUNTS_KEYS = "API 密钥 "
-    const val COUNTS_SNAPSHOTS = "快照 "
-    const val RESTORE_PWD_LABEL = "备份文件密码"
-    const val RESTORE_UNLOCK = "验证密码"
-    const val RESTORE_NEXT_MODE = "下一步"
-    const val ERR_WRONG_PASSWORD = "密码错误或文件损坏，请核对备份文件密码后重试。"
-    const val ERR_UNSUPPORTED = "备份格式版本较新，请升级应用后再导入。"
-    const val ERR_MALFORMED = "不是有效的 .cpro 备份文件（或文件已损坏）。"
-    const val ERR_GENERIC = "恢复失败："
+    val RESTORE_TITLE: String get() = backupStrings.restoreTitle
+    val RESTORE_PICK_BUTTON: String get() = backupStrings.restorePickButton
+    val RESTORE_PICK_HINT: String get() = backupStrings.restorePickHint
+    val SUMMARY_VERSION: String get() = backupStrings.summaryVersion
+    val SUMMARY_APP: String get() = backupStrings.summaryApp
+    val SUMMARY_EXPORTED_AT: String get() = backupStrings.summaryExportedAt
+    val SUMMARY_RANGE: String get() = backupStrings.summaryRange
+    val SUMMARY_COUNTS: String get() = backupStrings.summaryCountsLabel
+    val COUNTS_TX: String get() = backupStrings.countsTx
+    val COUNTS_FLOW: String get() = backupStrings.countsFlow
+    val COUNTS_RECON: String get() = backupStrings.countsRecon
+    val COUNTS_FEE: String get() = backupStrings.countsFee
+    val COUNTS_KEYS: String get() = backupStrings.countsKeys
+    val COUNTS_SNAPSHOTS: String get() = backupStrings.countsSnapshots
+    val RESTORE_PWD_LABEL: String get() = backupStrings.restorePwdLabel
+    val RESTORE_UNLOCK: String get() = backupStrings.restoreUnlock
+    val RESTORE_VERIFYING: String get() = backupStrings.restoreVerifying
+    val RESTORE_NEXT_MODE: String get() = backupStrings.restoreNextMode
+    val ERR_WRONG_PASSWORD: String get() = backupStrings.errWrongPassword
+    val ERR_UNSUPPORTED: String get() = backupStrings.errUnsupported
+    val ERR_MALFORMED: String get() = backupStrings.errMalformed
+    val ERR_GENERIC: String get() = backupStrings.errGeneric
 
     // ---- 模式选择 ----
-    const val MODE_TITLE = "选择导入方式"
-    const val MODE_MERGE = "增量合并（默认）"
-    const val MODE_MERGE_DESC = "按 记录 uuid → 交易所+订单号 → 快照幂等 合并，不删除现有记录。"
-    const val MODE_OVERWRITE = "全量覆盖"
-    const val MODE_OVERWRITE_DESC = "清空当前账户的业务数据后导入；全局行情缓存保留；覆盖前自动生成临时备份。"
-    const val OVERWRITE_CONFIRM_LABEL = "我已知晓全量覆盖将替换当前账户的全部业务数据"
-    const val MERGE_PREVIEW_PREFIX = "将新增："
-    const val MERGE_PREVIEW_DUP = "条；已存在跳过："
-    const val MERGE_PREVIEW_MISSING = "条；缺失币种跳过："
-    const val RESTORE_EXECUTE = "开始恢复"
+    val MODE_TITLE: String get() = backupStrings.modeTitle
+    val MODE_MERGE: String get() = backupStrings.modeMerge
+    val MODE_MERGE_DESC: String get() = backupStrings.modeMergeDesc
+    val MODE_OVERWRITE: String get() = backupStrings.modeOverwrite
+    val MODE_OVERWRITE_DESC: String get() = backupStrings.modeOverwriteDesc
+    val OVERWRITE_CONFIRM_LABEL: String get() = backupStrings.overwriteConfirmLabel
+    val MERGE_PREVIEW_PREFIX: String get() = backupStrings.mergePreviewPrefix
+    val MERGE_PREVIEW_DUP: String get() = backupStrings.mergePreviewDup
+    val MERGE_PREVIEW_MISSING: String get() = backupStrings.mergePreviewMissing
+    val RESTORE_EXECUTE: String get() = backupStrings.restoreExecute
+    val RESTORE_RUNNING: String get() = backupStrings.restoreRunning
 
     // ---- 结果 ----
-    const val RESULT_TITLE = "恢复完成"
-    const val RESULT_IMPORTED_PREFIX = "已导入："
-    const val RESULT_SKIPPED_PREFIX = "重复跳过："
-    const val RESULT_MISSING_PREFIX = "缺失币种跳过："
-    const val RESULT_TEMP_BACKUP_PREFIX = "覆盖前临时备份："
-    const val RESULT_ANOMALOUS_PREFIX = "本次导入新产生持仓异常（导入路径例外，可补录增资/校准消除）："
-    const val RESULT_ANOMALOUS_EXISTING_PREFIX = "账户既存持仓异常（非本次导入造成，可补录增资/校准消除）："
-    const val RESULT_ANOMALOUS_EXISTING_NOTE =
-        "既存异常来自恢复前的账本状态（如历史导入负持仓），本次恢复未改变；明细见资金列表「持仓异常」标记。"
-    const val RESULT_NONE = "无"
-    const val RESULT_DONE = "完成"
-    const val RESTORE_SUCCESS_TOAST = "恢复完成，数据已重算。"
+    val RESULT_TITLE: String get() = backupStrings.resultTitle
+    val RESULT_IMPORTED_PREFIX: String get() = backupStrings.resultImportedPrefix
+    val RESULT_SKIPPED_PREFIX: String get() = backupStrings.resultSkippedPrefix
+    val RESULT_MISSING_PREFIX: String get() = backupStrings.resultMissingPrefix
+    val RESULT_TEMP_BACKUP_PREFIX: String get() = backupStrings.resultTempBackupPrefix
+    val RESULT_ANOMALOUS_PREFIX: String get() = backupStrings.resultAnomalousPrefix
+    val RESULT_ANOMALOUS_EXISTING_PREFIX: String get() = backupStrings.resultAnomalousExistingPrefix
+    val RESULT_ANOMALOUS_EXISTING_NOTE: String get() = backupStrings.resultAnomalousExistingNote
+    val RESULT_NONE: String get() = backupStrings.resultNone
+    val RESULT_DONE: String get() = backupStrings.resultDone
+    val RESTORE_SUCCESS_TOAST: String get() = backupStrings.restoreSuccessToast
 
     // ---- CSV ----
-    const val CSV_SUCCESS_PREFIX = "已导出："
-    const val CSV_FAILED_PREFIX = "导出失败："
+    val CSV_SUCCESS_PREFIX: String get() = backupStrings.csvSuccessPrefix
+    val CSV_FAILED_PREFIX: String get() = backupStrings.csvFailedPrefix
+
+    // ---- 整句（计数/预览；调用点不拼装，语序由各语言目录决定） ----
+
+    /** 恢复结果导入计数整句（交易 / 资金 / 校准 / 费率 / API 密钥 / 快照）。 */
+    @Suppress("LongParameterList") // 六类记录计数一次传全（拆参数会让调用点自己拼句，违背 i18n 规则 3）
+    fun importedSummary(
+        transactions: Int,
+        capitalFlows: Int,
+        reconciliationRecords: Int,
+        feeRules: Int,
+        apiKeys: Int,
+        priceSnapshots: Int,
+    ): String = backupStrings.importedSummary(
+        transactions = transactions,
+        capitalFlows = capitalFlows,
+        reconciliationRecords = reconciliationRecords,
+        feeRules = feeRules,
+        apiKeys = apiKeys,
+        priceSnapshots = priceSnapshots,
+    )
+
+    /** 备份摘要「记录条数」整句（同一组计数）。 */
+    @Suppress("LongParameterList") // 同上：同一组计数
+    fun recordCountsSummary(
+        transactions: Int,
+        capitalFlows: Int,
+        reconciliationRecords: Int,
+        feeRules: Int,
+        apiKeys: Int,
+        priceSnapshots: Int,
+    ): String = backupStrings.recordCountsSummary(
+        transactions = transactions,
+        capitalFlows = capitalFlows,
+        reconciliationRecords = reconciliationRecords,
+        feeRules = feeRules,
+        apiKeys = apiKeys,
+        priceSnapshots = priceSnapshots,
+    )
+
+    /** 增量合并预览整句（将新增 N 条；已存在跳过 N 条；缺失币种跳过 N 条）。 */
+    fun mergePreview(inserts: Int, duplicates: Int, missingCoins: Int): String =
+        backupStrings.mergePreview(inserts = inserts, duplicates = duplicates, missingCoins = missingCoins)
 
     /** CproDecodeException → 文案（flows §7「密码错误或文件损坏」/「未知更高版本提示升级」）。 */
     fun decodeErrorCopy(reason: com.wuzhufolio.domain.backup.CproDecodeException.Reason): String = when (reason) {

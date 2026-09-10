@@ -1,6 +1,7 @@
 package com.wuzhufolio.data.settings
 
 import com.wuzhufolio.data.settings.SettingsRepository
+import com.wuzhufolio.domain.settings.AppLanguage
 import com.wuzhufolio.domain.settings.BASE_FIAT_OPTIONS
 import com.wuzhufolio.domain.settings.CASH_COIN_DEFAULTS
 import com.wuzhufolio.domain.settings.GeneralSettingsService
@@ -18,12 +19,15 @@ object GeneralSettingsKeys {
     const val CASH_COINS = "cash.coins"
     const val SMALL_THRESHOLD = "small.threshold"
     const val PROXY_ENABLED = "network.proxy.enabled"
+    // M12 T12.4：界面语言——复用 M002 迁移已种下的既有键 locale（原值 zh-CN），不再另立新键
+    val LANGUAGE = AppLanguage.SETTINGS_KEY
 }
 
 /**
  * 通用设置用例实现（M10 · T10.1）：settings 全局行读写 + 白名单 JSON 编解码（损坏自愈——按空扩展处理）。
  * 现金类币种白名单运行期读取器 [cashCoinIds] 供引擎/资金总览注入（默认 ∪ 扩展）。
  */
+@Suppress("TooManyFunctions") // 每个设置项一个读/写入口（含 M12 T12.4 语言档），用例面固有
 class DefaultGeneralSettingsService(
     private val settings: SettingsRepository,
 ) : GeneralSettingsService {
@@ -39,6 +43,7 @@ class DefaultGeneralSettingsService(
         smallThreshold = settings.getGlobal(GeneralSettingsKeys.SMALL_THRESHOLD)
             ?.trim()?.toBigDecimalOrNull() ?: BigDecimal.ZERO,
         proxyEnabled = settings.getGlobal(GeneralSettingsKeys.PROXY_ENABLED)?.let { it != "off" } ?: true,
+        language = AppLanguage.fromStorage(settings.getGlobal(GeneralSettingsKeys.LANGUAGE)),
     )
 
     override suspend fun setBaseFiat(code: String) {
@@ -79,6 +84,10 @@ class DefaultGeneralSettingsService(
 
     override suspend fun setProxyEnabled(on: Boolean) {
         settings.putGlobal(GeneralSettingsKeys.PROXY_ENABLED, if (on) "on" else "off")
+    }
+
+    override suspend fun setLanguage(language: AppLanguage) {
+        settings.putGlobal(GeneralSettingsKeys.LANGUAGE, language.storageValue)
     }
 
     /** 现金类币种全量集合（默认 ∪ 扩展；引擎/总览运行期读取入口）。 */

@@ -29,6 +29,7 @@ import com.wuzhufolio.domain.market.MarketRefreshResult
 import com.wuzhufolio.domain.market.MarketRefreshService
 import com.wuzhufolio.domain.market.MarketSettingsService
 import com.wuzhufolio.domain.market.QuotaCallKind
+import com.wuzhufolio.domain.settings.AppLanguage
 import com.wuzhufolio.domain.settings.DiagnosticsReport
 import com.wuzhufolio.domain.settings.DiagnosticsService
 import com.wuzhufolio.domain.settings.GeneralSettingsService
@@ -61,6 +62,7 @@ class SettingsPageUiTest {
         var removedCoin: String? = null
         var savedProxy: Boolean? = null
         var savedThreshold: BigDecimal? = null
+        var savedLanguage: AppLanguage? = null
 
         override suspend fun view(): GeneralSettingsView = view
         override suspend fun setBaseFiat(code: String) {
@@ -89,6 +91,10 @@ class SettingsPageUiTest {
         override suspend fun setProxyEnabled(on: Boolean) {
             savedProxy = on
             view = view.copy(proxyEnabled = on)
+        }
+        override suspend fun setLanguage(language: AppLanguage) {
+            savedLanguage = language
+            view = view.copy(language = language)
         }
     }
 

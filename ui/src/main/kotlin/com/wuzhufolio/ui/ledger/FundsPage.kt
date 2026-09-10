@@ -354,7 +354,7 @@ private fun FundRow(
             Text(text = row.coinSymbol, color = colors.ink, style = WzTheme.typography.bodyStrong)
             if (row.estimated) {
                 Text(
-                    text = "估算中",
+                    text = FundsCopy.ESTIMATING,
                     color = colors.warn,
                     style = WzTheme.typography.caption,
                 )

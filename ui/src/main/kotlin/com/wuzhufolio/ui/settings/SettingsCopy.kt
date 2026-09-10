@@ -1,114 +1,136 @@
 package com.wuzhufolio.ui.settings
 
+import com.wuzhufolio.ui.i18n.settingsStrings
+
 /**
  * 设置页文案（M10 · T10.4 · 以 P1 原型 wuzhufolio-light.html 设置页逐字基准 + ia.md §2.12/§2.16；
  * PRD §7.2 模块 6 / §6「日志管理与可追溯性」）。
+ *
+ * M12 T12.4：正文全部改为**动态取值属性**（zh/en 双档见 `ui/i18n/SettingsStrings.kt`）——
+ * 成员名与调用点保持不变，每次读取按当前语言解析（切换语言由 WuzhuTheme 的 key 强制重组，见 I18n 头注）。
  */
 object SettingsCopy {
 
     // ---- 分组标题（原型 settings-group h3 逐字） ----
 
-    const val GROUP_GENERAL = "通用"
-    const val GROUP_NETWORK = "网络"
-    const val GROUP_MARKET_SYNC = "行情与同步"
-    const val GROUP_LOGS = "日志与诊断"
-    const val GROUP_FEE = "手续费"
-    const val GROUP_API = "API 管理"
-    const val GROUP_DATA = "数据管理"
-    const val GROUP_ABOUT = "关于"
+    val GROUP_GENERAL: String get() = settingsStrings.generalGroup
+    val GROUP_NETWORK: String get() = settingsStrings.networkGroup
+    val GROUP_MARKET_SYNC: String get() = settingsStrings.marketSyncGroup
+    val GROUP_LOGS: String get() = settingsStrings.logsGroup
+    val GROUP_FEE: String get() = settingsStrings.feeGroup
+    val GROUP_API: String get() = settingsStrings.apiGroup
+    val GROUP_DATA: String get() = settingsStrings.dataGroup
+    val GROUP_ABOUT: String get() = settingsStrings.aboutGroup
 
-    const val PAGE_SUB = "账户级设置与全局设置 · 切换即时生效"
+    val PAGE_SUB: String get() = settingsStrings.pageSub
+
+    /** 设置页页头标题。 */
+    val PAGE_TITLE: String get() = settingsStrings.pageTitle
+
+    /** 主题分段（明/暗）。 */
+    val THEME_LIGHT: String get() = settingsStrings.themeLight
+    val THEME_DARK: String get() = settingsStrings.themeDark
+
+    /** 界面语言行（M12 T12.4）。 */
+    val LANGUAGE_LABEL: String get() = settingsStrings.languageLabel
+    val LANGUAGE_SUB: String get() = settingsStrings.languageSub
+
+    /** 日志导出确认按钮（PRD「导出前提示」）。 */
+    val CONTINUE_EXPORT: String get() = settingsStrings.continueExport
+
+    /** API 同步间隔下拉项文案。 */
+    fun intervalLabel(minutes: Int): String = settingsStrings.intervalMinutes(minutes)
+
+    /** 盈亏配色方案展示名（入参 = [com.wuzhufolio.domain.settings.PnlColorScheme.storageValue]）。 */
+    fun pnlLabel(storageValue: String): String = settingsStrings.pnlSchemeLabel(storageValue)
 
     // ---- 通用分组行（原型 settingsRow 逐字基准） ----
 
-    const val FIAT_LABEL = "基础法币"
-    const val FIAT_SUB = "计价与折算基准（默认 USD）"
-    const val FIAT_UNSUPPORTED = "不支持的基础法币"
+    val FIAT_LABEL: String get() = settingsStrings.fiatLabel
+    val FIAT_SUB: String get() = settingsStrings.fiatSub
+    val FIAT_UNSUPPORTED: String get() = settingsStrings.fiatUnsupported
 
-    const val THEME_LABEL = "主题（明 / 暗）"
-    const val THEME_SUB = "与顶栏 ☾ 快捷切换同步（PRD 6.1）"
+    val THEME_LABEL: String get() = settingsStrings.themeLabel
+    val THEME_SUB: String get() = settingsStrings.themeSub
 
-    const val PNL_LABEL = "盈亏颜色方案"
-    const val PNL_SUB = "数值强制显示 ± 符号，颜色仅辅助"
+    val PNL_LABEL: String get() = settingsStrings.pnlLabel
+    val PNL_SUB: String get() = settingsStrings.pnlSub
 
-    const val PRECISION_LABEL = "默认精度"
-    const val PRECISION_SUB = "金额/价格 8 位、市值/盈亏 2 位、百分比 2 位"
+    val PRECISION_LABEL: String get() = settingsStrings.precisionLabel
+    val PRECISION_SUB: String get() = settingsStrings.precisionSub
 
-    const val USERNAME_ENUM_LABEL = "登录页用户名枚举"
-    const val USERNAME_ENUM_SUB = "关闭后用户名改为纯手动输入"
+    val USERNAME_ENUM_LABEL: String get() = settingsStrings.usernameEnumLabel
+    val USERNAME_ENUM_SUB: String get() = settingsStrings.usernameEnumSub
 
-    const val CASH_LABEL = "稳定币白名单"
-    const val CASH_SUB = "现金类币种判定（默认 USDT/USDC/DAI/TUSD，可扩展）"
-    const val CASH_ADD_BUTTON = "添加"
-    const val CASH_INPUT_LABEL = "币种标识（CoinGecko id，如 usd-coin）"
-    const val CASH_REMOVE = "移除"
-    const val CASH_DEFAULT_MARK = "默认"
+    val CASH_LABEL: String get() = settingsStrings.cashLabel
+    val CASH_SUB: String get() = settingsStrings.cashSub
+    val CASH_ADD_BUTTON: String get() = settingsStrings.cashAddButton
+    val CASH_INPUT_LABEL: String get() = settingsStrings.cashInputLabel
+    val CASH_REMOVE: String get() = settingsStrings.cashRemove
+    val CASH_DEFAULT_MARK: String get() = settingsStrings.cashDefaultMark
 
-    const val THRESHOLD_LABEL = "小额币种阈值"
-    const val THRESHOLD_SUB = "低于阈值的币种合计归入「其他」（按基础法币计；0 = 不启用）。" +
-        "自由数值，按自身规模设定（参考：总资产净值的 1% 左右，如总额 100 可设 1、总额 200 万可设 2 万）"
-    const val THRESHOLD_INPUT_LABEL = "阈值（基础法币，0 = 不启用）"
-    const val THRESHOLD_INVALID = "请输入不小于 0 的数值（0 = 不启用）"
+    val THRESHOLD_LABEL: String get() = settingsStrings.thresholdLabel
+    val THRESHOLD_SUB: String get() = settingsStrings.thresholdSub
+    val THRESHOLD_INPUT_LABEL: String get() = settingsStrings.thresholdInputLabel
+    val THRESHOLD_INVALID: String get() = settingsStrings.thresholdInvalid
 
     // ---- 网络 / 行情与同步 ----
 
-    const val PROXY_LABEL = "系统代理"
-    const val PROXY_SUB = "自动检测并使用操作系统代理；关闭则全部直连（状态栏显示当前连接方式）"
+    val PROXY_LABEL: String get() = settingsStrings.proxyLabel
+    val PROXY_SUB: String get() = settingsStrings.proxySub
 
-    const val SYNC_INTERVAL_LABEL = "API 同步间隔（交易数据）"
-    const val SYNC_INTERVAL_SUB = "自动增量同步的间隔（默认 30 分钟）"
+    val SYNC_INTERVAL_LABEL: String get() = settingsStrings.syncIntervalLabel
+    val SYNC_INTERVAL_SUB: String get() = settingsStrings.syncIntervalSub
 
     // ---- 托盘与后台（M11 T11.1/T11.2；PRD 6.1「托盘与后台」+「备份提醒」） ----
 
-    const val GROUP_TRAY = "托盘与后台"
+    val GROUP_TRAY: String get() = settingsStrings.trayGroup
 
-    const val MINIMIZE_LABEL = "关闭窗口最小化到托盘"
-    const val MINIMIZE_SUB = "关闭后应用继续在托盘驻留并按时同步；关闭此开关则关窗即退出"
-    const val MINIMIZE_UNAVAILABLE = "当前系统环境不支持系统托盘——关窗将直接退出"
+    val MINIMIZE_LABEL: String get() = settingsStrings.minimizeLabel
+    val MINIMIZE_SUB: String get() = settingsStrings.minimizeSub
+    val MINIMIZE_UNAVAILABLE: String get() = settingsStrings.minimizeUnavailable
 
-    const val AUTOSTART_LABEL = "开机自动启动"
-    const val AUTOSTART_SUB = "随系统启动并驻留托盘（默认关闭）"
-    const val AUTOSTART_UNAVAILABLE = "当前运行方式无法注册开机自启"
+    val AUTOSTART_LABEL: String get() = settingsStrings.autostartLabel
+    val AUTOSTART_SUB: String get() = settingsStrings.autostartSub
+    val AUTOSTART_UNAVAILABLE: String get() = settingsStrings.autostartUnavailable
 
-    const val SYNC_NOTIFY_LABEL = "同步完成/失败通知"
-    const val SYNC_NOTIFY_SUB = "后台同步结束时的桌面通知（失败必提示）"
+    val SYNC_NOTIFY_LABEL: String get() = settingsStrings.syncNotifyLabel
+    val SYNC_NOTIFY_SUB: String get() = settingsStrings.syncNotifySub
 
-    const val BACKUP_REMINDER_LABEL = "备份提醒"
-    const val BACKUP_REMINDER_SUB = "距上次备份超过 30 天时提醒导出 .cpro 备份"
+    val BACKUP_REMINDER_LABEL: String get() = settingsStrings.backupReminderLabel
+    val BACKUP_REMINDER_SUB: String get() = settingsStrings.backupReminderSub
 
     // ---- 日志与诊断（interaction §2.6 逐字口径） ----
 
-    const val LOGS_VIEW_LABEL = "查看日志"
-    const val LOGS_VIEW_SUB = "本地关键操作与错误日志（账户名与金额默认脱敏）"
-    const val LOGS_VIEW_BUTTON = "查看"
-    const val LOGS_EXPORT_LABEL = "导出日志"
-    const val LOGS_EXPORT_SUB = "导出前提示检查敏感信息；密钥明文/哈希与完整响应体不落日志"
-    const val LOGS_EXPORT_BUTTON = "导出"
-    const val LOGS_EXPORT_CONFIRM = "导出前请检查是否包含敏感信息（日志已自动脱敏）。继续导出？"
-    const val LOGS_EXPORTED_TOAST = "日志已导出："
-    const val LOGS_EXPORT_FAILED_TOAST = "日志导出失败："
-    const val LOGS_MODAL_TITLE = "日志（已脱敏）"
-    const val LOGS_EMPTY = "暂无日志"
+    val LOGS_VIEW_LABEL: String get() = settingsStrings.logsViewLabel
+    val LOGS_VIEW_SUB: String get() = settingsStrings.logsViewSub
+    val LOGS_VIEW_BUTTON: String get() = settingsStrings.logsViewButton
+    val LOGS_EXPORT_LABEL: String get() = settingsStrings.logsExportLabel
+    val LOGS_EXPORT_SUB: String get() = settingsStrings.logsExportSub
+    val LOGS_EXPORT_BUTTON: String get() = settingsStrings.logsExportButton
+    val LOGS_EXPORT_CONFIRM: String get() = settingsStrings.logsExportConfirm
+    val LOGS_EXPORTED_TOAST: String get() = settingsStrings.logsExportedToast
+    val LOGS_EXPORT_FAILED_TOAST: String get() = settingsStrings.logsExportFailedToast
+    val LOGS_MODAL_TITLE: String get() = settingsStrings.logsModalTitle
+    val LOGS_EMPTY: String get() = settingsStrings.logsEmpty
 
-    const val DIAG_LABEL = "生成诊断报告"
-    const val DIAG_SUB = "应用/OS 版本 · schema 版本 · 最近日志片段（已脱敏）· 调用计数"
-    const val DIAG_BUTTON = "生成"
-    const val DIAG_MODAL_TITLE = "诊断报告"
-    const val DIAG_SAVE_BUTTON = "保存到文件"
-    const val DIAG_SAVED_TOAST = "诊断报告已保存："
-    const val DIAG_FAILED_TOAST = "诊断报告生成失败："
+    val DIAG_LABEL: String get() = settingsStrings.diagLabel
+    val DIAG_SUB: String get() = settingsStrings.diagSub
+    val DIAG_BUTTON: String get() = settingsStrings.diagButton
+    val DIAG_MODAL_TITLE: String get() = settingsStrings.diagModalTitle
+    val DIAG_SAVE_BUTTON: String get() = settingsStrings.diagSaveButton
+    val DIAG_SAVED_TOAST: String get() = settingsStrings.diagSavedToast
+    val DIAG_FAILED_TOAST: String get() = settingsStrings.diagFailedToast
 
     // ---- 关于（PRD §7.2-6.4） ----
 
-    const val ABOUT_VERSION_LABEL = "版本"
-    const val ABOUT_DEV_LABEL = "开发者信息"
-    const val ABOUT_DEV_VALUE = "WuZhuFolio 开源项目（社区维护 · AGPL-3.0）"
-    const val ABOUT_PRIVACY_LABEL = "隐私政策"
-    const val ABOUT_PRIVACY_VALUE = "数据完全本地化：交易/密钥/资金流水只存本机，禁止云端上传（PRD §1.1）"
-    const val ABOUT_SOURCE_LABEL = "行情数据源说明"
-    const val ABOUT_SOURCE_VALUE =
-        "主源 CoinGecko（默认无 Key 公共 API 开箱即用，可配置个人 Key 获专属额度）；" +
-            "兜底 CoinMarketCap（免费档，需配置个人 Key）；应用不内置任何 API Key"
-    const val ABOUT_NOTELEMETRY_LABEL = "无遥测声明"
-    const val ABOUT_NOTELEMETRY_VALUE = "本应用不收集、不上传任何使用数据"
+    val ABOUT_VERSION_LABEL: String get() = settingsStrings.aboutVersionLabel
+    val ABOUT_DEV_LABEL: String get() = settingsStrings.aboutDevLabel
+    val ABOUT_DEV_VALUE: String get() = settingsStrings.aboutDevValue
+    val ABOUT_PRIVACY_LABEL: String get() = settingsStrings.aboutPrivacyLabel
+    val ABOUT_PRIVACY_VALUE: String get() = settingsStrings.aboutPrivacyValue
+    val ABOUT_SOURCE_LABEL: String get() = settingsStrings.aboutSourceLabel
+    val ABOUT_SOURCE_VALUE: String get() = settingsStrings.aboutSourceValue
+    val ABOUT_NOTELEMETRY_LABEL: String get() = settingsStrings.aboutNotelemetryLabel
+    val ABOUT_NOTELEMETRY_VALUE: String get() = settingsStrings.aboutNotelemetryValue
 }

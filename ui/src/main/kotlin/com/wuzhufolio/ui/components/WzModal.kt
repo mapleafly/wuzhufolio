@@ -30,6 +30,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.wuzhufolio.ui.i18n.commonStrings
 import com.wuzhufolio.ui.theme.WzTheme
 
 /**
@@ -101,7 +102,7 @@ fun WzModal(
                         modifier = Modifier.weight(1f),
                     )
                     WzButton(
-                        text = "关闭",
+                        text = commonStrings.close,
                         onClick = onDismiss,
                         variant = WzButtonVariant.Secondary,
                         testTag = if (testTag != null) testTag + "-close" else null,

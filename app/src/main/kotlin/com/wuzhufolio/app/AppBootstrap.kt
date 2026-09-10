@@ -57,6 +57,7 @@ import com.wuzhufolio.data.ledger.CsvTradeParser
 import com.wuzhufolio.data.ledger.DefaultCalibrationService
 import com.wuzhufolio.data.ledger.DefaultFeeRuleService
 import com.wuzhufolio.data.ledger.DefaultFundService
+import com.wuzhufolio.data.portfolio.DefaultPortfolioService
 import com.wuzhufolio.data.ledger.DefaultTransactionLedgerService
 import com.wuzhufolio.data.ledger.FeeRuleRepository
 import com.wuzhufolio.data.ledger.FundFlowRepository
@@ -76,6 +77,8 @@ import com.wuzhufolio.domain.market.MarketSettingsService
 import com.wuzhufolio.domain.market.MarketWatchService
 import com.wuzhufolio.domain.accounts.AccountService
 import com.wuzhufolio.domain.redaction.LogRedactor
+import com.wuzhufolio.domain.portfolio.PortfolioService
+import com.wuzhufolio.domain.settings.AppLanguage
 import com.wuzhufolio.domain.settings.DiagnosticsService
 import com.wuzhufolio.domain.settings.GeneralSettingsService
 import com.wuzhufolio.domain.settings.LogAccess
@@ -92,10 +95,12 @@ import java.nio.file.Path
  */
 object AppBootstrap {
 
-    /** 主壳初始展示状态（主题/盈亏配色来自设置；降级说明非空时弹安全提示）。 */
+    /** 主壳初始展示状态（主题/盈亏配色/界面语言来自设置；降级说明非空时弹安全提示）。 */
     data class UiState(
         val theme: ThemeMode,
         val pnlScheme: PnlColorScheme,
+        /** M12 T12.4：界面语言（settings 全局键 `ui.language`，默认中文）。 */
+        val language: AppLanguage,
         /** 非空 = 需向用户展示的安全降级说明（T1.1「无钥匙串降级提示」）。 */
         val securityNotice: String?,
     )
@@ -135,6 +140,14 @@ object AppBootstrap {
         val fundService: FundService,
         /** M8：持仓校准用例（单一来源门 + 差额规划 + 锚点入库 + 日志留痕）。 */
         val calibrationService: CalibrationUseCase,
+        /** M12 T12.1：聚合页只读数据源（仪表盘/资产列表/币种详情）。 */
+        val portfolioService: PortfolioService,
+        /** M12：币种目录（币种详情校准需 coins 行主键，配合 cg_id 精确消歧）。 */
+        val coinCatalog: com.wuzhufolio.domain.catalog.CoinCatalog,
+        /** M12：状态栏备份提醒天数提供者（距上次备份 > 30 天；null = 不提醒）。 */
+        val backupReminderDaysProvider: suspend () -> Long?,
+        /** M12：最近一次备份时刻（仪表盘「安全与隐私」面板末行；null = 从未备份）。 */
+        val lastBackupAtProvider: suspend () -> java.time.Instant?,
         /** M9：备份恢复用例（.cpro 导出/预览/恢复 + CSV 明文导出，数据管理区）。 */
         val backupService: com.wuzhufolio.domain.backup.BackupService,
         /** M10：通用设置用例（T10.1：法币/精度/枚举开关/稳定币白名单/阈值/代理开关）。 */
@@ -313,6 +326,7 @@ object AppBootstrap {
             uiState = UiState(
                 theme = hello.theme,
                 pnlScheme = hello.pnlScheme,
+                language = AppLanguage.fromStorage(settings.getGlobal(GeneralSettingsKeys.LANGUAGE)),
                 securityNotice = securityNotice(report, keyFile),
             ),
             session = SessionRuntime(authService = authService, rememberStore = rememberStore),
@@ -325,6 +339,10 @@ object AppBootstrap {
             feeRuleService = ledger.feeRuleService,
             fundService = ledger.fundService,
             calibrationService = ledger.calibrationService,
+            portfolioService = ledger.portfolioService,
+            coinCatalog = market.catalog,
+            backupReminderDaysProvider = { backupReminderDays(gate, accountRepository, sessions) },
+            lastBackupAtProvider = { lastBackupAt(gate, sessions) },
             backupService = backup.backupService,
             generalSettingsService = generalSettings,
             diagnosticsService = diagnostics,
@@ -341,6 +359,20 @@ object AppBootstrap {
             exchangeHttpClient = exchange.httpClient,
         )
     }
+
+    /**
+     * 最近一次备份时刻（M12 仪表盘「安全与隐私」面板；账户级元数据 backup.last_at，M9 落盘）。
+     * 从未备份 / 解析失败 → null（面板不展示该行，不猜测时间）。
+     */
+    private fun lastBackupAt(gate: DbGate, sessions: ActiveSessionStore): Instant? =
+        sessions.get()?.account?.id
+            ?.let { accountId ->
+                BackupSettingsStore(gate).getAccountSetting(
+                    accountId,
+                    com.wuzhufolio.data.backup.DefaultBackupService.SETTING_LAST_BACKUP,
+                )
+            }
+            ?.let { raw -> runCatching { Instant.parse(raw) }.getOrNull() }
 
     /** 运行期日志轮转（M11 · M10 §5-5 遗留闭环）：本地日志 + sync_logs 同口径，返回脱敏摘要。 */
     private fun rotateLogsNow(gate: DbGate): String {
@@ -507,6 +539,8 @@ object AppBootstrap {
         val feeRuleService: FeeRuleService,
         val fundService: FundService,
         val calibrationService: CalibrationUseCase,
+        /** M12 T12.1：聚合页只读数据源（仪表盘/资产列表/币种详情的持仓与指标）。 */
+        val portfolioService: PortfolioService,
     ) {
         companion object {
             fun run(
@@ -539,6 +573,7 @@ object AppBootstrap {
                     eventBuilder = eventBuilder,
                     assembler = assembler,
                 )
+
                 return LedgerServicesBundle(
                     transactionLedgerService = service,
                     feeRuleService = DefaultFeeRuleService(sessions, feeRules),
@@ -567,8 +602,43 @@ object AppBootstrap {
                         adapterFactory = exchange.adapterFactory,
                         syncLogs = exchange.syncLogRepository,
                     ),
+                    portfolioService = portfolioService(
+                        sessions, txRepository, fundRepository, reconRepository,
+                        catalog, snapshots, settings, assembler, eventBuilder, cashCoinIds,
+                    ),
                 )
             }
+
+        /**
+             * M12 T12.1 聚合页数据源装配（与交易/资金/校准共享同一批仓库与事件装配层，保证仪表盘指标与
+             * 资金页总览同源——同一重放输入、同一计算器）；现价取数链同 [TransactionEventBuilder]
+             *（快照 → USD 锚定 1:1 → 最近可得），首刷成功前纯稳定币账户两页口径一致。
+             */
+        @Suppress("LongParameterList") // 装配袋（七个依赖 + 三个纯函数参数），与同类 run() 同构
+            private fun portfolioService(
+                sessions: ActiveSessionStore,
+                txRepository: LedgerTransactionRepository,
+                fundRepository: FundFlowRepository,
+                reconRepository: ReconciliationRepository,
+                catalog: SqlCoinCatalog,
+                snapshots: PriceSnapshotRepository,
+                settings: SettingsRepository,
+                assembler: LedgerEventAssembler,
+                eventBuilder: TransactionEventBuilder,
+                cashCoinIds: () -> Set<String>,
+            ): PortfolioService = DefaultPortfolioService(
+                sessions = sessions,
+                transactions = txRepository,
+                funds = fundRepository,
+                recons = reconRepository,
+                catalog = catalog,
+                snapshots = snapshots,
+                settings = settings,
+                assembler = assembler,
+                eventBuilder = eventBuilder,
+                cashCoinIds = cashCoinIds,
+            )
+
         }
     }
 

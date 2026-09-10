@@ -79,7 +79,8 @@ erDiagram
 `cash.coins`（稳定币白名单**用户扩展项** JSON 数组 [cg_id]；默认白名单 tether/usd-coin/dai/true-usd 固定于引擎常量，
 扩展项可移除——PRD「查看并扩展」语义）、`small.threshold`（小额币种阈值，**基础法币数值串，≥ 0，0 = 不启用**；自由数值按用户规模自定——M10 走查反馈修复轮废弃预设档，仪表盘「其他」归并，M12 消费）、
 `network.proxy.enabled`（"on"/"off"，默认 on；检测/指示行为 M11 T11.3 已接入——开=自动检测系统代理、
-关=直连）。 **M11 桌面集成键（T11.1/T11.2，2026-09-10）**：`tray.minimize_on_close`（"on"/"off"，**默认 on**——PRD 6.1「关闭窗口默认最小化到托盘」）、
+关=直连）、`locale`（**界面语言，M12 T12.4 起为其消费方**——值 "zh-CN"/"en-US"，解析兼容 "zh"/"en" 简写；
+该键由 M002 迁移种下默认值 `zh-CN`（P3 期预留、此前无消费方），不另立新键；决策档 D25）。 **M11 桌面集成键（T11.1/T11.2，2026-09-10）**：`tray.minimize_on_close`（"on"/"off"，**默认 on**——PRD 6.1「关闭窗口默认最小化到托盘」）、
 `autostart.enabled`（"on"/"off"，**默认 off**——PRD §9.3；**意图键**，真实注册态以平台读回为准，启动时按差异自愈）、
 `tray.sync_notification`（"on"/"off"，默认 on——PRD §9.4 同步完成/失败桌面通知）、
 `backup.reminder`（"on"/"off"，默认 on——PRD 6.1 备份提醒）。均为全局行（设备级偏好，多账户共享），

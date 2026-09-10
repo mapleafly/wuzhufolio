@@ -41,15 +41,32 @@ data class FeeRuleRow(
     val sellPercent: BigDecimal,
 )
 
-/** 费率规则校验（百分比 0–100；供 UI 与服务共用）。 */
+/**
+ * 费率规则校验（百分比 0–100；供 UI 与服务共用）。
+ *
+ * M12 T12.4：返回**类型化**错误码而非中文文案——原实现返回中文字符串，en 档会漏出中文
+ * （界面逻辑与展示文案绑在领域层）。文案映射见 ui/i18n/LedgerStrings.feeRuleInvalid。
+ */
 object FeeRulePolicy {
     val MAX_PERCENT: BigDecimal = BigDecimal(100)
 
-    /** 返回校验错误文案（null = 通过）。 */
-    fun validate(percent: BigDecimal?): String? = when {
-        percent == null -> "请输入费率（百分比，如 0.1）"
-        percent.signum() < 0 -> "费率不能为负"
-        percent > MAX_PERCENT -> "费率不能超过 100%"
+    /** 校验失败原因（null = 通过）。 */
+    enum class Error {
+        /** 未填写。 */
+        EMPTY,
+
+        /** 负数。 */
+        NEGATIVE,
+
+        /** 超过 100%。 */
+        TOO_LARGE,
+    }
+
+    /** 返回校验错误（null = 通过）。 */
+    fun validate(percent: BigDecimal?): Error? = when {
+        percent == null -> Error.EMPTY
+        percent.signum() < 0 -> Error.NEGATIVE
+        percent > MAX_PERCENT -> Error.TOO_LARGE
         else -> null
     }
 }

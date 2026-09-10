@@ -28,9 +28,8 @@ import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
 import com.wuzhufolio.ui.components.WzModal
 import com.wuzhufolio.ui.components.WzTextField
+import com.wuzhufolio.ui.i18n.WzFormat
 import com.wuzhufolio.ui.theme.WzTheme
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 /**
  * CSV 导入向导（PRD 故事 2.3 / §9.6「导入交易」）：文件选择 -> 模板下载 -> 解析预览
@@ -67,12 +66,12 @@ fun CsvImportModal(
                     value = state.fileName ?: "",
                     onValueChange = {},
                     label = TransactionCopy.CSV_FILE_LABEL,
-                    placeholder = "未选择文件",
+                    placeholder = TransactionCopy.CSV_NO_FILE,
                     modifier = Modifier.weight(1f),
                     testTag = "csv-file-name",
                 )
                 WzButton(
-                    text = if (state.busy) "解析中…" else TransactionCopy.CSV_CHOOSE,
+                    text = if (state.busy) TransactionCopy.CSV_PARSING else TransactionCopy.CSV_CHOOSE,
                     onClick = vm::pickAndParseCsv,
                     enabled = !state.busy && !state.importing,
                     testTag = "csv-pick",
@@ -110,9 +109,12 @@ fun CsvImportModal(
                         modifier = Modifier.weight(1f),
                     )
                     Text(
-                        text = "新增 " + preview.newRows + " 条 · 疑似重复 " + preview.duplicateRows +
-                            " 条 · 未解析 " + preview.unresolvedRows + " 条" +
-                            if (preview.errorRows.isNotEmpty()) " · 格式错误 " + preview.errorRows.size + " 条" else "",
+                        text = TransactionCopy.csvImpactLine(
+                            added = preview.newRows,
+                            duplicates = preview.duplicateRows,
+                            unresolved = preview.unresolvedRows,
+                            errors = preview.errorRows.size,
+                        ),
                         color = colors.ink,
                         style = WzTheme.typography.bodyStrong,
                     )
@@ -121,8 +123,10 @@ fun CsvImportModal(
                 // 涉及币种持仓变化概览
                 if (preview.affectedCoins.isNotEmpty()) {
                     Text(
-                        text = "持仓变化：" + preview.affectedCoins.take(8)
-                            .joinToString(" · ") { it.symbol + " " + signedQty(it.deltaQuantity) },
+                        text = TransactionCopy.csvHoldingsChange(
+                            preview.affectedCoins.take(8)
+                                .map { it.symbol + " " + signedQty(it.deltaQuantity) },
+                        ),
                         color = colors.ink2,
                         style = WzTheme.typography.caption,
                         modifier = Modifier.padding(top = 8.dp).testTag("csv-affected"),
@@ -130,8 +134,7 @@ fun CsvImportModal(
                 }
                 if (preview.anomalousCoins.isNotEmpty()) {
                     Text(
-                        text = TransactionCopy.CSV_ANOMALY_HINT.replace("N", preview.anomalousCoins.size.toString()) +
-                            "：" + preview.anomalousCoins.joinToString("、"),
+                        text = TransactionCopy.csvAnomalyLine(preview.anomalousCoins.size, preview.anomalousCoins),
                         color = colors.warn,
                         style = WzTheme.typography.caption,
                         modifier = Modifier.padding(top = 6.dp).testTag("csv-anomaly"),
@@ -204,7 +207,7 @@ fun CsvImportModal(
                 testTag = "csv-cancel",
             )
             WzButton(
-                text = if (state.importing) "导入中…" else TransactionCopy.CSV_CONFIRM,
+                text = if (state.importing) TransactionCopy.CSV_IMPORTING else TransactionCopy.CSV_CONFIRM,
                 onClick = vm::confirmImport,
                 enabled = state.preview != null && !state.importing,
                 modifier = Modifier.padding(start = 8.dp),
@@ -221,12 +224,42 @@ private fun CsvPreviewHeader() {
         modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).testTag("csv-preview-header"),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("时间", color = colors.ink2, style = WzTheme.typography.caption, modifier = Modifier.weight(1.4f))
-        Text("交易对", color = colors.ink2, style = WzTheme.typography.caption, modifier = Modifier.weight(1.6f))
-        Text("类型", color = colors.ink2, style = WzTheme.typography.caption, modifier = Modifier.weight(0.8f))
-        Text("价格", color = colors.ink2, style = WzTheme.typography.caption, modifier = Modifier.weight(1.2f))
-        Text("数量", color = colors.ink2, style = WzTheme.typography.caption, modifier = Modifier.weight(1.2f))
-        Text("去重", color = colors.ink2, style = WzTheme.typography.caption, modifier = Modifier.weight(1.2f))
+        Text(
+            TransactionCopy.CSV_COL_TIME,
+            color = colors.ink2,
+            style = WzTheme.typography.caption,
+            modifier = Modifier.weight(1.4f),
+        )
+        Text(
+            TransactionCopy.CSV_COL_PAIR,
+            color = colors.ink2,
+            style = WzTheme.typography.caption,
+            modifier = Modifier.weight(1.6f),
+        )
+        Text(
+            TransactionCopy.CSV_COL_SIDE,
+            color = colors.ink2,
+            style = WzTheme.typography.caption,
+            modifier = Modifier.weight(0.8f),
+        )
+        Text(
+            TransactionCopy.CSV_COL_PRICE,
+            color = colors.ink2,
+            style = WzTheme.typography.caption,
+            modifier = Modifier.weight(1.2f),
+        )
+        Text(
+            TransactionCopy.CSV_COL_QTY,
+            color = colors.ink2,
+            style = WzTheme.typography.caption,
+            modifier = Modifier.weight(1.2f),
+        )
+        Text(
+            TransactionCopy.CSV_COL_DEDUP,
+            color = colors.ink2,
+            style = WzTheme.typography.caption,
+            modifier = Modifier.weight(1.2f),
+        )
     }
 }
 
@@ -338,5 +371,4 @@ private fun AmbiguityPicker(
 private fun signedQty(q: java.math.BigDecimal): String =
     (if (q.signum() >= 0) "+" else "") + q.stripTrailingZeros().toPlainString()
 
-private fun timeText(at: java.time.Instant): String =
-    at.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+private fun timeText(at: java.time.Instant): String = WzFormat.dateTime(at)

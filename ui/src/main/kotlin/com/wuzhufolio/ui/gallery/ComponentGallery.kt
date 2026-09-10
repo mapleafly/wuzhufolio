@@ -29,6 +29,7 @@ import com.wuzhufolio.ui.components.WzModal
 import com.wuzhufolio.ui.components.WzTable
 import com.wuzhufolio.ui.components.WzTextField
 import com.wuzhufolio.ui.components.WzToastKind
+import com.wuzhufolio.ui.i18n.galleryStrings
 import com.wuzhufolio.ui.shell.ShellViewModel
 import com.wuzhufolio.ui.theme.WzTheme
 
@@ -77,27 +78,29 @@ private fun GallerySection(title: String, content: @Composable () -> Unit) {
 @Composable
 private fun TypographySection() {
     val colors = WzTheme.colors
-    GallerySection("字体层级（design-tokens §3）") {
+    val strings = galleryStrings
+    GallerySection(strings.typographySection) {
         Text(text = "$120,464.77", color = colors.ink, style = WzTheme.typography.display)
-        Text(text = "页面标题 20/600", color = colors.ink, style = WzTheme.typography.pageTitle)
-        Text(text = "正文 14：隐私、本地、可信、数据优先。", color = colors.ink, style = WzTheme.typography.body)
+        Text(text = strings.pageTitleSample, color = colors.ink, style = WzTheme.typography.pageTitle)
+        Text(text = strings.bodySample, color = colors.ink, style = WzTheme.typography.body)
         Text(
-            text = "表格数字（等宽 tnum）：0.05432100  +31.26%",
+            text = strings.tableNumberSample,
             color = colors.ink,
             style = WzTheme.typography.tableNumber,
         )
-        Text(text = "注释/时间戳 11：2026-08-31 12:00 UTC", color = colors.ink3, style = WzTheme.typography.caption)
+        Text(text = strings.captionSample, color = colors.ink3, style = WzTheme.typography.caption)
     }
 }
 
 @Composable
 private fun ButtonsSection() {
-    GallerySection("按钮（主/次/危险 + 禁用）") {
+    val strings = galleryStrings
+    GallerySection(strings.buttonsSection) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            WzButton(text = "主按钮", onClick = {}, testTag = "gallery-btn-primary")
-            WzButton(text = "次按钮", onClick = {}, variant = WzButtonVariant.Secondary)
-            WzButton(text = "危险按钮", onClick = {}, variant = WzButtonVariant.Danger)
-            WzButton(text = "禁用", onClick = {}, enabled = false)
+            WzButton(text = strings.primaryButton, onClick = {}, testTag = "gallery-btn-primary")
+            WzButton(text = strings.secondaryButton, onClick = {}, variant = WzButtonVariant.Secondary)
+            WzButton(text = strings.dangerButton, onClick = {}, variant = WzButtonVariant.Danger)
+            WzButton(text = strings.disabledButton, onClick = {}, enabled = false)
         }
     }
 }
@@ -106,19 +109,20 @@ private fun ButtonsSection() {
 private fun TextFieldsSection() {
     var normal by remember { mutableStateOf("") }
     var withError by remember { mutableStateOf("0.00") }
-    GallerySection("输入框（正常 / 错误态）") {
+    val strings = galleryStrings
+    GallerySection(strings.textFieldsSection) {
         WzTextField(
             value = normal,
             onValueChange = { normal = it },
-            label = "账户名称",
-            placeholder = "例如：主账户",
+            label = strings.accountNameLabel,
+            placeholder = strings.accountNamePlaceholder,
             testTag = "gallery-input",
         )
         WzTextField(
             value = withError,
             onValueChange = { withError = it },
-            label = "数量",
-            error = "数量必须大于 0",
+            label = strings.quantityLabel,
+            error = strings.quantityError,
         )
     }
 }
@@ -126,15 +130,20 @@ private fun TextFieldsSection() {
 @Composable
 private fun TableSection() {
     val colors = WzTheme.colors
+    val strings = galleryStrings
     var selected by remember { mutableStateOf(-1) }
     val rows = listOf(
         listOf("BTC", "0.50000000", "+$1,234.56"),
         listOf("ETH", "3.21000000", "-$45.20"),
         listOf("USDT", "46,811.14", "+$0.00"),
     )
-    GallerySection("数据表（表头 / hover / 选中行）") {
+    GallerySection(strings.tableSection) {
         WzTable(
-            columns = listOf(WzColumn("币种"), WzColumn("数量"), WzColumn("24h 盈亏")),
+            columns = listOf(
+                WzColumn(strings.symbolColumn),
+                WzColumn(strings.quantityLabel),
+                WzColumn(strings.pnl24hColumn),
+            ),
             rowCount = rows.size,
             selectedRow = selected,
             onRowClick = { selected = it },
@@ -159,11 +168,17 @@ private fun TableSection() {
 private fun ModalSection() {
     var open by remember { mutableStateOf(false) }
     var field by remember { mutableStateOf("") }
-    GallerySection("Modal（esc / 遮罩点击 / 关闭按钮可关）") {
-        WzButton(text = "打开 Modal", onClick = { open = true }, testTag = "gallery-open-modal")
+    val strings = galleryStrings
+    GallerySection(strings.modalSection) {
+        WzButton(text = strings.openModal, onClick = { open = true }, testTag = "gallery-open-modal")
         if (open) {
-            WzModal(title = "示例 Modal", onDismiss = { open = false }, testTag = "gallery-modal") {
-                WzTextField(value = field, onValueChange = { field = it }, label = "字段", placeholder = "输入内容")
+            WzModal(title = strings.modalTitle, onDismiss = { open = false }, testTag = "gallery-modal") {
+                WzTextField(
+                    value = field,
+                    onValueChange = { field = it },
+                    label = strings.fieldLabel,
+                    placeholder = strings.fieldPlaceholder,
+                )
             }
         }
     }
@@ -171,16 +186,17 @@ private fun ModalSection() {
 
 @Composable
 private fun ToastSection(viewModel: ShellViewModel) {
-    GallerySection("Toast（成功 / 失败，3s 自动消失）") {
+    val strings = galleryStrings
+    GallerySection(strings.toastSection) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             WzButton(
-                text = "成功 Toast",
-                onClick = { viewModel.showToast(WzToastKind.Success, "已保存（示例）") },
+                text = strings.successToast,
+                onClick = { viewModel.showToast(WzToastKind.Success, strings.successToastSample) },
                 testTag = "gallery-toast-success",
             )
             WzButton(
-                text = "失败 Toast",
-                onClick = { viewModel.showToast(WzToastKind.Failure, "同步失败（示例）") },
+                text = strings.failureToast,
+                onClick = { viewModel.showToast(WzToastKind.Failure, strings.failureToastSample) },
                 variant = WzButtonVariant.Danger,
                 testTag = "gallery-toast-failure",
             )
@@ -191,14 +207,15 @@ private fun ToastSection(viewModel: ShellViewModel) {
 @Composable
 private fun SemanticColorsSection(viewModel: ShellViewModel) {
     val colors = WzTheme.colors
-    GallerySection("语义色与盈亏配色方案（design-tokens §2.3，强制 +/- 符号）") {
+    val strings = galleryStrings
+    GallerySection(strings.semanticColorsSection) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             PnlColorScheme.entries.forEach { scheme ->
                 WzButton(
                     text = when (scheme) {
-                        PnlColorScheme.GREEN_UP -> "绿涨红跌"
-                        PnlColorScheme.RED_UP -> "红涨绿跌"
-                        PnlColorScheme.COLORBLIND -> "色盲友好"
+                        PnlColorScheme.GREEN_UP -> strings.pnlGreenUp
+                        PnlColorScheme.RED_UP -> strings.pnlRedUp
+                        PnlColorScheme.COLORBLIND -> strings.pnlColorblind
                     },
                     onClick = { viewModel.setPnlScheme(scheme) },
                     variant = WzButtonVariant.Secondary,

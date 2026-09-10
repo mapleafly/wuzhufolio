@@ -30,6 +30,7 @@ import com.wuzhufolio.domain.exchange.ExchangeSyncService
 import com.wuzhufolio.domain.ledger.FeeRuleService
 import com.wuzhufolio.domain.market.MarketSettingsService
 import com.wuzhufolio.domain.market.MarketRefreshService
+import com.wuzhufolio.domain.settings.AppLanguage
 import com.wuzhufolio.domain.settings.BASE_FIAT_OPTIONS
 import com.wuzhufolio.domain.settings.DesktopSettingsService
 import com.wuzhufolio.domain.settings.DiagnosticsService
@@ -48,6 +49,7 @@ import com.wuzhufolio.ui.components.WzSwitch
 import com.wuzhufolio.ui.components.WzTextField
 import com.wuzhufolio.ui.components.WzToastHost
 import com.wuzhufolio.ui.exchange.ApiManagementSection
+import com.wuzhufolio.ui.i18n.commonStrings
 import com.wuzhufolio.ui.ledger.FeeRuleSettingsSection
 import com.wuzhufolio.ui.market.MarketSettingsSection
 import com.wuzhufolio.ui.shell.ShellViewModel
@@ -125,6 +127,7 @@ fun SettingsPage(
     val intervalMinutes by intervalVm.minutes.collectAsState()
     val themeMode by shellViewModel.themeMode.collectAsState()
     val pnlScheme by shellViewModel.pnlScheme.collectAsState()
+    val language by shellViewModel.language.collectAsState()
 
     val colors = WzTheme.colors
 
@@ -136,7 +139,7 @@ fun SettingsPage(
                 .padding(24.dp)
                 .testTag("settings-scroll"),
         ) {
-            Text(text = "设置", color = colors.ink, style = WzTheme.typography.pageTitle)
+            Text(text = SettingsCopy.PAGE_TITLE, color = colors.ink, style = WzTheme.typography.pageTitle)
             Text(
                 text = SettingsCopy.PAGE_SUB,
                 color = colors.ink3,
@@ -166,8 +169,22 @@ fun SettingsPage(
                         options = listOf(ThemeMode.LIGHT, ThemeMode.DARK),
                         selected = themeMode,
                         onSelect = shellViewModel::setTheme,
-                        labelOf = { if (it == ThemeMode.LIGHT) "明亮" else "黑暗" },
+                        labelOf = { if (it == ThemeMode.LIGHT) SettingsCopy.THEME_LIGHT else SettingsCopy.THEME_DARK },
                         testTag = "theme-seg",
+                    )
+                }
+                // M12 T12.4：界面语言（PRD §6 I18N；与顶栏/主壳文案同源，切换即时生效并持久化）
+                SettingsRow(
+                    title = SettingsCopy.LANGUAGE_LABEL,
+                    description = SettingsCopy.LANGUAGE_SUB,
+                    testTag = "language-row",
+                ) {
+                    WzSegmented(
+                        options = AppLanguage.entries.toList(),
+                        selected = language,
+                        onSelect = shellViewModel::setLanguage,
+                        labelOf = { it.nativeLabel },
+                        testTag = "language-seg",
                     )
                 }
                 SettingsRow(
@@ -271,7 +288,7 @@ fun SettingsPage(
                             testTag = "threshold-input",
                         )
                         WzButton(
-                            text = "保存",
+                            text = settingsSaveLabel,
                             onClick = generalVm::saveSmallAmountThreshold,
                             variant = WzButtonVariant.Secondary,
                             testTag = "threshold-save",
@@ -370,7 +387,7 @@ fun SettingsPage(
                         options = listOf(15, 30, 60),
                         selected = intervalMinutes,
                         onSelect = intervalVm::select,
-                        labelOf = { "$it 分钟" },
+                        labelOf = SettingsCopy::intervalLabel,
                         testTag = "interval-select",
                     )
                 }
@@ -467,7 +484,7 @@ fun SettingsPage(
         LogsDialog.EXPORT_CONFIRM -> LogsModal(
             title = SettingsCopy.LOGS_EXPORT_BUTTON,
             body = SettingsCopy.LOGS_EXPORT_CONFIRM,
-            confirmLabel = "继续导出",
+            confirmLabel = SettingsCopy.CONTINUE_EXPORT,
             onConfirm = logsVm::confirmExport,
             onClose = logsVm::closeDialog,
         )
@@ -600,8 +617,7 @@ private fun LogsModal(
     }
 }
 
-private fun pnlLabel(scheme: PnlColorScheme): String = when (scheme) {
-    PnlColorScheme.GREEN_UP -> "绿涨红跌（默认）"
-    PnlColorScheme.RED_UP -> "红涨绿跌"
-    PnlColorScheme.COLORBLIND -> "色盲友好（蓝涨橙跌）"
-}
+private fun pnlLabel(scheme: PnlColorScheme): String = SettingsCopy.pnlLabel(scheme.storageValue)
+
+/** 设置页「保存」按钮文案（公共按钮目录，M12 T12.4）。 */
+private val settingsSaveLabel: String get() = commonStrings.save

@@ -29,6 +29,8 @@ import com.wuzhufolio.ui.components.WzButtonVariant
 import com.wuzhufolio.ui.components.WzModal
 import com.wuzhufolio.ui.components.WzTextField
 import com.wuzhufolio.ui.components.WzToastHost
+import com.wuzhufolio.ui.i18n.commonStrings
+import com.wuzhufolio.ui.i18n.exchangeStrings
 import com.wuzhufolio.ui.theme.WzTheme
 import java.time.Instant
 
@@ -49,7 +51,7 @@ fun ApiManagementSection(
 
     Box(modifier = modifier.testTag("api-management")) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            Text(text = "已保存 API 密钥", color = colors.ink2, style = WzTheme.typography.body,
+            Text(text = exchangeStrings.savedKeysTitle, color = colors.ink2, style = WzTheme.typography.body,
                 modifier = Modifier.padding(bottom = 4.dp))
             if (state.keys.isEmpty()) {
                 Text(
@@ -160,7 +162,7 @@ private fun ApiKeyRow(
         )
         WzButton(text = if (syncing) ApiCopy.SYNCING else ApiCopy.SYNC_NOW, onClick = onSync, enabled = !syncing,
             variant = WzButtonVariant.Secondary, testTag = "api-key-sync-" + key.id)
-        WzButton(text = "编辑", onClick = onEdit, variant = WzButtonVariant.Secondary,
+        WzButton(text = commonStrings.edit, onClick = onEdit, variant = WzButtonVariant.Secondary,
             modifier = Modifier.padding(start = 8.dp), testTag = "api-key-edit-" + key.id)
         WzButton(text = ApiCopy.REMOVE, onClick = onRemove, variant = WzButtonVariant.Danger,
             modifier = Modifier.padding(start = 8.dp), testTag = "api-key-remove-" + key.id)
@@ -171,20 +173,19 @@ private fun ApiKeyRow(
 private fun SyncLogSection(logs: List<SyncLogRow>) {
     val colors = WzTheme.colors
     Column(modifier = Modifier.fillMaxWidth().padding(top = 20.dp).testTag("api-sync-logs")) {
-        Text(text = "最近同步记录", color = colors.ink2, style = WzTheme.typography.body)
+        Text(text = exchangeStrings.recentLogsTitle, color = colors.ink2, style = WzTheme.typography.body)
         if (logs.isEmpty()) {
-            Text(text = "暂无同步记录", color = colors.ink3, style = WzTheme.typography.caption,
+            Text(text = exchangeStrings.noLogs, color = colors.ink3, style = WzTheme.typography.caption,
                 modifier = Modifier.padding(top = 6.dp))
         } else {
             logs.forEach { log ->
                 Text(
-                    text = buildString {
-                        append(formatFull(log.syncTime))
-                        append("  ")
-                        append(if (log.status == SyncStatus.OK) "成功" else "失败")
-                        append(" · 新增 ").append(log.newTradesCount)
-                        append("  ").append(log.message)
-                    },
+                    text = exchangeStrings.syncLogLine(
+                        time = formatFull(log.syncTime),
+                        ok = log.status == SyncStatus.OK,
+                        newTrades = log.newTradesCount,
+                        message = log.message,
+                    ),
                     color = if (log.status == SyncStatus.OK) colors.ink2 else colors.loss,
                     style = WzTheme.typography.caption,
                     modifier = Modifier.padding(top = 4.dp).testTag("api-sync-log-" + log.id),

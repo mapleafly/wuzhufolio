@@ -61,7 +61,7 @@ fun CalibrationModal(
             ) {
                 state.candidates.take(FundsCopy.MAX_CANDIDATES).forEach { coin ->
                     Text(
-                        text = coin.symbol + " · " + coin.name + "（" + coin.cgId + "）",
+                        text = FundsCopy.coinLabel(coin.symbol, coin.name, coin.cgId),
                         color = colors.ink,
                         style = WzTheme.typography.body,
                         modifier = Modifier

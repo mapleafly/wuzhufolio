@@ -194,6 +194,33 @@ class LedgerValidationException(
     val conflictQuantity: BigDecimal? = null,
 ) : RuntimeException(code.name + ": " + coinSymbol)
 
-/** 币种符号无法唯一解析（未收录/歧义未选——消歧规则④需用户选择固化；表单红色提示）。 */
-class CoinResolutionException(val symbol: String, val reason: String) :
-    RuntimeException("coin not resolvable: " + symbol + " (" + reason + ")")
+/**
+ * 币种符号无法唯一解析（未收录/歧义未选——消歧规则④需用户选择固化；表单红色提示）。
+ *
+ * [kind] = 类型化原因（M12 T12.4 勘误）：此前 UI 只能靠 `reason` 的中文正文判分支
+ * （`reason.contains("歧义")`），既把界面逻辑绑在数据层文案上，也让英文档无法独立成句。
+ * [reason] 保留为中文正文（zh 档逐字沿用，含候选数等动态信息）；[kind] 供 UI 判分支与 en 档成句。
+ */
+class CoinResolutionException(
+    val symbol: String,
+    val reason: String,
+    val kind: CoinResolutionKind = CoinResolutionKind.UNKNOWN,
+) : RuntimeException("coin not resolvable: " + symbol + " (" + reason + ")")
+
+/** 币种解析失败原因（UI 分支与 en 档成句输入；zh 档仍用 [CoinResolutionException.reason] 正文）。 */
+enum class CoinResolutionKind {
+    /** 歧义（同名资产多个，需用户从候选中选择）。 */
+    AMBIGUOUS,
+
+    /** 目录未收录。 */
+    NOT_FOUND,
+
+    /** 法币计价无孪生稳定币映射（MVP 不支持第三币种）。 */
+    FIAT_UNSUPPORTED,
+
+    /** 用户点选的候选已不存在/已删除。 */
+    CANDIDATE_GONE,
+
+    /** 未分类（防御默认）。 */
+    UNKNOWN,
+}

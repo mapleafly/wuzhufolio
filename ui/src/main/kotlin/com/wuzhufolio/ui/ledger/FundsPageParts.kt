@@ -11,10 +11,9 @@ import androidx.compose.ui.unit.dp
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
 import com.wuzhufolio.ui.components.WzModal
+import com.wuzhufolio.ui.i18n.WzFormat
 import com.wuzhufolio.ui.theme.WzTheme
 import java.math.BigDecimal
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 /** 删除确认框（PRD 故事 6.3：将删除 N 条资金记录并重算投入本金与 ROI，是否继续？）。 */
 @Composable
@@ -43,7 +42,7 @@ internal fun FundDeleteConfirmModal(count: Int, onCancel: () -> Unit, onConfirm:
                 testTag = "fund-delete-cancel",
             )
             WzButton(
-                text = "确认删除",
+                text = FundsCopy.CONFIRM_DELETE,
                 onClick = onConfirm,
                 variant = WzButtonVariant.Danger,
                 modifier = Modifier.padding(start = 8.dp),
@@ -57,5 +56,4 @@ internal fun fundQty(v: BigDecimal): String = v.stripTrailingZeros().toPlainStri
 
 internal fun fiatMoney(v: BigDecimal): String = "$" + v.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString()
 
-internal fun fundsTimeText(at: java.time.Instant): String =
-    at.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+internal fun fundsTimeText(at: java.time.Instant): String = WzFormat.dateTime(at)

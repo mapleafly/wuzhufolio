@@ -266,7 +266,7 @@ class FundsViewModel(
 
     /** 候选展示标签（含 cg_id——同名资产靠 CoinGecko id 区分，M8 修复轮 §8-1）。 */
     private fun pickedLabelOf(coin: CatalogCoin): String =
-        coin.symbol + " · " + coin.name + "（" + coin.cgId + "）"
+        FundsCopy.coinLabel(coin.symbol, coin.name, coin.cgId)
 
     private fun searchCoins(query: String) {
         val q = query.trim()
@@ -447,7 +447,7 @@ class FundsViewModel(
                     coinInput = coin.symbol,
                     candidates = emptyList(),
                     pickedCoinId = coin.id,
-                    pickedLabel = coin.symbol + " · " + coin.name + "（" + coin.cgId + "）",
+                    pickedLabel = FundsCopy.coinLabel(coin.symbol, coin.name, coin.cgId),
                     error = null,
                 ),
             )
@@ -510,10 +510,10 @@ class FundsViewModel(
     }
 
     private fun calibrationErrorCopy(t: Throwable): String = when (t) {
-        is CalibrationBlockedException -> t.message
+        is CalibrationBlockedException -> FundsCopy.calibrationBlocked(t.reason)
         is CoinResolutionException -> FundsCopy.coinResolutionCopy(t)
         is LedgerValidationException -> FundsCopy.validationCopy(t)
-        else -> t.message ?: "校准失败"
+        else -> t.message ?: FundsCopy.CAL_FAILED
     }
 
     fun dismissToast() {
@@ -538,7 +538,7 @@ class FundsViewModel(
     /** 法币输入实时提示（FiatNormalizer 与账本交易半边共用同一张孪生映射表——法币方案决策 D.2）。 */
     private fun fiatHintOf(value: String): String? = when (val cls = FiatNormalizer().classify(value.trim())) {
         is FiatNormalizer.Classification.TwinMapped ->
-            FundsCopy.FIAT_INPUT_HINT_PREFIX + "（" + cls.fiatCode + " → " + cls.stableSymbol + "）"
+            FundsCopy.fiatHintTwin(cls.fiatCode, cls.stableSymbol)
         is FiatNormalizer.Classification.ThirdCurrencyFiat -> FundsCopy.FIAT_INPUT_HINT_PREFIX
         FiatNormalizer.Classification.NotFiat -> null
     }

@@ -24,6 +24,7 @@ import com.wuzhufolio.domain.ledger.CalibrationPreparation
 import com.wuzhufolio.domain.ledger.CalibrationResult
 import com.wuzhufolio.domain.ledger.CalibrationUseCase
 import com.wuzhufolio.domain.ledger.CoinResolutionException
+import com.wuzhufolio.domain.ledger.CoinResolutionKind
 import com.wuzhufolio.domain.ledger.LedgerErrorCode
 import com.wuzhufolio.domain.ledger.LedgerValidationException
 import com.wuzhufolio.domain.ledger.ReconciliationRow
@@ -332,11 +333,16 @@ class DefaultCalibrationService(
         // 候选点选直达（M8 修复轮 §8-1）：按行 id 取用并校验符号一致，绕过同名符号歧义
         if (pickedCoinId != null) {
             val picked = catalog.getById(pickedCoinId)
-                ?: throw CoinResolutionException(norm, "所选币种不存在或已删除，请重新从候选列表选择")
+                ?: throw CoinResolutionException(
+                    norm,
+                    "所选币种不存在或已删除，请重新从候选列表选择",
+                    CoinResolutionKind.CANDIDATE_GONE,
+                )
             if (!picked.symbol.equals(norm, ignoreCase = true)) {
                 throw CoinResolutionException(
                     norm,
                     "所选币种（" + picked.symbol + "）与输入符号不一致，请重新从候选列表选择",
+                    CoinResolutionKind.CANDIDATE_GONE,
                 )
             }
             return picked
@@ -348,9 +354,14 @@ class DefaultCalibrationService(
             is com.wuzhufolio.domain.catalog.Resolution.Ambiguous -> throw CoinResolutionException(
                 norm,
                 "歧义（同名资产 " + res.candidates.size + " 个，请从候选选择）",
+                CoinResolutionKind.AMBIGUOUS,
             )
             com.wuzhufolio.domain.catalog.Resolution.NotFound ->
-                throw CoinResolutionException(norm, "未收录（币种目录无此资产，请更新目录或检查拼写）")
+                throw CoinResolutionException(
+                    norm,
+                    "未收录（币种目录无此资产，请更新目录或检查拼写）",
+                    CoinResolutionKind.NOT_FOUND,
+                )
         }
     }
 

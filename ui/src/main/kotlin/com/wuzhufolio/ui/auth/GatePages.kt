@@ -20,6 +20,7 @@ import com.wuzhufolio.domain.accounts.AccountPolicy
 import com.wuzhufolio.domain.accounts.AccountSummary
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzTextField
+import com.wuzhufolio.ui.i18n.authStrings
 import com.wuzhufolio.ui.theme.WzTheme
 
 /** 登录页（原型 lg*；用户名枚举下拉或纯输入双形态；记住我默认勾选）。 */
@@ -44,7 +45,7 @@ fun LoginPage(
         GateHeading(AuthCopy.LOGIN_TITLE, AuthCopy.LOGIN_SUBTITLE, testTag = "login-title")
         Column(modifier = Modifier.fillMaxWidth().padding(top = 14.dp)) {
             if (usernameEnumEnabled && accounts.isNotEmpty()) {
-                Text(text = "用户名", color = WzTheme.colors.ink2, style = WzTheme.typography.caption)
+                Text(text = authStrings.fieldUsername, color = WzTheme.colors.ink2, style = WzTheme.typography.caption)
                 UsernameEnumRow(
                     accounts = accounts.map { it.username },
                     selected = selectedUser,
@@ -61,7 +62,7 @@ fun LoginPage(
                 WzTextField(
                     value = typedUser,
                     onValueChange = { typedUser = it; onTyping() },
-                    label = "用户名",
+                    label = authStrings.fieldUsername,
                     testTag = "lg-user",
                 )
             }
@@ -72,7 +73,7 @@ fun LoginPage(
                     passwordError = null
                     onTyping()
                 },
-                label = "密码",
+                label = authStrings.fieldPassword,
                 placeholder = AuthCopy.LOGIN_PASSWORD_PLACEHOLDER,
                 error = passwordError,
                 isPassword = true,
@@ -174,7 +175,7 @@ fun CreatePage(
             WzTextField(
                 value = username,
                 onValueChange = { username = it; userError = null; onTyping() },
-                label = "用户名",
+                label = authStrings.fieldUsername,
                 placeholder = AuthCopy.CREATE_USER_PLACEHOLDER,
                 error = userError,
                 testTag = "cu-user",
@@ -182,7 +183,7 @@ fun CreatePage(
             WzTextField(
                 value = password,
                 onValueChange = { password = it; pwError = null; onTyping() },
-                label = "密码",
+                label = authStrings.fieldPassword,
                 placeholder = AuthCopy.LOGIN_PASSWORD_PLACEHOLDER,
                 error = pwError,
                 isPassword = true,
@@ -198,7 +199,7 @@ fun CreatePage(
             WzTextField(
                 value = password2,
                 onValueChange = { password2 = it; pw2Error = null; onTyping() },
-                label = "确认密码",
+                label = authStrings.fieldConfirmPassword,
                 placeholder = AuthCopy.CREATE_PW2_PLACEHOLDER,
                 error = pw2Error,
                 isPassword = true,
@@ -247,32 +248,32 @@ fun WizardPage(
 ) {
     val colors = WzTheme.colors
     GateCard(width = 660) {
-        GateHeading(AuthCopy.WIZARD_TITLE, String.format(AuthCopy.WIZARD_SUBTITLE, username), testTag = "wizard-title")
+        GateHeading(AuthCopy.WIZARD_TITLE, authStrings.wizardSubtitle(username), testTag = "wizard-title")
         Column(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
             WizardOption(
-                title = "手动添加交易",
-                description = "逐条录入买入 / 卖出记录，构建初始持仓",
+                title = authStrings.wizardManualTitle,
+                description = authStrings.wizardManualDesc,
                 recommended = false,
                 onClick = { onPick(WizardKind.MANUAL) },
                 testTag = "wizard-manual",
             )
             WizardOption(
-                title = "CSV 导入",
-                description = "导入交易所导出的 CSV 批量历史（可先下载标准模板）",
+                title = authStrings.wizardCsvTitle,
+                description = authStrings.wizardCsvDesc,
                 recommended = false,
                 onClick = { onPick(WizardKind.CSV) },
                 testTag = "wizard-csv",
             )
             WizardOption(
-                title = "关联交易所 API",
-                description = "只读密钥自动同步 · 保存后立即执行首次同步",
+                title = authStrings.wizardApiTitle,
+                description = authStrings.wizardApiDesc,
                 recommended = true,
                 onClick = { onPick(WizardKind.API) },
                 testTag = "wizard-api",
             )
             WizardOption(
-                title = "从备份恢复",
-                description = "从 .cpro 备份文件恢复全部数据（已创建目标账户）",
+                title = authStrings.wizardRestoreTitle,
+                description = authStrings.wizardRestoreDesc,
                 recommended = false,
                 onClick = { onPick(WizardKind.RESTORE) },
                 testTag = "wizard-restore",

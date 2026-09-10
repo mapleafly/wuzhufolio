@@ -201,7 +201,7 @@ private fun FrequencyRow(minutes: Int, onSelect: (Int) -> Unit) {
             options = listOf(5, 15, 30),
             selected = minutes,
             onSelect = onSelect,
-            labelOf = { "$it 分钟" },
+            labelOf = { MarketCopy.freqOptionLabel(it) },
             testTag = "freq-select",
         )
     }
@@ -227,11 +227,10 @@ private fun SourceStatusStrip(
             PriceSource.COINMARKETCAP -> MarketCopy.SOURCE_CMC
             else -> if (keyStatus.cgConfigured) MarketCopy.SOURCE_CG_KEYED else MarketCopy.SOURCE_CG_KEYLESS
         }
-        val refreshNote = when {
-            lastRefresh == null -> "（尚无刷新）"
-            lastRefresh.at == null -> "（尚无成功刷新）"
-            else -> ""
-        }
+        val refreshNote = MarketCopy.refreshNote(
+            hasResult = lastRefresh != null,
+            hasSuccess = lastRefresh?.at != null,
+        )
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(text = MarketCopy.SOURCE_PREFIX, color = colors.ink3, style = WzTheme.typography.caption)
             Text(
@@ -244,7 +243,7 @@ private fun SourceStatusStrip(
         val quota = lastRefresh?.quotaPercentUsed
         if (quota != null && quota >= 80) {
             Text(
-                text = MarketCopy.QUOTA_HINT_PREFIX + " " + quota + "%" + MarketCopy.QUOTA_HINT_SUFFIX,
+                text = MarketCopy.quotaHint(quota),
                 color = colors.warn,
                 style = WzTheme.typography.caption,
                 modifier = Modifier.padding(top = 4.dp),
@@ -255,7 +254,7 @@ private fun SourceStatusStrip(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = MarketCopy.LAST_REFRESH_PREFIX + "：" + timeOrDash(lastRefresh?.at),
+                text = MarketCopy.lastRefreshTime(timeOrDash(lastRefresh?.at)),
                 color = colors.ink3,
                 style = WzTheme.typography.caption,
                 modifier = Modifier.weight(1f),

@@ -6,6 +6,7 @@ import com.wuzhufolio.domain.settings.DesktopSettingsService
 import com.wuzhufolio.domain.settings.DesktopSettingsView
 import com.wuzhufolio.ui.components.WzToast
 import com.wuzhufolio.ui.components.WzToastKind
+import com.wuzhufolio.ui.i18n.settingsStrings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -64,22 +65,22 @@ class DesktopSettingsViewModel(
             .onSuccess { (view, autostart) ->
                 _state.update { it.copy(view = view, autostart = autostart, error = null) }
             }
-            .onFailure { t -> _state.update { it.copy(error = t.message ?: "读取设置失败") } }
+            .onFailure { t -> _state.update { it.copy(error = t.message ?: settingsStrings.loadFailed) } }
     }
 
     fun setMinimizeOnClose(on: Boolean) = launch(
         { service.setMinimizeOnClose(on) },
-        if (on) "关闭窗口将最小化到托盘" else "关闭窗口将直接退出",
+        settingsStrings.minimizeOnCloseSet(on),
     )
 
     fun setSyncNotification(on: Boolean) = launch(
         { service.setSyncNotification(on) },
-        if (on) "同步通知已开启" else "同步通知已关闭",
+        settingsStrings.syncNotificationSet(on),
     )
 
     fun setBackupReminder(on: Boolean) = launch(
         { service.setBackupReminder(on) },
-        if (on) "备份提醒已开启" else "备份提醒已关闭",
+        settingsStrings.backupReminderSet(on),
     )
 
     /** 开机自启（平台注册可能失败：失败提示原因并回读真实注册态）。 */
@@ -93,13 +94,13 @@ class DesktopSettingsViewModel(
                             it.copy(
                                 toast = WzToast(
                                     WzToastKind.Success,
-                                    if (on) "已设置开机自启" else "已取消开机自启",
+                                    settingsStrings.autostartSet(on),
                                 ),
                             )
                         }
                     }
                     .onFailure { t ->
-                        val reason = t.message ?: "平台注册失败"
+                        val reason = t.message ?: settingsStrings.autostartRegisterFailed
                         _state.update { it.copy(error = reason, toast = WzToast(WzToastKind.Failure, reason)) }
                     }
                 reloadNow()
@@ -119,7 +120,7 @@ class DesktopSettingsViewModel(
                         _state.update { it.copy(toast = WzToast(WzToastKind.Success, successMessage)) }
                     }
                     .onFailure { t ->
-                        val message = t.message ?: "保存失败"
+                        val message = t.message ?: settingsStrings.saveFailed
                         _state.update {
                             it.copy(error = message, toast = WzToast(WzToastKind.Failure, message))
                         }

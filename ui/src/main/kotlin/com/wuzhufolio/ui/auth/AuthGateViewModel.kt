@@ -15,6 +15,7 @@ import com.wuzhufolio.domain.accounts.UsernameTakenException
 import com.wuzhufolio.domain.security.Zeroization
 import com.wuzhufolio.ui.components.WzToast
 import com.wuzhufolio.ui.components.WzToastKind
+import com.wuzhufolio.ui.i18n.authStrings
 import com.wuzhufolio.ui.shell.ShellPage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -110,7 +111,7 @@ class AuthGateViewModel(private val service: AccountService) {
             _state.value = _state.value.copy(busyText = AuthCopy.LOGIN_LOADING, formError = null)
             try {
                 val session = service.login(LoginReq(username, pw, rememberMe))
-                showToast(WzToastKind.Success, String.format(AuthCopy.LOGIN_TOAST_OK, session.account.username))
+                showToast(WzToastKind.Success, authStrings.loginToastOk(session.account.username))
                 _shellToPage.value = ShellPage.DASHBOARD
                 val accounts = service.listAccounts()
                 _state.value = _state.value.copy(
@@ -152,7 +153,7 @@ class AuthGateViewModel(private val service: AccountService) {
             _state.value = _state.value.copy(busyText = AuthCopy.LOGIN_LOADING, formError = null)
             try {
                 val session = service.createAccount(CreateAccountReq(username, pw, rememberMe))
-                showToast(WzToastKind.Success, String.format(AuthCopy.CREATE_TOAST_OK, session.account.username))
+                showToast(WzToastKind.Success, authStrings.createToastOk(session.account.username))
                 val accounts = service.listAccounts()
                 _shellToPage.value = ShellPage.DASHBOARD
                 _state.value = _state.value.copy(
@@ -184,11 +185,11 @@ class AuthGateViewModel(private val service: AccountService) {
                 WizardKind.RESTORE -> showToast(WzToastKind.Success, AuthCopy.WIZARD_RESTORE_READY_TOAST)
                 WizardKind.MANUAL -> showToast(
                     WzToastKind.Failure,
-                    String.format(AuthCopy.WIZARD_PICK_TOAST, AuthCopy.MODULE_MANUAL),
+                    authStrings.wizardPickToast(authStrings.moduleManual),
                 )
                 WizardKind.CSV -> showToast(
                     WzToastKind.Failure,
-                    String.format(AuthCopy.WIZARD_PICK_TOAST, AuthCopy.MODULE_CSV),
+                    authStrings.wizardPickToast(authStrings.moduleCsv),
                 )
             }
             enterShellQuiet(session, service.listAccounts())
@@ -229,7 +230,7 @@ class AuthGateViewModel(private val service: AccountService) {
             try {
                 val session = service.switchAccount(SwitchReq(target.id, pw))
                 _state.value = _state.value.copy(dialog = AccountDialog.NONE, dialogTarget = null, dialogBusy = false)
-                showToast(WzToastKind.Success, String.format(AuthCopy.SWITCH_TOAST_OK, session.account.username))
+                showToast(WzToastKind.Success, authStrings.switchToastOk(session.account.username))
                 _state.value = _state.value.copy(session = session, accounts = service.listAccounts())
             } catch (e: PasswordMismatchException) {
                 _state.value = _state.value.copy(dialogBusy = false, dialogError = AuthCopy.ERR_PASSWORD_MISMATCH)
