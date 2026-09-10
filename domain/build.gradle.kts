@@ -1,11 +1,13 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization) // M9 .cpro 头部/载荷 JSON（ADR-005：kotlinx.serialization，跨平台跨版本可读）
 }
 
 dependencies {
     // Argon2id 纯 JVM 实现（ADR-002 §2 KDF：BouncyCastle Argon2BytesGenerator；M1 T1.3 基准校准后冻结参数。
     // argon2-jvm（JNA 原生绑定）评估后未采用——纯 JVM 免去三平台原生库分发风险，速度实测见 docs/dev/modules/M1.md）
     implementation(libs.bcprov)
+    implementation(libs.kotlinx.serialization.json)
 
     testImplementation(kotlin("test-junit5"))
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
