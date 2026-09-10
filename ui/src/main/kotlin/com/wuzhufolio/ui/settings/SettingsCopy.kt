@@ -53,10 +53,28 @@ object SettingsCopy {
     // ---- 网络 / 行情与同步 ----
 
     const val PROXY_LABEL = "系统代理"
-    const val PROXY_SUB = "自动检测并使用操作系统代理（检测与状态栏指示随 M11 接入）"
+    const val PROXY_SUB = "自动检测并使用操作系统代理；关闭则全部直连（状态栏显示当前连接方式）"
 
     const val SYNC_INTERVAL_LABEL = "API 同步间隔（交易数据）"
     const val SYNC_INTERVAL_SUB = "自动增量同步的间隔（默认 30 分钟）"
+
+    // ---- 托盘与后台（M11 T11.1/T11.2；PRD 6.1「托盘与后台」+「备份提醒」） ----
+
+    const val GROUP_TRAY = "托盘与后台"
+
+    const val MINIMIZE_LABEL = "关闭窗口最小化到托盘"
+    const val MINIMIZE_SUB = "关闭后应用继续在托盘驻留并按时同步；关闭此开关则关窗即退出"
+    const val MINIMIZE_UNAVAILABLE = "当前系统环境不支持系统托盘——关窗将直接退出"
+
+    const val AUTOSTART_LABEL = "开机自动启动"
+    const val AUTOSTART_SUB = "随系统启动并驻留托盘（默认关闭）"
+    const val AUTOSTART_UNAVAILABLE = "当前运行方式无法注册开机自启"
+
+    const val SYNC_NOTIFY_LABEL = "同步完成/失败通知"
+    const val SYNC_NOTIFY_SUB = "后台同步结束时的桌面通知（失败必提示）"
+
+    const val BACKUP_REMINDER_LABEL = "备份提醒"
+    const val BACKUP_REMINDER_SUB = "距上次备份超过 30 天时提醒导出 .cpro 备份"
 
     // ---- 日志与诊断（interaction §2.6 逐字口径） ----
 

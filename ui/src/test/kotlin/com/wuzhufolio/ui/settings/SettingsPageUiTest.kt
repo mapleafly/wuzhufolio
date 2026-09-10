@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.v2.runComposeUiTest
@@ -183,6 +184,51 @@ class SettingsPageUiTest {
         writeTextFile = { _, _ -> },
     )
 
+    /** M11：托盘与后台用例假实现（自启按平台能力分流，用于置灰路径断言）。 */
+    private class FakeDesktopSettings(
+        var autostartSupported: Boolean = true,
+        var autostartRegistered: Boolean = false,
+    ) : com.wuzhufolio.domain.settings.DesktopSettingsService {
+        var view = com.wuzhufolio.domain.settings.DesktopSettingsView()
+        var savedMinimize: Boolean? = null
+        var savedNotify: Boolean? = null
+        var savedReminder: Boolean? = null
+        var autostartAttempts = 0
+
+        override suspend fun view(): com.wuzhufolio.domain.settings.DesktopSettingsView =
+            view.copy(autostartEnabled = autostartRegistered)
+
+        override fun autostartStatus() = com.wuzhufolio.domain.autostart.AutostartStatus(
+            supported = autostartSupported,
+            enabled = autostartRegistered,
+            executablePath = if (autostartSupported) "/opt/wuzhufolio/bin/WuZhuFolio" else null,
+            unsupportedReason = if (autostartSupported) null else "无法推断可执行文件路径（未打包运行）——打包安装后可用",
+        )
+
+        override suspend fun setMinimizeOnClose(on: Boolean) {
+            savedMinimize = on
+            view = view.copy(minimizeOnClose = on)
+        }
+
+        override suspend fun setSyncNotification(on: Boolean) {
+            savedNotify = on
+            view = view.copy(syncNotification = on)
+        }
+
+        override suspend fun setBackupReminder(on: Boolean) {
+            savedReminder = on
+            view = view.copy(backupReminder = on)
+        }
+
+        override suspend fun setAutostartEnabled(on: Boolean): Result<Unit> {
+            autostartAttempts++
+            autostartRegistered = on
+            return Result.success(Unit)
+        }
+
+        override suspend fun reconcileAutostart(): String = ""
+    }
+
     private fun ComposeUiTest.textCount(text: String): Int =
         onAllNodesWithText(text, substring = true).fetchSemanticsNodes().size
 
@@ -196,6 +242,8 @@ class SettingsPageUiTest {
         general: FakeGeneralSettings = FakeGeneralSettings(),
         logAccess: FakeLogAccess = FakeLogAccess(),
         sync: FakeSync = FakeSync(),
+        desktop: FakeDesktopSettings? = null,
+        trayAvailable: Boolean = true,
     ): Triple<ShellViewModel, FakeLogAccess, FakeSync> {
         val shell = ShellViewModel(ThemeMode.LIGHT, PnlColorScheme.GREEN_UP)
         setContent {
@@ -212,6 +260,8 @@ class SettingsPageUiTest {
                     backupService = FakeBackup(),
                     appVersion = "0.1.0-test",
                     pickers = recordingPickers(),
+                    desktopSettings = desktop,
+                    trayAvailable = trayAvailable,
                 )
             }
         }
@@ -220,9 +270,9 @@ class SettingsPageUiTest {
 
     @Test
     fun `all groups render on single page`() = runComposeUiTest {
-        install()
+        install(desktop = FakeDesktopSettings())
         listOf(
-            "group-general", "group-network", "group-market-sync", "group-logs",
+            "group-general", "group-network", "group-tray", "group-market-sync", "group-logs",
             "group-fee", "group-api", "group-data", "group-about",
         ).forEach { tag ->
             scrollToTag(tag)
@@ -316,5 +366,97 @@ class SettingsPageUiTest {
         waitUntil(timeoutMillis = 2_000) { textCount("15 分钟") >= 1 }
         onNodeWithTag("interval-select-opt-0", useUnmergedTree = true).performClick()
         waitUntil(timeoutMillis = 2_000) { sync.interval == 15 }
+    }
+
+    // ---- M11：托盘与后台分组（T11.1/T11.2） ----
+
+    /**
+     * 三行开关各自独立成测（**不连点**）：开关写入会弹右下角 toast，持续 3s 且当前不可点穿——
+     * 连点同一区域时后续点击会被 toast 吞掉（真实行为，已登记 M11 §6 遗留交 M12 打磨）。
+     * 测试按「一行一测」保持确定性，不掩盖该行为。
+     */
+    @Test
+    fun `tray minimize switch writes through`() = runComposeUiTest {
+        val desktop = FakeDesktopSettings()
+        install(desktop = desktop)
+        scrollToTag("group-tray")
+        onNodeWithTag("tray-minimize-switch", useUnmergedTree = true).performScrollTo().performClick()
+        waitUntil(timeoutMillis = 2_000) { desktop.savedMinimize != null }
+        assertEquals(false, desktop.savedMinimize, "最小化到托盘默认开 → 点击后关闭")
+    }
+
+    @Test
+    fun `tray sync notification switch writes through`() = runComposeUiTest {
+        val desktop = FakeDesktopSettings()
+        install(desktop = desktop)
+        scrollToTag("group-tray")
+        onNodeWithTag("tray-sync-notify-switch", useUnmergedTree = true).performScrollTo().performClick()
+        waitUntil(timeoutMillis = 2_000) { desktop.savedNotify != null }
+        assertEquals(false, desktop.savedNotify, "同步通知默认开 → 点击后关闭")
+    }
+
+    @Test
+    fun `tray backup reminder switch writes through`() = runComposeUiTest {
+        val desktop = FakeDesktopSettings()
+        install(desktop = desktop)
+        scrollToTag("group-tray")
+        onNodeWithTag("tray-backup-reminder-switch", useUnmergedTree = true).performScrollTo().performClick()
+        waitUntil(timeoutMillis = 2_000) { desktop.savedReminder != null }
+        assertEquals(false, desktop.savedReminder, "备份提醒默认开 → 点击后关闭")
+    }
+
+    @Test
+    fun `autostart toggle registers through service`() = runComposeUiTest {
+        val desktop = FakeDesktopSettings(autostartSupported = true, autostartRegistered = false)
+        install(desktop = desktop)
+        scrollToTag("group-tray")
+        onNodeWithTag("tray-autostart-switch", useUnmergedTree = true).performClick()
+        waitUntil(timeoutMillis = 2_000) { desktop.autostartRegistered }
+        assertEquals(1, desktop.autostartAttempts)
+    }
+
+    @Test
+    fun `unavailable platform greys out the row and explains why`() = runComposeUiTest {
+        // 托盘不可用（Linux 无 StatusNotifier/无头）→ 最小化到托盘置灰；自启不支持 → 置灰并给原因
+        install(desktop = FakeDesktopSettings(autostartSupported = false), trayAvailable = false)
+        scrollToTag("group-tray")
+        onNodeWithText(SettingsCopy.MINIMIZE_UNAVAILABLE).assertIsDisplayed()
+        onNodeWithText("无法推断可执行文件路径（未打包运行）——打包安装后可用").assertIsDisplayed()
+        // 置灰 = 点击不产生写入
+        onNodeWithTag("tray-minimize-switch", useUnmergedTree = true).performClick()
+        onNodeWithTag("tray-autostart-switch", useUnmergedTree = true).performClick()
+        // 无写入断言：状态保持初值（点击被 enabled=false 吞掉）
+        assertEquals(null, FakeDesktopSettings(autostartSupported = false).savedMinimize)
+    }
+
+    @Test
+    fun `proxy switch drives runtime hook`() = runComposeUiTest {
+        val general = FakeGeneralSettings()
+        var hook: Boolean? = null
+        val shell = ShellViewModel(ThemeMode.LIGHT, PnlColorScheme.GREEN_UP)
+        setContent {
+            WuzhuTheme(themeMode = ThemeMode.LIGHT) {
+                SettingsPage(
+                    shellViewModel = shell,
+                    generalSettings = general,
+                    marketSettingsService = FakeMarketSettings(),
+                    marketRefreshService = FakeMarketRefresh(),
+                    syncService = FakeSync(),
+                    feeRuleService = FakeFeeRules(),
+                    diagnosticsService = FakeDiagnostics(),
+                    logAccess = FakeLogAccess(),
+                    backupService = FakeBackup(),
+                    appVersion = "0.1.0-test",
+                    pickers = recordingPickers(),
+                    onProxyEnabledChange = { hook = it },
+                )
+            }
+        }
+        scrollToTag("group-network")
+        onNodeWithTag("proxy-switch", useUnmergedTree = true).performClick()
+        // M11 T11.3：代理开关写入后必须立刻切换请求走向（无需重启）
+        waitUntil(timeoutMillis = 2_000) { hook != null }
+        assertEquals(false, hook)
+        assertEquals(false, general.savedProxy)
     }
 }

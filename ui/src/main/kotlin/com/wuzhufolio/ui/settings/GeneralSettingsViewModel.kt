@@ -35,6 +35,11 @@ data class GeneralSettingsUiState(
 @Suppress("TooManyFunctions") // 每个设置项一个写入口（法币/精度/枚举/白名单增删/阈值/代理）+ 加载/toast，动作面固有
 class GeneralSettingsViewModel(
     private val service: GeneralSettingsService,
+    /**
+     * M11 T11.3：代理开关运行期生效钩子（写入成功后同步 ProxyRuntime 检测态与状态栏指示）。
+     * 默认空实现 = 仅落设置（既有 UI 测试无需构造引导层运行时）。
+     */
+    private val onProxyEnabledChange: (Boolean) -> Unit = {},
 ) : ViewModel() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -107,7 +112,11 @@ class GeneralSettingsViewModel(
     }
 
     fun setProxyEnabled(on: Boolean) = launch(
-        { service.setProxyEnabled(on) },
+        {
+            service.setProxyEnabled(on)
+            // 落盘后即时切换请求走向（PRD 6.2：关 = 直连 / 开 = 自动检测系统代理），无需重启
+            onProxyEnabledChange(on)
+        },
         if (on) "系统代理已开启（自动检测）" else "系统代理已关闭（直连）",
     )
 

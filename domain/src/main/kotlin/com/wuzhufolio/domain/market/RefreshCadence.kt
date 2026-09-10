@@ -36,5 +36,9 @@ enum class RefreshFrequency(val minutes: Int, val storageValue: String) {
     companion object {
         fun fromStorage(value: String?): RefreshFrequency =
             entries.firstOrNull { it.storageValue == value } ?: MIN5
+
+        /** 分钟数 → 档位（M11 调度宿主用：设置接口暴露分钟数；非 5/15/30 值兜底 MIN5）。 */
+        fun fromMinutes(minutes: Int): RefreshFrequency =
+            entries.firstOrNull { it.minutes == minutes } ?: MIN5
     }
 }

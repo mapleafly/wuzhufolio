@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.wuzhufolio.domain.proxy.ProxyStatus
 import com.wuzhufolio.domain.settings.ThemeMode
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
@@ -65,6 +66,8 @@ fun MainShell(
     /** 顶栏手动同步结果 toast（与主壳 toast 合并展示）。 */
     manualSyncToast: WzToast? = null,
     onManualSyncToastDismiss: () -> Unit = {},
+    /** M11 T11.3：状态栏代理指示（直连 / 系统代理 + 悬停提示；PRD 4.2 验收 3）。 */
+    proxyStatus: ProxyStatus = ProxyStatus.DEFAULT,
 ) {
     val themeMode by viewModel.themeMode.collectAsState()
     val pnlScheme by viewModel.pnlScheme.collectAsState()
@@ -139,7 +142,7 @@ fun MainShell(
                     }
                 }
                 WzStatusBar(
-                    proxyActive = false,
+                    proxyStatus = proxyStatus,
                     syncStatus = "同步：空闲（M5/M6 接入）",
                     dataSource = "数据源：CoinGecko",
                     version = "v0.1.0-m0",

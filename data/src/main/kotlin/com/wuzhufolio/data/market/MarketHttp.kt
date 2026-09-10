@@ -46,15 +46,24 @@ import java.time.Instant
  * 字段缺失按缺席处理（未收录币直接缺席），形状破坏抛 [MarketApiException]。
  */
 
-/** 生产客户端：OkHttp 引擎 + 超时 + UA（OkHttp 原生遵循 JVM ProxySelector——ADR-001/003）。 */
-fun newOkHttpMarketClient(): HttpClient = HttpClient(io.ktor.client.engine.okhttp.OkHttp) {
-    expectSuccess = false
-    install(HttpTimeout) {
-        requestTimeoutMillis = 20_000
-        connectTimeoutMillis = 10_000
+/**
+ * 生产客户端：OkHttp 引擎 + 超时 + UA（OkHttp 原生遵循 JVM ProxySelector——ADR-001/003）。
+ *
+ * M11 T11.3：注入 [proxySelector]（= ProxyRuntime.selector，开关感知——开则委派系统代理、关则直连）；
+ * null 时保持 OkHttp 默认（`ProxySelector.getDefault()`），既有测试与 MockEngine 路径不受影响。
+ */
+fun newOkHttpMarketClient(proxySelector: java.net.ProxySelector? = null): HttpClient =
+    HttpClient(io.ktor.client.engine.okhttp.OkHttp) {
+        expectSuccess = false
+        if (proxySelector != null) {
+            engine { config { proxySelector(proxySelector) } }
+        }
+        install(HttpTimeout) {
+            requestTimeoutMillis = 20_000
+            connectTimeoutMillis = 10_000
+        }
+        defaultRequest { header(HttpHeaders.UserAgent, USER_AGENT) }
     }
-    defaultRequest { header(HttpHeaders.UserAgent, USER_AGENT) }
-}
 
 /** 网络层异常 → Network 错误（429 等业务状态映射在各 provider）。 */
 @Suppress("SwallowedException") // 全部非业务异常归一为 Network 错误（原始异常不入错误模型——脱敏口径）

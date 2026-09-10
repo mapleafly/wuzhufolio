@@ -60,6 +60,9 @@ fun AuthGate(
     manualSyncing: Boolean = false,
     manualSyncToast: com.wuzhufolio.ui.components.WzToast? = null,
     onManualSyncToastDismiss: () -> Unit = {},
+    /** M11 T11.3：状态栏代理指示（直连 / 系统代理；PRD 4.2 验收 3）。 */
+    proxyStatus: com.wuzhufolio.domain.proxy.ProxyStatus =
+        com.wuzhufolio.domain.proxy.ProxyStatus.DEFAULT,
 ) {
     val vm = remember { AuthGateViewModel(authService).also { it.start() } }
     DisposableEffect(vm) {
@@ -139,6 +142,7 @@ fun AuthGate(
                             manualSyncing = manualSyncing,
                             manualSyncToast = manualSyncToast,
                             onManualSyncToastDismiss = onManualSyncToastDismiss,
+                            proxyStatus = proxyStatus,
                         )
                     }
                 }

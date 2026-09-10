@@ -281,12 +281,21 @@ class BinanceAdapter(
     }
 }
 
-/** 生产客户端：OkHttp 引擎 + 超时 + UA（同行情 M5 口径；两类 API 各自独立客户端实例——隔离验证项）。 */
-fun newOkHttpExchangeClient(): HttpClient = HttpClient(io.ktor.client.engine.okhttp.OkHttp) {
-    expectSuccess = false
-    install(HttpTimeout) {
-        requestTimeoutMillis = 20_000
-        connectTimeoutMillis = 10_000
+/**
+ * 生产客户端：OkHttp 引擎 + 超时 + UA（同行情 M5 口径；两类 API 各自独立客户端实例——隔离验证项）。
+ *
+ * M11 T11.3：[proxySelector] 口径与行情客户端完全一致（同一 ProxyRuntime.selector 实例）——
+ * PRD §7.2-6.2「所有对外请求均经代理」由两个客户端共用同一 selector 保证，不各自判定。
+ */
+fun newOkHttpExchangeClient(proxySelector: java.net.ProxySelector? = null): HttpClient =
+    HttpClient(io.ktor.client.engine.okhttp.OkHttp) {
+        expectSuccess = false
+        if (proxySelector != null) {
+            engine { config { proxySelector(proxySelector) } }
+        }
+        install(HttpTimeout) {
+            requestTimeoutMillis = 20_000
+            connectTimeoutMillis = 10_000
+        }
+        defaultRequest { header(HttpHeaders.UserAgent, ExchangeConfig.USER_AGENT) }
     }
-    defaultRequest { header(HttpHeaders.UserAgent, ExchangeConfig.USER_AGENT) }
-}

@@ -20,7 +20,9 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.wuzhufolio.data.db.DatabaseKeyMismatchException
 import com.wuzhufolio.data.db.DatabaseOpenException
+import com.wuzhufolio.data.proxy.JdkSystemProxy
 import com.wuzhufolio.data.security.MasterKeyFileException
+import com.wuzhufolio.domain.proxy.ProxyStatus
 import com.wuzhufolio.domain.settings.ThemeMode
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
@@ -48,6 +50,10 @@ import java.nio.file.StandardOpenOption
  * 成功路径不组合任何窗口即静默退出（失败路径恰命中 Fatal 分支，故未暴露）。
  */
 fun main() {
+    // M11 T11.3：必须在任何网络类加载前开启 JDK 系统代理探测
+    // （sun.net.spi.DefaultProxySelector 在类初始化时读取 java.net.useSystemProxies 一次；
+    //  打包版另有 app/build.gradle.kts 的 jvmArgs 兜底）
+    JdkSystemProxy.enable()
     System.setProperty("wuzhufolio.logdir", AppDirs.logDir().toString())
     val logger = LoggerFactory.getLogger("wuzhufolio.bootstrap")
 
@@ -62,7 +68,8 @@ fun main() {
         when (outcome) {
             is Outcome.Ready -> {
                 val runtime = outcome.runtime
-                MainWindow(runtime, onExit = { runtime.close(); exitApplication() })
+                // M11：窗口/托盘/调度宿主由 AppHost 统一持有（可见性真源单一——见 AppHost 头注）
+                AppHost(runtime, onExit = { runtime.close(); exitApplication() })
             }
             is Outcome.Fatal -> FatalWindow(outcome, onExit = { exitApplication() })
         }
@@ -74,8 +81,15 @@ private sealed interface Outcome {
     data class Fatal(val title: String, val message: String) : Outcome
 }
 
+/**
+ * 主窗口内容（M11 起由 [AppHost] 的 `Window` 承载——窗口本身与托盘/可见性同源，故窗口包装留在 AppHost）。
+ */
 @Composable
-private fun MainWindow(runtime: AppBootstrap.Runtime, onExit: () -> Unit) {
+internal fun MainWindowContent(
+    runtime: AppBootstrap.Runtime,
+    proxyStatus: ProxyStatus,
+    trayAvailable: Boolean,
+) {
     // 顶栏手动同步（PRD 故事 4.3）：VM 持有同步状态与结果 toast
     val syncViewModel = remember { TopBarSyncViewModel(runtime.exchangeSyncService) }
     DisposableEffect(syncViewModel) {
@@ -83,75 +97,74 @@ private fun MainWindow(runtime: AppBootstrap.Runtime, onExit: () -> Unit) {
     }
     val manualSyncing by syncViewModel.syncing.collectAsState()
     val manualSyncToast by syncViewModel.toast.collectAsState()
-    Window(
-        onCloseRequest = onExit,
-        title = "WuZhuFolio",
-        state = rememberWindowState(width = 1280.dp, height = 800.dp),
-    ) {
-        AuthGate(
-            authService = runtime.session.authService,
-            themeMode = runtime.uiState.theme,
-            pnlScheme = runtime.uiState.pnlScheme,
-            // M10：登录页每次进入重读（设置页枚举开关关闭后无需重启即生效）
-            usernameEnumEnabled = { usernameEnumEnabled(runtime) },
-            startupNotice = runtime.uiState.securityNotice,
-            // M10：主题/盈亏配色持久化（顶栏 ☾ 与设置页「主题（明/暗）」双向同步，PRD 6.1）
-            onShellPreferenceChange = { key, value -> runtime.settings.putGlobal(key, value) },
-            settingsPageContent = { shellViewModel ->
-                SettingsPage(
-                    shellViewModel = shellViewModel,
-                    generalSettings = runtime.generalSettingsService,
-                    marketSettingsService = runtime.marketSettingsService,
-                    marketRefreshService = runtime.marketRefreshService,
-                    syncService = runtime.exchangeSyncService,
-                    feeRuleService = runtime.feeRuleService,
-                    diagnosticsService = runtime.diagnosticsService,
-                    logAccess = runtime.logAccess,
-                    backupService = runtime.backupService,
-                    appVersion = com.wuzhufolio.data.backup.DefaultBackupService.APP_VERSION,
-                    pickers = SettingsFilePickers(
-                        pickLogSave = { title -> FilePicker.pickSave(title) },
-                        pickReportSave = { title -> FilePicker.pickSave(title) },
-                        writeTextFile = ::writeTextFile,
-                        pickCproSave = {
-                            FilePicker.pickSave("保存 .cpro 备份")
-                                ?.let { BackupFileNames.withExtension(it, ".cpro") }
-                        },
-                        pickCproLoad = { FilePicker.pickLoad("选择 .cpro 备份") },
-                        pickCsvSave = { kind ->
-                            FilePicker.pickSave("导出 CSV（" + kind.fileNameHint + "）")
-                                ?.let { BackupFileNames.withExtension(it, ".csv") }
-                        },
-                    ),
-                )
-            },
-            watchPageContent = {
-                MarketWatchPage(
-                    watchService = runtime.marketWatchService,
-                    quotesService = runtime.marketQuotesService,
-                    refreshService = runtime.marketRefreshService,
-                    settingsService = runtime.marketSettingsService,
-                )
-            },
-            transactionsPageContent = {
-                TransactionsPage(
-                    service = runtime.transactionLedgerService,
-                    pickCsvFile = { FilePicker.pickLoad("选择 CSV 文件") },
-                    pickTemplatePath = { FilePicker.pickSave("保存 CSV 模板") },
-                )
-            },
-            fundsPageContent = {
-                FundsPage(
-                    service = runtime.fundService,
-                    calibration = runtime.calibrationService,
-                )
-            },
-            onManualSync = syncViewModel::syncNow,
-            manualSyncing = manualSyncing,
-            manualSyncToast = manualSyncToast,
-            onManualSyncToastDismiss = syncViewModel::dismissToast,
-        )
-    }
+    AuthGate(
+        authService = runtime.session.authService,
+        themeMode = runtime.uiState.theme,
+        pnlScheme = runtime.uiState.pnlScheme,
+        // M11 T11.3：状态栏代理指示（直连 / 系统代理，PRD 4.2 验收 3）
+        proxyStatus = proxyStatus,
+        // M10：登录页每次进入重读（设置页枚举开关关闭后无需重启即生效）
+        usernameEnumEnabled = { usernameEnumEnabled(runtime) },
+        startupNotice = runtime.uiState.securityNotice,
+        // M10：主题/盈亏配色持久化（顶栏 ☾ 与设置页「主题（明/暗）」双向同步，PRD 6.1）
+        onShellPreferenceChange = { key, value -> runtime.settings.putGlobal(key, value) },
+        settingsPageContent = { shellViewModel ->
+            SettingsPage(
+                shellViewModel = shellViewModel,
+                generalSettings = runtime.generalSettingsService,
+                marketSettingsService = runtime.marketSettingsService,
+                marketRefreshService = runtime.marketRefreshService,
+                syncService = runtime.exchangeSyncService,
+                feeRuleService = runtime.feeRuleService,
+                diagnosticsService = runtime.diagnosticsService,
+                logAccess = runtime.logAccess,
+                backupService = runtime.backupService,
+                desktopSettings = runtime.desktopSettingsService,
+                trayAvailable = trayAvailable,
+                appVersion = com.wuzhufolio.data.backup.DefaultBackupService.APP_VERSION,
+                pickers = SettingsFilePickers(
+                    pickLogSave = { title -> FilePicker.pickSave(title) },
+                    pickReportSave = { title -> FilePicker.pickSave(title) },
+                    writeTextFile = ::writeTextFile,
+                    pickCproSave = {
+                        FilePicker.pickSave("保存 .cpro 备份")
+                            ?.let { BackupFileNames.withExtension(it, ".cpro") }
+                    },
+                    pickCproLoad = { FilePicker.pickLoad("选择 .cpro 备份") },
+                    pickCsvSave = { kind ->
+                        FilePicker.pickSave("导出 CSV（" + kind.fileNameHint + "）")
+                            ?.let { BackupFileNames.withExtension(it, ".csv") }
+                    },
+                ),
+                onProxyEnabledChange = { runtime.proxyRuntime.setEnabled(it) },
+            )
+        },
+        watchPageContent = {
+            MarketWatchPage(
+                watchService = runtime.marketWatchService,
+                quotesService = runtime.marketQuotesService,
+                refreshService = runtime.marketRefreshService,
+                settingsService = runtime.marketSettingsService,
+            )
+        },
+        transactionsPageContent = {
+            TransactionsPage(
+                service = runtime.transactionLedgerService,
+                pickCsvFile = { FilePicker.pickLoad("选择 CSV 文件") },
+                pickTemplatePath = { FilePicker.pickSave("保存 CSV 模板") },
+            )
+        },
+        fundsPageContent = {
+            FundsPage(
+                service = runtime.fundService,
+                calibration = runtime.calibrationService,
+            )
+        },
+        onManualSync = syncViewModel::syncNow,
+        manualSyncing = manualSyncing,
+        manualSyncToast = manualSyncToast,
+        onManualSyncToastDismiss = syncViewModel::dismissToast,
+    )
 }
 
 /**

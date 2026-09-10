@@ -27,6 +27,9 @@ dependencies {
 compose.desktop {
     application {
         mainClass = "com.wuzhufolio.app.MainKt"
+        // M11 T11.3：开箱即启用 JDK 系统代理探测（Windows Internet 选项 / macOS 网络设置 / GNOME gsettings）。
+        // Main.main 首行也会设置（幂等）——此处是打包版的兜底，保证属性在任何网络类加载前生效。
+        jvmArgs += listOf("-Djava.net.useSystemProxies=true")
 
         nativeDistributions {
             // 产物口径见 ADR-006：dmg（macOS）/ msi（Windows）/ deb（Linux）；rpm/AppImage/Flatpak 为 P7 追加

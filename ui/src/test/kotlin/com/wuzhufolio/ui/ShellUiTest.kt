@@ -2,6 +2,7 @@ package com.wuzhufolio.ui
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -25,6 +26,31 @@ import kotlin.test.assertEquals
 class ShellUiTest {
 
     private fun newViewModel() = ShellViewModel(ThemeMode.LIGHT, PnlColorScheme.GREEN_UP)
+
+    /**
+     * M11 T11.3：状态栏代理指示随 [ProxyStatus] 变化（PRD 4.2 验收 3；interaction.md §1.1
+     * 「代理：系统代理」/「直连」文字指示，非颜色单载体）。
+     */
+    @Test
+    fun `status bar proxy indicator follows proxy status`() = runComposeUiTest {
+        var status by mutableStateOf(com.wuzhufolio.domain.proxy.ProxyStatus.DISABLED)
+        setContent { MainShell(newViewModel(), proxyStatus = status) }
+        onNodeWithTag("proxy-indicator").assertTextEquals("直连")
+
+        status = com.wuzhufolio.domain.proxy.ProxyStatus(
+            enabled = true,
+            endpoint = com.wuzhufolio.domain.proxy.ProxyEndpoint(
+                com.wuzhufolio.domain.proxy.ProxyKind.HTTP,
+                "127.0.0.1",
+                7890,
+            ),
+        )
+        onNodeWithTag("proxy-indicator").assertTextEquals("代理：系统代理")
+
+        // 开关开但系统未配代理 = 确实直连：不得谎报为「系统代理」
+        status = com.wuzhufolio.domain.proxy.ProxyStatus(enabled = true, endpoint = null)
+        onNodeWithTag("proxy-indicator").assertTextEquals("直连")
+    }
 
     @Test
     fun `sidebar shows five primary entries and navigates`() = runComposeUiTest {

@@ -18,8 +18,21 @@ import com.wuzhufolio.data.accounts.DefaultAccountService
 import com.wuzhufolio.data.security.RememberMeStore
 import com.wuzhufolio.data.security.RememberMeStoreFactory
 import com.wuzhufolio.data.settings.DefaultDiagnosticsService
+import com.wuzhufolio.data.settings.DefaultDesktopSettingsService
 import com.wuzhufolio.data.settings.DefaultGeneralSettingsService
+import com.wuzhufolio.data.settings.DesktopPreferences
+import com.wuzhufolio.data.settings.GeneralSettingsKeys
 import com.wuzhufolio.data.settings.SettingsRepository
+import com.wuzhufolio.data.autostart.PlatformAutostartService
+import com.wuzhufolio.domain.autostart.AutostartCommand
+import com.wuzhufolio.data.proxy.ProxyRuntime
+import com.wuzhufolio.data.schedule.BackgroundScheduler
+import com.wuzhufolio.data.schedule.DefaultSchedulerSources
+import com.wuzhufolio.data.backup.BackupSettingsStore
+import com.wuzhufolio.domain.schedule.BackupReminder
+import com.wuzhufolio.domain.settings.DesktopSettingsService
+import kotlinx.coroutines.runBlocking
+import java.time.Instant
 import com.wuzhufolio.data.catalog.SqlCoinCatalog
 import com.wuzhufolio.data.logging.FileLogAccess
 import com.wuzhufolio.data.logging.LogRotator
@@ -130,6 +143,16 @@ object AppBootstrap {
         val diagnosticsService: DiagnosticsService,
         /** M10：本地日志查看/导出（T10.2：查看/导出均逐行脱敏）。 */
         val logAccess: LogAccess,
+        /** M11 T11.3：系统代理运行期（检测状态流 + 注入两个 HTTP 客户端的开关感知 selector）。 */
+        val proxyRuntime: ProxyRuntime,
+        /** M11 T11.1/T11.2：托盘与后台设置用例（最小化到托盘/自启/同步通知/备份提醒）。 */
+        val desktopSettingsService: DesktopSettingsService,
+        /** M11：桌面集成偏好运行期镜像（关窗/通知判定走内存，不阻塞 EDT）。 */
+        val desktopPreferences: DesktopPreferences,
+        /** M11：后台调度循环宿主（行情刷新/交易同步/运行期日志轮转）。 */
+        val scheduler: BackgroundScheduler,
+        /** 引导期日志器（调度事件旁路与运行期诊断复用）。 */
+        val logger: Logger,
         private val deviceStore: DeviceSecretStore,
         private val keyring: MasterKeyStore?,
         private val deviceKeyring: MasterKeyStore?,
@@ -184,7 +207,20 @@ object AppBootstrap {
 
         val generalSettings: GeneralSettingsService = DefaultGeneralSettingsService(settings)
 
-        val market = MarketServicesBundle.run(gate, settings, logger)
+        // M11 T11.3：代理运行期——开关初值取自设置（缺省开），selector 注入两个 HTTP 客户端
+        // （同一实例：PRD §7.2-6.2「所有对外请求均经代理」由共用 selector 保证，不各自判定）
+        val proxyRuntime = ProxyRuntime()
+        proxyRuntime.setEnabled(
+            settings.getGlobal(GeneralSettingsKeys.PROXY_ENABLED)?.let { it != "off" } ?: true,
+        )
+        logger.info(
+            LogRedactor.redact(
+                "proxy init | enabled=" + proxyRuntime.current().enabled +
+                    " | indicator=" + proxyRuntime.current().indicator,
+            ),
+        )
+
+        val market = MarketServicesBundle.run(gate, settings, logger, proxyRuntime.selector)
         val exchange = ExchangeServicesBundle.run(
             gate,
             settings,
@@ -192,6 +228,7 @@ object AppBootstrap {
             market.catalog,
             rankWarmUp = { market.marketRefreshService.warmUpRankCache() },
             logger = logger,
+            proxySelector = proxyRuntime.selector,
         )
         val ledger = LedgerServicesBundle.run(
             gate,
@@ -220,6 +257,44 @@ object AppBootstrap {
         )
 
         startKoin { modules(appModule(db, gate, settings)) }
+
+        // M11 T11.1/T11.2：托盘与后台设置 + 自启平台注册（启动自愈：注册项漂移修正，失败不阻断启动）
+        val desktopPreferences = DesktopPreferences()
+        val desktopSettingsService: DesktopSettingsService = DefaultDesktopSettingsService(
+            settings = settings,
+            autostart = PlatformAutostartService(
+                // 只在打包版（jpackage 启动器）注册自启：`jpackage.app-path` 为空 = 开发态，
+                // 此时命令行首 token 是裸 java（无 -cp），注册项自启即退——宁可不支持也不写坏注册项。
+                // 因此这里显式传 commandLine = null（判定与理由见模块记录 M11 §5-2）。
+                executablePath = AutostartCommand.resolve(
+                    System.getProperty("jpackage.app-path"),
+                    null,
+                ),
+                logger = logger,
+            ),
+            prefs = desktopPreferences,
+            logger = logger,
+        )
+        val autostartNote = runBlocking {
+            val note = runCatching { desktopSettingsService.reconcileAutostart() }
+                .getOrDefault("")
+            runCatching { desktopSettingsService.view() } // 初始化 DesktopPreferences 镜像
+            note
+        }
+        if (autostartNote.isNotEmpty()) logger.info(LogRedactor.redact("autostart reconcile | " + autostartNote))
+
+        // M11：后台调度循环宿主（行情刷新/交易同步/运行期日志轮转；tick 顺带复检系统代理）
+        val scheduler = BackgroundScheduler(
+            sources = DefaultSchedulerSources(
+                marketRefreshService = market.marketRefreshService,
+                marketSettingsService = market.marketSettingsService,
+                syncService = exchange.exchangeSyncService,
+                rotateLogs = { rotateLogsNow(gate) },
+                backupReminderDays = { backupReminderDays(gate, accountRepository, sessions) },
+            ),
+            onTick = { proxyRuntime.refresh() },
+            logger = logger,
+        )
 
         logger.info(
             LogRedactor.redact(
@@ -254,12 +329,47 @@ object AppBootstrap {
             generalSettingsService = generalSettings,
             diagnosticsService = diagnostics,
             logAccess = FileLogAccess(AppDirs.logDir()),
+            proxyRuntime = proxyRuntime,
+            desktopSettingsService = desktopSettingsService,
+            desktopPreferences = desktopPreferences,
+            scheduler = scheduler,
+            logger = logger,
             deviceStore = market.deviceStore,
             keyring = if (report.backend == KeyStorageBackend.OS_KEYCHAIN) keyring else null,
             deviceKeyring = market.deviceKeyring,
             httpClient = market.httpClient,
             exchangeHttpClient = exchange.httpClient,
         )
+    }
+
+    /** 运行期日志轮转（M11 · M10 §5-5 遗留闭环）：本地日志 + sync_logs 同口径，返回脱敏摘要。 */
+    private fun rotateLogsNow(gate: DbGate): String {
+        val files = LogRotator.rotate(AppDirs.logDir())
+        val syncLogs = SyncLogRepository(gate).rotate(Instant.now())
+        return "files=" + files + " syncLogs(byAge=" + syncLogs.first + ",byCount=" + syncLogs.second + ")"
+    }
+
+    /**
+     * 备份提醒判定（PRD 6.1：距上次备份 > 30 天）。基线口径见
+     * [com.wuzhufolio.domain.schedule.BackupReminder]：优先账户级 `backup.last_at`（M9 落盘），
+     * 从未备份过则退化为账户创建时刻（新装用户满 30 天前不打扰）。返回 null = 不提醒。
+     */
+    private fun backupReminderDays(
+        gate: DbGate,
+        accounts: AccountRepository,
+        sessions: ActiveSessionStore,
+    ): Long? {
+        val accountId = sessions.get()?.account?.id
+        val lastBackup = accountId?.let {
+            BackupSettingsStore(gate)
+                .getAccountSetting(it, com.wuzhufolio.data.backup.DefaultBackupService.SETTING_LAST_BACKUP)
+        }?.let { runCatching { Instant.parse(it) }.getOrNull() }
+        val createdAt = accountId?.let { accounts.findById(it)?.createdAt }
+            ?.let { runCatching { Instant.parse(it) }.getOrNull() }
+        val now = Instant.now()
+        // 到期才返回天数；基线 = 上次备份时刻，从未备份则退化为账户创建时刻（两者皆无 → null）
+        val baseline = if (BackupReminder.isDue(lastBackup, createdAt, now)) lastBackup ?: createdAt else null
+        return baseline?.let { java.time.Duration.between(it, now).toDays() }
     }
 
     /**
@@ -279,7 +389,13 @@ object AppBootstrap {
         val httpClient: java.io.Closeable,
     ) {
         companion object {
-            fun run(gate: DbGate, settings: SettingsRepository, logger: Logger): MarketServicesBundle {
+            fun run(
+                gate: DbGate,
+                settings: SettingsRepository,
+                logger: Logger,
+                /** M11 T11.3：系统代理 selector（null = OkHttp 默认；测试装配可不传）。 */
+                proxySelector: java.net.ProxySelector? = null,
+            ): MarketServicesBundle {
                 val deviceKeyring: MasterKeyStore =
                     KeychainMasterKeyStore(KeychainAccounts.SERVICE, KeychainAccounts.DEVICE_KEY)
                 val deviceReport: KeyStorageReport =
@@ -292,7 +408,7 @@ object AppBootstrap {
                 val rankCache = RefreshableRankProvider()
                 // M6 二轮：共享目录接入市值排名缓存（消歧规则③——交易所同步歧义资产按排名自动裁定）
                 val catalog = SqlCoinCatalog(gate, rankCache)
-                val httpClient = newOkHttpMarketClient()
+                val httpClient = newOkHttpMarketClient(proxySelector)
                 val marketRefreshService: MarketRefreshService = DefaultMarketRefreshService(
                     cgClient = CoingeckoMarketClient(httpClient),
                     cmcClient = CmcMarketClient(httpClient),
@@ -346,8 +462,10 @@ object AppBootstrap {
                 catalog: SqlCoinCatalog,
                 rankWarmUp: suspend () -> Unit,
                 logger: Logger,
+                /** M11 T11.3：系统代理 selector（与行情客户端共用同一实例——PRD 6.2 全请求经代理）。 */
+                proxySelector: java.net.ProxySelector? = null,
             ): ExchangeServicesBundle {
-                val httpClient = newOkHttpExchangeClient()
+                val httpClient = newOkHttpExchangeClient(proxySelector)
                 val adapterFactory: (com.wuzhufolio.domain.exchange.ExchangeCredentials) ->
                 com.wuzhufolio.domain.exchange.ExchangeAdapter = { credentials ->
                     BinanceAdapter(httpClient, credentials)

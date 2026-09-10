@@ -31,6 +31,7 @@ import com.wuzhufolio.domain.ledger.FeeRuleService
 import com.wuzhufolio.domain.market.MarketSettingsService
 import com.wuzhufolio.domain.market.MarketRefreshService
 import com.wuzhufolio.domain.settings.BASE_FIAT_OPTIONS
+import com.wuzhufolio.domain.settings.DesktopSettingsService
 import com.wuzhufolio.domain.settings.DiagnosticsService
 import com.wuzhufolio.domain.settings.GeneralSettingsService
 import com.wuzhufolio.domain.settings.LogAccess
@@ -89,8 +90,16 @@ fun SettingsPage(
     appVersion: String,
     pickers: SettingsFilePickers,
     modifier: Modifier = Modifier,
+    /** M11 T11.1/T11.2：托盘与后台分组用例（null = 不渲染该分组）。 */
+    desktopSettings: DesktopSettingsService? = null,
+    /** 当前环境是否支持系统托盘（false → 「最小化到托盘」行置灰并说明）。 */
+    trayAvailable: Boolean = true,
+    /** M11 T11.3：代理开关写入后的运行期生效钩子（同步 ProxyRuntime 检测态）。 */
+    onProxyEnabledChange: (Boolean) -> Unit = {},
 ) {
-    val generalVm = remember { GeneralSettingsViewModel(generalSettings) }
+    val generalVm = remember {
+        GeneralSettingsViewModel(generalSettings, onProxyEnabledChange = onProxyEnabledChange)
+    }
     val logsVm = remember {
         LogsDiagnosticsViewModel(diagnosticsService, logAccess, pickers.pickLogSave, pickers.writeTextFile)
     }
@@ -103,6 +112,13 @@ fun SettingsPage(
     DisposableEffect(generalVm) { onDispose { generalVm.dispose() } }
     DisposableEffect(logsVm) { onDispose { logsVm.dispose() } }
     DisposableEffect(intervalVm) { onDispose { intervalVm.dispose() } }
+
+    // M11：托盘与后台分组（用例可空——既有 UI 测试与局部预览不必构造该依赖）
+    val desktopVm = remember(desktopSettings) {
+        desktopSettings?.let { DesktopSettingsViewModel(it) }
+    }
+    DisposableEffect(desktopVm) { onDispose { desktopVm?.dispose() } }
+    val desktopState = desktopVm?.state?.collectAsState()?.value ?: DesktopSettingsUiState()
 
     val generalState by generalVm.state.collectAsState()
     val logsState by logsVm.state.collectAsState()
@@ -278,6 +294,66 @@ fun SettingsPage(
                 }
             }
 
+            // ---- 托盘与后台（M11 · T11.1/T11.2；PRD 6.1） ----
+            if (desktopVm != null) {
+                SettingsGroup(title = SettingsCopy.GROUP_TRAY, testTag = "group-tray") {
+                    SettingsRow(
+                        title = SettingsCopy.MINIMIZE_LABEL,
+                        description = if (trayAvailable) {
+                            SettingsCopy.MINIMIZE_SUB
+                        } else {
+                            SettingsCopy.MINIMIZE_UNAVAILABLE
+                        },
+                        testTag = "tray-minimize",
+                    ) {
+                        WzSwitch(
+                            on = desktopState.view.minimizeOnClose && trayAvailable,
+                            enabled = trayAvailable,
+                            onToggle = { desktopVm.setMinimizeOnClose(!desktopState.view.minimizeOnClose) },
+                            testTag = "tray-minimize-switch",
+                        )
+                    }
+                    SettingsRow(
+                        title = SettingsCopy.AUTOSTART_LABEL,
+                        description = if (desktopState.autostart.supported) {
+                            SettingsCopy.AUTOSTART_SUB
+                        } else {
+                            desktopState.autostart.unsupportedReason ?: SettingsCopy.AUTOSTART_UNAVAILABLE
+                        },
+                        testTag = "tray-autostart",
+                    ) {
+                        WzSwitch(
+                            on = desktopState.autostart.enabled,
+                            enabled = desktopState.autostart.supported && !desktopState.busy,
+                            onToggle = { desktopVm.setAutostart(!desktopState.autostart.enabled) },
+                            testTag = "tray-autostart-switch",
+                        )
+                    }
+                    SettingsRow(
+                        title = SettingsCopy.SYNC_NOTIFY_LABEL,
+                        description = SettingsCopy.SYNC_NOTIFY_SUB,
+                        testTag = "tray-sync-notify",
+                    ) {
+                        WzSwitch(
+                            on = desktopState.view.syncNotification,
+                            onToggle = { desktopVm.setSyncNotification(!desktopState.view.syncNotification) },
+                            testTag = "tray-sync-notify-switch",
+                        )
+                    }
+                    SettingsRow(
+                        title = SettingsCopy.BACKUP_REMINDER_LABEL,
+                        description = SettingsCopy.BACKUP_REMINDER_SUB,
+                        testTag = "tray-backup-reminder",
+                    ) {
+                        WzSwitch(
+                            on = desktopState.view.backupReminder,
+                            onToggle = { desktopVm.setBackupReminder(!desktopState.view.backupReminder) },
+                            testTag = "tray-backup-reminder-switch",
+                        )
+                    }
+                }
+            }
+
             // ---- 行情与同步 ----
             SettingsGroup(title = SettingsCopy.GROUP_MARKET_SYNC, testTag = "group-market-sync") {
                 MarketSettingsSection(
@@ -373,9 +449,10 @@ fun SettingsPage(
             }
         }
 
-        // 页面级 toast（通用设置 / 日志诊断；各分区 toast 由分区自己的 Box 承载）
+        // 页面级 toast（通用设置 / 日志诊断 / 托盘与后台；各分区 toast 由分区自己的 Box 承载）
         WzToastHost(toast = generalState.toast, onDismiss = generalVm::dismissToast)
         WzToastHost(toast = logsState.toast, onDismiss = logsVm::dismissToast)
+        WzToastHost(toast = desktopState.toast, onDismiss = { desktopVm?.dismissToast() })
     }
 
     // ---- 日志与诊断弹窗 ----
