@@ -54,7 +54,9 @@ class SecurityGuardTest {
     private fun scan(pattern: Regex): List<String> =
         mainSourceFiles().flatMap { file ->
             codeLines(file).flatMap { line ->
-                pattern.findAll(line).map { file.relativeTo(repoRoot).path + " → " + it.groupValues[1] }
+                pattern.findAll(line).map {
+                    file.relativeTo(repoRoot).invariantSeparatorsPath + " → " + it.groupValues[1]
+                }
             }
         }
 
@@ -124,7 +126,8 @@ class SecurityGuardTest {
         val allowed = setOf("app/src/main/kotlin/com/wuzhufolio/app/AppDirs.kt")
         val offenders = ArrayList<String>()
         for (file in mainSourceFiles().filter { it.extension == "kt" }) {
-            val relative = file.relativeTo(repoRoot).path
+            // 归一化分隔符：Windows 上 File.path 为反斜杠（M9 同类 CI 勘误先例）
+            val relative = file.relativeTo(repoRoot).invariantSeparatorsPath
             if (relative in allowed) continue
             val text = file.readText()
             if (text.contains("user.home") && text.contains("\".wuzhufolio\"")) {

@@ -43,7 +43,7 @@ jobs:
 
       - name: 上传测试报告（M13：4 项钥匙串真实后端用例在 win/mac 的执行结果可逐项核验）
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: test-results-${{ matrix.os }}
           path: '*/build/test-results/test/*.xml'
@@ -59,7 +59,7 @@ jobs:
         run: ./gradlew :app:packageUberJarForCurrentOS --console=plain
 
       - name: 上传 uber jar（冒烟产物，7 天）
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: wuzhufolio-${{ matrix.os }}-uberjar
           path: app/build/compose/jars/*.jar
@@ -165,7 +165,7 @@ jobs:
             -exec ls -l {} \; -exec sha256sum {} \; | tee "$RUNNER_TEMP/artifacts.txt"
 
       - name: 上传原生产物（14 天）
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: wuzhufolio-${{ matrix.os }}-native
           path: |
@@ -181,7 +181,7 @@ jobs:
           if-no-files-found: warn
 
       - name: 上传产物清单（含 SHA256 与签名状态）
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: wuzhufolio-${{ matrix.os }}-artifacts-manifest
           path: ${{ runner.temp }}/artifacts.txt
