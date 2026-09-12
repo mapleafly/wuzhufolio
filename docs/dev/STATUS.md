@@ -17,7 +17,7 @@
   **全量 636 用例（632 执行 0 失败 + 4 钥匙串真实后端跳过）+ detekt 0 + 警告 0**；
   本地三产物实测（.deb 128.66MB / .rpm 143.78MB / AppImage 139.05MB）+ **打包版运行实证**（app-image / .deb 解包 /
   AppImage 三形态 `bootstrap ok | schema=12` + 窗口驻留 rc=124 + 目录 700 / 密钥·库·日志 600）。
-- **下一人工门**：**M13 发布准备审核**（清单 §8 复跑 + `M13.md §4` 六步 + 三产物本地出包与运行 + CI 三平台打包留痕）；
+- **下一人工门**：**M13 发布准备审核**（清单 §8 复跑 + `M13.md §4` 六步 + 三产物本地出包与运行 + **CI 三平台打包已全绿留痕**）；
   **签名/公证合规实证留 P7**（无证书时按 ADR-006 §2 未签名产物内部验收，采购口径见 ADR-006 §2.1）。
   M13 通过后 P4 收尾 → P5 集成与联调。
   **三项延期验证在册**（到期检查点与 DoD 见各自条目，未到期前不得视为已完成）：
@@ -861,9 +861,17 @@ macOS 公证 + Windows 签名 + AppImage/Flatpak 追加），**待人工下达�
 **遗留问题（转后续模块，详见模块记录 §6）**：P7 —— 证书采购与签名/公证合规实证、Linux 包 GPG 签名、
 jlink 裁剪与字体子集化、托盘/打包图标、打包版自启端到端、三平台托盘实测；P6 —— 安全清单逐条复跑、
 `.cpro` 大载荷内存曲线、行情请求币种集合隐私最小化、读屏实测、settings 键命名空间守护、登出后调度 tick 噪声、
-运行期出站抓包实证；CI —— win/mac `package` job 首跑结果观察；目标机 KDF 复核（P7 前）。
+运行期出站抓包实证；CI —— win/mac `package` job 首跑结果观察（**已闭环，见下 CI 留痕**）；目标机 KDF 复核（P7 前）。
 
-**建议的下一步**：人工审核 M13（清单 §8 复跑 + 模块记录 §4 六步 + §5 规格落档 7 条裁决）→
+**CI 留痕（2026-09-12，四轮闭环）**：**run [34698502287](https://github.com/mapleafly/wuzhufolio/actions/runs/34698502287) 六 job 全绿** ——
+`build`（ubuntu/macos/windows）+ `package`（ubuntu/macos/windows）；三平台原生产物归档：windows-native 263MB（msi+exe）/
+macos-native 281MB（dmg+pkg）/ ubuntu-native 390MB（deb+rpm+AppImage）+ `artifacts-manifest`（含 SHA256）+ 三平台
+`test-results-*`（4 项钥匙串真实后端用例可逐项核验——**CI 改进登记项闭环**）。四轮 CI 闭环 5 个环境级缺陷
+（详见 `M13.md §8`）：① Windows 守护测试路径分隔符；② 空串 Secrets 被误判为已配置（macOS 签名误开）；
+③ Windows WiX 未就位；④ Windows jpackage 参数文件 UTF-8 与中文元数据冲突；⑤ macOS `CFBundleVersion` 首段不得为 0。
+教训沉淀：三平台打包必须真跑、失败要能自证（新增「打包失败诊断」步骤输出 jpackage 日志）、Actions 未配置凭据是空串而非缺失。
+
+**建议的下一步**：人工审核 M13（清单 §8 复跑 + 模块记录 §4 六步 + §5 规格落档 10 条裁决）→
 通过后 **P4 收尾**、解锁 **P5 集成与联调**（跨模块主流程：登录 → 增资 → 交易 → 看板/ROI → 备份恢复；
 `docs/test/integration-report.md`）。
 
@@ -1031,3 +1039,4 @@ jlink 裁剪与字体子集化、托盘/打包图标、打包版自启端到端�
 | 2026-09-10 | 人 + Agent | **M11 远程提交 + CI 三平台全绿留痕** | 人指令「本地提交，然后远程提交」——本地两提交（`4d3bb9c` M11 实现 / `3ad7859` 三项拍板落档）推送 `95ac408..3ad7859`；**CI run 34501319152 windows/ubuntu/macos 三平台全绿**（win 3m55s / mac 2m57s / ubuntu 3m0s）——本机 4 项「钥匙串真实后端跳过」在 win/mac 实证通过，**M11 遗留「CI 三平台复跑」闭环**；action 版本弃用注解（Node 20 / setup-java v4）为既有事项登记 M13 前处理 |
 | 2026-09-10 | 人 | **通过 M11** | 原话「m11 通过」——M11 ✅ 已通过关闭（T11.1 托盘与通知 / T11.2 开机自启 / T11.3 系统代理 + 调度循环宿主 + 托盘与后台设置分组；M5/M10 三项遗留同步闭环）；两项环境相关验证按同日拍板**延期留册**（§5-2 开机自启 → P7 打包版；§5-3 托盘 GUI → 真实桌面），到期检查点与 DoD 见 `docs/dev/modules/M11.md` §5；**M12 UI 整合收尾 解锁，待人工启动指令** |
 | 2026-09-12 | Agent | **执行 P4-M13 发布准备** | 人指令「执行p4-M13」；**T13.1** 安全自查（三条独立审计线 + 抽样复核）→ `docs/test/security-checklist.md`：五条硬约束逐条取证，**13 项发现 = 7 修复 + 6 登记**（修复：退出擦 DEK / 敏感物权限 0700·0600 / 密钥文件创建即 0600 + 读路径自愈 / 改密常量时间比较 / **日志脱敏统一漏斗**（logback `%msg` 覆盖）/ KDF 降级下限 / **快照降采样接线**（M5 §5-4 遗留闭环）；登记：`.cpro` 非流式、币种集合外发、备份密码强度边界、String 密码内存态、settings 键命名空间、登出后 tick 噪声）；新增 **22 项守护测试**（结构 7 / API 隔离 2 / 备份边界 3 / 权限 4 / 脱敏漏斗 5 / KDF 1 …）。**T13.2** 打包：三平台格式（msi+exe / dmg+pkg / deb+rpm + AppImage 脚本）、**修复发布阻断缺陷**（jlink 镜像缺 `java.sql` → 打包版启动即崩；显式模块集 6→19 后三形态实测可运行）、签名公证流水线（macOS codesign+notarytool / Windows signtool，Secrets 门控，未配置即跳过）、版本构建注入（闭环 M9 登记）、CI 两 job + 测试报告归档 + action 升 v5 + `workflow_dispatch`；本地三产物 .deb 128.66MB / .rpm 143.78MB / AppImage 139.05MB（附 SHA256）+ 打包版权限实证（目录 700 / 密钥·库·日志 600）；**636 用例（632 执行 0 失败 + 4 跳过）+ detekt 0 + 警告 0**；模块记录 `docs/dev/modules/M13.md`；**P4 维持进行中，M13 置待审核，停人工门** |
+| 2026-09-12 | Agent | **M13 CI 四轮闭环 + 远程提交** | 推送 `567df11..54108df`（M13 实现 + 三伦 CI 修复）；**CI run 34698502287 六 job 全绿**（build ×3 + package ×3）：三平台原生产物归档 windows-native 263MB / macos-native 281MB / ubuntu-native 390MB + `artifacts-manifest`（SHA256）+ 三平台 `test-results-*`；四轮闭环 5 个环境级缺陷（Windows 路径分隔符 / 空串 Secrets 误判 / WiX 未就位 / jpackage args UTF-8 与中文元数据冲突 / macOS CFBundleVersion 首段不得为 0），详见 `M13.md §8`；**M13 维持待审核，停人工门** |
