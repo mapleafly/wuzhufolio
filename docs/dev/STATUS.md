@@ -6,17 +6,26 @@
 
 ## 当前阶段
 
-- **当前状态**：**P4 分模块开发 ⏩ 进行中——M12 UI 整合收尾 ✅ 已通过（2026-09-12 人工「M12通过」关闭）**；
-  **M1–M12 全部通过**。P0–P3 均已关闭。按 task-breakdown §5（M1–M13 = P4），P4 仅剩 **M13 发布准备**。
+- **当前状态**：**P4 分模块开发 ⏩ 进行中——M13 发布准备 ⏳ 待审核（2026-09-12 完成，停人工门）**；
+  **M1–M12 全部通过**。P0–P3 均已关闭。按 task-breakdown §5（M1–M13 = P4），M13 是 P4 最后一个模块。
 - **推进顺序**：先桌面端，后移动端。**P1–P8 只针对桌面端或两端共同部分；移动端相关工作放到下一个版本。**（移动端相关技能/技术方案/开发待桌面端主线稳定后再启用。）
-- **前序待审核项已关闭（2026-08-30，人工启动指令）**：① 项目级安装 huashu-design；② P1 新增「设计原型图」步骤；③ P1–P8 huashu-design 用途分析--已随人工「开始执行P1」指令一并拍板（固化为 `AGENTS.md` §7.1/§7.2）。
-- **下一人工门**：无待审核项——**M13 发布准备**（T13.1 安全自查〔§1.1 硬约束逐条核验〕+
-  T13.2 签名公证打包〔jpackage 三平台产物 + macOS 公证 + Windows 签名 / AppImage·Flatpak 追加〕）
-  待人工下达启动指令；M13 通过后 P4 收尾 → P5 集成与联调。
+- **M13 交付摘要（2026-09-12）**：T13.1 安全自查 → `docs/test/security-checklist.md`（§1.1 五条硬约束逐条取证；
+  13 项发现：**7 项本轮修复** + 6 项登记，残留风险均有到期检查点）+ T13.2 打包与签名公证流水线
+  （三平台格式配置 + 运行期镜像 `java.sql` 缺失**发布阻断缺陷修复** + macOS 公证/Windows 签名凭据门控 +
+  AppImage 脚本 + CI 两 job 与测试报告归档 + 版本构建注入）。
+  **模块记录：docs/dev/modules/M13.md**（含规格落档 7 条 + 勘误 3 条，待人工走读）。
+  **全量 636 用例（632 执行 0 失败 + 4 钥匙串真实后端跳过）+ detekt 0 + 警告 0**；
+  本地三产物实测（.deb 128.66MB / .rpm 143.78MB / AppImage 139.05MB）+ **打包版运行实证**（app-image / .deb 解包 /
+  AppImage 三形态 `bootstrap ok | schema=12` + 窗口驻留 rc=124 + 目录 700 / 密钥·库·日志 600）。
+- **下一人工门**：**M13 发布准备审核**（清单 §8 复跑 + `M13.md §4` 六步 + 三产物本地出包与运行 + CI 三平台打包留痕）；
+  **签名/公证合规实证留 P7**（无证书时按 ADR-006 §2 未签名产物内部验收，采购口径见 ADR-006 §2.1）。
+  M13 通过后 P4 收尾 → P5 集成与联调。
   **三项延期验证在册**（到期检查点与 DoD 见各自条目，未到期前不得视为已完成）：
   ① M11 §5-3 托盘 GUI 走查 → 真实 Windows/macOS/Linux 桌面（检查点 = M12 走查或 P6 系统测试）；
   ② M11 §5-2 开机自启端到端 → P7 打包版（检查点 = P7 发布前）；
   ③ **D25 原型补「界面语言」行** → 视觉基准补行（检查点 = P5 联调或 P7 前视觉终审）。
+  **M13 新增在册项**（详见 `M13.md §5/§6`）：④ 签名/公证 + Linux 包 GPG 签名 + 证书采购 → P7；
+  ⑤ win/mac 三平台 `package` job 首跑结果观察 → CI 留痕；⑥ `.cpro` 大载荷内存曲线（非流式读写）→ P6。
 
 ## 阶段总览
 
@@ -26,7 +35,7 @@
 | P1 | 产品与交互设计 | ✅ 已通过 | docs/design/（含 prototype/*.html + 截图 + 验证脚本） | 主版唯一真源（内置双主题）；登录链路已补齐；三轮评审 V1/V2/V3 问题全部闭环；2026-08-31 人工终审通过 |
 | P2 | 技术方案 | ✅ 已通过 | `docs/tech/`（architecture + 6 ADR + data-model + api-contracts + task-breakdown + P2评审报告） | 2026-08-31 人工拍板三项关闭；全部 ADR 转人工拍板采纳 |
 | P3 | 工程脚手架 | ✅ 已通过 | 代码骨架 + CI + dev-setup + hello 链路 + 迁移框架 + UI 基座（内嵌 CJK 字体）；Gradle 8.14.4；P3评审报告 | 2026-09-01 完成 M0 + 验收修复轮 + 评审闭环；人工「P3 通过」关闭 |
-| P4 | 分模块开发 | 进行中 | 代码 + `docs/dev/modules/` | M1 ✅、M2 ✅、M3 ✅、M4 ✅、M5 ✅、M6 ✅（2026-09-07）、M7 ✅（2026-09-08）、M8 ✅（2026-09-09）、M9 ✅（2026-09-10）、M10 ✅（2026-09-10）、M11 ✅（2026-09-10）、**M12 ✅（2026-09-12）**；仅剩 **M13 发布准备**（待启动指令）→ 之后 P5 |
+| P4 | 分模块开发 | 进行中 | 代码 + `docs/dev/modules/` | M1 ✅、M2 ✅、M3 ✅、M4 ✅、M5 ✅、M6 ✅（2026-09-07）、M7 ✅（2026-09-08）、M8 ✅（2026-09-09）、M9 ✅（2026-09-10）、M10 ✅（2026-09-10）、M11 ✅（2026-09-10）、M12 ✅（2026-09-12）、**M13 ⏳ 待审核（2026-09-12 完成）**；M13 通过后 → P5 |
 | P5 | 集成与联调 | 未开始 | `docs/test/integration-report.md` | |
 | P6 | 系统测试与质量 | 未开始 | `docs/test/` | |
 | P7 | 发布 | 未开始 | `docs/release/` | |
@@ -790,6 +799,74 @@ toast 穿透 / 双主题）；④ 走查 `docs/dev/decisions/D25-界面语言设
 macOS 公证 + Windows 签名 + AppImage/Flatpak 追加），**待人工下达启动指令**；M13 通过后解锁
 **P5 集成与联调**（跨模块主流程：登录 → 增资 → 交易 → 看板/ROI → 备份恢复；`docs/test/integration-report.md`）。
 
+## P4 · M13 发布准备（⏳ 待审核--2026-09-12 完成，停人工门）
+
+> 启动记录：人工原话「执行p4-M13」（2026-09-12）。范围 = task-breakdown M13（**T13.1 安全自查**
+> §1.1 硬约束逐条核验；**T13.2 签名公证打包** jpackage 三平台产物 + macOS 公证 + Windows 签名 + AppImage 追加）。
+> **模块记录：docs/dev/modules/M13.md**；**T13.1 主产物：docs/test/security-checklist.md**。
+> 本模块**无 schema 变更**（schema 维持 12）；**无 C1/C2 变更**（13 项发现按 C0 勘误/实现偏差修复处置）。
+
+**产物清单**：
+
+- `docs/test/security-checklist.md` —— **安全自查清单（T13.1）**：五条硬约束逐条取证（出站白名单/依赖面/
+  密钥链/算法参数/凭据存储面/权限/脱敏/两类 API 四维/账户隔离/`.cpro` 逐字段）+ 发现处置 + 残留风险 + 复核命令
+- `docs/dev/modules/M13.md` —— 模块记录（实现摘要 / 文件清单 / T13.1–T13.2 验收清单 / 人工验收六步 /
+  **规格落档 7 条** / 遗留 / 勘误 3 条）
+- `scripts/package-appimage.sh` —— AppImage 打包（AppDir 组装 + appimagetool/runtime 缓存与重试，本地与 CI 共用）
+- `app/build.gradle.kts` —— 三平台产物格式（win msi+exe / mac dmg+pkg / linux deb+rpm）、
+  **运行期镜像模块集**（修 `java.sql` 缺失）、macOS 签名+公证（凭据门控）、Windows 安装器元数据、
+  **版本构建注入**（`BuildInfo.VERSION`）
+- `.github/workflows/ci.yml` —— `build`/`package` 两 job + **测试报告归档** + 签名公证门控步骤 + action 升版 v5 + `workflow_dispatch`
+- 安全加固代码：`domain/security/FilePermissions.kt`（新）、`app/logging/RedactingMessageConverter.kt`（新）+
+  12 个既有文件的加固改动（详见模块记录 §2）
+- 新增守护测试 22 项：`SecurityGuardTest` / `ApiIsolationGuardTest` / `BackupBoundaryGuardTest` /
+  `FilePermissionsTest` / `RedactingMessageConverterTest` / `LogbackRedactionFunnelTest` + 3 个既有测试类增补
+
+**本次改了什么（要点）**：
+
+1. **T13.1 安全自查**：三条独立审计线取证 + 主 Agent 抽样复核；**13 项发现**——7 项本轮修复
+   （①退出不擦 DEK ②敏感落盘物权限 ③密钥文件先写后 chmod 窗口+历史自愈 ④改密非常量时间比较
+   ⑤日志脱敏无统一漏斗 ⑥KDF 无降级下限 ⑦**快照降采样未接线**），6 项登记（含 `.cpro` 非流式读写、
+   行情请求币种集合、settings 键命名空间、登出后调度 tick 噪声等，均有到期检查点）。
+2. **T13.2 打包**：本机实测产出 Linux 三产物（.deb 128.66MB / .rpm 143.78MB / AppImage 139.05MB，附 SHA256）；
+   macOS 公证 + Windows 签名流水线入库并以 Secrets 门控（未配置 = 跳过 + 未签名产物，ADR-006 §2 口径）；
+   AppImage 脚本 + CI 步骤；CI 新增测试报告归档（登记改进项闭环）与 action 升版（Node 20 弃用注解闭环）。
+3. **发布阻断缺陷（本模块发现并修复）**：jlink 运行期镜像缺 `java.sql` → 打包版启动即
+   `NoClassDefFoundError: java/sql/SQLException`（P3 阶段只验「能打出包」未验「包能跑」）；
+   修复 = 显式模块集（jdeps 实测 + 反射/本地化补充），运行期镜像 6→19 模块，三形态实测可运行。
+4. **M9 登记项闭环**：`.cpro` 头部 `app_version` 改构建注入（单一真源 = `appVersion`）。
+
+**怎么验收（人工）**：
+
+1. 读 `docs/test/security-checklist.md`（§0 结论表 → §6 发现处置 → §7 残留风险），确认 7 项修复与 6 项登记可接受；
+2. `docs/dev/modules/M13.md §4` 六步：全量复跑（应 **636 用例 = 632 执行 0 失败 + 4 跳过** + detekt 0 + 警告 0）→
+   结构守护聚焦 → **本地出包并运行**（命令见 §4-4，期望 `bootstrap ok | schema=12` + 目录 700 / 文件 600）→
+   CI 留痕 → 走读 §5 规格落档 7 条；
+3. 三产物元数据核对：`.deb` `Maintainer: WuZhuFolio <noreply@…>`；`.rpm` `License: AGPL-3.0-only`；
+   AppImage 同目录 `.sha256`；
+4. **裁决项**：签名/公证合规留 P7（需证书；采购口径与 Secrets 清单见 ADR-006 §2.1）——
+   请确认该处置方式（本轮交付可执行流水线，不产出未签名「合规」结论）。
+
+**已验证（Agent 实证，供人工复核）**：
+
+- 全量无缓存构建：`./gradlew clean build detekt --no-build-cache` → 33 任务全执行绿、**636 用例 0 失败**、
+  detekt 0、编译警告 0；模块分布 domain 215 / data 266 / ui 134 / app 21（M13 新增 22 项）。
+- **打包版三形态运行实证**：app-image / `.deb` 解包 / AppImage → `bootstrap ok | schema=12` +
+  `scheduler started` + 窗口驻留 rc=124 + 0 渲染异常。
+- **权限实证**（隔离数据目录）：数据/日志/backups 目录 **700**；`master.key`/`device.key`/`.db`/`-wal`/`-shm`/
+  活动日志 **600**（修复前实测为 755/644）。
+- **脱敏漏斗实证**：logback 启动日志 `registering conversion word msg/message/m with class
+  [com.wuzhufolio.app.logging.RedactingMessageConverter]`；日志行 `market_api_key=****`；DB 路径不再被误伤。
+
+**遗留问题（转后续模块，详见模块记录 §6）**：P7 —— 证书采购与签名/公证合规实证、Linux 包 GPG 签名、
+jlink 裁剪与字体子集化、托盘/打包图标、打包版自启端到端、三平台托盘实测；P6 —— 安全清单逐条复跑、
+`.cpro` 大载荷内存曲线、行情请求币种集合隐私最小化、读屏实测、settings 键命名空间守护、登出后调度 tick 噪声、
+运行期出站抓包实证；CI —— win/mac `package` job 首跑结果观察；目标机 KDF 复核（P7 前）。
+
+**建议的下一步**：人工审核 M13（清单 §8 复跑 + 模块记录 §4 六步 + §5 规格落档 7 条裁决）→
+通过后 **P4 收尾**、解锁 **P5 集成与联调**（跨模块主流程：登录 → 增资 → 交易 → 看板/ROI → 备份恢复；
+`docs/test/integration-report.md`）。
+
 ## P0 需求基线（✅ 已通过--两端 + 跨端规范全部定稿）
 
 产物清单（只读基准，不得改动）：
@@ -838,17 +915,18 @@ macOS 公证 + Windows 签名 + AppImage/Flatpak 追加），**待人工下达�
 
 ## 当前阻塞点
 
-- **P4-M6 人工复验数据点（2026-09-07）**：三轮修复后立即同步实测「同步成功 · 新增 120」——BNB 歧义消解确认、成交已入 transactions（source=BINANCE API，去重幂等）；幂等自查 = 再点一次立即同步应显「新增 0 · 去重跳过 120」。
-- **P4 推进点（2026-09-12）**：**M12 UI 整合收尾 ✅ 已通过关闭** —— M1–M12 全部通过；按 task-breakdown §5
-  （M1–M13 = P4）P4 仅剩 **M13 发布准备**（待人工启动指令），之后 P5 集成与联调。
-- **CI 改进项（登记，建议 M13 前处理）**：CI 目前只上传 uber jar 构件，**未上传测试报告**——
-  「4 项钥匙串真实后端用例在 win/mac 执行/跳过」只能以「CI 绿」间接判断，无法逐项核验；
-  建议 ci.yml 增 `actions/upload-artifact@v4`（`if: always()`，路径 `*/build/test-results/test/*.xml`）。
-  同类登记者：action 版本弃用注解（Node 20 / setup-java v4 → v5，CI 日志有 deprecation 警告）。
-- **待人工定级项（1）**：M12.md §7.4 伴随观察——**负持仓且无行情外的币其负市值仍计入净值**
+- **P4 推进点（2026-09-12）**：**M13 发布准备 ⏳ 待审核** —— M1–M12 全部通过，M13 为 P4 最后一个模块；
+  交付见上方 M13 节，**停人工门**（验收入口：`docs/test/security-checklist.md` + `docs/dev/modules/M13.md §4`）。
+  M13 通过后 P4 收尾 → P5 集成与联调。
+- **M13 新增在册项（不得视为已完成）**：① 签名/公证合规 + Linux 包 GPG 签名 → P7（需证书，采购口径
+  见 ADR-006 §2.1）；② win/mac 三平台 `package` job 首跑结果待 CI 观察；③ `.cpro` 非流式读写（大载荷内存曲线）→ P6。
+- **CI 改进项（2026-09-07 登记）已闭环（M13）**：ci.yml 增 `actions/upload-artifact@v5` 归档
+  `*/build/test-results/test/*.xml`（`if: always()`）——钥匙串真实后端用例在 win/mac 的执行/跳过可逐项核验；
+  action 版本升 v5 系（关闭 Node 20 / setup-java v4 弃用注解）。
+- **待人工定级项（1，M12 遗留）**：M12.md §7.4 伴随观察——**负持仓且无行情外的币其负市值仍计入净值**
   （实测 USDC −4,204 有价 → 净值被扣 4,202.79）；倾向「负持仓不计入净值」，属 `PortfolioCalculator`
   语义 → C2 待定级（本轮未动代码）。
-- **在册延期验证三项**（未到期前不得视为已完成）：① M11 §5-3 托盘 GUI 走查（检查点 = 本次走查或 P6）；
+- **在册延期验证三项**（未到期前不得视为已完成）：① M11 §5-3 托盘 GUI 走查（检查点 = 真实桌面或 P6）；
   ② M11 §5-2 打包版开机自启端到端（检查点 = P7 发布前）；③ D25 原型补「界面语言」行
   （检查点 = P5 联调或 P7 前视觉终审）。
 
@@ -952,3 +1030,4 @@ macOS 公证 + Windows 签名 + AppImage/Flatpak 追加），**待人工下达�
 | 2026-09-10 | 人 | **M11 三项提报拍板** | 原话「拍板：1. 托盘留待真实桌面再验证。2. 开机自启动延期 3. 按建议办理」——① 托盘 GUI 走查延期至真实 Windows/macOS/Linux 桌面（M11.md §5-3，到期检查点 = M12 走查或 P6 系统测试）；② 开机自启端到端延期至 P7 打包版（§5-2，到期检查点 = P7 发布前）；③ 按建议办理 = M11 新分组维持 Mutex 排队串行、M10 通用组/网络组维持旧写法并登记 M12 统一（§5-4）、toast 遮挡登记 M12 打磨（§6-1）。**M11 维持「待审核」**——本次拍板只关闭三项提报，模块走查（§4 步骤 4）待人工完成 |
 | 2026-09-10 | 人 + Agent | **M11 远程提交 + CI 三平台全绿留痕** | 人指令「本地提交，然后远程提交」——本地两提交（`4d3bb9c` M11 实现 / `3ad7859` 三项拍板落档）推送 `95ac408..3ad7859`；**CI run 34501319152 windows/ubuntu/macos 三平台全绿**（win 3m55s / mac 2m57s / ubuntu 3m0s）——本机 4 项「钥匙串真实后端跳过」在 win/mac 实证通过，**M11 遗留「CI 三平台复跑」闭环**；action 版本弃用注解（Node 20 / setup-java v4）为既有事项登记 M13 前处理 |
 | 2026-09-10 | 人 | **通过 M11** | 原话「m11 通过」——M11 ✅ 已通过关闭（T11.1 托盘与通知 / T11.2 开机自启 / T11.3 系统代理 + 调度循环宿主 + 托盘与后台设置分组；M5/M10 三项遗留同步闭环）；两项环境相关验证按同日拍板**延期留册**（§5-2 开机自启 → P7 打包版；§5-3 托盘 GUI → 真实桌面），到期检查点与 DoD 见 `docs/dev/modules/M11.md` §5；**M12 UI 整合收尾 解锁，待人工启动指令** |
+| 2026-09-12 | Agent | **执行 P4-M13 发布准备** | 人指令「执行p4-M13」；**T13.1** 安全自查（三条独立审计线 + 抽样复核）→ `docs/test/security-checklist.md`：五条硬约束逐条取证，**13 项发现 = 7 修复 + 6 登记**（修复：退出擦 DEK / 敏感物权限 0700·0600 / 密钥文件创建即 0600 + 读路径自愈 / 改密常量时间比较 / **日志脱敏统一漏斗**（logback `%msg` 覆盖）/ KDF 降级下限 / **快照降采样接线**（M5 §5-4 遗留闭环）；登记：`.cpro` 非流式、币种集合外发、备份密码强度边界、String 密码内存态、settings 键命名空间、登出后 tick 噪声）；新增 **22 项守护测试**（结构 7 / API 隔离 2 / 备份边界 3 / 权限 4 / 脱敏漏斗 5 / KDF 1 …）。**T13.2** 打包：三平台格式（msi+exe / dmg+pkg / deb+rpm + AppImage 脚本）、**修复发布阻断缺陷**（jlink 镜像缺 `java.sql` → 打包版启动即崩；显式模块集 6→19 后三形态实测可运行）、签名公证流水线（macOS codesign+notarytool / Windows signtool，Secrets 门控，未配置即跳过）、版本构建注入（闭环 M9 登记）、CI 两 job + 测试报告归档 + action 升 v5 + `workflow_dispatch`；本地三产物 .deb 128.66MB / .rpm 143.78MB / AppImage 139.05MB（附 SHA256）+ 打包版权限实证（目录 700 / 密钥·库·日志 600）；**636 用例（632 执行 0 失败 + 4 跳过）+ detekt 0 + 警告 0**；模块记录 `docs/dev/modules/M13.md`；**P4 维持进行中，M13 置待审核，停人工门** |

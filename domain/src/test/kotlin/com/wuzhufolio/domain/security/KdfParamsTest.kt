@@ -59,4 +59,20 @@ class KdfParamsTest {
         )
         assertNotEquals(KdfParams.DEFAULT.toStorageString(), KdfParams.OWASP_MINIMUM.toStorageString())
     }
+
+    @Test
+    fun `downgraded storage strings below the owasp baseline are rejected`() {
+        // M13 T13.1 加固：KDF 降级防线——存量参数低于 OWASP 基线即拒绝（此前只校验 ≥8KiB/线程）
+        assertFailsWith<IllegalArgumentException> {
+            KdfParams.fromStorageString("""{"alg":"argon2id","m":8192,"t":3,"p":1}""")
+        }
+        assertFailsWith<IllegalArgumentException> {
+            KdfParams.fromStorageString("""{"alg":"argon2id","m":65536,"t":1,"p":1}""")
+        }
+        // 边界：OWASP 基线本身（合法降级目标）必须通过
+        assertEquals(
+            KdfParams.OWASP_MINIMUM,
+            KdfParams.fromStorageString(KdfParams.OWASP_MINIMUM.toStorageString()),
+        )
+    }
 }

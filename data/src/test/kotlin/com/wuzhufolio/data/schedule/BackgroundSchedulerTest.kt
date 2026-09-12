@@ -38,6 +38,7 @@ class BackgroundSchedulerTest {
         var marketResult: MarketRefreshResult = okResult()
         var syncResults: List<ApiKeySyncResult> = emptyList()
         var rotateSummary = "files=0"
+        var compacted = 0
         var reminderDays: Long? = null
         var marketCalls = 0
         var lastManual: Boolean? = null
@@ -59,6 +60,8 @@ class BackgroundSchedulerTest {
         override suspend fun syncNow(): List<ApiKeySyncResult> = syncResults
 
         override suspend fun rotateLogs(): String = rotateSummary
+
+        override suspend fun compactSnapshots(): Int = compacted
 
         override suspend fun backupReminderDays(): Long? = reminderDays
     }

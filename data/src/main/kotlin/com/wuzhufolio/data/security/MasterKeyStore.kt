@@ -1,6 +1,7 @@
 package com.wuzhufolio.data.security
 
 import com.github.javakeyring.Keyring
+import com.wuzhufolio.domain.security.FilePermissions
 import com.wuzhufolio.domain.security.Zeroization
 import org.slf4j.Logger
 import java.nio.file.Files
@@ -160,13 +161,17 @@ class FileMasterKeyStore(private val path: Path) : MasterKeyStore {
         } catch (e: Exception) {
             throw MasterKeyFileException("cannot read key file: " + path, e)
         }
-        return decodeHex(text.trim())
+        val key = decodeHex(text.trim())
+        // M13 T13.1：读路径自愈——历史版本写入的密钥文件（umask 0644）在每次启动被收紧为 0600
+        restrictPermissions()
+        return key
     }
 
     override fun store(key: ByteArray) {
         try {
             Files.createDirectories(path.toAbsolutePath().parent)
-            Files.writeString(path, encodeHex(key) + "\n")
+            // M13 T13.1 加固：创建即 0600（消除「先写入后 chmod」的 umask 窗口，见 FilePermissions 头注）
+            FilePermissions.writeOwnerOnlyString(path, encodeHex(key) + "\n")
         } catch (e: Exception) {
             throw MasterKeyFileException("cannot write key file: " + path, e)
         }

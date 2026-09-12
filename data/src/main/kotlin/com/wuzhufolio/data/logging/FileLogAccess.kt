@@ -1,6 +1,7 @@
 package com.wuzhufolio.data.logging
 
 import com.wuzhufolio.domain.redaction.LogRedactor
+import com.wuzhufolio.domain.security.FilePermissions
 import com.wuzhufolio.domain.settings.LogAccess
 import java.io.IOException
 import java.nio.file.Files
@@ -32,6 +33,8 @@ class FileLogAccess(
         val tmp = Files.createTempFile(target.toAbsolutePath().parent, target.fileName.toString(), ".tmp")
         Files.write(tmp, lines, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)
         Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+        // M13 T13.1 加固：日志导出物 0600（临时文件本身已受限，此处对目标路径显式兜底）
+        FilePermissions.restrictFile(target)
         return lines.size
     }
 }

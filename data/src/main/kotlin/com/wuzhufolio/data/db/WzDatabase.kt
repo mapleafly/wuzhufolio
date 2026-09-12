@@ -1,5 +1,6 @@
 package com.wuzhufolio.data.db
 
+import com.wuzhufolio.domain.security.FilePermissions
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.sqlite.SQLiteConfig
 import org.sqlite.mc.SQLiteMCSqlCipherConfig
@@ -52,6 +53,12 @@ class WzDatabase(
             DriverManager.getConnection(jdbcUrl, connectionProps)
         } catch (e: SQLException) {
             throw mapOpenFailure(dbPath, e)
+        }
+        // M13 T13.1 加固：库文件（含 WAL/SHM 兄弟文件）收紧为 0600——此前依赖用户 umask
+        // （整库已 SQLCipher 加密，此处为纵深加固；目录 0700 由 AppDirs.ensureDataDirs 保证）
+        FilePermissions.restrictFile(dbPath)
+        for (suffix in listOf("-wal", "-shm")) {
+            FilePermissions.restrictFile(dbPath.resolveSibling(dbPath.fileName.toString() + suffix))
         }
         exposed = Database.connect({ DriverManager.getConnection(jdbcUrl, connectionProps) })
     }

@@ -52,7 +52,7 @@ sealed interface SchedulerEvent {
 }
 
 /**
- * 调度宿主所需的最小事实来源（**窄接口**：宿主只需这 8 项，不需要两个用例服务的完整面）。
+ * 调度宿主所需的最小事实来源（**窄接口**：宿主只需这 9 项，不需要两个用例服务的完整面）。
  *
  * 拆出来的收益：① 宿主与「行情/交易所用例」解耦，测试用单只读假实现即可覆盖全部循环逻辑；
  * ② 组合根显式声明调度到底在调什么（见 `DefaultSchedulerSources`）。
@@ -79,6 +79,12 @@ interface SchedulerSources {
 
     /** 运行期日志轮转，返回脱敏摘要。 */
     suspend fun rotateLogs(): String
+
+    /**
+     * 历史价格快照降采样（M5 T5.2「降采样正确」的运行期执行点；M13 闭环 M5 §5-4 登记遗留）：
+     * 删除 90 天保留界之前的非整点小时桶，返回删除行数（幂等，无删除返回 0）。
+     */
+    suspend fun compactSnapshots(): Int
 
     /** 备份提醒判定：到期返回距基线天数，未到期返回 null。 */
     suspend fun backupReminderDays(): Long?
@@ -246,6 +252,10 @@ class BackgroundScheduler(
     private suspend fun runMaintenance() {
         val summary = sources.rotateLogs()
         emit(SchedulerEvent.LogRotated(summary))
+        // M13：历史快照降采样（ADR-005 §3 / data-model §2.11「近 90 天小时级、更早日级」的运行期执行点；
+        // M5 §5-4 登记「压缩任务执行点接入调度宿主」此前未接线——本处闭环）
+        val compacted = sources.compactSnapshots()
+        if (compacted > 0) logger.info("price snapshot compaction removed " + compacted + " hourly rows")
         val days = sources.backupReminderDays()
         if (days != null) emit(SchedulerEvent.BackupReminderDue(days))
         onTick()
@@ -307,7 +317,7 @@ class BackgroundScheduler(
 }
 
 /**
- * 生产装配：把三个用例服务 + 两个引导层查询适配成 [SchedulerSources]
+ * 生产装配：把三个用例服务 + 三个引导层动作（日志轮转/快照降采样/备份提醒）适配成 [SchedulerSources]
  * （组合根唯一装配点，见 `AppBootstrap.run`）。
  */
 class DefaultSchedulerSources(
@@ -315,6 +325,7 @@ class DefaultSchedulerSources(
     private val marketSettingsService: MarketSettingsService,
     private val syncService: ExchangeSyncService,
     private val rotateLogs: suspend () -> String,
+    private val compactSnapshots: suspend () -> Int,
     private val backupReminderDays: suspend () -> Long?,
 ) : SchedulerSources {
 
@@ -332,6 +343,8 @@ class DefaultSchedulerSources(
     override suspend fun syncNow(): List<ApiKeySyncResult> = syncService.syncNow()
 
     override suspend fun rotateLogs(): String = rotateLogs.invoke()
+
+    override suspend fun compactSnapshots(): Int = compactSnapshots.invoke()
 
     override suspend fun backupReminderDays(): Long? = backupReminderDays.invoke()
 }

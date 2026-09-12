@@ -42,12 +42,20 @@ data class KdfParams(
         fun fromStorageString(value: String): KdfParams {
             val match = STORAGE_PATTERN.matchEntire(value.trim()) ?: return invalid(value)
             val algorithm = algorithmOf(match.groupValues[1], value)
-            return KdfParams(
+            val parsed = KdfParams(
                 algorithm = algorithm,
                 memoryKiB = intField("m", match.groupValues[2], value),
                 iterations = intField("t", match.groupValues[3], value),
                 parallelism = intField("p", match.groupValues[4], value),
             )
+            // M13 T13.1 安全自查加固：拒绝低于 OWASP 基线的存量参数（KDF 降级攻击防线）。
+            // 合法取值只有出厂 DEFAULT（64MiB/t3/p1）与降级目标 OWASP_MINIMUM（19MiB/t2/p1），二者均不低于本下限。
+            if (parsed.memoryKiB < OWASP_MINIMUM.memoryKiB || parsed.iterations < OWASP_MINIMUM.iterations) {
+                throw IllegalArgumentException(
+                    "kdf_params below OWASP minimum (downgrade rejected): " + value,
+                )
+            }
+            return parsed
         }
 
         private fun invalid(value: String): Nothing =

@@ -4,6 +4,15 @@
 <configuration>
     <property name="LOG_DIR" value="${wuzhufolio.logdir:-${user.home}/.wuzhufolio/logs}"/>
 
+    <!-- M13 T13.1 加固：%msg/%message/%m 统一经 LogRedactor（脱敏成为写入侧漏斗，调用点显式脱敏为第二道）。
+         logback 1.6 起 conversionRule 用 class 属性（converterClass 已弃用）。 -->
+    <conversionRule conversionWord="msg"
+                    class="com.wuzhufolio.app.logging.RedactingMessageConverter"/>
+    <conversionRule conversionWord="message"
+                    class="com.wuzhufolio.app.logging.RedactingMessageConverter"/>
+    <conversionRule conversionWord="m"
+                    class="com.wuzhufolio.app.logging.RedactingMessageConverter"/>
+
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{24} - %msg%n</pattern>

@@ -146,7 +146,17 @@ flowchart LR
 
 ### M13 发布准备
 - **T13.1 安全自查**：§1.1 硬约束逐条核验。验收：security-checklist 全通过。回溯：PRD §1.1。
+  > **M13 落地（2026-09-12）**：主产物 `docs/test/security-checklist.md`（五条硬约束逐条取证 + 13 项发现处置 +
+  > 残留风险登记 + 复核命令）；新增 22 项结构/边界守护测试（出站白名单/零遥测依赖/无网络 appender/
+  > 两类客户端隔离/行情 Key 不进备份/权限/脱敏漏斗/KDF 下限）；7 项实现偏差按 **C0** 修复
+  > （退出擦除 DEK、权限收紧、统一脱敏漏斗、常量时间比较、KDF 降级下限、**快照降采样接线**、依赖清单更正）。
+  > 残留（转 P6/P7 并登记到期检查点）：`.cpro` 非流式读写、行情请求币种集合最小化、签名合规等。
 - **T13.2 签名公证打包**：jpackage 三平台产物 + macOS 公证 + Windows 签名；AppImage/Flatpak 追加（ADR-006 风险）。验收：产物可安装、签名合规。回溯：ADR-006、PRD §12。
+  > **M13 落地（2026-09-12）**：产物格式按平台配置（win msi+exe / mac dmg+pkg / linux deb+rpm + AppImage 脚本）；
+  > **修复发布阻断缺陷**——jlink 运行期镜像缺 `java.sql` 致打包版启动失败（显式模块集 6→19，三形态实测可运行）；
+  > 版本构建注入（`BuildInfo.VERSION`）；macOS（codesign+notarytool+stapler）与 Windows（signtool）签名步骤入库、
+  > Secrets 门控（未配置 = 跳过 + 未签名产物，ADR-006 §2 口径），证书采购与**签名合规实证留 P7**（ADR-006 §2.1）；
+  > Linux 三产物本地实测 + SHA256，CI `package` job 三平台产物归档（`workflow_dispatch` 可手动触发）。
 
 ## 4. 里程碑验收门槛
 

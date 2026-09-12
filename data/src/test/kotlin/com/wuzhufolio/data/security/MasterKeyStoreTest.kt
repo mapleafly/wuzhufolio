@@ -36,6 +36,41 @@ class FileMasterKeyStoreTest {
         assertEquals(64, text.trim().length)
     }
 
+    @Suppress("SwallowedException") // Windows/NTFS 无 POSIX：按平台能力跳过
+    @Test
+    fun `loading a legacy key file tightens its permissions to 0600`() {
+        // M13 T13.1 自愈：历史版本写入的密钥文件（umask 0644）在读取时被收紧
+        Files.writeString(
+            path,
+            key().joinToString("") { String.format(java.util.Locale.ROOT, "%02x", it) } + "\n",
+        )
+        val perms = try {
+            Files.setPosixFilePermissions(
+                path,
+                setOf(
+                    java.nio.file.attribute.PosixFilePermission.OWNER_READ,
+                    java.nio.file.attribute.PosixFilePermission.OWNER_WRITE,
+                    java.nio.file.attribute.PosixFilePermission.GROUP_READ,
+                    java.nio.file.attribute.PosixFilePermission.OTHERS_READ,
+                ),
+            )
+            FileMasterKeyStore(path).load()
+            Files.getPosixFilePermissions(path)
+        } catch (e: UnsupportedOperationException) {
+            null // Windows/NTFS：跳过（依赖用户目录 ACL）
+        }
+        if (perms != null) {
+            assertEquals(
+                setOf(
+                    java.nio.file.attribute.PosixFilePermission.OWNER_READ,
+                    java.nio.file.attribute.PosixFilePermission.OWNER_WRITE,
+                ),
+                perms,
+                "读路径应把历史 0644 密钥文件收紧为 0600",
+            )
+        }
+    }
+
     @Test
     fun `overwrite replaces previous key`() {
         val store = FileMasterKeyStore(path)

@@ -1,9 +1,9 @@
 package com.wuzhufolio.data.security
 
+import com.wuzhufolio.domain.security.FilePermissions
 import org.slf4j.Logger
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.attribute.PosixFilePermission
 import java.security.SecureRandom
 import java.util.Base64
 
@@ -153,23 +153,19 @@ class FileRememberMeStore(private val path: Path) : RememberMeStore {
         } catch (e: Exception) {
             throw IllegalStateException("cannot read remember-me file: " + path, e)
         }
-        return KeyringRememberMeStore.parse(text.trim())
+        val entry = KeyringRememberMeStore.parse(text.trim())
+        // M13 T13.1：读路径自愈（历史文件权限按写入时 umask）
+        FilePermissions.restrictFile(path)
+        return entry
     }
 
     override fun save(entry: RememberMeEntry) {
         try {
             Files.createDirectories(path.toAbsolutePath().parent)
-            Files.writeString(path, KeyringRememberMeStore.encode(entry) + "\n")
+            // M13 T13.1 加固：创建即 0600（消除「先写入后 chmod」的 umask 窗口，见 FilePermissions 头注）
+            FilePermissions.writeOwnerOnlyString(path, KeyringRememberMeStore.encode(entry) + "\n")
         } catch (e: Exception) {
             throw IllegalStateException("cannot write remember-me file: " + path, e)
-        }
-        try {
-            Files.setPosixFilePermissions(
-                path,
-                java.util.EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE),
-            )
-        } catch (e: UnsupportedOperationException) {
-            // 非 POSIX 文件系统：依赖用户目录 ACL
         }
     }
 

@@ -63,6 +63,8 @@ fun main() {
     // （sun.net.spi.DefaultProxySelector 在类初始化时读取 java.net.useSystemProxies 一次；
     //  打包版另有 app/build.gradle.kts 的 jvmArgs 兜底）
     JdkSystemProxy.enable()
+    // M13 T13.1 加固：数据/日志目录创建即 0700（业务数据全部落在该目录下，早于日志与数据库初始化）
+    AppDirs.ensureDataDirs()
     System.setProperty("wuzhufolio.logdir", AppDirs.logDir().toString())
     val logger = LoggerFactory.getLogger("wuzhufolio.bootstrap")
 
@@ -110,7 +112,7 @@ internal fun MainWindowContent(
             marketRefreshService = runtime.marketRefreshService,
             exchangeSyncService = runtime.exchangeSyncService,
             backupReminderDays = runtime.backupReminderDaysProvider,
-            appVersion = com.wuzhufolio.data.backup.DefaultBackupService.APP_VERSION,
+            appVersion = BuildInfo.VERSION,
         )
     }
     val refreshViewModel = remember {
@@ -167,7 +169,7 @@ internal fun MainWindowContent(
                 backupService = runtime.backupService,
                 desktopSettings = runtime.desktopSettingsService,
                 trayAvailable = trayAvailable,
-                appVersion = com.wuzhufolio.data.backup.DefaultBackupService.APP_VERSION,
+                appVersion = BuildInfo.VERSION,
                 pickers = SettingsFilePickers(
                     pickLogSave = { title -> FilePicker.pickSave(title) },
                     pickReportSave = { title -> FilePicker.pickSave(title) },
@@ -277,7 +279,7 @@ private object FilePicker {
 private fun usernameEnumEnabled(runtime: AppBootstrap.Runtime): Boolean =
     runtime.settings.getGlobal("login.username.enum")?.let { it != "off" } ?: true
 
-/** 诊断报告文本写盘（M10 T10.3；目录不存在自动创建）。 */
+/** 诊断报告文本写盘（M10 T10.3；目录不存在自动创建）。M13 T13.1：落盘物 0600。 */
 private fun writeTextFile(path: String, content: String) {
     val target = java.nio.file.Path.of(path)
     target.parent?.let { Files.createDirectories(it) }
@@ -287,6 +289,7 @@ private fun writeTextFile(path: String, content: String) {
         StandardOpenOption.CREATE,
         StandardOpenOption.TRUNCATE_EXISTING,
     )
+    com.wuzhufolio.domain.security.FilePermissions.restrictFile(target)
 }
 
 @Composable

@@ -153,7 +153,8 @@ class DefaultAccountService(
             val oldSalt = saltFromHex(record.kdfSalt)
             val oldKek = crypto.deriveKek(req.currentPassword, oldSalt, params)
             val oldDek = try {
-                if (crypto.kekVerifyHash(oldKek) != record.passwordHash) throw OldPasswordMismatchException()
+                // M13 T13.1 加固：改密与登录统一走常量时间比较（此前此处用 != 字符串比较，存在时序面差异）
+                if (!crypto.kekVerify(oldKek, record.passwordHash)) throw OldPasswordMismatchException()
                 try {
                     crypto.unwrapDek(record.wrappedDek, oldKek, record.id.toString())
                 } catch (e: AuthenticationFailedException) {

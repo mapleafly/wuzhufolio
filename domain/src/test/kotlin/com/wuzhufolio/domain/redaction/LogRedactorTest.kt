@@ -38,6 +38,13 @@ class LogRedactorTest {
     }
 
     @Test
+    fun `long file paths are not mistaken for bare secrets`() {
+        // M13 勘误：字符类去除 '/' 后，长路径不再被裸值规则误伤（诊断日志保留 DB 路径）
+        val msg = "bootstrap ok | db=/tmp/wzf-appimage-smoke/wuzhufolio.db | schema=12"
+        assertEquals(msg, LogRedactor.redact(msg))
+    }
+
+    @Test
     fun `full hello style line contains no raw secret`() {
         val raw = "hello-chain ok | schema_version=2 | market_api_key=CG-DEMO-0123456789abcdef0123456789abcdef"
         val out = LogRedactor.redact(raw)

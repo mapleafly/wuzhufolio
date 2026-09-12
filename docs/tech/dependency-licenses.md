@@ -25,7 +25,7 @@
 | lifecycle-viewmodel-compose | `org.jetbrains.androidx.lifecycle` | 2.11.0 | Apache-2.0 | ✅ |
 | slf4j-api | `org.slf4j:slf4j-api` | 2.0.17 | MIT（slf4j.org/license.html） | ✅ |
 | logback-classic/core | `ch.qos.logback:logback-classic` | 1.6.3 | **EPL-2.0 / LGPL-2.1 双许可**（父 POM） | ✅（见 §2 注 2） |
-| **dorkbox SystemTray（M11 备选）** | `com.dorkbox:SystemTray` | 4.4 | Apache-2.0（POM） | ✅ |
+| dorkbox SystemTray（M11 备选，**未采用**） | `com.dorkbox:SystemTray` | 4.4 | Apache-2.0（POM） | ✅（**未进构建**：M13 安全自查核实 version catalog 与四个模块脚本均无该坐标；托盘实际用 Compose Tray API / `java.awt.SystemTray`，本行仅留备选记录、不随产品分发） |
 
 ## 1b. java-keyring 传递依赖（M1 起运行时引入，随产品分发）
 

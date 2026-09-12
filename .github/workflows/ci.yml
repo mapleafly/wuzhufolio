@@ -1,36 +1,54 @@
-# WuZhuFolio CI（T0.2，ADR-006 §3）
-# 三平台矩阵：test（JUnit5 + Compose UI 测试）+ detekt + 打包冒烟（app-image + uber jar）。
-# JDK 与本地 mise 口径一致：temurin-17（.mise.toml）。签名/公证为 P7（ADR-006 备注）。
+# WuZhuFolio CI（T0.2 + M13 T13.2，ADR-006 §3）
+# 两个 job：
+#   1. build   三平台矩阵：test（JUnit5 + Compose UI 测试）+ 测试报告归档 + detekt + uber jar 冒烟
+#   2. package 三平台原生产物（jpackage：msi/exe · dmg/pkg · deb/rpm + AppImage）；push main 或手动触发
+# 签名/公证：凭据经 GitHub Secrets 注入（ADR-006 §2），**未配置时相关步骤自动跳过**并产出未签名产物
+# （内部验收口径）；正式发布签名/公证在 P7 用发布凭据执行。
 name: CI
 
 on:
   push:
     branches: [ main ]
   pull_request:
+  # M13：允许在特性分支上手动触发（打包链路验证不需要先合入 main）
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up JDK (Temurin 17)
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Set up Gradle（含 wrapper 校验与缓存）
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
 
       - name: Test（JUnit5 + Compose UI 测试，离屏渲染）
         shell: bash
         run: ./gradlew test --console=plain --stacktrace
+
+      - name: 上传测试报告（M13：4 项钥匙串真实后端用例在 win/mac 的执行结果可逐项核验）
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: test-results-${{ matrix.os }}
+          path: '*/build/test-results/test/*.xml'
+          retention-days: 14
+          if-no-files-found: warn
 
       - name: detekt 静态检查
         shell: bash
@@ -38,13 +56,134 @@ jobs:
 
       - name: 打包冒烟（uber jar，纯 Gradle）
         shell: bash
-        # 注：createDistributable（jpackage app-image）在 win/mac runner 环境不稳定，按 ADR-006 安装器打包留 P7；
-        # CI 只验证 uber jar（应用可打包成自包含可运行 jar）
         run: ./gradlew :app:packageUberJarForCurrentOS --console=plain
 
       - name: 上传 uber jar（冒烟产物，7 天）
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: wuzhufolio-${{ matrix.os }}-uberjar
           path: app/build/compose/jars/*.jar
           retention-days: 7
+          if-no-files-found: warn
+
+  package:
+    name: package-${{ matrix.os }}
+    needs: build
+    # PR 只跑测试；原生打包在 push main / 手动触发时执行（避免 PR 消耗三平台打包时间）
+    if: github.event_name != 'pull_request'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      # Gradle 侧签名/公证凭据（app/build.gradle.kts → signingSecret()；未配置 = 不签名）
+      WUZHUFOLIO_MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+      WUZHUFOLIO_MACOS_SIGNING_KEYCHAIN: ${{ secrets.MACOS_SIGNING_KEYCHAIN }}
+      WUZHUFOLIO_MACOS_NOTARIZATION_APPLEID: ${{ secrets.MACOS_NOTARIZATION_APPLEID }}
+      WUZHUFOLIO_MACOS_NOTARIZATION_PASSWORD: ${{ secrets.MACOS_NOTARIZATION_PASSWORD }}
+      WUZHUFOLIO_MACOS_NOTARIZATION_TEAMID: ${{ secrets.MACOS_NOTARIZATION_TEAMID }}
+      # CI 侧证书导入（仅用于把 Secrets 里的证书装进 runner 钥匙串/证书存储）
+      MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+      MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+      MACOS_KEYCHAIN_PASSWORD: ${{ secrets.MACOS_KEYCHAIN_PASSWORD }}
+      WIN_CERT_P12: ${{ secrets.WIN_CERT_P12 }}
+      WIN_CERT_PASSWORD: ${{ secrets.WIN_CERT_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK (Temurin 17)
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: 安装 Linux 打包依赖（rpm：jpackage packageRpm 需要 rpmbuild）
+        if: runner.os == 'Linux'
+        shell: bash
+        run: sudo apt-get update && sudo apt-get install -y rpm
+
+      - name: 导入 macOS 签名证书（仅配置证书时）
+        if: runner.os == 'macOS' && env.MACOS_CERT_P12 != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          CERT_PATH="$RUNNER_TEMP/wuzhufolio-signing.p12"
+          echo "$MACOS_CERT_P12" | base64 --decode > "$CERT_PATH"
+          KEYCHAIN="$RUNNER_TEMP/wuzhufolio.keychain-db"
+          security create-keychain -p "$MACOS_KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$MACOS_KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$CERT_PATH" -k "$KEYCHAIN" -P "$MACOS_CERT_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$MACOS_KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
+          rm -f "$CERT_PATH"
+
+      - name: 原生打包（jpackage：当前平台全部目标格式）
+        shell: bash
+        # Linux = deb + rpm；Windows = msi + exe；macOS = dmg + pkg（含签名/公证，若已注入凭据）
+        run: ./gradlew :app:packageDistributionForCurrentOS --console=plain --stacktrace
+
+      - name: AppImage（Linux 追加，ADR-006 §1：appimagetool 包 jpackage app-image）
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          ./gradlew :app:createDistributable --console=plain
+          ./scripts/package-appimage.sh
+
+      - name: 代码签名（Windows，仅配置证书时）
+        if: runner.os == 'Windows' && env.WIN_CERT_P12 != ''
+        shell: pwsh
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP "wuzhufolio-signing.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WIN_CERT_P12))
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
+            Where-Object { $_.FullName -match '\\x64\\' } | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $signtool) { throw "signtool.exe 未找到（Windows SDK 缺失）" }
+          $targets = Get-ChildItem -Path app/build/compose/binaries/main -Recurse -Include *.msi, *.exe
+          foreach ($t in $targets) {
+            Write-Host "signing $($t.FullName)"
+            & $signtool sign /f $pfx /p $env:WIN_CERT_PASSWORD /fd sha256 `
+              /tr http://timestamp.digicert.com /td sha256 $t.FullName
+            if ($LASTEXITCODE -ne 0) { throw "signtool failed for $($t.Name)" }
+          }
+          Remove-Item $pfx -Force
+
+      - name: 产物清单与校验和
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd app/build/compose/binaries/main
+          find . -maxdepth 2 -type f \( -name '*.msi' -o -name '*.exe' -o -name '*.dmg' \
+            -o -name '*.pkg' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' \) \
+            -exec ls -l {} \; -exec sha256sum {} \; | tee "$RUNNER_TEMP/artifacts.txt"
+
+      - name: 上传原生产物（14 天）
+        uses: actions/upload-artifact@v5
+        with:
+          name: wuzhufolio-${{ matrix.os }}-native
+          path: |
+            app/build/compose/binaries/main/msi/*.msi
+            app/build/compose/binaries/main/exe/*.exe
+            app/build/compose/binaries/main/dmg/*.dmg
+            app/build/compose/binaries/main/pkg/*.pkg
+            app/build/compose/binaries/main/deb/*.deb
+            app/build/compose/binaries/main/rpm/*.rpm
+            app/build/compose/binaries/main/appimage/*.AppImage
+            app/build/compose/binaries/main/appimage/*.sha256
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: 上传产物清单（含 SHA256 与签名状态）
+        uses: actions/upload-artifact@v5
+        with:
+          name: wuzhufolio-${{ matrix.os }}-artifacts-manifest
+          path: ${{ runner.temp }}/artifacts.txt
+          retention-days: 14
+          if-no-files-found: warn

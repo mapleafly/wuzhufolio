@@ -105,12 +105,16 @@ object AppBootstrap {
         val securityNotice: String?,
     )
 
-    /** 账户会话装配（M2：用例 + 记住我存储，close 释放存储后端）。 */
+    /** 账户会话装配（M2：用例 + 记住我存储 + 活动会话持有器；close 擦除内存 DEK 并释放存储后端）。 */
     class SessionRuntime internal constructor(
         val authService: AccountService,
         private val rememberStore: RememberMeStore,
+        private val sessions: ActiveSessionStore,
     ) {
         fun close() {
+            // M13 T13.1 安全自查加固：进程退出路径此前只关存储、未擦内存 DEK
+            // （登出/切换/改密均已擦除，唯退出缺失）——此处补齐 ADR-002 §2「密钥材料使用后清零」。
+            runCatching { sessions.clear() }
             runCatching { rememberStore.close() }
         }
     }
@@ -173,7 +177,7 @@ object AppBootstrap {
         private val exchangeHttpClient: java.io.Closeable,
     ) {
         fun close() {
-            runCatching { session.close() }
+            runCatching { session.close() } // 内含活动会话 DEK 擦除（M13 T13.1：退出即擦）
             runCatching { deviceStore.close() } // 设备密钥零化（ADR-002 §2）
             runCatching { keyring?.close() }
             runCatching { deviceKeyring?.close() }
@@ -210,6 +214,9 @@ object AppBootstrap {
 
         // M10 T10.2：日志轮转（本地日志 1 万条/90 天 + sync_logs 同口径）——启动执行一次，摘要入日志
         val logRotation = LogRotator.rotate(AppDirs.logDir())
+        // M13 T13.1 加固：活动日志文件收紧为 0600（目录 0700 已保证不可遍历；文件级再收紧防目录权限被改动）
+        com.wuzhufolio.domain.security.FilePermissions
+            .restrictFile(AppDirs.logDir().resolve("wuzhufolio.log"))
         val syncRotation = SyncLogRepository(gate).rotate(java.time.Instant.now())
         logger.info(
             LogRedactor.redact(
@@ -261,7 +268,7 @@ object AppBootstrap {
             logger = logger,
         )
         val diagnostics: DiagnosticsService = DefaultDiagnosticsService(
-            appVersion = com.wuzhufolio.data.backup.DefaultBackupService.APP_VERSION,
+            appVersion = BuildInfo.VERSION,
             schemaVersion = hello.schemaVersion,
             quota = SettingsQuotaLedger(settings),
             syncCount = { SyncLogRepository(gate).countAll() },
@@ -303,6 +310,10 @@ object AppBootstrap {
                 marketSettingsService = market.marketSettingsService,
                 syncService = exchange.exchangeSyncService,
                 rotateLogs = { rotateLogsNow(gate) },
+                // M13：历史快照降采样执行点（ADR-005 §3「降采样后快照随备份」；幂等）
+                compactSnapshots = {
+                    PriceSnapshotRepository(gate).compactPreservingDaily(java.time.Instant.now())
+                },
                 backupReminderDays = { backupReminderDays(gate, accountRepository, sessions) },
             ),
             onTick = { proxyRuntime.refresh() },
@@ -329,7 +340,11 @@ object AppBootstrap {
                 language = AppLanguage.fromStorage(settings.getGlobal(GeneralSettingsKeys.LANGUAGE)),
                 securityNotice = securityNotice(report, keyFile),
             ),
-            session = SessionRuntime(authService = authService, rememberStore = rememberStore),
+            session = SessionRuntime(
+                authService = authService,
+                rememberStore = rememberStore,
+                sessions = sessions,
+            ),
             marketSettingsService = market.marketSettingsService,
             marketRefreshService = market.marketRefreshService,
             marketWatchService = market.marketWatchService,
@@ -683,6 +698,8 @@ object AppBootstrap {
                         restoreStore = com.wuzhufolio.data.backup.BackupRestoreStore(crypto),
                         backupsDir = backupsDir,
                         logger = logger,
+                        // M13 T13.2：.cpro 头部 app_version 来自构建注入（与 jpackage packageVersion 同源）
+                        appVersion = BuildInfo.VERSION,
                     )
                 return BackupServicesBundle(service)
             }

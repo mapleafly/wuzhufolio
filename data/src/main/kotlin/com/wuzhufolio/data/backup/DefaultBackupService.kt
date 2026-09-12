@@ -34,6 +34,7 @@ import com.wuzhufolio.domain.engine.NegativePolicy
 import com.wuzhufolio.domain.engine.ReplayEngine
 import com.wuzhufolio.domain.engine.Side
 import com.wuzhufolio.domain.security.CryptoService
+import com.wuzhufolio.domain.security.FilePermissions
 import com.wuzhufolio.domain.security.KdfParams
 import java.math.BigDecimal
 import java.nio.file.AtomicMoveNotSupportedException
@@ -81,6 +82,8 @@ class DefaultBackupService(
     /** 全量覆盖前的自动临时备份目录（app 装配注入，如 ~/.wuzhufolio/backups）。 */
     private val backupsDir: Path,
     private val logger: Logger,
+    /** 应用版本（M13 T13.2 构建注入：装配层传 BuildInfo.VERSION；默认值为模块内开发常量，供单测）。 */
+    private val appVersion: String = APP_VERSION,
 ) : BackupService {
 
     private fun requireSession(): ActiveSession =
@@ -124,7 +127,7 @@ class DefaultBackupService(
         )
         val header = CproHeader(
             formatVersion = CproCodec.FORMAT_VERSION,
-            appVersion = APP_VERSION,
+            appVersion = appVersion,
             exportedAt = now.toString(),
             counts = counts,
             range = CproRange(
@@ -506,7 +509,7 @@ class DefaultBackupService(
         const val SETTING_LAST_BACKUP = "backup.last_at"
         const val SETTING_LAST_RESTORE = "restore.last_at"
 
-        /** 应用版本（头部 app_version；构建注入随 M13 发布链落地，先取里程碑常量）。 */
+        /** 应用版本默认值（单测/未注入装配回退）；发布版由 app 装配层注入 BuildInfo.VERSION（M13 T13.2）。 */
         const val APP_VERSION = "0.1.0-dev"
     }
 }
@@ -627,15 +630,20 @@ internal fun parseInstant(text: String?): Instant? {
     }
 }
 
-/** 原子写文件：临时文件 + rename（进程中断不留半文件）。 */
+/**
+ * 原子写文件：临时文件 + rename（进程中断不留半文件）。
+ * M13 T13.1 加固：导出物（.cpro 备份 / **明文 CSV**）以 0600 落盘——此前完全依赖 umask，
+ * 同机其他用户可读（见 [com.wuzhufolio.domain.security.FilePermissions] 头注）。
+ */
 internal fun writeAtomic(path: Path, bytes: ByteArray) {
     path.parent?.let { Files.createDirectories(it) }
     val tmp = path.resolveSibling(path.fileName.toString() + ".tmp-" + System.nanoTime())
-    Files.write(tmp, bytes)
+    FilePermissions.writeOwnerOnlyBytes(tmp, bytes)
     try {
         Files.move(tmp, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
     } catch (@Suppress("SwallowedException") e: AtomicMoveNotSupportedException) {
         // 原子 rename 不被文件系统支持 → 降级为普通 rename（功能等价，进程中断窗口极小）
         Files.move(tmp, path, StandardCopyOption.REPLACE_EXISTING)
     }
+    FilePermissions.restrictFile(path)
 }

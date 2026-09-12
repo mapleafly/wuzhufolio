@@ -19,8 +19,15 @@ object LogRedactor {
         """(?i)\b([\w.-]*?(?:$SENSITIVE_WORDS)[\w.-]*?)\b(\s*[=:]\s*)("[^"]*"|'[^']*'|\S+)"""
     )
 
-    /** 连续 >=32 位的疑似密钥/签名/令牌串。 */
-    private val longSecretLike = Regex("""\b[0-9a-zA-Z+/_-]{32,}={0,2}\b""")
+    /**
+     * 连续 >=32 位的疑似密钥/签名/令牌串（裸值规则）。
+     *
+     * M13 T13.1 勘误：字符类**不含 `/`** —— 原规则把长度 ≥32 的文件路径段（如
+     * `/tmp/wzf-appimage-smoke/wuzhufolio`）误判为密钥，导致诊断日志里 DB 路径被打码。
+     * 本应用的密钥形态为 hex / base64url / 字母数字（含 `-_.+`），均不含 `/`；
+     * 带 `/` 的标准 base64 若出现在日志中，仍由键值规则（键名含 key/secret/token… 即整值遮蔽）兜底。
+     */
+    private val longSecretLike = Regex("""\b[0-9a-zA-Z+_-]{32,}={0,2}\b""")
 
     /** 返回脱敏后的日志消息。 */
     fun redact(message: String): String {
