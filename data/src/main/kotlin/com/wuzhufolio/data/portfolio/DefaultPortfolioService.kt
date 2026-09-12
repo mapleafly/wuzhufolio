@@ -127,7 +127,7 @@ class DefaultPortfolioService(
         val outcome = ReplayEngine.replay(build.events, NegativePolicy.LENIENT)
         val market = loadMarket(outcome, fiat)
         val metrics = PortfolioCalculator(cashCoinIds = cashCoinIds()).compute(outcome, market.prices)
-        val portfolioRows = buildRows(metrics, market)
+        val portfolioRows = buildRows(metrics, market, outcome)
         val snapshot = PortfolioSnapshot(
             fiat = fiat,
             metrics = metrics,
@@ -160,20 +160,26 @@ class DefaultPortfolioService(
         return MarketData(coins, quotes, quotes.mapValues { it.value.price })
     }
 
-    private fun buildRows(metrics: PortfolioMetrics, market: MarketData): List<PortfolioRow> =
+    private fun buildRows(
+        metrics: PortfolioMetrics,
+        market: MarketData,
+        outcome: ReplayOutcome,
+    ): List<PortfolioRow> =
         metrics.holdings.values
             .mapNotNull { holding ->
                 market.coins[holding.coinId]?.let { coin ->
-                    toRow(holding, coin, market.quotes[holding.coinId], metrics.netValueFiat)
+                    toRow(holding, coin, market.quotes[holding.coinId], metrics.netValueFiat, outcome)
                 }
             }
             .sortedWith(ROW_ORDER)
 
+    @Suppress("LongParameterList") // 行装配：引擎口径 + 目录行 + 现价 + 净值 + 重放结果（成本可靠性）
     private fun toRow(
         holding: HoldingMetrics,
         coin: CatalogCoin,
         quote: Quote?,
         netValue: BigDecimal,
+        outcome: ReplayOutcome,
     ): PortfolioRow = PortfolioRow(
         cgId = coin.cgId,
         symbol = coin.symbol,
@@ -191,6 +197,8 @@ class DefaultPortfolioService(
             ?.let { LedgerMath.percentOf(it, netValue) },
         priced = holding.priced,
         anomalous = holding.anomalous,
+        // 成本基数可靠性：历史上出现过负持仓边界即不可靠（含期末已回正的情形）
+        costReliable = outcome.holdings[coin.cgId]?.hadNegativeBoundary?.not() ?: true,
         estimated = holding.estimated,
         sources = holding.sources,
         sourceClassification = reconciliation.classifySources(holding.sources),

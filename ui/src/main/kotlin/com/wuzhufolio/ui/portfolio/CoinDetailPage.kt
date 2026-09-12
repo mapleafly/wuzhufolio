@@ -106,6 +106,14 @@ fun CoinDetailPage(
                 )
             }
             CoinSummary(detail = detail, state = state, modifier = Modifier.padding(top = 16.dp))
+            if (detail?.row?.costReliable == false) {
+                Text(
+                    text = portfolioStrings.costUnreliableHint,
+                    color = colors.warn,
+                    style = WzTheme.typography.caption,
+                    modifier = Modifier.padding(top = 8.dp).testTag("coin-cost-unreliable"),
+                )
+            }
 
             // 校准入口（仅单一数据来源可见；PRD 故事 4.1-5）
             Row(

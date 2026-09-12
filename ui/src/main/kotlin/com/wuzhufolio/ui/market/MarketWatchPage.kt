@@ -1,13 +1,19 @@
 package com.wuzhufolio.ui.market
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,8 +26,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.layout.boundsInParent
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.wuzhufolio.domain.catalog.CatalogCoin
 import com.wuzhufolio.domain.market.MarketQuotesService
@@ -34,7 +46,8 @@ import com.wuzhufolio.ui.components.WzButtonVariant
 import com.wuzhufolio.ui.components.WzTextField
 import com.wuzhufolio.ui.components.WzToastHost
 import com.wuzhufolio.ui.theme.WzTheme
-import java.math.BigDecimal
+import androidx.compose.ui.zIndex
+import com.wuzhufolio.ui.i18n.WzFormat
 
 /**
  * 行情页（D21 · docs/dev/decisions/D21-行情浏览页-范围增量.md；M12 T12.1 收尾）：只读现价列表 +
@@ -66,6 +79,10 @@ fun MarketWatchPage(
         cgConfigured = runCatching { settingsService.keyStatus().cgConfigured }.getOrNull()
     }
     val searchFocus = remember { FocusRequester() }
+    // 候选浮层锚点（相对页面 Box 的像素坐标；由输入框容器 onGloballyPositioned 回填）
+    var anchorLeft by remember { mutableStateOf(24.dp) }
+    var anchorBottom by remember { mutableStateOf(0.dp) }
+    var anchorWidth by remember { mutableStateOf(320.dp) }
     // 输入聚焦（interaction.md §2.7）：页面打开即聚焦搜索框，键盘可直接录入
     LaunchedEffect(Unit) { runCatching { searchFocus.requestFocus() } }
 
@@ -111,15 +128,30 @@ fun MarketWatchPage(
                 modifier = Modifier.padding(top = 6.dp, bottom = 10.dp).testTag("watch-auto-hint"),
             )
 
+            // 2026-09-11 走查反馈修复轮：候选改为**就地浮层**（不再内联撑开列表空间），
+            // 锚点 = 输入框的父容器坐标（同窗口叠加，非 Popup——AGENTS.md §7.3-①）
             WatchSearchBar(
                 query = state.query,
-                candidates = state.candidates,
-                searchBusy = state.searchBusy,
-                watchCgIds = state.rows.map { it.cgId }.toSet(),
                 onQueryChange = vm::onQueryChange,
-                onAdd = vm::addCoin,
                 focusRequester = searchFocus,
+                onPositioned = { left, bottom, width ->
+                    anchorLeft = left
+                    anchorBottom = bottom
+                    anchorWidth = width
+                },
             )
+            if (state.searchBusy || state.candidates.isNotEmpty() || state.query.isNotBlank()) {
+                WatchCandidatePanel(
+                    candidates = state.candidates,
+                    searchBusy = state.searchBusy,
+                    watchCgIds = state.rows.map { it.cgId }.toSet(),
+                    onAdd = vm::addCoin,
+                    modifier = Modifier
+                        .offset { IntOffset(anchorLeft.roundToPx(), anchorBottom.roundToPx()) }
+                        .width(anchorWidth)
+                        .zIndex(1f),
+                )
+            }
 
             // 报价表
             if (state.rows.isEmpty()) {
@@ -143,15 +175,22 @@ fun MarketWatchPage(
 @Composable
 private fun WatchSearchBar(
     query: String,
-    candidates: List<CatalogCoin>,
-    searchBusy: Boolean,
-    watchCgIds: Set<String>,
     onQueryChange: (String) -> Unit,
-    onAdd: (String) -> Unit,
     focusRequester: FocusRequester,
+    onPositioned: (left: Dp, bottom: Dp, width: Dp) -> Unit,
 ) {
-    val colors = WzTheme.colors
-    Column(modifier = Modifier.fillMaxWidth().testTag("watch-search")) {
+    val density = LocalDensity.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .onGloballyPositioned { coords ->
+                val bounds = coords.boundsInParent()
+                with(density) {
+                    onPositioned(bounds.left.toDp(), bounds.bottom.toDp(), bounds.width.toDp())
+                }
+            }
+            .testTag("watch-search"),
+    ) {
         WzTextField(
             value = query,
             onValueChange = onQueryChange,
@@ -161,55 +200,81 @@ private fun WatchSearchBar(
             testTag = "watch-search-input",
             fieldFocusRequester = focusRequester,
         )
-        if (candidates.isNotEmpty()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp)
-                    .testTag("watch-candidates"),
-            ) {
-                candidates.forEach { coin ->
-                    val added = coin.cgId in watchCgIds
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = coin.symbol + " · " + coin.name,
-                                color = colors.ink,
-                                style = WzTheme.typography.body,
-                            )
-                        }
-                        if (added) {
-                            Text(
-                                text = MarketCopy.WATCH_ADDED_HINT,
-                                color = colors.ink3,
-                                style = WzTheme.typography.caption,
-                            )
-                        } else {
-                            WzButton(
-                                text = MarketCopy.WATCH_ADD_ACTION,
-                                onClick = { onAdd(coin.cgId) },
-                                variant = WzButtonVariant.Secondary,
-                                testTag = "watch-add-" + coin.cgId,
-                            )
-                        }
-                    }
-                }
-            }
-        } else if (query.isNotBlank() && !searchBusy) {
+    }
+}
+
+/**
+ * 候选浮层（interaction.md §2.7：候选点选加入）。
+ *
+ * 形态（2026-09-11 走查反馈修复轮）：**就地叠加在列表之上**（不挤占列表空间），
+ * 最多 [MarketWatchViewModel.CANDIDATE_LIMIT] 条、超出滚动；
+ * 无匹配时给「未找到匹配币种」提示（复用 [MarketCopy.WATCH_NO_RESULT]）。
+ */
+@Composable
+private fun WatchCandidatePanel(
+    candidates: List<CatalogCoin>,
+    searchBusy: Boolean,
+    watchCgIds: Set<String>,
+    onAdd: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = WzTheme.colors
+    Column(
+        modifier = modifier
+            .shadow(8.dp, RoundedCornerShape(8.dp))
+            .background(colors.surface, RoundedCornerShape(8.dp))
+            .border(1.dp, colors.line, RoundedCornerShape(8.dp))
+            .heightIn(max = CANDIDATE_PANEL_MAX_HEIGHT)
+            .verticalScroll(rememberScrollState())
+            .padding(vertical = 4.dp)
+            .testTag("watch-candidates"),
+    ) {
+        if (candidates.isEmpty()) {
             Text(
-                text = MarketCopy.WATCH_NO_RESULT,
+                text = if (searchBusy) MarketCopy.WATCH_SEARCHING else MarketCopy.WATCH_NO_RESULT,
                 color = colors.ink3,
                 style = WzTheme.typography.caption,
-                modifier = Modifier.padding(top = 4.dp),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp).testTag("watch-no-result"),
             )
+        }
+        candidates.forEach { coin ->
+            val added = coin.cgId in watchCgIds
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .testTag("watch-candidate-" + coin.cgId),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = coin.symbol + " · " + coin.name,
+                        color = colors.ink,
+                        style = WzTheme.typography.body,
+                    )
+                    Text(text = coin.cgId, color = colors.ink3, style = WzTheme.typography.caption)
+                }
+                if (added) {
+                    Text(
+                        text = MarketCopy.WATCH_ADDED_HINT,
+                        color = colors.ink3,
+                        style = WzTheme.typography.caption,
+                    )
+                } else {
+                    WzButton(
+                        text = MarketCopy.WATCH_ADD_ACTION,
+                        onClick = { onAdd(coin.cgId) },
+                        variant = WzButtonVariant.Secondary,
+                        testTag = "watch-add-" + coin.cgId,
+                    )
+                }
+            }
         }
     }
 }
+
+/** 候选浮层最大高度（超出滚动，避免长列表占满窗口）。 */
+private val CANDIDATE_PANEL_MAX_HEIGHT = 240.dp
 
 @Composable
 private fun WatchQuoteHeader(fiat: String) {
@@ -248,7 +313,7 @@ private fun WatchQuoteRowLine(row: WatchQuoteRow, onRemove: () -> Unit) {
         }
         Column(modifier = Modifier.weight(1.4f)) {
             Text(
-                text = formatPrice(row.price),
+                text = WzFormat.price(row.price),
                 color = if (row.priced) colors.ink else colors.ink3,
                 style = WzTheme.typography.body,
                 modifier = Modifier.testTag("watch-price-" + row.cgId),
@@ -274,9 +339,6 @@ private fun WatchQuoteRowLine(row: WatchQuoteRow, onRemove: () -> Unit) {
         )
     }
 }
-
-private fun formatPrice(price: BigDecimal?): String =
-    price?.stripTrailingZeros()?.toPlainString() ?: DASH
 
 private fun timeText(at: java.time.Instant?): String {
     if (at == null) return DASH

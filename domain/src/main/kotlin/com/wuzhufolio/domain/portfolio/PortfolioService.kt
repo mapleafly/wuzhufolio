@@ -85,6 +85,14 @@ data class PortfolioRow(
     val anomalous: Boolean,
     /** 本币任一事件折算估算中。 */
     val estimated: Boolean,
+    /**
+     * 成本基数是否可靠（M12 走查反馈修复轮）：
+     * false = 该币历史上出现过**负持仓边界**（账本缺入金/缺早期持仓时的导入常态），
+     * 引擎在异常区段的成本基数不具财务意义——平均成本与已实现盈亏都会失真，界面必须显式标注，
+     * 不能让用户把 1.48 的稳定币均价或 −57,843 的卖出盈亏当成真实结果。
+     * 口径 = `CoinHolding.hadNegativeBoundary`（含期末为正但中途转负的情形，比 [anomalous] 更宽）。
+     */
+    val costReliable: Boolean = true,
     /** 记录来源集合（详情页展示来源判定）。 */
     val sources: Set<RecordSource>,
     /** 来源分类（单一交易所 → 校准入口可见；多来源/无记录 → 隐藏，PRD 故事 4.1-5）。 */

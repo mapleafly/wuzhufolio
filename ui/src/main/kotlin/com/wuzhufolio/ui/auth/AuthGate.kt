@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -91,7 +92,26 @@ fun AuthGate(
     val initialShellPage by vm.shellToPage.collectAsState()
     var showStartupNotice by remember { mutableStateOf(startupNotice != null) }
 
-    WuzhuTheme(themeMode = themeMode, pnlScheme = pnlScheme, language = language) {
+    // M12 修复轮：主壳 VM 提到门控层持有——语言/主题的运行期真源在 VM，门控层需跟随（否则登出回登录页
+    // 会退回启动期语言）。会话变化（登录/登出/切换账户）时按账户 id 重建。
+    val sessionKey = state.session?.account?.id
+    val shellViewModel = remember(sessionKey) {
+        state.session?.let {
+            ShellViewModel(
+                initialTheme = themeMode,
+                initialPnlScheme = pnlScheme,
+                initialPage = initialShellPage,
+                initialLanguage = language,
+                onPreferenceChange = onShellPreferenceChange,
+            )
+        }
+    }
+    var activeLanguage by remember(language) { mutableStateOf(language) }
+    LaunchedEffect(shellViewModel) {
+        shellViewModel?.language?.collect { activeLanguage = it }
+    }
+
+    WuzhuTheme(themeMode = themeMode, pnlScheme = pnlScheme, language = activeLanguage) {
         val colors = WzTheme.colors
         Box(modifier = Modifier.fillMaxSize().background(colors.bg).testTag("auth-gate")) {
             when (state.stage) {
@@ -136,16 +156,7 @@ fun AuthGate(
                 GateStage.FORGOT -> ForgotPage(onBack = vm::goLogin)
                 GateStage.SHELL -> {
                     val session = state.session
-                    if (session != null) {
-                        val shellViewModel = remember(session.account.id) {
-                            ShellViewModel(
-                                initialTheme = themeMode,
-                                initialPnlScheme = pnlScheme,
-                                initialPage = initialShellPage,
-                                initialLanguage = language,
-                                onPreferenceChange = onShellPreferenceChange,
-                            )
-                        }
+                    if (session != null && shellViewModel != null) {
                         MainShell(
                             viewModel = shellViewModel,
                             accountName = session.account.username,

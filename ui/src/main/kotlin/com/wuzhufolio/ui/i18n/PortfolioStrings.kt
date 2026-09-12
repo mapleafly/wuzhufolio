@@ -53,6 +53,15 @@ interface PortfolioStrings {
     fun sortBy(column: String): String
     val noMarketData: String
     val anomalyBadge: String
+
+    /** 成本基数异常徽标（负持仓历史 → 平均成本/已实现盈亏不可靠；M12 走查反馈修复轮）。 */
+    val costUnreliableBadge: String
+
+    /** 成本基数异常的原因说明（资产列表/币种详情悬停与副行文案）。 */
+    val costUnreliableHint: String
+
+    /** 仪表盘/资产列表顶部警示（N 个币种的历史负持仓使成本口径不可靠）。 */
+    fun costUnreliableNotice(count: Int): String
     val estimatedBadge: String
     fun coverage(covered: Int, total: Int): String
     val mixedSource: String
@@ -154,6 +163,12 @@ object PortfolioStringsZh : PortfolioStrings {
     override fun sortBy(column: String) = "按" + column + "排序"
     override val noMarketData = "无行情"
     override val anomalyBadge = "持仓异常"
+    override val costUnreliableBadge = "成本不可靠"
+    override val costUnreliableHint =
+        "该币历史出现过负持仓（账本缺少入金或早期持仓记录），引擎无法给出可靠的成本基数——" +
+            "平均成本与已实现盈亏仅供参考，补录增资/早期持仓或做一次持仓校准后可恢复"
+    override fun costUnreliableNotice(count: Int) =
+        "⚠ " + count + " 个币种的历史持仓曾为负（账本缺少入金或早期记录），其中平均成本与已实现盈亏不可靠"
     override val estimatedBadge = "估算中"
     override fun coverage(covered: Int, total: Int) = "覆盖 " + covered + "/" + total + " 个币种"
     override val mixedSource = "混合数据源"
@@ -252,6 +267,14 @@ object PortfolioStringsEn : PortfolioStrings {
     override fun sortBy(column: String) = "Sort by " + column
     override val noMarketData = "No price"
     override val anomalyBadge = "Position anomaly"
+    override val costUnreliableBadge = "Cost unreliable"
+    override val costUnreliableHint =
+        "This coin went negative at some point (the ledger is missing deposits or earlier holdings), " +
+            "so the engine cannot derive a reliable cost basis — average cost and realized P&L are indicative only. " +
+            "Record the missing deposits/earlier trades, or run a position calibration, to restore it"
+    override fun costUnreliableNotice(count: Int) =
+        "⚠ " + count + " coins went negative at some point (missing deposits or earlier records); " +
+            "their average cost and realized P&L are not reliable"
     override val estimatedBadge = "Estimated"
     override fun coverage(covered: Int, total: Int) = "Covers " + covered + "/" + total + " coins"
     override val mixedSource = "Mixed sources"

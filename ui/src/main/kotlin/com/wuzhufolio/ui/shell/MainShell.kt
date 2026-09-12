@@ -59,7 +59,11 @@ fun MainShell(
     accountArea: @Composable () -> Unit = {},
     /** 当前账户名（仪表盘副标题用；PRD §6 账户清晰性）。 */
     accountName: String = "",
-    /** M12 T12.4：界面语言（驱动主题内的整树重建，见 theme/Theme.kt）。 */
+    /**
+     * M12 T12.4：界面语言的**初始档**（会话创建时由启动设置注入 [ShellViewModel]）。
+     * 运行期以 VM 的 `language` StateFlow 为准——设置页切换后立即重组，无需重启
+     * （2026-09-11 走查反馈修复轮：此前误用启动期常量，导致「切了没反应、重启才变」）。
+     */
     language: AppLanguage = AppLanguage.ZH,
     /** M10：设置页内容（参数 = ShellViewModel，主题/盈亏配色/语言双向同步；null = 占位页）。 */
     settingsPageContent: (@Composable (ShellViewModel) -> Unit)? = null,
@@ -96,12 +100,13 @@ fun MainShell(
 ) {
     val themeMode by viewModel.themeMode.collectAsState()
     val pnlScheme by viewModel.pnlScheme.collectAsState()
+    val activeLanguage by viewModel.language.collectAsState()
     val page by viewModel.page.collectAsState()
     val coinDetailId by viewModel.coinDetailId.collectAsState()
     val toast by viewModel.toast.collectAsState()
     var showStartupNotice by remember { mutableStateOf(startupNotice != null) }
 
-    WuzhuTheme(themeMode = themeMode, pnlScheme = pnlScheme, language = language) {
+    WuzhuTheme(themeMode = themeMode, pnlScheme = pnlScheme, language = activeLanguage) {
         val colors = WzTheme.colors
         Box(modifier = modifier.fillMaxSize().background(colors.bg).testTag("main-shell")) {
             Column(modifier = Modifier.fillMaxSize()) {

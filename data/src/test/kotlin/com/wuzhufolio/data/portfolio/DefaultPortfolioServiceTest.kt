@@ -446,4 +446,23 @@ class DefaultPortfolioServiceTest {
 
         val DAY: Duration = Duration.ofHours(24)
     }
+    @Test
+    fun `coins with a negative history are flagged as unreliable cost basis`() = runBlocking {
+        // 场景（2026-09-11 走查实测形态）：先卖出从未买入的币 → 负持仓边界；再补买使其回正。
+        // 期末持仓为正，但成本基数不可信 —— costReliable 必须为 false（比 anomalous 更宽的口径）。
+        LedgerTestEnv().use { env ->
+            env.login()
+            env.fundService.saveFund(deposit("10000"))
+            // 负边界只能由导入路径（LENIENT）造成：交易所同步入账一笔从未买入的卖出
+            env.seedExchangeTrade("BTC", Side.SELL, "60000", "0.1", NOW.minusSeconds(1800))
+            env.service.saveTransaction(buy("BTC", price = "50000", quantity = "0.2", at = NOW.minusSeconds(900)))
+            env.putSnapshot(env.coin("BTC")!!.id, "USD", "60000", NOW)
+            env.putSnapshot(env.coin("USDT")!!.id, "USD", "1", NOW)
+
+            val btc = portfolioService(env).snapshot().rows.first { it.cgId == "bitcoin" }
+            assertTrue(btc.quantity.signum() > 0, "期末持仓应为正")
+            assertTrue(!btc.anomalous, "期末非负 → 不是 anomalous（旧口径不会报警）")
+            assertTrue(!btc.costReliable, "中途出现过负持仓 → 成本基数必须标记不可靠")
+        }
+    }
 }

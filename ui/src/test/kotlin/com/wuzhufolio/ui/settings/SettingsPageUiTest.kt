@@ -38,6 +38,7 @@ import com.wuzhufolio.domain.settings.LogAccess
 import com.wuzhufolio.domain.settings.PnlColorScheme
 import com.wuzhufolio.domain.settings.PrecisionPreset
 import com.wuzhufolio.domain.settings.ThemeMode
+import com.wuzhufolio.ui.i18n.WzFormat
 import com.wuzhufolio.ui.shell.ShellViewModel
 import com.wuzhufolio.ui.theme.WuzhuTheme
 import java.math.BigDecimal
@@ -272,6 +273,20 @@ class SettingsPageUiTest {
             }
         }
         return Triple(shell, logAccess, sync)
+    }
+
+    @Test
+    fun `precision preset drives the shared formatter`() = runComposeUiTest {
+        // M12 走查反馈修复轮回归：设置页切换精度必须写入 WzFormat（此前只持久化、不驱动展示）
+        val general = FakeGeneralSettings()
+        install(general = general)
+        WzFormat.precision = PrecisionPreset.DEFAULT
+        scrollToTag("precision-select")
+        onNodeWithTag("precision-select").performClick()
+        onNodeWithTag("precision-select-opt-1").performClick()
+        waitUntil(timeoutMillis = 2_000) { WzFormat.precision == PrecisionPreset.SIMPLIFIED }
+        assertEquals("50,050.13", WzFormat.price(java.math.BigDecimal("50050.126")))
+        WzFormat.precision = PrecisionPreset.DEFAULT
     }
 
     @Test

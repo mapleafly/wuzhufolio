@@ -70,6 +70,15 @@ fun AssetsPage(
                 modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
             )
 
+            val unreliable = state.rows.count { !it.costReliable }
+            if (unreliable > 0) {
+                Text(
+                    text = portfolioStrings.costUnreliableNotice(unreliable),
+                    color = colors.warn,
+                    style = WzTheme.typography.caption,
+                    modifier = Modifier.padding(bottom = 10.dp).testTag("assets-cost-notice"),
+                )
+            }
             if (state.loading) {
                 Text(
                     text = portfolioStrings.loading,
@@ -248,6 +257,14 @@ private fun HoldingRowLine(row: PortfolioRow, onOpen: (String) -> Unit) {
                         color = colors.warn,
                         modifier = Modifier.padding(start = 6.dp),
                         testTag = "estimated-" + row.cgId,
+                    )
+                }
+                if (!row.costReliable) {
+                    Badge(
+                        text = portfolioStrings.costUnreliableBadge,
+                        color = colors.loss,
+                        modifier = Modifier.padding(start = 6.dp),
+                        testTag = "cost-unreliable-" + row.cgId,
                     )
                 }
             }

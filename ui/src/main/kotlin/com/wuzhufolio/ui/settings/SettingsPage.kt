@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -49,6 +50,7 @@ import com.wuzhufolio.ui.components.WzSwitch
 import com.wuzhufolio.ui.components.WzTextField
 import com.wuzhufolio.ui.components.WzToastHost
 import com.wuzhufolio.ui.exchange.ApiManagementSection
+import com.wuzhufolio.ui.i18n.WzFormat
 import com.wuzhufolio.ui.i18n.commonStrings
 import com.wuzhufolio.ui.ledger.FeeRuleSettingsSection
 import com.wuzhufolio.ui.market.MarketSettingsSection
@@ -130,6 +132,11 @@ fun SettingsPage(
     val language by shellViewModel.language.collectAsState()
 
     val colors = WzTheme.colors
+
+    // M12 修复轮：精度档必须驱动展示层——写入全局格式化器（WzFormat 的精度流会触发整树重组）
+    LaunchedEffect(generalState.view.precision) {
+        WzFormat.precision = generalState.view.precision
+    }
 
     Box(modifier = modifier.fillMaxSize().testTag("settings-page")) {
         Column(

@@ -89,7 +89,7 @@ class MarketWatchViewModel(
         if (_state.value.searchBusy) return
         _state.update { it.copy(searchBusy = true) }
         scope.launch {
-            val found = watchService.searchCandidates(q)
+            val found = watchService.searchCandidates(q, CANDIDATE_LIMIT)
             _state.update { it.copy(candidates = found, searchBusy = false) }
         }
     }
@@ -199,6 +199,9 @@ class MarketWatchViewModel(
     }
 
     private companion object {
+        /** 候选浮层上限（走查反馈：原 8 条偏少且不可滚动；浮层可滚动，放宽到 20）。 */
+        const val CANDIDATE_LIMIT: Int = 20
+
         /** 数据层自选已满的 `require` 消息前缀（data/market/MarketWatchServices，英文内部协议串，不展示）。 */
         const val WATCH_FULL_PREFIX = "watch list is full"
     }

@@ -80,6 +80,15 @@ fun DashboardPage(
             )
 
             val metrics = state.snapshot?.metrics
+            val unreliable = state.snapshot?.rows?.count { !it.costReliable } ?: 0
+            if (unreliable > 0) {
+                Text(
+                    text = portfolioStrings.costUnreliableNotice(unreliable),
+                    color = colors.warn,
+                    style = WzTheme.typography.caption,
+                    modifier = Modifier.padding(bottom = 10.dp).testTag("dashboard-cost-notice"),
+                )
+            }
             if (state.loading) {
                 Text(
                     text = portfolioStrings.loading,

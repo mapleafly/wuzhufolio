@@ -302,15 +302,34 @@ private fun TxRow(
             style = WzTheme.typography.body,
             modifier = Modifier.weight(0.7f),
         )
-        Text(dec(row.price), color = colors.ink, style = WzTheme.typography.body, modifier = Modifier.weight(1.1f))
-        Text(dec(row.quantity), color = colors.ink, style = WzTheme.typography.body, modifier = Modifier.weight(1.1f))
         Text(
-            if (row.fee.signum() == 0) "--" else dec(row.fee) + (row.feeCurrency?.let { " " + it } ?: ""),
+            text = WzFormat.price(row.price),
             color = colors.ink,
             style = WzTheme.typography.body,
             modifier = Modifier.weight(1.1f),
         )
-        Text(dec(row.total), color = colors.ink, style = WzTheme.typography.body, modifier = Modifier.weight(1.2f))
+        Text(
+            text = WzFormat.quantity(row.quantity),
+            color = colors.ink,
+            style = WzTheme.typography.body,
+            modifier = Modifier.weight(1.1f),
+        )
+        Text(
+            if (row.fee.signum() == 0) {
+                WzFormat.DASH
+            } else {
+                WzFormat.quantity(row.fee) + (row.feeCurrency?.let { " " + it } ?: "")
+            },
+            color = colors.ink,
+            style = WzTheme.typography.body,
+            modifier = Modifier.weight(1.1f),
+        )
+        Text(
+            text = WzFormat.amount(row.total),
+            color = colors.ink,
+            style = WzTheme.typography.body,
+            modifier = Modifier.weight(1.2f),
+        )
         Text(
             row.exchange,
             color = colors.ink2,
@@ -329,7 +348,7 @@ private fun TxRow(
             val positive = realized.signum() >= 0
             Text(
                 text = (if (positive) "+" else "") +
-                    realized.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString(),
+                    WzFormat.signedAmount(realized),
                 color = if (positive) colors.gain else colors.loss,
                 style = WzTheme.typography.body,
                 modifier = Modifier.weight(1.2f),
@@ -394,6 +413,5 @@ private fun DeleteConfirmModal(count: Int, onCancel: () -> Unit, onConfirm: () -
     }
 }
 
-private fun dec(v: java.math.BigDecimal): String = v.stripTrailingZeros().toPlainString()
 
 private fun timeText(at: java.time.Instant): String = WzFormat.dateTime(at)

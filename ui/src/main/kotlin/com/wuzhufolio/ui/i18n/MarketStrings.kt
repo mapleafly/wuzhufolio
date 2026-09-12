@@ -118,6 +118,9 @@ interface MarketStrings {
     val watchColUpdated: String
     val watchNoResult: String
 
+    /** 候选检索中（浮层占位文案）。 */
+    val watchSearching: String
+
     /** 现价列头（含计价法币，如「现价（USD）」/「Price (USD)」）。 */
     fun watchColPrice(fiat: String): String
 
@@ -223,6 +226,7 @@ object MarketStringsZh : MarketStrings {
     override val watchColSource = "数据源"
     override val watchColUpdated = "更新"
     override val watchNoResult = "无匹配币种"
+    override val watchSearching = "检索中…"
 
     override fun watchColPrice(fiat: String) = "现价（" + fiat + "）"
 
@@ -339,6 +343,7 @@ object MarketStringsEn : MarketStrings {
     override val watchColSource = "Source"
     override val watchColUpdated = "Updated"
     override val watchNoResult = "No matching coin"
+    override val watchSearching = "Searching…"
 
     override fun watchColPrice(fiat: String) = "Price (" + fiat + ")"
 

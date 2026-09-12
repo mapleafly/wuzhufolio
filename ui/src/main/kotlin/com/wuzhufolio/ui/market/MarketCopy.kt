@@ -151,6 +151,9 @@ object MarketCopy {
     val WATCH_COL_UPDATED: String get() = marketStrings.watchColUpdated
     val WATCH_NO_RESULT: String get() = marketStrings.watchNoResult
 
+    /** 候选检索中。 */
+    val WATCH_SEARCHING: String get() = marketStrings.watchSearching
+
     /** 现价列头（「现价（USD）」/「Price (USD)」）；调用点在行情页（MarketWatchPage），此处提供统一目录项。 */
     fun watchColPrice(fiat: String): String = marketStrings.watchColPrice(fiat)
 
