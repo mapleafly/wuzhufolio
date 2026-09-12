@@ -88,19 +88,17 @@ class ShellStatusViewModelTest {
         refresh: FakeRefresh,
         sync: FakeSync = FakeSync(emptyList()),
         backupDays: Long? = null,
-        syncing: Boolean = false,
     ): ShellStatus {
         val vm = ShellStatusViewModel(
             marketRefreshService = refresh,
             exchangeSyncService = sync,
             backupReminderDays = { backupDays },
-            syncingProvider = { syncing },
             appVersion = "v1.0.0",
         )
         vm.refresh()
-        // 首帧 refresh 为异步；轮询等待状态就绪
+        // 首帧 refresh 为异步；以 loaded 落位为就绪信号（状态只存原始数据，不再有文案可等）
         repeat(100) {
-            if (vm.state.value.syncText.isNotEmpty()) return vm.state.value
+            if (vm.state.value.loaded) return vm.state.value
             kotlinx.coroutines.delay(10)
         }
         return vm.state.value
@@ -109,10 +107,10 @@ class ShellStatusViewModelTest {
     @Test
     fun `idle sync without any log`() = kotlinx.coroutines.runBlocking {
         val status = statusOf(FakeRefresh())
-        assertEquals("同步：空闲", status.syncText)
-        assertEquals("数据源：未刷新", status.dataSourceText)
-        assertFalse(status.offline)
-        assertNull(status.notice)
+        assertEquals("同步：空闲", status.syncText())
+        assertEquals("数据源：未刷新", status.dataSourceText())
+        assertFalse(status.marketOffline)
+        assertNull(status.noticeText())
     }
 
     @Test
@@ -121,8 +119,8 @@ class ShellStatusViewModelTest {
             FakeRefresh(result(quota = 10)),
             FakeSync(listOf(log(SyncStatus.OK, 120, "binance sync ok"))),
         )
-        assertTrue(status.syncText.startsWith("同步：成功（新增 120 条）"), status.syncText)
-        assertTrue(status.dataSourceText.startsWith("数据源：CoinGecko"), status.dataSourceText)
+        assertTrue(status.syncText().startsWith("同步：成功（新增 120 条）"), status.syncText())
+        assertTrue(status.dataSourceText().startsWith("数据源：CoinGecko"), status.dataSourceText())
         assertEquals("v1.0.0", status.version)
     }
 
@@ -131,9 +129,8 @@ class ShellStatusViewModelTest {
         val status = statusOf(
             FakeRefresh(result(quota = 10)),
             FakeSync(listOf(log(SyncStatus.OK, 3, "ok"))),
-            syncing = true,
         )
-        assertEquals("同步中…", status.syncText)
+        assertEquals("同步中…", status.syncText(syncing = true))
     }
 
     @Test
@@ -142,14 +139,17 @@ class ShellStatusViewModelTest {
             FakeRefresh(),
             FakeSync(listOf(log(SyncStatus.FAILED, 0, "Binance API 密钥已失效，请检查或更新"))),
         )
-        assertTrue(status.syncText.startsWith("同步失败：Binance API 密钥已失效，请检查或更新"), status.syncText)
+        assertTrue(
+            status.syncText().startsWith("同步失败：Binance API 密钥已失效，请检查或更新"),
+            status.syncText(),
+        )
     }
 
     @Test
     fun `quota at eighty percent warns and wins over the backup reminder`() = kotlinx.coroutines.runBlocking {
         val status = statusOf(FakeRefresh(result(quota = 85), quota = 85), backupDays = 45)
-        assertTrue(status.notice.orEmpty().contains("80%"), status.notice.orEmpty())
-        assertTrue(status.noticeWarn)
+        assertTrue(status.noticeText().orEmpty().contains("80%"), status.noticeText().orEmpty())
+        assertTrue(status.noticeIsWarn())
     }
 
     @Test
@@ -159,8 +159,8 @@ class ShellStatusViewModelTest {
                 result(source = null, error = MarketRefreshError.RateLimited(PriceSource.COINGECKO, keylessHint = true)),
             ),
         )
-        assertTrue(status.notice.orEmpty().contains("注册免费个人 Key"), status.notice.orEmpty())
-        assertTrue(status.noticeWarn)
+        assertTrue(status.noticeText().orEmpty().contains("注册免费个人 Key"), status.noticeText().orEmpty())
+        assertTrue(status.noticeIsWarn())
     }
 
     @Test
@@ -168,29 +168,32 @@ class ShellStatusViewModelTest {
         val status = statusOf(
             FakeRefresh(result(at = null, source = null, error = MarketRefreshError.Network(PriceSource.COINGECKO))),
         )
-        assertTrue(status.offline)
-        assertEquals("数据源：未刷新", status.dataSourceText)
+        assertTrue(status.marketOffline)
+        assertEquals("数据源：未刷新", status.dataSourceText())
     }
 
     @Test
     fun `fallback source is labelled in the badge`() = kotlinx.coroutines.runBlocking {
         val status = statusOf(FakeRefresh(result(source = PriceSource.COINMARKETCAP)))
-        assertTrue(status.dataSourceText.startsWith("数据源：CoinMarketCap（兜底）"), status.dataSourceText)
+        assertTrue(
+            status.dataSourceText().startsWith("数据源：CoinMarketCap（兜底）"),
+            status.dataSourceText(),
+        )
     }
 
     @Test
     fun `backup reminder is shown when due`() = kotlinx.coroutines.runBlocking {
         val status = statusOf(FakeRefresh(), backupDays = 31)
-        assertTrue(status.notice.orEmpty().contains("31"), status.notice.orEmpty())
-        assertFalse(status.noticeWarn)
+        assertTrue(status.noticeText().orEmpty().contains("31"), status.noticeText().orEmpty())
+        assertFalse(status.noticeIsWarn())
     }
 
     @Test
     fun `english catalogue is used for the status bar`() = kotlinx.coroutines.runBlocking {
         I18n.set(AppLanguage.EN)
         val status = statusOf(FakeRefresh(result(quota = 5)))
-        assertEquals("Sync: idle", status.syncText)
-        assertTrue(status.dataSourceText.startsWith("Source: CoinGecko"), status.dataSourceText)
+        assertEquals("Sync: idle", status.syncText())
+        assertTrue(status.dataSourceText().startsWith("Source: CoinGecko"), status.dataSourceText())
     }
 
     private companion object {

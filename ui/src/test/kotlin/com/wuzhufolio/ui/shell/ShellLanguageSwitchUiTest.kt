@@ -53,6 +53,26 @@ class ShellLanguageSwitchUiTest {
     }
 
     @Test
+    fun `status bar and top bar copy switch language without waiting for a poll`() = runComposeUiTest {
+        // 走查反馈修复轮二回归：状态栏/顶栏文案此前被**预存进 StateFlow**，语言切换后不重算，
+        // 要等 30s 轮询才变（表现为「点几下左侧树才偶然变英文」）。现在改为渲染期由 shellStrings 派生。
+        val vm = shell()
+        setContent {
+            MainShell(
+                viewModel = vm,
+                shellStatus = ShellStatus(version = "v0.0.0-test", loaded = true),
+            )
+        }
+        assertTrue(texts("数据源：未刷新") > 0, "初始应为中文数据源徽章")
+
+        vm.setLanguage(AppLanguage.EN)
+        waitForIdle()
+
+        assertTrue(texts("Source: not refreshed") > 0, "语言切换后状态栏/顶栏文案应立即变英文")
+        assertEquals(0, texts("数据源：未刷新"))
+    }
+
+    @Test
     fun `persisted language is applied on the next start`() = runComposeUiTest {
         // 反向：以英文初始档启动 → 首帧即英文（对应「重启后确实变了」的那一半行为）
         val vm = shell(AppLanguage.EN)

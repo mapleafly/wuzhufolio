@@ -110,7 +110,6 @@ internal fun MainWindowContent(
             marketRefreshService = runtime.marketRefreshService,
             exchangeSyncService = runtime.exchangeSyncService,
             backupReminderDays = runtime.backupReminderDaysProvider,
-            syncingProvider = { syncViewModel.syncing.value },
             appVersion = com.wuzhufolio.data.backup.DefaultBackupService.APP_VERSION,
         )
     }

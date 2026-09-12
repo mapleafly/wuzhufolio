@@ -28,11 +28,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.layout.boundsInParent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.wuzhufolio.domain.catalog.CatalogCoin
@@ -79,20 +80,16 @@ fun MarketWatchPage(
         cgConfigured = runCatching { settingsService.keyStatus().cgConfigured }.getOrNull()
     }
     val searchFocus = remember { FocusRequester() }
-    // 候选浮层锚点（相对页面 Box 的像素坐标；由输入框容器 onGloballyPositioned 回填）
-    var anchorLeft by remember { mutableStateOf(24.dp) }
-    var anchorBottom by remember { mutableStateOf(0.dp) }
-    var anchorWidth by remember { mutableStateOf(320.dp) }
     // 输入聚焦（interaction.md §2.7）：页面打开即聚焦搜索框，键盘可直接录入
     LaunchedEffect(Unit) { runCatching { searchFocus.requestFocus() } }
+    val showCandidates = state.searchBusy || state.candidates.isNotEmpty() || state.query.isNotBlank()
 
+    // 版式（2026-09-11 走查修复轮二）：**页头 + 搜索区固定，只有报价列表滚动**。
+    // 理由：候选浮层必须紧贴搜索框，而滚动容器内的坐标度量会把内容偏移重复计入
+    // （实测浮层被画到页面中部）；改为「列表区 Box 的叠加子节点」后无需任何坐标换算，
+    // 浮层天然紧贴页头下缘且不挤占列表（Box 子节点互相叠加）。代价：页头不再随页面滚动。
     Box(modifier = modifier.fillMaxSize().testTag("market-watch")) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp),
-        ) {
+        Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
             Text(text = MarketCopy.WATCH_TITLE, color = colors.ink, style = WzTheme.typography.pageTitle)
             Text(
                 text = if (state.defaultSeed) MarketCopy.WATCH_SUB_DEFAULT else MarketCopy.WATCH_SUB_CUSTOM,
@@ -101,7 +98,7 @@ fun MarketWatchPage(
                 modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
             )
 
-            // 命令区（原型 toolbar：刷新 + 数据源徽章 + 搜索）
+            // 命令区（原型 toolbar：刷新 + 数据源徽章）
             Row(
                 modifier = Modifier.fillMaxWidth().testTag("watch-toolbar"),
                 verticalAlignment = Alignment.CenterVertically,
@@ -128,43 +125,40 @@ fun MarketWatchPage(
                 modifier = Modifier.padding(top = 6.dp, bottom = 10.dp).testTag("watch-auto-hint"),
             )
 
-            // 2026-09-11 走查反馈修复轮：候选改为**就地浮层**（不再内联撑开列表空间），
-            // 锚点 = 输入框的父容器坐标（同窗口叠加，非 Popup——AGENTS.md §7.3-①）
             WatchSearchBar(
                 query = state.query,
                 onQueryChange = vm::onQueryChange,
                 focusRequester = searchFocus,
-                onPositioned = { left, bottom, width ->
-                    anchorLeft = left
-                    anchorBottom = bottom
-                    anchorWidth = width
-                },
             )
-            if (state.searchBusy || state.candidates.isNotEmpty() || state.query.isNotBlank()) {
-                WatchCandidatePanel(
-                    candidates = state.candidates,
-                    searchBusy = state.searchBusy,
-                    watchCgIds = state.rows.map { it.cgId }.toSet(),
-                    onAdd = vm::addCoin,
-                    modifier = Modifier
-                        .offset { IntOffset(anchorLeft.roundToPx(), anchorBottom.roundToPx()) }
-                        .width(anchorWidth)
-                        .zIndex(1f),
-                )
-            }
 
-            // 报价表
-            if (state.rows.isEmpty()) {
-                Text(
-                    text = MarketCopy.WATCH_EMPTY,
-                    color = colors.ink2,
-                    style = WzTheme.typography.body,
-                    modifier = Modifier.padding(top = 16.dp).testTag("watch-empty"),
-                )
-            } else {
-                WatchQuoteHeader(fiat = state.fiat)
-                state.rows.forEach { row ->
-                    WatchQuoteRowLine(row = row, onRemove = { vm.removeCoin(row.cgId) })
+            // 列表区：报价表滚动；候选浮层叠加在其顶部（紧贴搜索框，不挤占列表）
+            Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp)) {
+                Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                    if (state.rows.isEmpty()) {
+                        Text(
+                            text = MarketCopy.WATCH_EMPTY,
+                            color = colors.ink2,
+                            style = WzTheme.typography.body,
+                            modifier = Modifier.padding(top = 16.dp).testTag("watch-empty"),
+                        )
+                    } else {
+                        WatchQuoteHeader(fiat = state.fiat)
+                        state.rows.forEach { row ->
+                            WatchQuoteRowLine(row = row, onRemove = { vm.removeCoin(row.cgId) })
+                        }
+                    }
+                }
+                if (showCandidates) {
+                    WatchCandidatePanel(
+                        candidates = state.candidates,
+                        searchBusy = state.searchBusy,
+                        watchCgIds = state.rows.map { it.cgId }.toSet(),
+                        onAdd = vm::addCoin,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .fillMaxWidth()
+                            .zIndex(1f),
+                    )
                 }
             }
         }
@@ -177,20 +171,8 @@ private fun WatchSearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
     focusRequester: FocusRequester,
-    onPositioned: (left: Dp, bottom: Dp, width: Dp) -> Unit,
 ) {
-    val density = LocalDensity.current
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .onGloballyPositioned { coords ->
-                val bounds = coords.boundsInParent()
-                with(density) {
-                    onPositioned(bounds.left.toDp(), bounds.bottom.toDp(), bounds.width.toDp())
-                }
-            }
-            .testTag("watch-search"),
-    ) {
+    Column(modifier = Modifier.fillMaxWidth().testTag("watch-search")) {
         WzTextField(
             value = query,
             onValueChange = onQueryChange,

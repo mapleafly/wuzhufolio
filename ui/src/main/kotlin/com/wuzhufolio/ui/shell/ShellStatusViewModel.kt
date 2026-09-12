@@ -2,13 +2,11 @@ package com.wuzhufolio.ui.shell
 
 import androidx.lifecycle.ViewModel
 import com.wuzhufolio.domain.exchange.ExchangeSyncService
-import com.wuzhufolio.domain.exchange.SyncLogRow
 import com.wuzhufolio.domain.exchange.SyncStatus
 import com.wuzhufolio.domain.market.MarketRefreshError
 import com.wuzhufolio.domain.market.MarketRefreshResult
 import com.wuzhufolio.domain.market.MarketRefreshService
 import com.wuzhufolio.domain.market.PriceSource
-import com.wuzhufolio.ui.i18n.WzFormat
 import com.wuzhufolio.ui.i18n.shellStrings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,26 +21,34 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.Instant
 
-/** 状态栏展示信息（M12 T12.1 + T12.2；M11 §6 遗留「状态栏数据源/额度/429 文案」闭环）。 */
+/**
+ * 状态栏**原始数据**（M12 T12.1 + T12.2；M11 §6 遗留「状态栏数据源/额度/429 文案」闭环）。
+ *
+ * **只存数据、不存文案**（2026-09-11 走查修复轮二）：本地化文案必须在渲染期由 [shellStrings] 派生
+ * （见 [syncText]/[dataSourceText]/[noticeText]）——把算好的中文字符串塞进 StateFlow 会让语言切换
+ * 后顶栏「数据源：未刷新」这类文案停留在旧语言，直到下一次轮询才刷新（走查实测的滞后现象）。
+ */
 data class ShellStatus(
-    /** 同步状态文案（空闲 / 同步中 / 成功 N 条 / 失败原因）。 */
-    val syncText: String = "",
-    /** 数据源徽章（CoinGecko / CoinMarketCap 兜底 + 上次成功时刻）。 */
-    val dataSourceText: String = "",
-    /** 额度/限流提示（额度 ≥ 80% 或共享限流频发；interaction.md §2.5），null = 不提示。 */
-    val quotaText: String? = null,
-    /** 备份提醒（距上次备份 > 30 天；PRD 6.1），null = 不提醒。 */
-    val backupText: String? = null,
-    /** 网络断开（行情源不可达；interaction.md §1.1 N1）。 */
-    val offline: Boolean = false,
-    /** 现价快照时刻（右对齐「上次价格更新」）。 */
-    val priceAsOf: Instant? = null,
+    /** 最近一次同步记录（null = 尚无同步）。 */
+    val syncStatus: SyncStatus? = null,
+    val syncNewTrades: Int = 0,
+    val syncMessage: String? = null,
+    val syncAt: Instant? = null,
+    /** 行情最近一次成功刷新的数据源与时刻（null = 从未成功）。 */
+    val marketSource: PriceSource? = null,
+    val marketAt: Instant? = null,
+    /** 行情源网络不可达（interaction.md §1.1 N1 断链）。 */
+    val marketOffline: Boolean = false,
+    /** 已配置个人 Key 时的月度额度使用率（0–100；无 Key 模式 null）。 */
+    val quotaPercent: Int? = null,
+    /** 无 Key 公共 API 被共享限流（interaction.md §2.5）。 */
+    val rateLimited: Boolean = false,
+    /** 距上次备份天数（> 30 才提示；null = 不提醒）。 */
+    val backupDays: Long? = null,
     /** 版本号（状态栏右端）。 */
     val version: String = "",
-    /** 提示文案（额度/备份提醒；null = 无提示）。 */
-    val notice: String? = null,
-    /** 提示是否为警示级（额度/断链 = 警示色；备份提醒 = 常规色）。 */
-    val noticeWarn: Boolean = false,
+    /** 是否已完成至少一次数据装填（初始态 false——避免把「还没查」误当作「没有同步记录」）。 */
+    val loaded: Boolean = false,
 )
 
 /**
@@ -56,8 +62,6 @@ class ShellStatusViewModel(
     private val exchangeSyncService: ExchangeSyncService,
     /** 备份提醒天数提供者（null = 未到期/不可判定；app 层注入 M11 的 BackupReminder 口径）。 */
     private val backupReminderDays: suspend () -> Long? = { null },
-    /** 顶栏手动同步进行中判定（同步中优先于最近一次结果展示）。 */
-    private val syncingProvider: () -> Boolean = { false },
     /** 状态栏版本号（app 组合根注入应用版本常量）。 */
     private val appVersion: String = "",
     private val pollIntervalMs: Long = DEFAULT_POLL_MS,
@@ -84,48 +88,23 @@ class ShellStatusViewModel(
             val quota = runCatching { marketRefreshService.quotaPercentUsed() }.getOrNull()
             val sync = runCatching { exchangeSyncService.recentSyncLogs(1).firstOrNull() }.getOrNull()
             val backup = runCatching { backupReminderDays() }.getOrNull()
-            val quotaText = quotaText(quota, market)
-            val backupText = backup?.let { shellStrings.backupReminder(it) }
             _state.update { current ->
                 current.copy(
-                    syncText = syncText(sync),
-                    dataSourceText = dataSourceText(market),
-                    quotaText = quotaText,
-                    backupText = backupText,
-                    offline = isOffline(market),
-                    priceAsOf = market?.at,
+                    syncStatus = sync?.status,
+                    syncNewTrades = sync?.newTradesCount ?: 0,
+                    syncMessage = sync?.message,
+                    syncAt = sync?.syncTime,
+                    marketSource = market?.source,
+                    marketAt = market?.at,
+                    marketOffline = isOffline(market),
+                    quotaPercent = quota,
+                    rateLimited = market?.error is MarketRefreshError.RateLimited,
+                    backupDays = backup,
                     version = appVersion,
-                    // 额度提示优先于备份提醒（interaction.md §2.5 为异常级；备份提醒为常规建议）
-                    notice = quotaText ?: backupText,
-                    noticeWarn = quotaText != null,
+                    loaded = true,
                 )
             }
         }
-    }
-
-    private fun syncText(sync: SyncLogRow?): String = when {
-        syncingProvider() -> shellStrings.syncRunning()
-        sync == null -> shellStrings.syncIdle()
-        else -> {
-            val base = when (sync.status) {
-                SyncStatus.OK -> shellStrings.syncOk(sync.newTradesCount)
-                SyncStatus.FAILED -> shellStrings.syncFailed(sync.message)
-            }
-            base + " · " + WzFormat.dateTime(sync.syncTime)
-        }
-    }
-
-    private fun dataSourceText(market: MarketRefreshResult?): String =
-        if (market?.source == null) {
-            shellStrings.dataSourceBadge(null, null)
-        } else {
-            shellStrings.dataSourceBadge(market.source, market.at?.let { WzFormat.dateTime(it) })
-        }
-
-    private fun quotaText(quotaPercent: Int?, market: MarketRefreshResult?): String? = when {
-        quotaPercent != null && quotaPercent >= QUOTA_WARN_PERCENT -> shellStrings.quotaWarning(quotaPercent)
-        market?.error is MarketRefreshError.RateLimited -> shellStrings.sharedRateLimitHint()
-        else -> null
     }
 
     private fun isOffline(market: MarketRefreshResult?): Boolean = market?.error is MarketRefreshError.Network

@@ -21,6 +21,9 @@ import com.wuzhufolio.domain.market.PriceSource
 import com.wuzhufolio.domain.market.WatchQuoteRow
 import java.math.BigDecimal
 import java.time.Instant
+import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.onAllNodesWithTag
+import kotlin.test.assertEquals
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -151,7 +154,33 @@ class MarketWatchPageUiTest {
         assertTrue(refreshedCoins!!.contains("tether"))
     }
 
+    // ---- 2026-09-11 走查反馈修复轮二：候选浮层位置 ----
+
+    @Test
+    fun `candidate panel sits right under the search field and does not push the list`() = runComposeUiTest {
+        val watch = FakeWatch().apply {
+            searchHits = listOf(catalogCoin("bitcoin", "BTC", "Bitcoin"))
+        }
+        setContent { MarketWatchPage(watch, FakeQuotes(), FakeRefresh(), FakeSettings()) }
+        waitUntil(timeoutMillis = 2_000) { onAllNodesWithTag("watch-quote-header").fetchSemanticsNodes().isNotEmpty() }
+        val headerBefore = onNodeWithTag("watch-quote-header").getBoundsInRoot().top
+        val searchBottom = onNodeWithTag("watch-search-input").getBoundsInRoot().bottom
+
+        onNodeWithTag("watch-search-input").performTextInput("btc")
+        waitUntil(timeoutMillis = 2_000) { onAllNodesWithTag("watch-candidates").fetchSemanticsNodes().isNotEmpty() }
+
+        val panelTop = onNodeWithTag("watch-candidates").getBoundsInRoot().top
+        // ① 紧贴搜索框（允许 8dp 容差：标签/内边距）
+        val gap = panelTop.value - searchBottom.value
+        assertTrue(gap in -8f..24f, "候选浮层应紧贴搜索框下方，实际间隙 " + gap + "dp")
+        // ② 不挤占列表（表头位置不因浮层出现而移动）——容差 4dp 覆盖 Dp 上报取整；
+        //    真「挤占」的位移量级是浮层高度（≥150dp），不会落进容差
+        val headerAfter = onNodeWithTag("watch-quote-header").getBoundsInRoot().top
+        assertEquals(headerBefore.value, headerAfter.value, 4f, "浮层出现不应推动下方列表")
+    }
 }
+
+
 
 private fun String.bd(): BigDecimal = BigDecimal(this)
 

@@ -95,8 +95,8 @@ fun MainShell(
     onRefreshQuotesToastDismiss: () -> Unit = {},
     /** M11 T11.3：状态栏代理指示（直连 / 系统代理 + 悬停提示；PRD 4.2 验收 3）。 */
     proxyStatus: ProxyStatus = ProxyStatus.DEFAULT,
-    /** M12：状态栏数据源（同步状态 / 数据源徽章 / 额度提示 / 备份提醒 / 断链）。 */
-    shellStatus: ShellStatus = ShellStatus(syncText = "", dataSourceText = "", version = ""),
+    /** M12：状态栏**原始数据**（文案在渲染期按当前语言派生，语言切换即时生效）。 */
+    shellStatus: ShellStatus = ShellStatus(),
 ) {
     val themeMode by viewModel.themeMode.collectAsState()
     val pnlScheme by viewModel.pnlScheme.collectAsState()
@@ -142,12 +142,13 @@ fun MainShell(
                 }
                 WzStatusBar(
                     proxyStatus = proxyStatus,
-                    syncStatus = shellStatus.syncText,
-                    dataSource = shellStatus.dataSourceText,
+                    // 文案在渲染期按当前语言派生（语言切换即时生效，见 ShellStatusText）
+                    syncStatus = shellStatus.syncText(syncing = manualSyncing),
+                    dataSource = shellStatus.dataSourceText(),
                     version = shellStatus.version,
-                    notice = shellStatus.notice,
-                    noticeWarn = shellStatus.noticeWarn,
-                    offline = shellStatus.offline,
+                    notice = shellStatus.noticeText(),
+                    noticeWarn = shellStatus.noticeIsWarn(),
+                    offline = shellStatus.marketOffline,
                 )
             }
             // 顶栏同步/刷新结果与主壳 toast 共用宿主（同一位置；顶栏动作结果优先）
@@ -346,7 +347,7 @@ private fun TopBar(
         Box(modifier = Modifier.weight(1f))
         // 行情数据源徽章（ia.md §1.1 顶栏：CoinGecko/CoinMarketCap/上次成功时间戳）
         Text(
-            text = status.dataSourceText,
+            text = status.dataSourceText(),
             color = colors.ink3,
             style = WzTheme.typography.caption,
             modifier = Modifier.padding(end = 12.dp).testTag("topbar-datasource"),
