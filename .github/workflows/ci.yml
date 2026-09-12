@@ -127,8 +127,21 @@ jobs:
 
       - name: 原生打包（jpackage：当前平台全部目标格式）
         shell: bash
-        # Linux = deb + rpm；Windows = msi + exe；macOS = dmg + pkg（含签名/公证，若已注入凭据）
-        run: ./gradlew :app:packageDistributionForCurrentOS --console=plain --stacktrace
+        # Linux = deb + rpm；Windows = msi + exe（WiX 由插件自动下载）；macOS = dmg + pkg
+        # （签名/公证仅在注入凭据时启用）
+        run: |
+          EXTRA=""
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            EXTRA="-Pcompose.desktop.application.downloadWix=true"
+          fi
+          ./gradlew :app:packageDistributionForCurrentOS $EXTRA --console=plain --stacktrace
+
+      - name: 打包失败诊断（jpackage 输出与错误日志）
+        if: failure()
+        shell: bash
+        run: |
+          echo "=== jpackage logs ==="
+          find app/build/compose/logs -type f -name '*.txt' -print -exec cat {} \; || true
 
       - name: AppImage（Linux 追加，ADR-006 §1：appimagetool 包 jpackage app-image）
         if: runner.os == 'Linux'

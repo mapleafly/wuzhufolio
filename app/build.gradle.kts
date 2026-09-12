@@ -56,10 +56,15 @@ val generateBuildInfo by tasks.registering {
 }
 kotlin.sourceSets.named("main") { kotlin.srcDir(generateBuildInfo) }
 
-/** 读取签名/公证凭据：Gradle 属性（wuzhufolio.xxx）优先，其次环境变量（WUZHUFOLIO_XXX）。 */
+/**
+ * 读取签名/公证凭据：Gradle 属性（wuzhufolio.xxx）优先，其次环境变量（WUZHUFOLIO_XXX）。
+ * **空串视为未配置**：CI 中 `${{ secrets.UNSET }}` 会展开为空字符串环境变量（存在但为空），
+ * 若按「非 null」判定会误开签名（M13 CI 首跑实测：macOS 打包因 identity="" 触发配置缓存错误）。
+ */
 fun signingSecret(key: String): String? =
-    providers.gradleProperty("wuzhufolio.$key").orNull
-        ?: providers.environmentVariable("WUZHUFOLIO_" + key.uppercase().replace('.', '_')).orNull
+    (providers.gradleProperty("wuzhufolio.$key").orNull
+        ?: providers.environmentVariable("WUZHUFOLIO_" + key.uppercase().replace('.', '_')).orNull)
+        ?.takeIf { it.isNotBlank() }
 
 val macSigningIdentity = signingSecret("macos.signing.identity")
 val macSigningKeychain = signingSecret("macos.signing.keychain")
