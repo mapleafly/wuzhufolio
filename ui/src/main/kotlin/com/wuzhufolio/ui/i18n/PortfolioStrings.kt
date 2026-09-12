@@ -165,8 +165,9 @@ object PortfolioStringsZh : PortfolioStrings {
     override val anomalyBadge = "持仓异常"
     override val costUnreliableBadge = "成本不可靠"
     override val costUnreliableHint =
-        "该币历史出现过负持仓（账本缺少入金或早期持仓记录），引擎无法给出可靠的成本基数——" +
-            "平均成本与已实现盈亏仅供参考，补录增资/早期持仓或做一次持仓校准后可恢复"
+        "该币历史出现过负持仓（账本缺少入金或早期持仓记录）。成本只按负持仓归零之后的买入重建" +
+            "（D26 口径：负持仓只吃本金、不建成本），因此平均成本与已实现盈亏是「重建期口径」——" +
+            "补录缺失的入金/早期持仓，或做一次持仓校准后，才会与真实成本一致"
     override fun costUnreliableNotice(count: Int) =
         "⚠ " + count + " 个币种的历史持仓曾为负（账本缺少入金或早期记录），其中平均成本与已实现盈亏不可靠"
     override val estimatedBadge = "估算中"
@@ -269,9 +270,11 @@ object PortfolioStringsEn : PortfolioStrings {
     override val anomalyBadge = "Position anomaly"
     override val costUnreliableBadge = "Cost unreliable"
     override val costUnreliableHint =
-        "This coin went negative at some point (the ledger is missing deposits or earlier holdings), " +
-            "so the engine cannot derive a reliable cost basis — average cost and realized P&L are indicative only. " +
-            "Record the missing deposits/earlier trades, or run a position calibration, to restore it"
+        "This coin went negative at some point (the ledger is missing deposits or earlier holdings). " +
+            "Cost is rebuilt only from the buys made after the position returned to zero (D26: a negative " +
+            "position repays principal without building cost), so average cost and realized P&L use that " +
+            "rebuilt basis — record the missing deposits/earlier holdings, or run a position calibration, " +
+            "to match the real cost"
     override fun costUnreliableNotice(count: Int) =
         "⚠ " + count + " coins went negative at some point (missing deposits or earlier records); " +
             "their average cost and realized P&L are not reliable"

@@ -26,7 +26,21 @@ import java.time.Instant
  * - 计价侧（quote）成本：买入按比例移出、卖出按净到账价值计入（卖出收益进入现金池成本）；
  * - 持仓异常区段（宽松导入造成的负持仓）不推导已实现盈亏（无成本基数，由 [CoinHolding.anomalous] 承载）；
  * - 第三币种手续费联动扣减对应币种持仓（黄金用例 5 口径，勘误登记见模块记录 M4.md §5）。
+ *
+ * **负持仓区间的成本口径（D26 · 2026-09-11 人工拍板方案甲，C2 返工）**：
+ * PRD「成本计算规范」只覆盖数量 > 0 的正常流转，未定义「持仓归零/转负后重建」的成本如何重建。
+ * 本引擎采用：**负持仓只吃本金、不建成本；成本随数量归零；穿越归零点时按数量比例拆分**——
+ * - 不变式：数量 ≤ 0 ⟹ 成本 = 0；
+ * - 流入（买入到账/卖出入账/增资/正差额校准）数量 q、折算值 v，当时数量为负（欠 d = −数量）时：
+ *   q ≤ d → 全部用于清偿，成本保持 0；q > d → 仅「抬到 0 以上」的部分 (q − d) 承担成本，
+ *   携带成本 = v × (q − d) / q，期末数量 = q − d、成本 = 该值；
+ * - 流出：数量归零或转负时成本同步归零（[reducePosition]）。
+ *
+ * 语义理由：归零点处唯一可解释的答案是「你为当前持有的这些币实际付了多少钱」——
+ * 清偿负持仓的那部分数量没有任何成本基数（其对应支出发生在账本之外）。
+ * **对从未转负的账本，本口径与旧口径逐字等价**（既有黄金用例与模块用例断言不变）。
  */
+@Suppress("TooManyFunctions") // 引擎四类事件应用 + 校验 + 三件内部工具，语义内聚（D26 返工新增 2 个成本工具）
 object ReplayEngine {
 
     /** 严格模式重放；违例详情经 [NegativePositionException]。 */
@@ -99,8 +113,7 @@ object ReplayEngine {
         state.estimated = state.estimated || e.estimated
         when (e.kind) {
             FlowKind.DEPOSIT -> {
-                state.quantity += e.quantity
-                state.cost += e.fiatValue
+                increasePosition(state, e.quantity, e.fiatValue)
                 acc.deposits += e.fiatValue
             }
             FlowKind.WITHDRAWAL -> {
@@ -127,8 +140,7 @@ object ReplayEngine {
                 val quoteOut = if (e.isQuoteFee) legQuantity + e.fee else legQuantity
                 reducePosition(quote, quoteOut)
                 val baseIn = if (e.isBaseFee) e.quantity - e.fee else e.quantity
-                base.quantity += baseIn
-                base.cost += e.legFiat + e.feeFiat
+                increasePosition(base, baseIn, e.legFiat + e.feeFiat)
                 feeState?.let { reducePosition(it, e.fee) }
             }
             Side.SELL -> {
@@ -140,8 +152,8 @@ object ReplayEngine {
                 // 异常区段（baseBefore <= 0）不推导已实现盈亏（无成本基数，由异常标记承载）
                 reducePosition(base, e.quantity)
                 val quoteIn = if (e.isQuoteFee) legQuantity - e.fee else legQuantity
-                quote.quantity += quoteIn
-                quote.cost += if (e.isQuoteFee) e.legFiat - e.feeFiat else e.legFiat
+                val quoteCost = if (e.isQuoteFee) e.legFiat - e.feeFiat else e.legFiat
+                increasePosition(quote, quoteIn, quoteCost)
                 feeState?.let { reducePosition(it, e.fee) }
             }
         }
@@ -153,8 +165,9 @@ object ReplayEngine {
         state.estimated = state.estimated || e.estimated
         val before = state.quantity
         if (e.delta.signum() > 0) {
-            // 正差额：视同系统增资，按校准时市价计入成本与累计增资（正差额增大 ROI 分母，保守口径）
-            state.cost += e.deltaFiat
+            // 正差额：视同系统增资，按校准时市价计入成本与累计增资（正差额增大 ROI 分母，保守口径）；
+            // 负持仓时按 D26 方案甲的穿越点拆分计入（清偿部分不建成本）
+            increasePosition(state, e.delta, e.deltaFiat)
             acc.deposits += e.deltaFiat
         } else {
             // 负差额：视同系统撤资，按当时平均成本移出、按校准时市价计入累计撤资
@@ -165,6 +178,7 @@ object ReplayEngine {
             acc.withdrawals += e.deltaFiat
         }
         state.quantity = e.exchangeQuantity // 锚点强制对齐：校准前历史记录编辑/删除不回滚校准效果
+        normalizeCost(state) // 对齐到 0 时成本必须归零（D26 不变式）
         return listOf(e.coin)
     }
 
@@ -198,7 +212,7 @@ object ReplayEngine {
     private fun stateOf(coins: MutableMap<String, CoinState>, coinId: String): CoinState =
         coins.getOrPut(coinId) { CoinState(coinId) }
 
-    /** 持仓减少/流出：按比例移出成本（均价不变）；超出当前持仓的部分不动成本（宽松异常态不产生负成本）。 */
+    /** 持仓减少/流出：按比例移出成本（均价不变）；归零或转负时成本同步归零（不变式，D26）。 */
     private fun reducePosition(state: CoinState, outQuantity: BigDecimal) {
         if (state.quantity.signum() > 0 && outQuantity.signum() > 0) {
             val removed = LedgerMath.proportionalRemoval(
@@ -209,6 +223,41 @@ object ReplayEngine {
             state.cost -= removed
         }
         state.quantity -= outQuantity
+        normalizeCost(state)
+    }
+
+    /**
+     * 持仓增加/流入（买入到账 / 卖出入账 / 增资 / 正差额校准）统一入口（D26 方案甲）。
+     *
+     * 数量 > 0 时按 [inCost] 全额入成本（与旧口径一致）；数量 ≤ 0（负持仓）时只对「抬到 0 以上」
+     * 的部分按数量比例计入成本，清偿部分不计（详见类头注「负持仓区间的成本口径」）。
+     */
+    private fun increasePosition(state: CoinState, inQuantity: BigDecimal, inCost: BigDecimal) {
+        if (inQuantity.signum() <= 0) return
+        val debt = state.quantity.negate()
+        val covered = inQuantity - debt
+        when {
+            debt.signum() <= 0 -> {
+                // 正持仓（常规路径）：全额入成本，与旧口径一致
+                state.quantity += inQuantity
+                state.cost += inCost
+            }
+            covered.signum() <= 0 -> {
+                // 全部用于清偿负持仓：数量仍 ≤ 0，成本保持 0（不变式）
+                state.quantity += inQuantity
+                state.cost = BigDecimal.ZERO
+            }
+            else -> {
+                // 穿越归零点：仅「抬到 0 以上」的部分承担成本（按数量比例拆分）
+                state.quantity = covered
+                state.cost = LedgerMath.proportionalRemoval(inCost, covered, inQuantity)
+            }
+        }
+    }
+
+    /** 不变式归一：数量 ≤ 0 时成本必须为 0（负持仓只吃本金、不建成本，D26）。 */
+    private fun normalizeCost(state: CoinState) {
+        if (state.quantity.signum() <= 0) state.cost = BigDecimal.ZERO
     }
 }
 

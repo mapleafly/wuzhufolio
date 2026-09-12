@@ -258,6 +258,32 @@ object SellRealizedTracer {
                 p.cost -= removed
             }
             p.quantity -= out
+            // D26 不变式：数量 ≤ 0 ⟹ 成本 = 0（与 ReplayEngine 同口径）
+            if (p.quantity.signum() <= 0) p.cost = BigDecimal.ZERO
+        }
+
+        /**
+         * 流入统一入口（D26 方案甲，与 [com.wuzhufolio.domain.engine.ReplayEngine] 同口径）：
+         * 负持仓时只对「抬到 0 以上」的部分按数量比例计入成本，清偿部分不建成本。
+         */
+        fun increase(p: Position, inQuantity: BigDecimal, inCost: BigDecimal) {
+            if (inQuantity.signum() <= 0) return
+            val debt = p.quantity.negate()
+            val covered = inQuantity - debt
+            when {
+                debt.signum() <= 0 -> {
+                    p.quantity += inQuantity
+                    p.cost += inCost
+                }
+                covered.signum() <= 0 -> {
+                    p.quantity += inQuantity
+                    p.cost = BigDecimal.ZERO
+                }
+                else -> {
+                    p.quantity = covered
+                    p.cost = inCost.multiply(covered).divide(inQuantity, 12, java.math.RoundingMode.HALF_UP)
+                }
+            }
         }
 
         for (event in events.sortedWith(compareBy({ it.at }, { it.seq }))) {
@@ -265,10 +291,8 @@ object SellRealizedTracer {
                 is FundEvent -> {
                     val p = positionOf(event.coin)
                     when (event.kind) {
-                        com.wuzhufolio.domain.engine.FlowKind.DEPOSIT -> {
-                            p.quantity += event.quantity
-                            p.cost += event.fiatValue
-                        }
+                        com.wuzhufolio.domain.engine.FlowKind.DEPOSIT ->
+                            increase(p, event.quantity, event.fiatValue)
                         com.wuzhufolio.domain.engine.FlowKind.WITHDRAWAL -> reduce(p, event.quantity)
                     }
                 }
@@ -277,8 +301,7 @@ object SellRealizedTracer {
                     when (event.side) {
                         Side.BUY -> {
                             val baseIn = if (event.isBaseFee) event.quantity - event.fee else event.quantity
-                            base.quantity += baseIn
-                            base.cost += event.legFiat + event.feeFiat
+                            increase(base, baseIn, event.legFiat + event.feeFiat)
                         }
                         Side.SELL -> {
                             // 异常区段（无成本基数）不推导已实现盈亏——不记录（展示 "--"），与引擎口径一致
@@ -297,13 +320,14 @@ object SellRealizedTracer {
                 is com.wuzhufolio.domain.engine.AnchorEvent -> {
                     val p = positionOf(event.coin)
                     if (event.delta.signum() > 0) {
-                        p.cost += event.deltaFiat
+                        increase(p, event.delta, event.deltaFiat) // D26：负持仓时按穿越点拆分
                     } else if (p.quantity.signum() > 0) {
                         val out = event.delta.abs().min(p.quantity)
                         val removed = p.cost.multiply(out).divide(p.quantity, 12, java.math.RoundingMode.HALF_UP)
                         p.cost -= removed
                     }
                     p.quantity = event.exchangeQuantity
+                    if (p.quantity.signum() <= 0) p.cost = BigDecimal.ZERO // D26 不变式
                 }
             }
         }

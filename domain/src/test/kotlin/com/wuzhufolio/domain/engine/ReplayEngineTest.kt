@@ -306,4 +306,66 @@ class ReplayEngineTest {
             Ev.anchor(1, Ev.BTC, exchangeQty = "1", delta = "0", deltaFiat = "0")
         }
     }
+    // ---- D26 负持仓区间成本口径（方案甲，C2 返工验收） ----
+
+    @Test
+    fun `d26 negative position is fully repaid without building cost`() {
+        // 卖出未持有的 1 BTC（宽松导入）→ −1 BTC；再补买 0.4（仍为负）→ 成本必须保持 0
+        val sell = Ev.sell(1, Ev.BTC, Ev.USDT, price = "50000", qty = "1", source = RecordSource.Csv)
+        val buyPart = Ev.buy(2, Ev.BTC, Ev.USDT, price = "40000", qty = "0.4", source = RecordSource.Csv)
+        val holding = ReplayEngine.replay(listOf(sell, buyPart), NegativePolicy.LENIENT)
+            .holdings.getValue(Ev.BTC)
+        assertMoney("-0.6", holding.quantity)
+        assertMoney("0", holding.costFiat, "清偿部分不建成本（不变式：数量 ≤ 0 ⟹ 成本 = 0）")
+    }
+
+    @Test
+    fun `d26 crossing zero splits the inflow by quantity`() {
+        // −1 BTC 空头被一笔 2.5 BTC 的买入（折算 100,000）穿越：只有 1.5 BTC 承担成本 = 100,000×1.5/2.5
+        val sell = Ev.sell(1, Ev.BTC, Ev.USDT, price = "50000", qty = "1", source = RecordSource.Csv)
+        val buy = Ev.buy(2, Ev.BTC, Ev.USDT, price = "40000", qty = "2.5", source = RecordSource.Csv)
+        val holding = ReplayEngine.replay(listOf(sell, buy), NegativePolicy.LENIENT).holdings.getValue(Ev.BTC)
+        assertMoney("1.5", holding.quantity)
+        assertMoney("60000", holding.costFiat, "穿越点拆分：100,000 × (2.5 − 1) / 2.5")
+        assertMoney("40000", holding.avgCostFiat!!, "均价应回到买入价（不再被空头污染）")
+    }
+
+    @Test
+    fun `d26 deposit into a negative position also splits at the crossing point`() {
+        val sell = Ev.sell(1, Ev.BTC, Ev.USDT, price = "50000", qty = "1", source = RecordSource.Csv)
+        val deposit = Ev.deposit(2, Ev.BTC, "2", "80000")
+        val holding = ReplayEngine.replay(listOf(sell, deposit), NegativePolicy.LENIENT).holdings.getValue(Ev.BTC)
+        assertMoney("1", holding.quantity)
+        assertMoney("40000", holding.costFiat, "80,000 × (2 − 1) / 2")
+    }
+
+    @Test
+    fun `d26 anchored quantity zero forces cost to zero`() {
+        val buy = Ev.buy(1, Ev.BTC, Ev.USDT, price = "40000", qty = "1", source = RecordSource.Csv)
+        val deposit = Ev.deposit(2, Ev.USDT, "100000", "100000")
+        // 校准把持仓对齐到 0 → 成本必须归零（不变式）
+        val anchor = Ev.anchor(3, Ev.BTC, exchangeQty = "0", delta = "-1", deltaFiat = "40000")
+        val holding = ReplayEngine.replay(listOf(buy, deposit, anchor), NegativePolicy.LENIENT)
+            .holdings.getValue(Ev.BTC)
+        assertMoney("0", holding.quantity)
+        assertMoney("0", holding.costFiat, "锚点对齐到 0 → 成本归零")
+    }
+
+    @Test
+    fun `d26 walkthrough scenario rebuids a clean basis after the short`() {
+        // 走查实测形态（M12.md §7.2）：卖出未持有 → 补买回正 → 再卖出。
+        // 修复前：均价被抬到 997,018 量级，再卖出产生 −57,843 的假亏损；
+        // 修复后：均价 = 补买价，再卖出的已实现盈亏为正常量级。
+        val shortSell = Ev.sell(1, Ev.BTC, Ev.USDT, price = "60000", qty = "0.1", source = RecordSource.Csv)
+        val deposit = Ev.deposit(2, Ev.USDT, "20000", "20000")
+        val buyBack = Ev.buy(3, Ev.BTC, Ev.USDT, price = "50000", qty = "0.2")
+        val sell = Ev.sell(4, Ev.BTC, Ev.USDT, price = "55000", qty = "0.05")
+        val outcome = ReplayEngine.replay(listOf(shortSell, deposit, buyBack, sell), NegativePolicy.LENIENT)
+        val btc = outcome.holdings.getValue(Ev.BTC)
+        assertMoney("0.05", btc.quantity)
+        assertMoney("50000", btc.avgCostFiat!!, "重建后的均价 = 补买价（不再被空头污染）")
+        // 已实现 = (2,750 − 0) − 0.05×50,000 = 250（修复前该笔会被 997,018 量级的均价放大成巨额假亏损）
+        assertMoney("250", btc.realizedPnlFiat)
+    }
+
 }

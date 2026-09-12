@@ -166,4 +166,20 @@ class SellRealizedTracerTest {
         val engineTotal = ReplayEngine.replay(events, NegativePolicy.LENIENT).realizedPnlFiat
         assertEquals(engineTotal, realized.values.fold(BigDecimal.ZERO) { a, b -> a + b })
     }
+    @Test
+    fun negativePositionRebuildKeepsTracerInSyncWithEngine() {
+        // D26 方案甲回归：负持仓被补买穿越后，逐笔轨迹与引擎合计仍必须一致，
+        // 且重建后的成本基数只由「抬到 0 以上」的那部分构成。
+        val events = listOf(
+            sell("e1", "bitcoin", "tether", "60000", "0.1", at = t0),
+            deposit("d1", "tether", "20000", "20000", at = t0.plusSeconds(60)),
+            buy("e2", "bitcoin", "tether", "50000", "0.2", at = t0.plusSeconds(120)),
+            sell("e3", "bitcoin", "tether", "55000", "0.05", at = t0.plusSeconds(180)),
+        )
+        val realized = SellRealizedTracer.realizedByEvent(events)
+        val engine = ReplayEngine.replay(events, NegativePolicy.LENIENT)
+        assertEquals(engine.realizedPnlFiat, realized.values.fold(BigDecimal.ZERO) { a, b -> a + b })
+        assertEquals(0, BigDecimal("250").compareTo(realized.getValue("e3")), "重建后该笔已实现 = 250")
+    }
+
 }
