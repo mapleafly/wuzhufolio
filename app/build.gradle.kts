@@ -114,9 +114,12 @@ compose.desktop {
             includeAllModules = false
             packageName = "WuZhuFolio"
             packageVersion = appVersion
-            description = "WuZhuFolio - 本地优先的加密资产组合追踪工具"
+            // 安装器元数据保持 **ASCII**：CI 实测 Windows jpackage 读取参数文件（@args.txt）时按 UTF-8 解码，
+            // 非 ASCII（中文 description / 全角点）在 Windows 默认代码页下写盘即触发 `Input length = 1`
+            // （M13 CI 三跑实证）。本地化描述改由应用内「关于」页与 README 承载。
+            description = "WuZhuFolio - local-first encrypted portfolio tracker"
             vendor = "WuZhuFolio"
-            copyright = "Copyright (C) 2026 WuZhuFolio contributors · AGPL-3.0"
+            copyright = "Copyright (C) 2026 WuZhuFolio contributors. AGPL-3.0."
             licenseFile.set(rootProject.file("LICENSE"))
 
             linux {
@@ -133,6 +136,11 @@ compose.desktop {
                 bundleID = "com.wuzhufolio.app"
                 appCategory = "public.app-category.finance"
                 dockName = "WuZhuFolio"
+                // macOS bundle 版本：Apple 规定 CFBundleVersion 首段不得为 0（jpackage 实测报
+                // "The first number in an app-version cannot be zero or negative"），故 bundle 版本
+                // 与内部应用版本（appVersion=0.1.0，.cpro 头部/关于页）解耦；P7 定稿发布号后两者对齐。
+                packageVersion = "1.0.0"
+                packageBuildVersion = "1"
                 // M13 T13.2：Developer ID 签名 + notarytool 公证（凭据经 Secrets 注入；缺省不签名）
                 signing {
                     sign.set(macSigningIdentity != null)
