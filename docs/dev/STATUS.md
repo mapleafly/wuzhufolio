@@ -805,6 +805,7 @@ macOS 公证 + Windows 签名 + AppImage/Flatpak 追加），**待人工下达�
 > （msi+exe / dmg+pkg / deb+rpm+AppImage）+ `artifacts-manifest`（SHA256）+ 三平台 `test-results-*` 已归档；
 > 本地 636 用例（632 执行 0 失败 + 4 跳过）+ detekt 0 + 警告 0 + 打包版三形态运行实证。
 > **P5 集成与联调解锁为进行中，待人工下达启动指令。**
+> **关闭提交 CI 留痕**：`c1d9029`（关闭文档）→ run [34744082918](https://github.com/mapleafly/wuzhufolio/actions/runs/34744082918) 六 job 全绿。
 
 > 启动记录：人工原话「执行p4-M13」（2026-09-12）。范围 = task-breakdown M13（**T13.1 安全自查**
 > §1.1 硬约束逐条核验；**T13.2 签名公证打包** jpackage 三平台产物 + macOS 公证 + Windows 签名 + AppImage 追加）。
