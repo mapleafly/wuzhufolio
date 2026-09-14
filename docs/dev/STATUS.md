@@ -1177,6 +1177,8 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
    **4 项钥匙串真实后端用例在 windows 执行通过**（`KeyringRememberMeStoreTest` 3 项 0 跳过等），
    P6 新增测试（`SettingsKeyNamespaceGuardTest` 2 / `DefaultBackupServiceTest` 12 / `BackgroundSchedulerTest` 15 /
    `CproLargePayloadTest` 1 / `BinanceAdapterTest` 9）在三平台全部通过；`ubuntu/windows/macos-native` 三平台原生产物已归档。
+4. **留痕提交复跑 run [34839631004](https://github.com/mapleafly/wuzhufolio/actions/runs/34839631004)（`9e88b4e`，docs-only）：六 job 全绿** ——
+   本条 CI 留痕本身经三平台 build + package 复核通过，**当前 `origin/main` HEAD 为绿**。
 
 **建议的下一步**（已执行：P6 完成并停人工门）：人工按上节验收 + 裁决 5 项 → 通过后 **P7 发布**解锁
 （`docs/release/`：release-plan / rollback / CHANGELOG / user-guide / 签名公证；**产品宣传动画为 P7 必做项**，AGENTS.md §7.2-3）。
