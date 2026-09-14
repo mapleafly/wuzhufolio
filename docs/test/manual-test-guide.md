@@ -391,6 +391,8 @@ docs/test/manual-evidence/<YYYYMMDD>-<platform>/          # 本地留存；是�
 | 端口/代理冲突 | 关掉系统里的其他代理或换抓包端口 | 同上 |
 | 打包失败（本地） | 装 WiX 3.14；或直接用 CI 产物 | `sudo apt install -y fakeroot rpm`；AppImage 报 FUSE 错 → `APPIMAGE_EXTRACT_AND_RUN=1` |
 | 测试/运行污染日常库 | 始终设 `WUZHUFOLIO_DATA_DIR` | 同左 |
+| **启动即失败**（日志尾部 `bootstrap failed / NoSuchFileException …logs\wuzhufolio.<日期>.N.log`） | **DEF-17，已修复**（跨零点启动时日志轮转与 logback 滚动竞争）：用新构建即可；旧构建遇此可删除 `logs` 目录后重试 | 同左（Linux 极少触发，但同样已修） |
+| 无法确认「跑的是哪一版」 | 启动日志首行含 `build=0.1.0+<git short sha>`（P6 新增构建标识）；用它核对 CI 产物对应的提交 | 同左 |
 
 ---
 

@@ -45,24 +45,55 @@ object LogRotator {
         var removedLines = 0
         val cutoff = LogRotationPolicy.cutoff(now)
         Files.list(logDir).use { stream: Stream<Path> ->
-            stream.filter { Files.isRegularFile(it) }
-                .filter { it.fileName.toString().endsWith(".log") || it.fileName.toString().endsWith(".log.gz") }
+            stream.filter { isLogFileName(it.fileName.toString()) }
                 .forEach { file ->
-                    val modified = Files.getLastModifiedTime(file).toInstant()
-                    if (LogRotationPolicy.isExpired(modified, now)) {
-                        runCatching { Files.deleteIfExists(file) }
-                            .onSuccess { if (it) deleted++ }
-                        return@forEach
-                    }
-                    if (file.fileName.toString().endsWith(".gz")) return@forEach // 压缩档不做行级裁剪
-                    val result = trimIfNeeded(file, cutoff, maxLines)
-                    if (result != null) {
-                        trimmed++
-                        removedLines += result
+                    when (val outcome = rotateEntry(file, now, cutoff, maxLines)) {
+                        is EntryOutcome.Deleted -> deleted++
+                        is EntryOutcome.Trimmed -> {
+                            trimmed++
+                            removedLines += outcome.removedLines
+                        }
+                        // 条目在列举后消失（logback 跨日滚动/清理并发）或不可读 → 跳过本轮
+                        EntryOutcome.Skipped, EntryOutcome.Untouched -> Unit
                     }
                 }
         }
         return Summary(deletedFiles = deleted, trimmedFiles = trimmed, removedLines = removedLines)
+    }
+
+    /** 日志文件名（活动日志或压缩档）。 */
+    private fun isLogFileName(name: String): Boolean = name.endsWith(".log") || name.endsWith(".log.gz")
+
+    /** 单条目处理结果（P6 DEF-17：区分「跳过」与「无需处理」，便于测试与摘要）。 */
+    internal sealed interface EntryOutcome {
+        data object Deleted : EntryOutcome
+        data object Untouched : EntryOutcome
+        data object Skipped : EntryOutcome
+        data class Trimmed(val removedLines: Int) : EntryOutcome
+    }
+
+    /**
+     * 处理单个日志条目。
+     *
+     * **并发健壮性（P6 DEF-17，Windows 启动阻断缺陷）**：`Files.list` 给出条目名之后，文件可能被
+     * **logback 的跨日滚动/`maxHistory` 清理**删除（实测：跨零点启动时 `getLastModifiedTime` 抛
+     * `NoSuchFileException`，导致 bootstrap 失败、应用起不来）。轮转是**维护性**工作，
+     * 任何单条目 IO 失败都必须降级为「本轮跳过」，绝不向上抛。
+     */
+    @Suppress("SwallowedException") // 单条目 IO 失败 = 跳过（维护性工作不得阻断启动；下次启动再试）
+    internal fun rotateEntry(file: Path, now: Instant, cutoff: Instant, maxLines: Int): EntryOutcome {
+        val outcome = runCatching {
+            if (!Files.isRegularFile(file)) return@runCatching EntryOutcome.Skipped
+            val modified = Files.getLastModifiedTime(file).toInstant()
+            if (LogRotationPolicy.isExpired(modified, now)) {
+                return@runCatching if (Files.deleteIfExists(file)) EntryOutcome.Deleted else EntryOutcome.Skipped
+            }
+            if (file.fileName.toString().endsWith(".gz")) return@runCatching EntryOutcome.Untouched
+            trimIfNeeded(file, cutoff, maxLines)
+                ?.let { EntryOutcome.Trimmed(it) }
+                ?: EntryOutcome.Untouched
+        }
+        return outcome.getOrElse { EntryOutcome.Skipped }
     }
 
     /**

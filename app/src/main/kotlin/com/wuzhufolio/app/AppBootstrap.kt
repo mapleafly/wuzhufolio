@@ -218,8 +218,14 @@ object AppBootstrap {
         )
         val hello = HelloChain(db, settings, logger).run()
 
-        // M10 T10.2：日志轮转（本地日志 1 万条/90 天 + sync_logs 同口径）——启动执行一次，摘要入日志
-        val logRotation = LogRotator.rotate(AppDirs.logDir())
+        // M10 T10.2：日志轮转（本地日志 1 万条/90 天 + sync_logs 同口径）——启动执行一次，摘要入日志。
+        // P6 DEF-17：轮转是维护性工作，**任何失败都不得阻断启动**（Windows 实测：与 logback 跨日滚动
+        // 竞争导致 NoSuchFileException → bootstrap failed、应用起不来）；失败只记 WARN。
+        val logRotation = runCatching { LogRotator.rotate(AppDirs.logDir()) }
+            .getOrElse {
+                logger.warn("log rotation skipped ({})", it.javaClass.simpleName)
+                LogRotator.Summary(0, 0, 0)
+            }
         // M13 T13.1 加固：活动日志文件收紧为 0600（目录 0700 已保证不可遍历；文件级再收紧防目录权限被改动）
         com.wuzhufolio.domain.security.FilePermissions
             .restrictFile(AppDirs.logDir().resolve("wuzhufolio.log"))
@@ -335,7 +341,7 @@ object AppBootstrap {
                 marketSettingsService = market.marketSettingsService,
                 syncService = exchange.exchangeSyncService,
                 sessions = sessions, // P6 §7-6：登出后跳过同步 tick（不再制造被吞的噪声异常）
-                rotateLogs = { rotateLogsNow(gate) },
+                rotateLogs = { rotateLogsNow(gate, logger) },
                 // M13：历史快照降采样执行点（ADR-005 §3「降采样后快照随备份」；幂等）
                 compactSnapshots = {
                     PriceSnapshotRepository(gate).compactPreservingDaily(java.time.Instant.now())
@@ -417,9 +423,16 @@ object AppBootstrap {
             }
             ?.let { raw -> runCatching { Instant.parse(raw) }.getOrNull() }
 
-    /** 运行期日志轮转（M11 · M10 §5-5 遗留闭环）：本地日志 + sync_logs 同口径，返回脱敏摘要。 */
-    private fun rotateLogsNow(gate: DbGate): String {
-        val files = LogRotator.rotate(AppDirs.logDir())
+    /**
+     * 运行期日志轮转（M11 · M10 §5-5 遗留闭环）：本地日志 + sync_logs 同口径，返回脱敏摘要。
+     * P6 DEF-17：与启动路径同口径——维护性失败降级为摘要标注，不上抛（调度 tick 不因轮转失败丢事件）。
+     */
+    private fun rotateLogsNow(gate: DbGate, logger: Logger): String {
+        val files = runCatching { LogRotator.rotate(AppDirs.logDir()) }
+            .getOrElse {
+                logger.warn("runtime log rotation skipped ({})", it.javaClass.simpleName)
+                LogRotator.Summary(0, 0, 0)
+            }
         val syncLogs = SyncLogRepository(gate).rotate(Instant.now())
         return "files=" + files + " syncLogs(byAge=" + syncLogs.first + ",byCount=" + syncLogs.second + ")"
     }

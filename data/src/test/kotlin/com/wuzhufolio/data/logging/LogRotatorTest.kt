@@ -80,6 +80,38 @@ class LogRotatorTest {
         assertTrue(LogRedactor.MASK in exported.joinToString("\n"))
     }
 
+    /** P6 DEF-17（Windows 启动阻断缺陷）：条目在列举后消失（logback 跨日滚动/清理并发）不得抛出。 */
+    @Test
+    fun `rotate skips entries that vanished after listing`() {
+        val dir = tempDir()
+        val now = Instant.parse("2026-09-10T01:00:00Z")
+        val cutoff = com.wuzhufolio.domain.redaction.LogRotationPolicy.cutoff(now)
+        val ghost = dir.resolve("wuzhufolio.2026-09-14.0.log") // 列举后已被 logback 删除的文件
+
+        // 直接走单条目入口：模拟「文件已不存在」的竞争窗口
+        val outcome = LogRotator.rotateEntry(ghost, now, cutoff, maxLines = 10)
+        assertEquals(LogRotator.EntryOutcome.Skipped, outcome, "消失的条目应跳过而不是抛异常")
+
+        // 目录级轮转同样不应因缺失条目中断（同时验证正常条目仍被处理）
+        val real = dir.resolve("wuzhufolio.log")
+        Files.write(real, (1..12).map { "2026-09-10 00:00:00.000 INFO [main] w - line-" + it })
+        val summary = LogRotator.rotate(dir, now, maxLines = 10)
+        assertEquals(1, summary.trimmedFiles, "正常条目仍应被裁剪")
+    }
+
+    /** P6 DEF-17：不可读条目（无权限/异常）同样跳过，维护性轮转绝不上抛。 */
+    @Test
+    fun `rotate tolerates unreadable entries`() {
+        val dir = tempDir()
+        val now = Instant.parse("2026-09-10T01:00:00Z")
+        val cutoff = com.wuzhufolio.domain.redaction.LogRotationPolicy.cutoff(now)
+        val directoryNamedLikeLog = dir.resolve("weird.log") // 目录名以 .log 结尾 → 不是普通文件
+        Files.createDirectory(directoryNamedLikeLog)
+        assertEquals(LogRotator.EntryOutcome.Skipped, LogRotator.rotateEntry(directoryNamedLikeLog, now, cutoff, 10))
+        // 目录级轮转不抛
+        LogRotator.rotate(dir, now, maxLines = 10)
+    }
+
     @Test
     fun `exportTo missing log throws`() {
         val access = FileLogAccess(tempDir())

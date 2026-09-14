@@ -13,7 +13,7 @@
 
 | 级别 | 数量 | 状态 |
 |------|------|------|
-| **P0** | **0** | — |
+| **P0** | **1** | **DEF-17**（Windows 跨零点启动被日志轮转竞争打挂）→ **已修复并加回归**，见 §1.6 |
 | **P1** | **0** | — |
 | **P2** | 6 | **4 项已修复**（DEF-01/02/03/06）· **2 项已按人工裁决处置**（DEF-04 登记 P8；DEF-05 按 C0 文档澄清并已回写） |
 | **P1（人工门新增）** | 2 | **均已修复**：**DEF-13**（Tab 焦点链重复目标 → 页面内容键盘不可达）、**DEF-15**（Windows 托盘菜单中文乱码）——见 §1.5 |
@@ -120,6 +120,18 @@
 | **核实结论** | **与设计一致**：状态栏断链指示的输入是**最近一次行情刷新的结果**（`ShellStatusViewModel.marketOffline = market?.error is MarketRefreshError.Network`），即「请求失败即提示、保留上次价格与时间戳、点击可重试」（PRD 故事 3.2-3 / `interaction.md §1.1 N1`）。拔网本身不触发探测，故最长需等到下一轮自动刷新（默认 5 分钟，可设 15/30/60）。手动刷新即刻反映，恢复网络后点刷新即回到「直连」，均符合预期 |
 | **可选增强（登记 P8）** | 若希望「拔网即刻提示」，可加**轻量连通性探测**（在调度 tick 上做一次 HEAD/连接探测，或监听 OS 网络事件）——属新增行为（PRD 未要求），登记 P8 评估，不在 P6 实施 |
 | **手册更新** | `docs/test/manual-test-guide.md` TC-MAN-05 已写明该预期，避免复验时误判为缺陷 |
+
+### DEF-17 ✅ 已修复（**P0** · 人工门实测暴露 · C0 实现健壮性补全）· Windows 跨零点启动失败（日志轮转与 logback 滚动竞争）
+
+| 项 | 内容 |
+|----|------|
+| **现象** | Windows 11 上应用**启动即失败**：`bootstrap failed / java.nio.file.NoSuchFileException: …\logs\wuzhufolio.2026-09-14.0.log`，栈顶 `LogRotator.rotate`（`Files.getLastModifiedTime`）→ 应用完全起不来 |
+| **触发条件** | 启动时刻跨零点（人工日志时间 2026-09-15 00:04）：logback 做**跨日滚动 + maxHistory 清理**，与启动期 `LogRotator.rotate` 的「列举目录 → 逐条 stat」竞争——条目在列举后已被 logback 删除 |
+| **根因** | ① `LogRotator` 对单条目 IO 无容错：`Files.list` 与 `getLastModifiedTime` 之间存在 TOCTOU 窗口；② `AppBootstrap` 把**维护性**的轮转失败当成致命错误（`runCatching` 之外）→ 直接终止启动 |
+| **修复** | ① `LogRotator` 抽出单条目入口 `rotateEntry`（internal，可测）：任何单条目 IO 失败/条目消失/非普通文件 → `EntryOutcome.Skipped`，**绝不上抛**；② `AppBootstrap` 启动期与运行期（调度 6 小时轮转）两处 `LogRotator.rotate` 都包 `runCatching` + WARN，失败降级为摘要 `files:0/0/0`，**维护性工作不阻断启动**；③ 运行期 `rotateLogsNow` 同步线程化 logger 参数 |
+| **回归** | `data/logging/LogRotatorTest` 新增 2 例：`rotate skips entries that vanished after listing`（直接走 `rotateEntry` 模拟竞争窗口；同时验证正常条目仍被裁剪）+ `rotate tolerates unreadable entries`（目录名以 `.log` 结尾等非普通文件） |
+| **影响面扫描** | 代码：`data/logging/LogRotator.kt`（单条目容错 + 新 internal 结果类型）、`app/AppBootstrap.kt`（两处调用点 + logger 参数）；不涉数据模型/接口/备份格式；`LogRotationPolicy`（条数/天数口径）不变 |
+| **教训** | 「维护性后台任务」与「启动关键路径」必须分离失败语义：前者的任何失败都只能是日志噪声。凡「列举目录再逐条 stat/删除」的代码都要假设**条目随时会消失**（Windows 上尤其明显，文件被占用/删除的语义与 POSIX 不同） |
 
 ## 2. 待人工定级 / 登记（P2，不阻断发布）
 
