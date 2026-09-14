@@ -95,6 +95,9 @@ interface PortfolioStrings {
     val filterBuy: String
     val filterSell: String
     val searchTxPlaceholder: String
+
+    /** 交易记录时间档位标签（共用资金页的四档口径：全部 / 近 30 天 / 30–90 天 / 90 天以上）。 */
+    fun dateRangeLabel(range: com.wuzhufolio.domain.ledger.FundDateRange): String
     val txEmpty: String
     val colPair: String
     val colSide: String
@@ -208,6 +211,12 @@ object PortfolioStringsZh : PortfolioStrings {
     override val filterBuy = "买入"
     override val filterSell = "卖出"
     override val searchTxPlaceholder = "搜索交易对 / 备注"
+    override fun dateRangeLabel(range: com.wuzhufolio.domain.ledger.FundDateRange): String = when (range) {
+        com.wuzhufolio.domain.ledger.FundDateRange.ALL -> "全部时间"
+        com.wuzhufolio.domain.ledger.FundDateRange.LAST_30 -> "近 30 天"
+        com.wuzhufolio.domain.ledger.FundDateRange.LAST_90 -> "30–90 天"
+        com.wuzhufolio.domain.ledger.FundDateRange.OLDER -> "90 天以上"
+    }
     override val txEmpty = "暂无交易记录"
     override val colPair = "交易对"
     override val colSide = "类型"
@@ -324,6 +333,12 @@ object PortfolioStringsEn : PortfolioStrings {
     override val filterBuy = "Buy"
     override val filterSell = "Sell"
     override val searchTxPlaceholder = "Search pair / notes"
+    override fun dateRangeLabel(range: com.wuzhufolio.domain.ledger.FundDateRange): String = when (range) {
+        com.wuzhufolio.domain.ledger.FundDateRange.ALL -> "All time"
+        com.wuzhufolio.domain.ledger.FundDateRange.LAST_30 -> "Last 30 days"
+        com.wuzhufolio.domain.ledger.FundDateRange.LAST_90 -> "30–90 days"
+        com.wuzhufolio.domain.ledger.FundDateRange.OLDER -> "Older than 90 days"
+    }
     override val txEmpty = "No transactions"
     override val colPair = "Pair"
     override val colSide = "Type"

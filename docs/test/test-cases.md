@@ -50,13 +50,13 @@
 | 分组 | 用例数 | ✅ | 🟡 | ⬜ | 🔵 |
 |---|---:|---:|---:|---:|---:|
 | §1 PRD §5 用户故事 | 109 | 74 | 33 | 2 | 0 |
-| §2 PRD §7.2 核心功能模块 | 60 | 37 | 21 | 1 | 1 |
+| §2 PRD §7.2 核心功能模块 | 60 | 38 | 21 | 0 | 1 |
 | §3 interaction §1 异常态 | 21 | 12 | 8 | 1 | 0 |
-| §4 interaction §2/§3 + PRD §6 UX | 71 | 37 | 25 | 6 | 3 |
+| §4 interaction §2/§3 + PRD §6 UX | 71 | 40 | 25 | 3 | 3 |
 | §5 附录 A 黄金用例 | 12 | 12 | 0 | 0 | 0 |
 | §6 安全与隐私专项 | 16 | 14 | 0 | 0 | 2 |
 | §7 人工门用例 | 10 | 0 | 0 | 0 | 10 |
-| **合计** | **299** | **186** | **87** | **10** | **16** |
+| **合计** | **299** | **190** | **87** | **6** | **16** |
 
 > **结论**：计算口径（黄金用例 1–12）与安全硬约束自动化面**全部 ✅**；需补强的三处集中在
 > ①表单/列表的 UI 逐项断言（🟡 补 Compose UI）、②异常态与加载态呈现（🟡/⬜）、③需真人真机的 16 条人工门用例（🔵，§7）。
@@ -137,7 +137,7 @@
 | TC-A3.4-1 | 故事3.4-① | 点击资产行进入币种详情 | 点 BTC 行 | 打开币种详情页 | `[UI]portfolio/PortfolioPagesUiTest.kt::assets page marks unpriced rows and opens coin detail on row click` | ✅ |
 | TC-A3.4-2 | 故事3.4-② | 详情顶部：数量/价值/占比/均价/浮盈(额+%)/累计已实现 | 打开 BTC 详情 | 6 类汇总字段正确 | `[UI]portfolio/PortfolioPagesUiTest.kt::coin detail shows summary filters realised pnl and calibration entry`；`[D]portfolio/DefaultPortfolioServiceTest.kt::coinDetailReusesSnapshotRowAndListsCalibrationsDescending`（**占比/均价/浮盈% 未断言 → 补 Compose UI**） | 🟡 |
 | TC-A3.4-3 | 故事3.4-③ | 详情下方列出该币种全部交易记录 | 打开 BTC 详情 | 交易行渲染（含卖出行） | `[UI]portfolio/PortfolioPagesUiTest.kt::coin detail shows summary filters realised pnl and calibration entry` | ✅ |
-| TC-A3.4-4 | 故事3.4-④ | 交易记录按交易所/类型/**时间**筛选与搜索 | 用交易所+类型+搜索过滤；尝试按时间过滤 | 前两者与搜索可用；**时间维度未实现** | **行为缺失**：`ui/portfolio/CoinDetailPage.kt:218-260` 仅 交易所/类型/搜索 三个控件 → **`defects.md` DEF-03（待人工定级，建议 C1）**；现有断言 `[UI]portfolio/PortfolioPagesUiTest.kt::coin detail shows summary filters realised pnl and calibration entry` 仅覆盖类型筛选 | ⬜ |
+| TC-A3.4-4 | 故事3.4-④ | 交易记录按交易所/类型/**时间**筛选与搜索 | 用交易所+类型+搜索过滤；切换时间档位 | 三维筛选 + 搜索齐备；切档位即时过滤 | ✅ **DEF-03 已修复（C1 · D30，2026-09-14）**：`[UI]portfolio/PortfolioPagesUiTest.kt::coin detail filters transactions by time range`（近 30 天 → 远期行消失；90 天以上 → 只剩远期行；去掉实现必红）；档位复用资金页 `FundDateRange`，文案 `PortfolioStrings.dateRangeLabel` | ✅ |
 | TC-A3.4-5 | 故事3.4-⑤ | 交易列表字段齐全；卖出行额外显示已实现盈亏 | 打开含卖出记录的详情 | 卖出行显示逐笔已实现盈亏 | 同上（`coin-tx-realized-2`）；`[UI]ledger/TransactionsPageUiTest.kt::listRendersSellRealizedAndDeleteConfirmFlow`（**其余列未逐列断言 → 补 Compose UI**） | 🟡 |
 
 ### 1.5 史诗故事 4：网络与自动化功能（4.1 / 4.2）
@@ -239,7 +239,7 @@
 | TC-F2.1-3 | §7.2-2.1 列表字段 | 名称/数量/均价/现价/市值/浮盈(额+%)/累计已实现 | 逐列核对含零成本边界 | 字段齐全；成本为 0 时浮盈% 为空 | `[D]portfolio/DefaultPortfolioServiceTest.kt::rowsAreMarketValueDescendingWithCatalogFieldsAndShares`；`[DOM]engine/PortfolioCalculatorTest.kt::holding metrics expose float pnl and percentages`、`::float pnl percent is null when cost basis is zero`（**UI 未逐列断言 → 补 Compose UI**） | 🟡 |
 | TC-F2.1-4 | §7.2-2.1 排序 | 支持按市值/名称/盈亏等字段排序 | 点各表头 | 排序切换且行序正确 | `[UI]portfolio/PortfolioPagesUiTest.kt::default sort is market value descending and header click flips direction` | ✅ |
 | TC-F2.2-1 | §7.2-2.2 详情概要 | 数量/价值/占比/浮盈/累计已实现 | 打开详情核对 | 汇总字段正确 | `[UI]portfolio/PortfolioPagesUiTest.kt::coin detail shows summary filters realised pnl and calibration entry`；`[D]portfolio/DefaultPortfolioServiceTest.kt::coinDetailReusesSnapshotRowAndListsCalibrationsDescending`（**占比/浮盈% 未断言 → 补 Compose UI**） | 🟡 |
-| TC-F2.2-2 | §7.2-2.2 详情列表 | 单币种交易记录，按交易所/类型/**时间**筛选与搜索 | 同 TC-A3.4-4 | 交易所/类型/搜索可用；时间维度缺失 | **行为缺失 → `defects.md` DEF-03（待人工定级，建议 C1）**；现有覆盖见 TC-A3.4-4 引用 | ⬜ |
+| TC-F2.2-2 | §7.2-2.2 详情列表 | 单币种交易记录，按交易所/类型/**时间**筛选与搜索 | 同 TC-A3.4-4 | 三维筛选 + 搜索齐备 | ✅ **DEF-03 已修复（C1 · D30）**：覆盖同 TC-A3.4-4（`PortfolioPagesUiTest::coin detail filters transactions by time range`）；`ia.md §2.6` 与 `task-breakdown T12.5` 已回写 | ✅ |
 | TC-F2.2-3 | §7.2-2.2 列表字段 | 交易对/类型/价格/数量/手续费/交易所/时间/备注 + 卖出已实现 | 逐列核对 | 字段齐全；卖出行含已实现 | `[UI]portfolio/PortfolioPagesUiTest.kt::coin detail shows summary filters realised pnl and calibration entry`、`[UI]ledger/TransactionsPageUiTest.kt::listRendersSellRealizedAndDeleteConfirmFlow`（**仅卖出已实现徽标有断言 → 补 Compose UI 逐列断言**） | 🟡 |
 
 ### 2.3 模块 3：交易管理（Transactions）
@@ -387,7 +387,7 @@
 | TC-X-2.1-3 | §2.1 API 同步 | 状态栏「同步中」+列表 loading，后台执行 | 点顶栏同步；同步期间编辑 | 状态栏显示「同步中…」；前台编辑不被阻塞 | `[UI]shell/ShellStatusViewModelTest.kt::manual sync in flight takes precedence over the last result`；`[UI]ShellUiTest.kt::top bar manual sync button invokes callback and reflects syncing state`（**同步列表 loading 与并发编辑无断言 → 补 Compose UI + integration**） | 🟡 |
 | TC-X-2.1-4 | §2.1 CSV 解析 | 进度条 + 影响摘要预览 | 选大 CSV 导入 | 解析过程有进度反馈；完成后显示影响摘要 | `[UI]ledger/TransactionsPageUiTest.kt::csvWizardParsesPreviewsAndConfirms`（预览已覆盖；**进度条无断言/未实现 → 补 Compose UI 或登记 P8**） | 🟡 |
 | TC-X-2.1-5 | §2.1 备份/恢复 | 进度条 | 导出/恢复大备份 | 过程有进度提示 | **行为缺失**：无进度组件实现 → **登记 P8（或转实现待办）** | ⬜ |
-| TC-X-2.1-6 | §2.1 列表滚动加载 | 底部 loading 占位 | 滚动交易/资金列表至底部 | 触底出现 loading 占位 | **DEF-05（设计口径澄清）**：本地 SQLite 一次装载 + `LazyColumn` 虚拟化渲染，无分页/loading 占位；P8 修订 interaction 措辞 → 指向 `defects.md` DEF-05 | ⬜ |
+| TC-X-2.1-6 | §2.1 列表滚动加载 | 底部 loading 占位 | 滚动交易/资金列表至底部 | 无分页/loading 占位（本地库单次装载 + `LazyColumn` 虚拟化） | ✅ **DEF-05 已按 C0 口径澄清**（人工裁决 2026-09-14）：`interaction.md §2.1/§3-2` 已注明本地库单次装载 + 虚拟化渲染、不适用分页；大数据量装载耗时为 P8 观察项 | ✅ |
 
 ### 4.2 §2.2 空态
 
@@ -424,7 +424,7 @@
 | TC-X-2.5-1 | §2.5 无 Key 429 | 「注册免费个人 Key 可获专属额度」 | 无 Key 频发 429 | 提示注册个人 Key | `[UI]shell/ShellStatusViewModelTest.kt::shared rate limit hint appears when the keyless api is throttled`、`[D]schedule/BackgroundSchedulerTest.kt::repeated 429 emits frequent hint and keeps backoff window`（同 TC-X-B4） | ✅ |
 | TC-X-2.5-2 | §2.5 个人 Key 额度 80% | 「额度已达本月上限，已自动降频」+自动降一档 | 配额 85% 后刷新 | 提示 + 降一档 | `[UI]shell/ShellStatusViewModelTest.kt::quota at eighty percent warns and wins over the backup reminder`、`[D]schedule/BackgroundSchedulerTest.kt::quota at 80 percent bumps frequency down one notch`（同 TC-X-B3；**逐字文案与 100% 分支缺 → 补 Compose UI + unit**） | 🟡 |
 | TC-X-2.5-3 | §2.5 CMC 429 | 保持上次价格 + 时间戳 | CMC 返回 429 | 保持上次价格并给时间戳 | `[D]market/MarketHttpClientTest.kt::cmc maps 402 to quota exceeded and 429 to rate limited`（**「保持上次价格+时间戳」组合无断言 → 补 data-layer**） | 🟡 |
-| TC-X-2.5-4 | interaction §2.5 + 全局说明额度治理（**P6 新增/DEF-04**） | CMC 兜底调用不得计入 CoinGecko 月度额度账本 | 用尽 CG 配额后走 CMC 兜底若干次，观察 CG 月度计数与降档 | CG 月度计数不因 CMC 调用增长；不因兜底提前触发 80% 降档 | **DEF-04（待人工定级，建议 C1）**：现实现将 CMC 兜底调用计入 CG 额度账本 → 指向 `defects.md` DEF-04；补 data-layer 用例（`QuotaPolicy`/`DefaultMarketRefreshService` 计数口径） | ⬜ |
+| TC-X-2.5-4 | interaction §2.5 + 全局说明额度治理（**P6 新增/DEF-04**） | CMC 兜底调用不得计入 CoinGecko 月度额度账本 | 用尽 CG 配额后走 CMC 兜底若干次，观察 CG 月度计数与降档 | CG 月度计数不因 CMC 调用增长；不因兜底提前触发 80% 降档 | ⬜ **登记 P8**（人工裁决 2026-09-14：建议「登记 P8」获准——影响面小，仅同时配置两 Key 时可能提前降档；修正方案 = 账本增 provider 维度 + 旧载荷兼容，按 C1 在 P8 立项） | ⬜ |
 
 ### 4.6 §2.6 日志与诊断
 
@@ -464,7 +464,7 @@
 | 用例 ID | 需求锚点 | 验收要点 | 步骤/前置（简） | 期望结果 | 自动化映射（file::testFun）或执行方式 | 状态 |
 |---|---|---|---|---|---|---|
 | TC-X-3-1 | §3-① 列表默认排序 | 资产按市值降序；交易/资金按时间降序 | 打开三个列表看首行 | 资产首行=最大市值；交易/资金首行=最新 | `[UI]portfolio/PortfolioPagesUiTest.kt::default sort is market value descending and header click flips direction`；`[D]portfolio/DefaultPortfolioServiceTest.kt::rowsAreMarketValueDescendingWithCatalogFieldsAndShares`（**交易/资金列表时间倒序无 UI 断言 → 补 Compose UI**） | 🟡 |
-| TC-X-3-2 | §3-② 滚动加载 | 资产/交易/资金/详情列表滚动加载 | 滚动列表到底 | 触底出现 loading 占位 | **DEF-05（设计口径澄清）**：无分页/loading 占位实现，P8 修订措辞 → 指向 `defects.md` DEF-05 | ⬜ |
+| TC-X-3-2 | §3-② 滚动加载 | 资产/交易/资金/详情列表滚动加载 | 滚动列表到底 | 虚拟化滚动（无分页占位） | ✅ **DEF-05 已按 C0 口径澄清**（同 TC-X-2.1-6，`interaction.md §3-2` 已回写） | ✅ |
 | TC-X-3-3 | §3-③ 数值精度 | 金额价格 8 位、市值盈亏 2 位、百分比 2 位；微价自适应 | 输入 1.2345e-8 等极端值 | 微价提升有效位不显示 0；金额两位分组 | `[UI]i18n/WzFormatTest.kt::price keeps default eight decimals and trims trailing zeros`、`::amounts use two decimals with grouping`、`::tiny price auto-increases significant digits instead of showing zero` | ✅ |
 | TC-X-3-4 | §3-④ 正负号 | 盈亏强制 +/- 符号，颜色仅辅助 | 看盈利/亏损数值 | 均带显式 +/- 符号 | `[UI]i18n/WzFormatTest.kt::pnl values always carry an explicit sign`；`[UI]portfolio/PortfolioPagesUiTest.kt::twenty four hour subtitle carries coverage and mixed source notes`；`[UI]ledger/TransactionsPageUiTest.kt::listRendersSellRealizedAndDeleteConfirmFlow` | ✅ |
 | TC-X-3-5 | §3-⑤ 单击与浮窗 | 单行→详情；饼图扇区→高亮+浮窗 | 点资产行；点扇区 | 打开详情；浮窗显示名称/数量/占比/市值 | `[UI]portfolio/PortfolioPagesUiTest.kt::assets page marks unpriced rows and opens coin detail on row click`、`::dashboard renders overview cards donut and popup on slice click` | ✅ |
@@ -656,9 +656,9 @@
 | G-15 | TC-UX-1、TC-UX-3、TC-UX-6 | 「关键数据显眼」「敏感区安全提示」「日志含操作类型/结果」仅间接证据 | 主观/结构性要求易被当成已覆盖 | 🔵 人工门 TC-MAN-08 + 🟡 补测 unit（日志字段结构） |
 | G-16 | TC-UX-2 | 「操作路径不超过三层」无任何验证 | 无法自动化，易漏 | 🔵 人工门 TC-MAN-08 |
 | G-17 | TC-X-2.1-1 | 登录 loading「正在解密…」与 ≤2 秒预算无断言 | PRD §12 发布门槛项 | 🟡 补测 Compose UI（文案）+ 🔵 人工门 TC-MAN-04（计时） |
-| G-18 | TC-X-2.1-2、TC-X-2.1-4、TC-X-2.1-5、TC-X-2.1-6、TC-X-3-2 | 行情 loading、CSV 进度条、备份/恢复进度条、列表滚动加载占位 | interaction §2.1 六项中四项无覆盖 | ⬜ **登记 P8**（进度条/loading 无实现）；滚动加载 → **DEF-05** |
+| G-18 | TC-X-2.1-2、TC-X-2.1-4、TC-X-2.1-5、TC-X-2.1-6、TC-X-3-2 | 行情 loading、CSV 进度条、备份/恢复进度条、列表滚动加载占位 | interaction §2.1 六项中四项无覆盖 | ⬜ **登记 P8**（进度条/loading 无实现）；滚动加载 → **DEF-05 已按 C0 口径澄清（2026-09-14）** |
 | G-19 | TC-X-N1、TC-X-2.4-1 | 断链图标/「网络断开」文案/上次成功时间戳/点击刷新无断言 | 离线第一条异常态呈现无护栏 | 🟡 补测 Compose UI + 🔵 人工门 TC-MAN-05 |
-| G-20 | TC-X-B3、TC-X-2.5-2、TC-X-2.5-4 | 额度 100% 耗尽分支与逐字文案；CMC 调用计入 CG 账本（DEF-04） | 免费档用户常见路径；降档可能被兜底提前触发 | 🟡 补测 unit+Compose UI；⬜ **defects.md DEF-04**（待人工定级，建议 C1） |
+| G-20 | TC-X-B3、TC-X-2.5-2、TC-X-2.5-4 | 额度 100% 耗尽分支与逐字文案；CMC 调用计入 CG 账本（DEF-04） | 免费档用户常见路径；降档可能被兜底提前触发 | 🟡 补测 unit+Compose UI（登记 P8）；⬜ **DEF-04 → 人工裁决「登记 P8」（2026-09-14）** |
 | G-21 | TC-X-B5、TC-X-2.5-3 | 「CG 失败→CMC 也失败→保持上次价+时间戳」组合分支 | 兜底链末端行为决定用户看到旧价还是空白 | 🟡 补测：data-layer（`DefaultMarketRefreshServiceTest` 扩例） |
 | G-22 | TC-X-2.7-5、TC-X-2.7-6、TC-X-2.7-4、TC-X-2.7-3 | 行情页离线态/429 提示/行级数据源标注/「无行情」标识 | D21 新页异常语义在 UI 层几乎空白 | 🟡 补测：Compose UI |
 | G-23 | TC-X-2.7-7、TC-X-2.7-2、TC-X-2.7-8 | 搜索无结果、自选全移除空态、上限阻止与提示文案 | interaction §2.7 明文条目，空态/上限文案无护栏 | 🟡 补测：Compose UI |
@@ -673,7 +673,7 @@
 | G-32 | TC-A2.2-2、TC-A6.1-2、TC-F8-1、TC-A6.2-2、TC-F8-2 | 增资/撤资表单的日期、来源/去向、备注无断言 | 日期决定重放顺序 | 🟡 补测：Compose UI |
 | G-33 | TC-A3.3-2、TC-A3.4-2、TC-A3.4-5、TC-F2.1-3、TC-F2.2-1、TC-F2.2-3、TC-A6.3-3 | 资产/详情/资金列表未逐列断言 | 列缺失或串列难以发现 | 🟡 补测：Compose UI（逐字段断言） |
 | G-34 | TC-A6.3-2、TC-X-3-1 | 交易/资金列表按时间倒序无 UI 断言 | PRD 列表默认规则 | 🟡 补测：Compose UI + data-layer |
-| G-35 | TC-A3.4-4、TC-F2.2-2 | 币种详情**缺时间筛选**（交易所/类型/搜索已实现） | PRD 故事 3.4-4 明文要求三项 | ⬜ **defects.md DEF-03**（待人工定级，建议 C1） |
+| G-35 | TC-A3.4-4、TC-F2.2-2 | 币种详情**缺时间筛选**（交易所/类型/搜索已实现） | PRD 故事 3.4-4 明文要求三项 | ✅ **已修复（C1 · D30，2026-09-14）**：时间档位下拉 + UI 回归 + 原型/verify 同步 |
 | G-36 | TC-F3-3、TC-F8-3 | 交易/资金列表筛选与搜索的结果正确性无断言（假服务不过滤） | 筛选失效会误导审计 | 🟡 补测：Compose UI（断言传入 filter）+ data-layer |
 | G-37 | TC-A2.3-3、TC-A2.3-4、TC-A2.3-7 | CSV 预览「疑似重复 M 条/币种变化」未断言；歧义候选 UI 用例固定 `ambiguous=emptyList()`；逐条确认交互无断言 | CSV 导入成功率是内测质量指标 | 🟡 补测：Compose UI + data-layer |
 | G-38 | TC-A3.1-1 | 「登录成功后默认落在仪表盘」无断言 | 首屏落点基线 | 🟡 补测：Compose UI + integration |
@@ -690,7 +690,7 @@
 | G-49 | TC-F6.1-4、TC-UX-16 | 盈亏配色三方案为「实现已有、零测试」黑箱 | 同 G-10 | 🟡 补测（与 G-10 合并执行） |
 | G-50 | TC-X-B1 | DB 损坏全屏错误框无实现级与 UI 级测试 | 同 G-08 | ⬜ **登记 P8**（与 G-08 合并） |
 | G-51 | TC-X-3-7 | 剪贴板提示「实现已有、零引用」 | 同 G-03 | 🟡 补测（与 G-03 合并） |
-| G-52 | TC-X-2.1-6、TC-X-3-2 | 「列表滚动加载」实现层无分页/占位 | interaction 措辞与实现不一致 | ⬜ **DEF-05**（设计口径澄清，P8 修订措辞） |
+| G-52 | TC-X-2.1-6、TC-X-3-2 | 「列表滚动加载」实现层无分页/占位 | interaction 措辞与实现不一致 | ✅ **C0 口径澄清已回写**（`interaction.md §2.1/§3-2`，2026-09-14） |
 
 ---
 

@@ -6,19 +6,19 @@
 
 ## 当前阶段
 
-- **当前状态**：**P6 系统测试与质量 ⏳ 待审核（2026-09-14 完成，停人工门）**——按 PRD V2.0 验收标准做全量验证，
+- **当前状态**：**P6 系统测试与质量 ⏳ 待审核（2026-09-14 完成 + 人工裁决 5 项已落地，停人工门）**——按 PRD V2.0 验收标准做全量验证，
   产出 `docs/test/test-plan.md` / `test-cases.md`（299 条）/ `security-checklist.md`（P6 复跑版，五条硬约束逐条打勾）/
-  `defects.md` / `test-report.md`；**677 用例（669 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；
-  **P0/P1 缺陷 = 0**；P2 = 6（3 项已修复：DEF-01/02/06；3 项待人工定级：DEF-03/04/05）。
-  **下一步 = 人工测试 + 拍板是否达到发布标准**（P6 门）。
+  `defects.md` / `test-report.md`；**678 用例（670 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；
+  **P0/P1 缺陷 = 0**；P2 = 6（**4 项已修复**：DEF-01/02/03/06；**DEF-04 登记 P8**；**DEF-05 按 C0 文档澄清已回写**）；
+  **人工裁决 5 项（2026-09-14「5项都按建议来处理」）全部落地**（新增决策档 **D30** + 台账 + T12.5）。
+  **下一步 = 人工测试用例执行 + 拍板是否达到发布标准**（P6 门）。
 - **推进顺序**：先桌面端，后移动端。**P1–P8 只针对桌面端或两端共同部分；移动端相关工作放到下一个版本。**（移动端相关技能/技术方案/开发待桌面端主线稳定后再启用。）
-- **下一人工门**：**P6 系统测试与质量人工门**——输入 = `docs/test/test-report.md`（§0 结论 + §6 待裁决 5 项）+
+- **下一人工门**：**P6 系统测试与质量人工门**——输入 = `docs/test/test-report.md`（§0 结论 + §6 裁决记录）+
   `test-cases.md §7`（人工门 10 条）+ `security-checklist.md`（五条硬约束）+ GUI 实机走查；
-  DoD = P0/P1 清零（✅ 已达）+ P2 有明确处理结论（✅ 已达，待人工确认定级）+ 安全清单全部通过（✅ 已达）。
-- **P6 待人工裁决 5 项**（报告 §6，Agent 不代为定级）：
-  ① 行情请求币种集合隐私最小化（接受现状 / 隐私开关 C1 / 改默认路径 C2）；② DEF-03 币种详情缺「时间」筛选（建议 C1）；
-  ③ DEF-04 CMC 兜底计入 CG 额度账本（建议登记 P8 或 C1）；④ DEF-05 interaction「列表滚动加载」口径（建议 C0 文档澄清）；
-  ⑤ DEF-01/02/06 定级确认（建议维持 C0）。
+  DoD = P0/P1 清零（✅）+ P2 明确处理结论（✅）+ 安全清单全部通过（✅）；**剩余仅人工用例执行与发布标准拍板**。
+- **P6 人工裁决 5 项 = 已全部落地（2026-09-14 人工「5项都按建议来处理」）**：
+  ① 隐私最小化 → **接受现状**，P7 用户指南/隐私声明明示；② DEF-03 → **C1 补做**（决策档 **D30** + T12.5 + 代码 + 原型）；
+  ③ DEF-04 → **登记 P8**；④ DEF-05 → **C0 文档澄清已回写** `interaction.md §2.1/§3-2`；⑤ DEF-01/02/06 → **维持 C0 确认**。
 - **P6 登记转 P7/人工**：真实交易所只读 Key 线上同步冒烟、三平台托盘实测、读屏实测、目标机 KDF ≤2s、
   签名/公证合规与 Linux 包 GPG 签名、托盘/打包图标、字体子集化。
 - **三项延期验证在册**（到期检查点与 DoD 见各自条目，未到期前不得视为已完成）：
@@ -1092,6 +1092,10 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
   `BackgroundSchedulerTest`(+2) · `TransactionsPageUiTest`(+2) · `ProxyRoutingSmokeTest`(1，env 门控) ·
   `BinanceAdapterTest` recvWindow 断言扩展 · `domain/backup/BackupLoadBenchmark` + Gradle 任务 `:domain:backupBenchmark`
 - 工具：`scripts/outbound-capture-proxy.py`（出站抓包记录代理，可复跑）
+- **人工裁决落地（2026-09-14）**：决策档 `docs/dev/decisions/D30-币种详情时间筛选.md`（C1）+ 台账 D30 行 + 决策索引 +
+  `task-breakdown **T12.5**` + `ia.md §2.6` 回写 + 原型 `wuzhufolio-light.html` 时间档位下拉与 `DEMO_NOW` 演示时钟 +
+  `prototype-verify.js` 4 条断言（`errors=[]`）+ 代码（`CoinDetailViewModel`/`CoinDetailPage`/`PortfolioStrings`）+
+  UI 回归 `PortfolioPagesUiTest::coin detail filters transactions by time range`（**去掉实现必红，已实证**）
 - 文档回写：`docs/design/interaction.md` **§2.9 备份与恢复异常态**（P6 补，C0 口径回写）·
   `docs/tech/api-contracts.md` §3（M9 导出侧类型化错误 / M11 `SchedulerSources.hasActiveSession`）+ §4（`BACKUP_EXPORT_FAILED`）
 
@@ -1111,11 +1115,18 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
    顺带真实复现 CG 429 路径（保持上次数据 + `cause=` 链留痕）。
 5. **隐私评估（未实施，交人工定级）**：行情请求外发「持仓∪自选」币种 id 集合，不含金额/交易/密钥；
    给出 5 个候选方案与额度量化（最小化边际额度成本 ≈ 0）。
+6. **人工裁决 5 项落地（2026-09-14「5项都按建议来处理」）**：
+   ① 隐私最小化**接受现状**（P7 用户指南/隐私声明明示，登记 STATUS P7 携带项）；
+   ② **DEF-03 本轮补做（C1 · D30）**——币种详情交易记录补「时间」档位筛选（复用资金页四档 `FundDateRange`），
+   决策档 + 台账 + 索引 + T12.5 + ia.md + 原型/verify + 代码 + UI 回归全套 DoD；
+   ③ **DEF-04 登记 P8**（CMC 兜底计入 CG 额度账本，修正方案与影响面已写明）；
+   ④ **DEF-05 C0 文档澄清**（`interaction.md §2.1/§3-2` 增「本地库单次装载 + LazyColumn 虚拟化，不适用分页」）；
+   ⑤ **DEF-01/02/06 维持 C0 确认**。
 
 **已验证（Agent 实证，供人工复核）**：
 
-- 全量：`./gradlew clean build detekt --no-build-cache` → **677 用例（669 执行 0 失败 0 错误 + 8 跳过）**、
-  detekt 0、警告 0；模块分布 domain 222 / data 284 / ui 140 / app 31；跳过 8 = 4 钥匙串真实后端（CI win/mac 实证）
+- 全量：`./gradlew clean build detekt --no-build-cache` → **678 用例（670 执行 0 失败 0 错误 + 8 跳过）**、
+  detekt 0、警告 0；模块分布 domain 222 / data 284 / ui 141 / app 31；跳过 8 = 4 钥匙串真实后端（CI win/mac 实证）
   + 3 live smoke（env 门控）+ 1 首启真实网络链路（env 门控）。
 - 出站抓包（`scripts/outbound-capture-proxy.py`）：`api.coingecko.com` ×3 / `api.binance.com` ×2 /
   `pro-api.coinmarketcap.com` ×1，**无第四方主机**。
@@ -1129,24 +1140,26 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
 
 1. 读 `docs/test/test-report.md`：**§0 DoD 对照** → §3 缺陷汇总 → §4 安全专项 → **§6 待裁决 5 项**；
 2. 读 `docs/test/security-checklist.md`：§0 结论表 → §1.4 抓包实证 → §3.7 内存曲线 → §7 到期项更新；
-3. 复跑全量：`./gradlew clean build detekt --no-build-cache`（期望 **677 用例 = 669 执行 0 失败 + 8 跳过** + detekt 0 + 警告 0）；
+3. 复跑全量：`./gradlew clean build detekt --no-build-cache`（期望 **678 用例 = 670 执行 0 失败 + 8 跳过** + detekt 0 + 警告 0）；
 4. 复跑专项：`./gradlew :domain:backupBenchmark`（内存曲线）·
    `python3 scripts/outbound-capture-proxy.py … + WZF_LIVE_SMOKE=1 …`（抓包）·
    `:data:test --tests "…data.settings.SettingsKeyNamespaceGuardTest"`（键命名空间）；
 5. **人工用例**（`test-cases.md §7`）：真实桌面托盘走查 / 读屏 NVDA·JAWS / 真实 Binance 只读 Key 线上同步冒烟 /
    4GB 目标机 KDF ≤2s / 全流程 GUI 走查（登录→增资→交易→看板→备份恢复→异常态→语言·双主题）/ 跨设备备份演练；
-6. **裁决 5 项**（报告 §6）：隐私最小化 ①、DEF-03 ②、DEF-04 ③、DEF-05 ④、DEF-01/02/06 定级确认 ⑤。
+6. **裁决 5 项 = 已落地（2026-09-14）**：复核落地结果见 `defects.md §0.1` 与报告 §6；
+   D30 复核点 = 币种详情时间档位筛选（近 30 天 / 90 天以上切换即时过滤）+ 原型 verify（`errors=[]`）。
 
 **遗留问题（转 P7 / 人工，详见 `test-report.md §7`）**：
 
 - **P7**：签名/公证合规实证 + Linux 包 GPG 签名 + 证书采购（ADR-006 §2.1）、托盘/打包图标、jlink 裁剪与字体子集化、
-  打包版开机自启端到端、发布产物 SHA256/CHANGELOG/用户指南（含「备份文件密码强度 = 凭证保护强度」提示）。
+  打包版开机自启端到端、发布产物 SHA256/CHANGELOG/用户指南（含「备份文件密码强度 = 凭证保护强度」提示 +
+  **隐私声明：行情请求仅发送币种标识、不含金额与交易**〔P6 裁决 ①〕）。
 - **人工门/P7**：三平台托盘实测、读屏实测、真实只读 Key 线上同步冒烟、4GB 目标机 KDF ≤2s。
-- **待裁决后实施**：DEF-03（币种详情时间筛选）、DEF-04（CMC 额度账本口径）、DEF-05（interaction 口径澄清）、
-  隐私最小化（若选 C1/C2）。
+- **已随裁决落地**：DEF-03（C1 · D30 已实施）、DEF-05（C0 已回写）、DEF-01/02/06（确认 C0）。
 - **P8 登记**：UI 展示层 🟡 项的视觉走查深化、DB 损坏全屏框演练、ROI=0 提示展示、行情行内 loading、
-  备份/恢复进度条、DEF-07…DEF-11（导出静默跳过计数 / 备份元数据读失败提示 / 调度 `onTick` 异常隔离 / i18n 兜底路径 /
-  `keyName=null` 分支用例）、大数据量列表装载耗时。
+  备份/恢复进度条、**DEF-04（CMC 兜底计入 CG 额度账本 → 账本 provider 维度 + 旧载荷兼容）**、
+  DEF-07…DEF-11（导出静默跳过计数 / 备份元数据读失败提示 / 调度 `onTick` 异常隔离 / i18n 兜底路径 /
+  `keyName=null` 分支用例）、大数据量列表装载耗时、跨页时间档位组件提取（`FundDateRange` 命名债）。
 - **CI**：P6 新增 13 项回归待推送观察（win/mac 钥匙串用例可逐项核验）。
 
 **建议的下一步**（已执行：P6 完成并停人工门）：人工按上节验收 + 裁决 5 项 → 通过后 **P7 发布**解锁
@@ -1198,13 +1211,14 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
 25. **界面语言设置 + 全量 zh/en 文案（D25，2026-09-11，人工拍板「B 本次一并做全量 zh/en」）**：T12.4 i18n 的落地口径——`ui/src/main` 全部用户可见中文文案抽取为 zh/en 双档（10 个模块目录 ~620 条），新增「设置 → 通用 → 界面语言」入口（**复用 M002 迁移既有的 `locale` 键**，值 zh-CN/en-US，不另立新键），切换即时生效并持久化；zh 文案逐字保持（既有 UI 测试断言不变），源码内联中文由守护测试拦红。决策档 `docs/dev/decisions/D25-界面语言设置与全量zh-en.md`（C1，含影响面扫描七处 + 原型补行延期登记）；**有效需求版本串 = PRD V1.9 + Δ{D21, D24, D25}**。
 24. **备份文件密码独立设置（D24，2026-09-10，人工裁决「不默认使用当前账户密码，也不能是空密码，现由用户设置独立密码」）**：裁决 PRD 5.2-3「界面默认填当前账户密码」口径不可实现（密码永不落盘/不留存，PRD 5.1-4/ADR-002）；固化为「用户设置独立密码（不回填、禁空）」，恢复语义不变（只依赖备份文件密码）。决策档 `docs/dev/decisions/D24-备份密码独立设置不回填.md`（C1，含影响面扫描五处回写：flows §6/ADR-005 修订/原型/task-breakdown T9.4/api-contracts §3）；**有效需求版本串 = PRD V1.9 + Δ{D21, D24, D25, D26}**（D25/D26 后更新）——P6 备份用例、P8 复盘、移动端对齐以此为准。
 
+27. **币种详情交易记录补「时间」筛选维度（D30，2026-09-14，人工裁决「按建议处理」· C1）**：P6 系统测试发现 PRD 故事 3.4-4 要求的「交易所 / 交易类型 / 时间」三维筛选只实现了前两维 + 搜索（DEF-03）→ 人工 P6 门裁决本轮补做。落点 = `CoinDetailViewModel`（`dateRange` 状态 + 按 `FundDateRange.contains` 过滤）+ `CoinDetailPage` 时间档位下拉（testTag `coin-filter-date`）+ `PortfolioStrings.dateRangeLabel` zh/en；**复用资金页四档口径**（全部时间/近 30 天/30–90 天/90 天以上），不新增查询参数、无 schema 变化。决策档 `docs/dev/decisions/D30-币种详情时间筛选.md` + 台账 + 索引 + `task-breakdown **T12.5**` + `ia.md §2.6` + 原型/verify 同步；回归 `PortfolioPagesUiTest::coin detail filters transactions by time range`（去掉实现必红）。**有效需求版本串 = PRD V2.0 + Δ{D21, D24, D25, D26, D27, D28, D29, D30}**。
+
 ## 当前阻塞点
 
-- **阶段推进点（2026-09-14）**：**P6 系统测试与质量 ⏳ 待审核**（Agent 已完成全量验证并停人工门）——
-  **P0/P1 缺陷 = 0**、安全清单五条硬约束逐条通过、677 用例 0 失败；**待人工测试 + 拍板是否达到发布标准**。
-- **P6 门须携带的裁决项（5 项，`test-report.md §6`）**：① 行情请求隐私最小化（接受现状 / C1 开关 / C2 改默认）；
-  ② DEF-03 币种详情时间筛选（建议 C1）；③ DEF-04 CMC 额度账本（建议登记 P8 或 C1）；
-  ④ DEF-05 interaction「滚动加载」口径（建议 C0 文档澄清）；⑤ DEF-01/02/06 定级确认（建议 C0）。
+- **阶段推进点（2026-09-14）**：**P6 系统测试与质量 ⏳ 待审核**（全量验证完成 + **人工裁决 5 项已全部落地**）——
+  **P0/P1 缺陷 = 0**、安全清单五条硬约束逐条通过、678 用例 0 失败；**待人工执行人工门用例 + 拍板是否达到发布标准**。
+- **P6 裁决 5 项 = 已落地**（2026-09-14「5项都按建议来处理」）：① 隐私最小化接受现状（P7 用户指南/隐私声明）；
+  ② DEF-03 补做（C1 · **D30** + T12.5 + 原型）；③ DEF-04 登记 P8；④ DEF-05 C0 文档澄清已回写；⑤ DEF-01/02/06 确认 C0。
 - **P6 门须人工执行的用例**（`test-cases.md §7`）：真实桌面托盘走查 / 读屏 NVDA·JAWS / 真实 Binance 只读 Key
   线上同步冒烟（Agent 无凭据、不索取）/ 4GB 目标机 KDF ≤2s / 全流程 GUI 走查 / 跨设备备份演练。
 - **P6 已闭环的开放项**（原「P6 启动须携带」9 项）：② `.cpro` 大载荷内存曲线 ✅ · ③ 隐私最小化评估 ✅（待定级）·
@@ -1332,4 +1346,6 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
 | 2026-09-13 | 人 | **通过 P5** | 原话「**P5通过，完成git本地提交，远程推送**」——P5 ✅ 关闭，**P0–P5 全部关闭**；PRD V2.0 / 跨端共享规范 V1.1 回写随本门一并确认生效；**P6 系统测试与质量 解锁为「进行中」，待人工启动指令** |
 | 2026-09-13 | Agent | **P5 关闭提交 + 远程推送** | 关闭记录落盘（STATUS/报告/评审说明/台账）+ 本地提交 + 推送 `origin/main`；CI 三平台复跑（build ×3 + package ×3）结果见 P5 节「CI 留痕」 |
 | 2026-09-14 | 人 | **下达 P6 启动指令** | 原话「执行P6」——关闭 P5 收尾门，P6 系统测试与质量置为「进行中」，授权执行全量验证（重点安全与隐私） |
+| 2026-09-14 | 人 | **P6 门裁决 5 项** | 原话「裁决：5项都按建议来处理」——① 隐私最小化接受现状（P7 用户指南/隐私声明明示）；② DEF-03 币种详情补时间筛选本轮做（C1）；③ DEF-04 CMC 额度账本登记 P8；④ DEF-05 interaction 滚动加载口径按 C0 澄清；⑤ DEF-01/02/06 维持 C0 |
+| 2026-09-14 | Agent | **裁决 5 项落地** | 新增决策档 **D30**（C1）+ 台账 D30 行 + 决策索引 + `task-breakdown T12.5` + `ia.md §2.6` + 原型时间档位下拉/`DEMO_NOW` + verify 4 断言（`errors=[]`）+ 代码（VM/Page/i18n）+ UI 回归（去掉实现必红）；DEF-04 登记 P8、DEF-05 回写 `interaction.md §2.1/§3-2`、DEF-01/02/06 确认 C0；test-cases 计数更新为 299 = ✅190/🟡87/⬜6/🔵16；**678 用例（670 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；**P6 维持待审核，停人工门** |
 | 2026-09-14 | Agent | **执行 P6 系统测试与质量** | 产出 `test-plan.md`（分层策略 + 9 项开放项处置 + 人工门 10 条）· `test-cases.md`（**299 条**：✅186/🟡87/⬜10/🔵16，逐条可追溯）· `security-checklist.md`（**P6 复跑版**：五条硬约束逐条打勾 + 4 项到期项闭环）· `defects.md`（**P0/P1=0**，P2=6）· `test-report.md`（主产物，含待裁决 5 项）；**修复 3 项 P2 实现偏差**（DEF-01 备份导出失败模式 / DEF-02 recvWindow 契约 / DEF-06 恢复向导映射）+ 闭环 4 项 M13 到期登记项（大载荷内存曲线 / settings 键命名空间 / 登出 tick / P5-4）+ 运行期出站抓包与 GUI·权限实证；回写 `interaction.md §2.9`、`api-contracts.md §3/§4`；**677 用例（669 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；**P6 置待审核，停人工门** |

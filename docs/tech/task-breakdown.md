@@ -170,6 +170,7 @@ flowchart LR
 - **T12.2 异常态全量走查**：加载/空/错误/离线/限流态在真实 UI 全量核对（interaction.md §2；各模块已就近落异常态，本任务做全量一致性核对）。验收：N1–N3/B1–B5/A1–A4/V1–V9 文案与呈现匹配。回溯：interaction.md。
 - **T12.3 a11y 基线**：键盘导航、semantics、文本标签、焦点可见；读屏走查（NVDA/JAWS）在 P4 实测（ADR-001 风险）。验收：Tab 序、focus、semantics。回溯：PRD §6/T12、design-tokens §6。
 - **T12.4 i18n**：en/zh、UTC 存本地显、多法币、精度。验收：语言/法币切换正确；**设置 → 通用提供「界面语言」入口（D25），切换即时生效并持久化；全部 UI 文案双档覆盖，源码内联中文（`ui/i18n` 目录外）由守护测试拦红（D25 人工拍板「全量 zh/en」）**。回溯：PRD §6、共享规范 §4、决策档 D25。
+- **T12.5 币种详情时间筛选（D30，P6 DEF-03 实现补齐）**：币种详情交易记录补「时间」档位筛选（复用资金页 `FundDateRange` 四档：全部时间/近 30 天/30–90 天/90 天以上），与交易所/类型/搜索三维叠加。验收：切换档位即时过滤；无匹配显示空态；zh/en 双档文案；`PortfolioPagesUiTest::coin detail filters transactions by time range` 绿（**去掉过滤实现该用例必红**）。回溯：PRD 故事 3.4-4、ia.md §2.6、决策档 D30。
 
 ### M13 发布准备
 - **T13.1 安全自查**：§1.1 硬约束逐条核验。验收：security-checklist 全通过。回溯：PRD §1.1。

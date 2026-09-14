@@ -419,6 +419,47 @@ class PortfolioPagesUiTest {
         assertEquals(Side.SELL, ledger.lastFilter?.side)
     }
 
+    /** DEF-03 · D30：PRD 故事 3.4-4 要求的「时间」筛选维度（与资金页同四档口径）。 */
+    @Test
+    fun `coin detail filters transactions by time range`() = runComposeUiTest {
+        val recent = txRow(1L, "BTC/USDT", Side.BUY, null)
+        val old = txRow(2L, "BTC/USDT", Side.BUY, null)
+            .copy(time = NOW.minus(200, java.time.temporal.ChronoUnit.DAYS))
+        val ledger = FakeLedger(listOf(recent, old))
+        setContent {
+            WuzhuTheme(themeMode = ThemeMode.LIGHT) {
+                CoinDetailPage(
+                    cgId = "bitcoin",
+                    portfolioService = FakePortfolio(threeRows()),
+                    ledgerService = ledger,
+                    calibrationUseCase = FakeCalibration(preparation()),
+                    catalog = FakeCatalog(mapOf("bitcoin" to catalogCoin("bitcoin", "BTC", 1L))),
+                    onBack = {},
+                )
+            }
+        }
+        waitUntil(timeoutMillis = 2_000) {
+            runCatching { onNodeWithTag("coin-tx-2").assertIsDisplayed() }.isSuccess
+        }
+        onNodeWithTag("coin-filter-date").assertIsDisplayed()
+
+        // 选「近 30 天」（选项序：ALL=0 / LAST_30=1 / LAST_90=2 / OLDER=3）
+        onNodeWithTag("coin-filter-date").performClick()
+        onNodeWithTag("coin-filter-date-opt-1").performClick()
+        waitUntil(timeoutMillis = 2_000) {
+            runCatching { onNodeWithTag("coin-tx-2").assertDoesNotExist() }.isSuccess
+        }
+        onNodeWithTag("coin-tx-1").assertIsDisplayed()
+
+        // 选「90 天以上」→ 只剩远期那笔
+        onNodeWithTag("coin-filter-date").performClick()
+        onNodeWithTag("coin-filter-date-opt-3").performClick()
+        waitUntil(timeoutMillis = 2_000) {
+            runCatching { onNodeWithTag("coin-tx-1").assertDoesNotExist() }.isSuccess
+        }
+        onNodeWithTag("coin-tx-2").assertIsDisplayed()
+    }
+
     @Test
     fun `coin detail hides the calibration entry for multi source coins`() = runComposeUiTest {
         val multi = listOf(

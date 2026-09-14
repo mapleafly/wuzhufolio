@@ -28,6 +28,7 @@ import com.wuzhufolio.domain.engine.FlowKind
 import com.wuzhufolio.domain.engine.Side
 import com.wuzhufolio.domain.ledger.CalibrationPreparation
 import com.wuzhufolio.domain.ledger.CalibrationUseCase
+import com.wuzhufolio.domain.ledger.FundDateRange
 import com.wuzhufolio.domain.ledger.TransactionLedgerService
 import com.wuzhufolio.domain.ledger.TransactionRow
 import com.wuzhufolio.domain.ledger.TxFilter
@@ -143,9 +144,11 @@ fun CoinDetailPage(
                 exchanges = state.exchanges,
                 exchangeFilter = state.exchangeFilter,
                 sideFilter = state.sideFilter,
+                dateRange = state.dateRange,
                 query = state.query,
                 onExchange = vm::setExchangeFilter,
                 onSide = vm::setSideFilter,
+                onDateRange = vm::setDateRange,
                 onQuery = vm::setQuery,
             )
             CoinTransactionTable(rows = state.transactions)
@@ -215,13 +218,16 @@ private fun CoinSummary(
 }
 
 @Composable
+@Suppress("LongParameterList") // 三维筛选（交易所/类型/时间）+ 搜索，与 ia.md §2.6 页面元素一一对应
 private fun TransactionFilters(
     exchanges: List<String>,
     exchangeFilter: String?,
     sideFilter: Side?,
+    dateRange: FundDateRange,
     query: String,
     onExchange: (String?) -> Unit,
     onSide: (Side?) -> Unit,
+    onDateRange: (FundDateRange) -> Unit,
     onQuery: (String) -> Unit,
 ) {
     Row(
@@ -250,6 +256,14 @@ private fun TransactionFilters(
             onSelect = onSide,
             modifier = Modifier.width(150.dp),
             testTag = "coin-filter-side",
+        )
+        WzSelect(
+            options = FundDateRange.entries.toList(),
+            selected = dateRange,
+            labelOf = { portfolioStrings.dateRangeLabel(it) },
+            onSelect = onDateRange,
+            modifier = Modifier.width(160.dp),
+            testTag = "coin-filter-date",
         )
         WzTextField(
             value = query,

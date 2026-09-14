@@ -6,6 +6,7 @@ import com.wuzhufolio.domain.engine.Side
 import com.wuzhufolio.domain.ledger.CalibrationBlockedException
 import com.wuzhufolio.domain.ledger.CalibrationPreparation
 import com.wuzhufolio.domain.ledger.CalibrationUseCase
+import com.wuzhufolio.domain.ledger.FundDateRange
 import com.wuzhufolio.domain.ledger.TransactionLedgerService
 import com.wuzhufolio.domain.ledger.TransactionRow
 import com.wuzhufolio.domain.ledger.TxFilter
@@ -53,6 +54,8 @@ data class CoinDetailUiState(
     val transactions: List<TransactionRow> = emptyList(),
     val exchangeFilter: String? = null,
     val sideFilter: Side? = null,
+    /** 时间档位筛选（DEF-03 · D30：与资金页同四档口径，见 [FundDateRange]）。 */
+    val dateRange: FundDateRange = FundDateRange.ALL,
     val query: String = "",
     val calibration: CalibrationUiState? = null,
     val toast: WzToast? = null,
@@ -96,7 +99,7 @@ class CoinDetailViewModel(
                         side = current.sideFilter,
                         query = current.query.ifBlank { null },
                     ),
-                ).filter { it.touches(detail.symbol) }
+                ).filter { it.touches(detail.symbol) && current.dateRange.contains(it.time, java.time.Instant.now()) }
                 _state.update {
                     it.copy(
                         loading = false,
@@ -123,6 +126,12 @@ class CoinDetailViewModel(
 
     fun setSideFilter(side: Side?) {
         _state.update { it.copy(sideFilter = side) }
+        reload()
+    }
+
+    /** 时间档位筛选（DEF-03 · D30）：本地过滤已加载行（PRD 故事 3.4-4「交易所 / 交易类型 / 时间」三维齐备）。 */
+    fun setDateRange(range: FundDateRange) {
+        _state.update { it.copy(dateRange = range) }
         reload()
     }
 

@@ -247,6 +247,8 @@ var TXS=[
  {id:4,pair:'SOL/USDT',ty:'BUY',px:142.00,q:18.00,fee:2.56,fc:'USDT',tot:2556.00,ex:'Binance',t:'2026-06-15 16:18',note:'',rz:null},
  {id:5,pair:'BNB/USDT',ty:'BUY',px:520.00,q:6.50,fee:3.38,fc:'USDT',tot:3380.00,ex:'Binance',t:'2026-05-20 10:00',note:'',rz:null}
 ];
+// DEMO_NOW：原型演示时钟（合成数据集中在 2026-05…08；时间档位筛选以此为基准，D30）
+var DEMO_NOW=new Date('2026-09-01T00:00:00Z');
 var PRICES={BTC:97420.50,ETH:3412.18,USDT:1.0000,USDC:1.0000,SOL:188.75,BNB:612.40};
 var PRICES24={BTC:96620.50,ETH:3396.10,USDT:1.0000,USDC:1.0000,SOL:187.30,BNB:611.20};
 var NAMES={BTC:'Bitcoin',ETH:'Ethereum',USDT:'Tether',USDC:'USD Coin',SOL:'Solana',BNB:'BNB'};
@@ -742,14 +744,19 @@ function saveFund(){ closeModal(); toast('资金记录已保存 · 投入本金�
 
 /* ============ 币种详情 ============ */
 var COIN_S=null;
+function coinTxDaysAgo(t){ return (DEMO_NOW-new Date(t.replace(' ','T')+':00Z'))/86400000; }
 function coinTxRow(t){ var pill=t.ty==='BUY'?'buy':'sell';
   return '<tr><td>'+t.pair+'</td><td><span class="pill '+pill+'">'+(t.ty==='BUY'?'买入':'卖出')+'</span></td><td class="num">'+usd(t.px)+'</td><td class="num">'+qty(t.q)+'</td><td class="num">'+qty(t.fee)+' '+t.fc+'</td><td>'+t.ex+'</td><td class="num">'+t.t+'</td><td class="num">'+(t.rz!==null&&t.rz!==undefined?'<span class="up">+'+usd(t.rz)+'</span>':'-')+'</td></tr>';
 }
 function coinTxFilter(){
-  var ex=document.getElementById('cex'), ty=document.getElementById('cty'), q=document.getElementById('cq');
+  var ex=document.getElementById('cex'), ty=document.getElementById('cty'), q=document.getElementById('cq'), rg=document.getElementById('crange');
   var txs=TXS.filter(function(t){ return t.pair.indexOf(COIN_S+'/')===0; });
   if(ex&&ex.value!=='全部交易所'){ txs=txs.filter(function(t){ return t.ex===ex.value; }); }
   if(ty&&ty.value!=='全部类型'){ txs=txs.filter(function(t){ return ty.value==='买入'?t.ty==='BUY':t.ty==='SELL'; }); }
+  if(rg&&rg.value!=='全部时间'){ txs=txs.filter(function(t){ var d=coinTxDaysAgo(t.t);
+    if(rg.value==='近 30 天'){ return d>=0&&d<30; }
+    if(rg.value==='30–90 天'){ return d>=30&&d<90; }
+    return d>=90; }); }
   if(q&&q.value){ var v=q.value.toLowerCase(); txs=txs.filter(function(t){ return t.t.toLowerCase().indexOf(v)>=0||(t.note||'').toLowerCase().indexOf(v)>=0; }); }
   var b=document.getElementById('coinTxBody'); if(b){ b.innerHTML=txs.length?txs.map(coinTxRow).join(''):'<tr><td colspan="8"><div class="empty" style="padding:18px 0">暂无符合条件的记录</div></td></tr>'; }
 }
@@ -765,7 +772,7 @@ function openCoin(s){
   h+=card('累计已实现盈亏', (h0.rz>=0?'+':'')+usd(h0.rz), '卖出逐笔累计', h0.rz>=0?'up':'down', true);
   h+='</div>';
   h+='<div class="toolbar"><button class="btn primary sm" type="button" onclick="toast(\'已以 Binance 余额校准持仓（单一数据来源）\')">以交易所余额校准持仓</button><span class="tag-est" style="margin-left:auto">单一数据来源 · Binance</span></div>';
-  h+='<div class="toolbar" style="margin-bottom:8px"><select class="select" id="cex" aria-label="按交易所筛选" onchange="coinTxFilter()"><option>全部交易所</option><option>Binance</option></select><select class="select" id="cty" aria-label="按类型筛选" onchange="coinTxFilter()"><option>全部类型</option><option>买入</option><option>卖出</option></select><input class="search" id="cq" style="min-width:150px" placeholder="搜索时间 / 备注" aria-label="搜索交易记录" oninput="coinTxFilter()"></div>';
+  h+='<div class="toolbar" style="margin-bottom:8px"><select class="select" id="cex" aria-label="按交易所筛选" onchange="coinTxFilter()"><option>全部交易所</option><option>Binance</option></select><select class="select" id="cty" aria-label="按类型筛选" onchange="coinTxFilter()"><option>全部类型</option><option>买入</option><option>卖出</option></select><select class="select" id="crange" aria-label="按时间筛选" onchange="coinTxFilter()"><option>全部时间</option><option>近 30 天</option><option>30–90 天</option><option>90 天以上</option></select><input class="search" id="cq" style="min-width:150px" placeholder="搜索时间 / 备注" aria-label="搜索交易记录" oninput="coinTxFilter()"></div>';
   var txs=TXS.filter(function(t){ return t.pair.indexOf(h0.s+'/')===0; });
   h+='<table class="tbl"><thead><tr><th style="cursor:default">交易对</th><th style="cursor:default">类型</th><th style="cursor:default">价格</th><th style="cursor:default">数量</th><th style="cursor:default">手续费</th><th style="cursor:default">交易所</th><th style="cursor:default">时间</th><th style="cursor:default">已实现盈亏</th></tr></thead><tbody id="coinTxBody">'+txs.map(coinTxRow).join('')+'</tbody></table>';
   h+='<h3 style="font-size:13px;color:var(--ink2);margin:16px 0 8px">校准历史</h3><div class="empty" style="padding:14px 0">暂无校准记录</div>';

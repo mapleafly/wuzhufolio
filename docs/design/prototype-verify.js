@@ -95,10 +95,18 @@ const PROTO = 'file://' + path.resolve(__dirname, 'prototype', 'wuzhufolio-light
   await page.waitForTimeout(200);
   T.coinModalTitle = await page.locator('.modal h3').first().textContent();
   T.coinCards = await page.locator('.modal .card').count();
-  T.coinTxFilters = await page.locator('#cex, #cty, #cq').count();
+  T.coinTxFilters = await page.locator('#cex, #cty, #cq, #crange').count();           // D30：三维筛选 + 搜索 = 4
+  T.coinDateOptions = await page.locator('#crange option').count();                   // D30：全部/近30/30–90/90+
   T.coinTxRows = await page.locator('#coinTxBody tr').count();
   await page.locator('#cty').selectOption('卖出');
   T.coinTxFilteredRows = await page.locator('#coinTxBody tr').count();                 // 空态占位行
+  await page.locator('#cty').selectOption('全部类型');
+  await page.locator('#crange').selectOption('30–90 天');
+  T.coinDateFilteredEmpty = (await page.locator('#coinTxBody').textContent()).indexOf('暂无符合条件') >= 0; // D30：该币无 30–90 天记录 → 空态
+  await page.locator('#crange').selectOption('90 天以上');
+  T.coinDateOlderRows = await page.locator('#coinTxBody tr').count();                  // D30：90 天以上仍有记录（演示数据 2026-05…08）
+  await page.locator('#crange').selectOption('全部时间');
+  T.coinDateResetEmpty = (await page.locator('#coinTxBody').textContent()).indexOf('暂无符合条件') >= 0;   // 复位后不再是空态
   await page.keyboard.press('Escape');
 
   // ===== 交易表单回归（总价/自动手续费/交易对补全） =====
