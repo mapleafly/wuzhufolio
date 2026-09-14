@@ -15,6 +15,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -143,6 +144,8 @@ class BinanceAdapterTest {
         val http = mockClient { throw java.io.IOException("boom") }
         val e = assertFailsWith<ExchangeApiException> { BinanceAdapter(http, creds).fetchBalances() }
         assertTrue(e.kind is ExchangeError.Network, e.kind.toString())
+        // P5-2（2026-09-13 人工拍板 C1）：底层异常经 cause 保留，供日志/诊断定位（不进用户文案）
+        assertEquals("boom", assertNotNull(e.cause, "Network 错误必须携带 cause").message)
     }
 
     @Test

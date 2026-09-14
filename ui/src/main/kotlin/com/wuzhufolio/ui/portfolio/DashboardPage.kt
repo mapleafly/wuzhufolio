@@ -89,6 +89,31 @@ fun DashboardPage(
                     modifier = Modifier.padding(bottom = 10.dp).testTag("dashboard-cost-notice"),
                 )
             }
+            // P5 回归：缺价币不计入净值 → 卡片会显示「假亏损」（买入后未刷新行情时 ROI 可为 −50%）；
+            // 显式说明原因（自动补价见 PortfolioViewModel.maybeAutoPrice）
+            val unpriced = metrics?.missingPricedCoins?.size ?: 0
+            if (unpriced > 0) {
+                Text(
+                    text = portfolioStrings.unpricedNotice(unpriced),
+                    color = colors.warn,
+                    style = WzTheme.typography.caption,
+                    modifier = Modifier.padding(bottom = 10.dp).testTag("dashboard-unpriced-notice"),
+                )
+            }
+            // D29：负持仓币市值不计入净值/可用现金 —— 必须显式告知被排除的金额（不做隐式扣减，也不静默忽略）
+            val anomalous = state.snapshot?.rows?.count { it.anomalous } ?: 0
+            val excluded = metrics?.anomalousExcludedFiat
+            if (anomalous > 0 && excluded != null && excluded.signum() < 0) {
+                Text(
+                    text = portfolioStrings.anomalousExcludedNotice(
+                        anomalous,
+                        WzFormat.signedMoney(excluded, state.fiat),
+                    ),
+                    color = colors.warn,
+                    style = WzTheme.typography.caption,
+                    modifier = Modifier.padding(bottom = 10.dp).testTag("dashboard-anomaly-notice"),
+                )
+            }
             if (state.loading) {
                 Text(
                     text = portfolioStrings.loading,

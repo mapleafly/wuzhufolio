@@ -1,8 +1,10 @@
 package com.wuzhufolio.data.market
 
+import com.wuzhufolio.domain.market.MarketQuote
 import com.wuzhufolio.domain.market.MarketRefreshError
 import com.wuzhufolio.domain.market.PriceSource
 import com.wuzhufolio.domain.market.QuotaCallKind
+import java.time.Instant
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlin.test.AfterTest
@@ -234,6 +236,70 @@ class DefaultMarketRefreshServiceTest {
             val result = service.refresh(manual = true, coins = listOf("tether"), fiats = listOf("USD"))
             val error = assertIs<MarketRefreshError.Internal>(result.error)
             assertTrue(error.detail.contains("column too long"), "修复轮：内部异常不得误报网络不可达")
+        }
+    }
+
+    // ---- P5 人工验收回归（2026-09-13）：默认币集 = 持仓 ∪ 自选（M5 §6 登记的注入点落地） ----
+
+    @Test
+    fun `empty coin set uses injected default coin set instead of the four cash coins`() = runBlocking {
+        MarketTestEnv(seed = true).use { env ->
+            val cgFake = FakeMarketClient("cg")
+            val requested = mutableListOf<List<String>>()
+            cgFake.currentResult = { coins, fiats, _ ->
+                requested += coins
+                coins.map {
+                    MarketQuote(it, fiats.first(), java.math.BigDecimal("1"), PriceSource.COINGECKO, Instant.now())
+                }
+            }
+            val service = DefaultMarketRefreshService(
+                cgClient = cgFake,
+                cmcClient = FakeMarketClient("cmc"),
+                catalog = env.catalog,
+                snapshots = env.snapshots,
+                keyStore = env.deviceStore,
+                settings = env.settings,
+                quota = SettingsQuotaLedger(env.settings),
+                rankCache = RefreshableRankProvider(),
+                defaultCoins = { listOf("bitcoin", "ethereum", "tether") },
+            )
+            service.refresh(manual = true)
+            assertEquals(
+                listOf("bitcoin", "ethereum", "tether"),
+                requested.single(),
+                "未指定币集时应刷新「持仓 ∪ 自选」（此前恒为 4 个现金白名单币，持仓币永远拿不到行情）",
+            )
+        }
+    }
+
+    @Test
+    fun `empty default coin set still falls back to the four cash coins`() = runBlocking {
+        MarketTestEnv(seed = true).use { env ->
+            val cgFake = FakeMarketClient("cg")
+            val requested = mutableListOf<List<String>>()
+            cgFake.currentResult = { coins, fiats, _ ->
+                requested += coins
+                coins.map {
+                    MarketQuote(it, fiats.first(), java.math.BigDecimal("1"), PriceSource.COINGECKO, Instant.now())
+                }
+            }
+            val service = DefaultMarketRefreshService(
+                cgClient = cgFake,
+                cmcClient = FakeMarketClient("cmc"),
+                catalog = env.catalog,
+                snapshots = env.snapshots,
+                keyStore = env.deviceStore,
+                settings = env.settings,
+                quota = SettingsQuotaLedger(env.settings),
+                rankCache = RefreshableRankProvider(),
+                defaultCoins = { emptyList() },
+            )
+            service.refresh(manual = false)
+            assertEquals(
+                MarketConfig.DEFAULT_FALLBACK_COINS,
+                requested.single(),
+                "全新账户（无持仓/自选）保持开箱 4 币行为不变",
+            )
         }
     }
 }

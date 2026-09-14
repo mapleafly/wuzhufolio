@@ -65,8 +65,12 @@ fun newOkHttpMarketClient(proxySelector: java.net.ProxySelector? = null): HttpCl
         defaultRequest { header(HttpHeaders.UserAgent, USER_AGENT) }
     }
 
-/** 网络层异常 → Network 错误（429 等业务状态映射在各 provider）。 */
-@Suppress("SwallowedException") // 全部非业务异常归一为 Network 错误（原始异常不入错误模型——脱敏口径）
+/**
+ * 网络层异常 → Network 错误（429 等业务状态映射在各 provider）。
+ *
+ * 底层异常经 `cause` 保留（**不参与用户文案**，仅供日志与诊断定位——P5-2，2026-09-13 人工拍板 C1）：
+ * 此前整体吞掉 cause，真实联调只见 `Network(source=COINGECKO)`，无法区分超时 / TLS / 限流。
+ */
 internal suspend fun <T> guardedHttp(source: PriceSource, block: suspend () -> T): T = try {
     block()
 } catch (e: MarketApiException) {
@@ -74,7 +78,7 @@ internal suspend fun <T> guardedHttp(source: PriceSource, block: suspend () -> T
 } catch (e: CancellationException) {
     throw e
 } catch (e: Exception) {
-    throw MarketApiException(MarketRefreshError.Network(source))
+    throw MarketApiException(MarketRefreshError.Network(source), e)
 }
 
 /** 状态码 → 平台错误（429/401/402/404(历史币)/其他 HTTP）。 */
@@ -106,12 +110,11 @@ internal suspend fun HttpResponse.bodyJsonOrThrow(
     return parseBody(source)
 }
 
-/** 响应体 JSON 解析（形状破坏归一为 Http 错误，避免解析细节污染错误模型）。 */
-@Suppress("SwallowedException")
+/** 响应体 JSON 解析（形状破坏归一为 Http 错误；解析异常经 cause 保留供诊断，不污染错误模型文案）。 */
 private suspend fun HttpResponse.parseBody(source: PriceSource): JsonElement = try {
     Json.parseToJsonElement(bodyAsText())
 } catch (e: Exception) {
-    throw MarketApiException(MarketRefreshError.Http(status.value, source))
+    throw MarketApiException(MarketRefreshError.Http(status.value, source), e)
 }
 
 internal fun JsonObject.priceOrNull(key: String): BigDecimal? =

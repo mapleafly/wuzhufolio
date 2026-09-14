@@ -17,6 +17,7 @@ import com.wuzhufolio.domain.catalog.Resolution
 import com.wuzhufolio.domain.catalog.DirectoryRefreshSummary
 import com.wuzhufolio.domain.engine.FlowKind
 import com.wuzhufolio.domain.engine.PortfolioCalculator
+import com.wuzhufolio.domain.engine.PortfolioMetrics
 import com.wuzhufolio.domain.engine.RecordSource
 import com.wuzhufolio.domain.engine.ReplayEngine
 import com.wuzhufolio.domain.engine.Side
@@ -110,10 +111,12 @@ class PortfolioPagesUiTest {
         private val fiat: String = "USD",
         private val change24h: TwentyFourHour.Result = TwentyFourHour.Result(null, null, 0, 0, false),
         private val calibrations: List<CalibrationRecord> = emptyList(),
+        /** D29 断言用：覆盖指标（默认按空重放推导，全 0）。 */
+        private val metricsOverride: PortfolioMetrics? = null,
     ) : PortfolioService {
         override suspend fun snapshot(): PortfolioSnapshot {
             val replay = ReplayEngine.replay(emptyList())
-            val metrics = PortfolioCalculator().compute(
+            val metrics = metricsOverride ?: PortfolioCalculator().compute(
                 replay,
                 rows.mapNotNull { row -> row.priceFiat?.let { row.cgId to it } }.toMap(),
             )
@@ -319,6 +322,43 @@ class PortfolioPagesUiTest {
         onNodeWithText("持有数量").assertIsDisplayed()
         onNodeWithTag("donut-pop-close").performClick()
         vm.dispose()
+    }
+
+    /** D29（2026-09-13 人工拍板方案 B）：负持仓币市值不计入净值 —— 界面必须显式提示被排除的金额。 */
+    @Test
+    fun `dashboard shows the excluded anomalous market value notice`() = runComposeUiTest {
+        val anomalousRow = row(
+            cgId = "usd-coin", symbol = "USDC", name = "USD Coin",
+            quantity = "-4204", avgCost = null, price = "1", anomalous = true,
+        )
+        val metrics = PortfolioMetrics(
+            netValueFiat = BigDecimal("1000"),
+            availableCashFiat = BigDecimal("1000"),
+            investedNetFiat = BigDecimal("1000"),
+            cumulativeDepositsFiat = BigDecimal("1000"),
+            cumulativeWithdrawalsFiat = BigDecimal.ZERO,
+            totalReturnFiat = BigDecimal.ZERO,
+            roiPercent = BigDecimal.ZERO,
+            realizedPnlFiat = BigDecimal.ZERO,
+            unrealizedPnlFiat = BigDecimal.ZERO,
+            totalCostFiat = BigDecimal.ZERO,
+            holdings = emptyMap(),
+            missingPricedCoins = emptyList(),
+            estimated = false,
+            anomalousExcludedFiat = BigDecimal("-4204"),
+        )
+        setContent {
+            WuzhuTheme(themeMode = ThemeMode.LIGHT) {
+                DashboardPage(
+                    portfolioService = FakePortfolio(listOf(anomalousRow), metricsOverride = metrics),
+                    refreshService = FakeRefresh(),
+                    generalSettings = FakeGeneralSettings(),
+                    accountName = "Alex",
+                )
+            }
+        }
+        onNodeWithTag("dashboard-anomaly-notice").assertIsDisplayed()
+        onNodeWithText("-\$4,204.00", substring = true).assertIsDisplayed()
     }
 
     @Test

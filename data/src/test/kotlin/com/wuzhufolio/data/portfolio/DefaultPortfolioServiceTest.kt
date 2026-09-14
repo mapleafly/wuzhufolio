@@ -151,12 +151,14 @@ class DefaultPortfolioServiceTest {
             )
             val service = portfolioService(env)
             val partial = service.snapshot().change24h
-            assertEquals(1, partial.covered, "仅 BTC 有 24h 前价")
+            // D27：锚定稳定币的 24h 变化恒为 0（1:1 → 1:1），无需 24h 前价快照 → USDT 也计入覆盖
+            assertEquals(2, partial.covered, "BTC（有 24h 前价）+ USDT（锚定 1:1，恒 0）")
             assertEquals(2, partial.total, "有现价的持仓 = BTC + USDT（ETH 无行情）")
-            assertEquals(0, BigDecimal("100").compareTo(partial.pnlFiat!!), "0.01×(60000−50000)")
-            assertEquals(0, BigDecimal("20").compareTo(partial.pct!!))
-            assertTrue(partial.mixedSource, "现价 CG / 24h 前价 CMC → 混合数据源")
-            // 补齐 USDT 的 24h 前价（同源）→ 覆盖 2/2；混合标注仍由 BTC 配对承担
+            assertEquals(0, BigDecimal("100").compareTo(partial.pnlFiat!!), "0.01×(60000−50000)（USDT 贡献 0）")
+            // 分母 = Σ(持仓 × 24h 前价)：BTC 0.01×50000 + USDT 1500×1（剩余现金，锚定）= 2000 → 100/2000
+            assertEquals(0, BigDecimal("5").compareTo(partial.pct!!), "锚定币计入分母（1:1）")
+            assertTrue(partial.mixedSource, "现价 CG / 24h 前价 CMC → 混合数据源（BTC 配对承担）")
+            // 补齐 USDT 的 24h 前价（同源）不影响锚定币口径
             env.putSnapshot(usdtId, "USD", "1", NOW.minus(DAY))
             val full = service.snapshot().change24h
             assertEquals(2, full.covered)
@@ -215,19 +217,59 @@ class DefaultPortfolioServiceTest {
         }
     }
 
-    /** 快照价优先于 USD 锚定 1:1；priceAsOf = 实际使用的快照 recordedAt。 */
+    /**
+     * **D27（2026-09-13 人工拍板）**：白名单稳定币按 1:1 锚定，**快照市价不再参与折算**；
+     * 快照行只用于「行情时刻」展示。
+     *
+     * 修复前口径 = 快照优先（USDT 0.98 → 市值 980），即人工验收实测「增资 100,000 显示可用现金 99,964.80」
+     * 的根因。
+     */
     @Test
-    fun snapshotPriceWinsOverUsdAnchorAndDrivesPriceAsOf() = runBlocking {
+    fun usdAnchorWinsOverSnapshotForWhitelistedStablecoin() = runBlocking {
         LedgerTestEnv().use { env ->
             env.login()
             env.fundService.saveFund(deposit("1000", at = NOW.minusSeconds(7200)))
             env.putSnapshot(env.coin("USDT")!!.id, "USD", "0.98", NOW)
             val snapshot = portfolioService(env).snapshot()
             val usdt = snapshot.rows.single()
-            assertEquals(0, BigDecimal("0.98").compareTo(usdt.priceFiat!!), "快照价优先于锚定 1:1")
-            assertEquals(0, BigDecimal("980").compareTo(usdt.marketValueFiat!!))
-            assertEquals(0, BigDecimal("980").compareTo(snapshot.metrics.netValueFiat))
-            assertEquals(NOW, snapshot.priceAsOf, "priceAsOf = 实际使用的快照时刻")
+            assertEquals(0, BigDecimal.ONE.compareTo(usdt.priceFiat!!), "D27：白名单稳定币恒按 1:1")
+            assertEquals(0, BigDecimal("1000").compareTo(usdt.marketValueFiat!!))
+            assertEquals(0, BigDecimal("1000").compareTo(snapshot.metrics.netValueFiat), "票面金额零损耗")
+            assertEquals(0, BigDecimal("1000").compareTo(snapshot.metrics.availableCashFiat))
+            assertEquals(NOW, snapshot.priceAsOf, "priceAsOf 仍取最近快照时刻（展示口径，不参与折算）")
+        }
+    }
+
+    /** D27 边界：**非白名单**币种不受锚定影响，仍按市价快照折算。 */
+    @Test
+    fun nonWhitelistedCoinStillUsesMarketSnapshot() = runBlocking {
+        LedgerTestEnv().use { env ->
+            env.login()
+            env.fundService.saveFund(deposit("1000"))
+            env.service.saveTransaction(buy("BTC", price = "50000", quantity = "0.01"))
+            env.putSnapshot(env.coin("BTC")!!.id, "USD", "60000", NOW)
+            val snapshot = portfolioService(env).snapshot()
+            val btc = snapshot.rows.single { it.cgId == "bitcoin" }
+            assertEquals(0, BigDecimal("60000").compareTo(btc.priceFiat!!), "非白名单币照市价")
+            assertEquals(0, BigDecimal("600").compareTo(btc.marketValueFiat!!))
+        }
+    }
+
+    /** D27 边界：白名单**扩展项**（M10 设置 `cash.coins`）同样按 1:1 锚定。 */
+    @Test
+    fun whitelistExtensionCoinsCountAsCashButUseMarketPrice() = runBlocking {
+        LedgerTestEnv().use { env ->
+            env.login()
+            env.fundService.saveFund(deposit("500", coin = "DAI"))
+            env.putSnapshot(env.coin("DAI")!!.id, "USD", "0.97", NOW)
+            // D28：白名单扩展项计入「可用现金」口径，但**按市价折算**（1:1 锚定仅 USDT）
+            val extended = portfolioService(
+                env,
+                cashCoinIds = { PortfolioCalculator.DEFAULT_CASH_COIN_IDS + "dai" },
+            ).snapshot()
+            assertEquals(0, BigDecimal("0.97").compareTo(extended.rows.single().priceFiat!!), "扩展项按市价")
+            assertEquals(0, BigDecimal("485").compareTo(extended.metrics.netValueFiat), "500 × 0.97")
+            assertEquals(0, BigDecimal("485").compareTo(extended.metrics.availableCashFiat), "计入现金口径（按市价）")
         }
     }
 
@@ -357,6 +399,79 @@ class DefaultPortfolioServiceTest {
             assertTrue(service.snapshot().rows.isEmpty(), "账户隔离：新账户不见他人账本")
             env.sessions.set(first)
             assertEquals(1, service.snapshot().rows.size, "切回原账户恢复")
+        }
+    }
+
+    /**
+     * **D27 端到端验收（2026-09-13 人工拍板的口径复现）**：即便本地存在稳定币市价快照（0.98），
+     * 白名单稳定币仍按 1:1 折算 —— 人工验收报告的三个「对不上」数值在此全部回到票面口径：
+     * 增资 100,000 → 可用现金 100,000；卖出 0.1 BTC@60,000 → 已实现 +1,000；净值 101,000 / ROI +1.00%。
+     */
+    @Test
+    fun d27DepositTradeAndMetricsStayAtParDespiteMarketSnapshot() = runBlocking {
+        LedgerTestEnv().use { env ->
+            env.login()
+            val usdtId = env.coin("USDT")!!.id
+            // 记录时与当前都有「脱锚」市价快照（旧口径会把这些金额打 0.98 折）
+            env.putSnapshot(usdtId, "USD", "0.98", NOW.minusSeconds(7200))
+            env.fundService.saveFund(deposit("100000", at = NOW.minusSeconds(3600)))
+            env.putSnapshot(usdtId, "USD", "0.98", NOW)
+
+            val overview = env.fundService.fundsOverview()
+            assertEquals(0, BigDecimal("100000").compareTo(overview.availableCashFiat), "可用现金 = 票面")
+            assertEquals(0, BigDecimal("100000").compareTo(overview.investedNetFiat), "投入本金 = 票面")
+
+            env.service.saveTransaction(buy("BTC", price = "50000", quantity = "1"))
+            env.service.saveTransaction(sell("BTC", price = "60000", quantity = "0.1"))
+            env.putSnapshot(env.coin("BTC")!!.id, "USD", "50000", NOW)
+            env.putSnapshot(env.coin("ETH")!!.id, "USD", "3000", NOW)
+
+            val snapshot = portfolioService(env).snapshot()
+            assertEquals(0, BigDecimal("101000").compareTo(snapshot.metrics.netValueFiat), "净值 = 现金 56,000 + BTC 0.9×50,000")
+            assertEquals(0, BigDecimal("56000").compareTo(snapshot.metrics.availableCashFiat), "可用现金（1:1，无 0.98 折）")
+            assertEquals(0, BigDecimal("1000").compareTo(snapshot.metrics.realizedPnlFiat), "卖出已实现 = 1,000 而非 980")
+            assertEquals(0, BigDecimal("1000").compareTo(snapshot.metrics.totalReturnFiat!!))
+            assertEquals(0, BigDecimal("1.00").compareTo(snapshot.metrics.roiPercent!!), "ROI = +1.00%")
+            assertEquals(0, BigDecimal.ONE.compareTo(snapshot.rows.single { it.cgId == "tether" }.priceFiat!!))
+        }
+    }
+
+    /**
+     * **P5 人工验收回归（2026-09-13）**：增资 100,000 → 买入 1 BTC@50,000，但 BTC **尚无行情快照**时，
+     * 净值只算得出「花剩的现金 50,000」→ 总收益 −50,000 / **ROI −50%**。
+     *
+     * 这不是计算错误，而是「缺价币不计入净值」口径 + **数据未就绪**的叠加：
+     * 用户看到的是**假亏损**。修复（两层）：① 聚合页发现缺价持仓时自动补价一次
+     * （`PortfolioViewModel.maybeAutoPrice`）；② 仪表盘显式提示「N 个币种暂无行情，未计入净值与 ROI」。
+     * 本用例锁定口径本身：缺价 → 不计入 → ROI 为 −50%（并在补价后回到 0%）。
+     */
+    @Test
+    fun p5UnpricedHoldingMakesRoiLookLikeALossUntilQuotesArrive() = runBlocking {
+        LedgerTestEnv().use { env ->
+            env.login()
+            env.fundService.saveFund(deposit("100000"))
+            env.service.saveTransaction(buy("BTC", price = "50000", quantity = "1"))
+
+            // ① 无 BTC 行情：净值 = 现金 50,000（USDT 1:1）→ ROI = −50%
+            val unpriced = portfolioService(env).snapshot()
+            assertEquals(
+                listOf("bitcoin"),
+                unpriced.metrics.missingPricedCoins,
+                "BTC 无快照 → 计入缺价清单",
+            )
+            assertEquals(0, BigDecimal("50000").compareTo(unpriced.metrics.netValueFiat), "净值只剩现金")
+            assertEquals(
+                0,
+                BigDecimal("-50.00").compareTo(unpriced.metrics.roiPercent!!),
+                "缺价时 ROI 显示 −50%（假亏损：50,000 现金 − 100,000 本金）",
+            )
+
+            // ② 补价（= 自动补价/手动刷新之后）：持仓按现价计入 → 盈亏回到真实值
+            env.putSnapshot(env.coin("BTC")!!.id, "USD", "50000", NOW)
+            val priced = portfolioService(env).snapshot()
+            assertTrue(priced.metrics.missingPricedCoins.isEmpty())
+            assertEquals(0, BigDecimal("100000").compareTo(priced.metrics.netValueFiat), "1 BTC×50,000 + 现金 50,000")
+            assertEquals(0, BigDecimal("0.00").compareTo(priced.metrics.roiPercent!!), "按成本价成交 → ROI 0%")
         }
     }
 

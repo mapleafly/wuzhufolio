@@ -26,13 +26,14 @@ import java.time.Instant
  *  （联动扣减，黄金用例 5）；歧义/未命中 -> 按 quote 角色兜底 + estimated（口径登记模块记录 M7 §5）。
  *
  * 引擎为纯确定性重放，本层不引入任何数值语义变更（M4 已通过模块不动）。
- * [cashCoinIds] = 稳定币白名单运行期读取（M10 T10.1 设置「稳定币白名单」扩展 USD 锚定集合；
- * 默认 = 引擎 [PortfolioCalculator.DEFAULT_CASH_COIN_IDS]，行为与 M9 前完全一致）。
+ * [anchoredCoinIds] = **1:1 锚定折算集合**（D28：默认且固定 = 仅 USDT，见
+ * [PortfolioCalculator.ANCHORED_COIN_IDS]）。**不再等于「现金白名单」**——白名单（可用现金口径）
+ * 由设置「稳定币白名单」增删扩展项，但那些币按市价折算。
  */
 class TransactionEventBuilder(
     private val catalog: CoinCatalog,
     private val snapshots: PriceSnapshotRepository,
-    private val cashCoinIds: () -> Set<String> = { PortfolioCalculator.DEFAULT_CASH_COIN_IDS },
+    private val anchoredCoinIds: () -> Set<String> = { PortfolioCalculator.ANCHORED_COIN_IDS },
 ) {
 
     /** 事件构造结果：可入重放的事件 + 待定价行（展示「估算中」）+ 无法折算暂排除的行。 */
@@ -187,24 +188,40 @@ class TransactionEventBuilder(
     data class FundValue(val fiat: BigDecimal, val estimated: Boolean)
 
     /**
-     * 折算价解析（① 快照前向 → ② USD 锚定 → ③ 快照后向估算；null = 无任何可得价）。
+     * 折算价解析（**① USD 锚定白名单稳定币 1:1 → ② 快照前向 → ③ 快照后向估算**；null = 无任何可得价）。
+     *
+     * D27 + D28（2026-09-13 人工拍板）：**1:1 锚定折算集合固定为 USDT**（其他稳定币按市价折算），
+     * 在基础法币为 USD 时锚定优先于市价快照——锚定从「缺价兜底」提升为**优先口径**。
+     * 理由：稳定币是账本的现金代理，按市价折算会让票面金额出现 0.0x% 的「莫名损耗」
+     * （实测：增资 100,000 USDT → 可用现金 99,964.80；卖出已实现 999.65 而非 1,000），
+     * 并使净值随稳定币微小波动漂移。非白名单币种与法币基础币种非 USD 时仍按市价快照折算。
+     *
      * nearestBefore 逐时刻查询、不加缓存：同小时桶内不同 at 的「记录时价」可能不同，
      * 以桶为键缓存会错配（本地 SQLite 点查成本可忽略，先例 = PriceSnapshotRepository 内存过滤口径）。
      */
-    @Suppress("ReturnCount") // 折算价取数链早退（前向/锚定/后向）
+    @Suppress("ReturnCount") // 折算价取数链早退（锚定/前向/后向）
     private suspend fun priceOf(coinId: Long, fiat: String, at: Instant): PriceHit? {
+        if (isAnchoredUsdStable(coinId, fiat)) return PriceHit(BigDecimal.ONE, exact = true)
         snapshots.nearestBefore(coinId.toInt(), fiat, at)?.let { return PriceHit(it.price, exact = true) }
-        if (fiat.equals("USD", ignoreCase = true) && isUsdPegged(coinId)) {
-            return PriceHit(BigDecimal.ONE, exact = true)
-        }
         snapshots.latest(coinId.toInt(), fiat)?.let { return PriceHit(it.price, exact = false) }
         return null
     }
 
-    /** USD 锚定稳定币（与组合现金白名单同源；M10 起含设置扩展项——PRD §7.2-6.1）。 */
+    /**
+     * 是否走 1:1 锚定（D27）：基础法币 = USD 且币种在**现金白名单**内。
+     * 组合估值（[com.wuzhufolio.data.portfolio.DefaultPortfolioService]）与 24h 盈亏同源复用本判定，
+     * 避免「事件按 1:1、估值按市价」的口径分裂。
+     */
+    suspend fun isAnchoredUsdStable(coinId: Long, fiat: String): Boolean =
+        fiat.equals("USD", ignoreCase = true) && isUsdPegged(coinId)
+
+    /**
+     * 是否 1:1 锚定币（D28）：集合默认且固定 = 仅 USDT（[PortfolioCalculator.ANCHORED_COIN_IDS]），
+     * **与可增删的现金白名单解耦**——白名单扩展项（如 USDC）按市价折算。
+     */
     private suspend fun isUsdPegged(coinId: Long): Boolean {
         val coin = catalog.getById(coinId) ?: return false
-        return coin.cgId in cashCoinIds()
+        return coin.cgId in anchoredCoinIds()
     }
 
     private data class PriceHit(val price: BigDecimal, val exact: Boolean)

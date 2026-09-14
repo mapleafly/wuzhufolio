@@ -101,6 +101,45 @@ class BackupMergePlannerTest {
         assertEquals(1, plan.duplicateSkipped)
     }
 
+    // ---- P5 人工验收回归（2026-09-13）：无订单号的手动/CSV 交易不得互相判重 ----
+
+    @Test
+    fun `manual transactions without order id are all imported`() {
+        // 用户实测：同账户 3 笔手动/CSV 交易（均无交易所订单号）备份后恢复到新账户
+        val records = CproRecords(transactions = listOf(tx("u-1"), tx("u-2"), tx("u-3")))
+        val plan = BackupMergePlanner.plan(records, BackupMergePlanner.ExistingKeys(), resolvable, false)
+        assertEquals(3, plan.transactions.size, "三笔无订单号交易必须全部导入（此前第 2/3 笔被误判重复丢弃）")
+        assertEquals(0, plan.duplicateSkipped)
+    }
+
+    @Test
+    fun `manual transactions without order id are all imported in full overwrite`() {
+        val records = CproRecords(transactions = listOf(tx("u-1"), tx("u-2")))
+        val plan = BackupMergePlanner.plan(records, BackupMergePlanner.ExistingKeys(), resolvable, true)
+        assertEquals(2, plan.transactions.size, "全量覆盖同样不得丢行")
+    }
+
+    @Test
+    fun `exchange rows still dedup by order id when the id is present`() {
+        val records = CproRecords(
+            transactions = listOf(tx("u-1", orderId = "o-1"), tx("u-2", orderId = "o-1"), tx("u-3", orderId = "o-2")),
+        )
+        val plan = BackupMergePlanner.plan(records, BackupMergePlanner.ExistingKeys(), resolvable, false)
+        assertEquals(2, plan.transactions.size, "同一订单号（交易所成交）批内去重仍生效")
+        assertEquals(1, plan.duplicateSkipped)
+    }
+
+    @Test
+    fun `empty order key never participates in dedup`() {
+        val records = CproRecords(transactions = listOf(tx("u-1"), tx("u-2")))
+        val existing = BackupMergePlanner.ExistingKeys(
+            txUuids = setOf("u-9"),
+            txOrderKeys = setOf("BINANCE|"),
+        )
+        val plan = BackupMergePlanner.plan(records, existing, resolvable, false)
+        assertEquals(2, plan.transactions.size, "空订单号不得参与 (exchange|order) 判重")
+    }
+
     @Test
     fun `api keys skip on exchange plus name`() {
         val key = CproApiKey(name = "主号", exchangeName = "BINANCE", apiKey = "k", secretKey = "s", status = "OK")

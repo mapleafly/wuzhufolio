@@ -435,7 +435,10 @@ class DefaultBackupService(
         return BackupMergePlanner.ExistingKeys(
             txUuids = txRows.map { it.uuid }.toSet(),
             txOrderKeys = txRows.mapNotNull { row ->
-                row.exchangeOrderId?.let { row.exchange.uppercase() + "|" + it }
+                // 空订单号不入键（P5 人工验收回归）：手动/CSV 行 order id 为 null，若规约为 "EXCHANGE|"
+                // 会让同一交易所的全部手动交易互相判重（详见 BackupMergePlanner.txOrderKey KDoc）
+                row.exchangeOrderId?.trim()?.takeIf { it.isNotEmpty() }
+                    ?.let { row.exchange.uppercase() + "|" + it }
             }.toSet(),
             flowUuids = flowRows.map { it.uuid }.toSet(),
             reconUuids = reconRows.map { it.uuid }.toSet(),

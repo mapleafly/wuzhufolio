@@ -33,7 +33,14 @@ object MarketConfig {
     /** CG 当前价单请求上限（URL 长度保护，分批请求）。 */
     const val CG_CURRENT_BATCH = 100
 
-    /** 持仓候选币集缺省（调用方未给币集时：现金白名单 4 币，开箱验证刷新链路；持仓币集注入点归 M7/M12）。 */
+    /**
+     * 行情页自选**开箱种子** = **仅 USDT**（2026-09-13 人工拍板：与 D28 的现金白名单默认值对齐，
+     * 由 4 个主流稳定币收敛为 1 个）。自选仍是展示偏好（写入过 `watch.coins` 即按用户列表），
+     * 用户可自行搜索添加其他币种。
+     */
+    val DEFAULT_WATCH_SEED: List<String> = listOf("tether")
+
+    /** 持仓候选币集缺省（调用方未给币集且无持仓/自选时：4 币，开箱验证刷新链路；持仓币集注入见 P5 §11-3）。 */
     val DEFAULT_FALLBACK_COINS: List<String> =
         listOf("tether", "usd-coin", "dai", "true-usd")
 

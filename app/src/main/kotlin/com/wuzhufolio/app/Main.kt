@@ -14,6 +14,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,6 +47,7 @@ import com.wuzhufolio.ui.settings.SettingsFilePickers
 import com.wuzhufolio.ui.settings.SettingsPage
 import com.wuzhufolio.ui.theme.WuzhuTheme
 import com.wuzhufolio.ui.theme.WzTheme
+import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.StandardOpenOption
@@ -142,9 +144,20 @@ internal fun MainWindowContent(
     LaunchedEffect(Unit) {
         runCatching { runtime.generalSettingsService.view() }.getOrNull()?.let { WzFormat.precision = it.precision }
     }
+    // P5 修复轮（2026-09-13 人工拍板 C1）：会话激活后立即执行一次「交易数据同步 + 行情刷新」
+    // （PRD 故事 4.2「应用启动时和固定时间间隔自动执行交易数据同步」；此前首轮要等满一个间隔）。
+    // 异步执行、失败不阻断 UI；可见性/降频口径仍由调度宿主统一治理。
+    val autoSyncScope = rememberCoroutineScope()
 
     AuthGate(
         authService = runtime.session.authService,
+        onSessionActive = {
+            autoSyncScope.launch {
+                runCatching { runtime.scheduler.syncNow() }
+                runCatching { runtime.scheduler.refreshMarketNow(manual = false) }
+                statusViewModel.refresh()
+            }
+        },
         themeMode = runtime.uiState.theme,
         pnlScheme = runtime.uiState.pnlScheme,
         // M12 T12.4：界面语言（设置页「通用 → 界面语言」切换，持久化于 settings 全局行）

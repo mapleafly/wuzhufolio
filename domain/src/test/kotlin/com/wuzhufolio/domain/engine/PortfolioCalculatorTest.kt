@@ -38,9 +38,28 @@ class PortfolioCalculatorTest {
     }
 
     @Test
-    fun `default whitelist covers the prd stablecoins`() {
-        val ids = PortfolioCalculator.DEFAULT_CASH_COIN_IDS
-        assertEquals(setOf("tether", "usd-coin", "dai", "true-usd"), ids)
+    fun `default cash whitelist is usdt only and anchor set is fixed to usdt`() {
+        // D28（2026-09-13 人工拍板）：现金白名单默认仅 USDT（其余稳定币用户可增删，按市价折算）；
+        // 1:1 锚定集合固定 = USDT（不可通过设置扩展）
+        assertEquals(setOf("tether"), PortfolioCalculator.DEFAULT_CASH_COIN_IDS)
+        assertEquals(setOf("tether"), PortfolioCalculator.ANCHORED_COIN_IDS)
+    }
+
+    /** D28 边界：白名单**扩展项**计入「可用现金」口径（现金分类），但按市价折算（不锚定）。 */
+    @Test
+    fun `cash whitelist extension counts as cash but is valued at market price`() {
+        val outcome = ReplayEngine.replay(
+            listOf(
+                Ev.deposit(1, Ev.USDT, "1000", "1000"),
+                Ev.deposit(2, "usd-coin", "500", "500"),
+            ),
+        )
+        val metrics = PortfolioCalculator(cashCoinIds = setOf("tether", "usd-coin")).compute(
+            outcome,
+            mapOf(Ev.USDT to "1".bd(), "usd-coin" to "0.98".bd()),
+        )
+        assertMoney("1490", metrics.netValueFiat, "1000×1 + 500×0.98")
+        assertMoney("1490", metrics.availableCashFiat, "扩展项计入现金口径（按市价）")
     }
 
     @Test
@@ -130,20 +149,43 @@ class PortfolioCalculatorTest {
     }
 
     @Test
-    fun `anomalous negative holding contributes negative market value and flags`() {
+    fun `anomalous negative holding is excluded from net value and reported separately`() {
         val outcome = ReplayEngine.replay(
             listOf(Ev.sell(1, Ev.BTC, Ev.USDT, price = "50000", qty = "1", source = RecordSource.Csv)),
             NegativePolicy.LENIENT,
         )
-        // 卖价 50,000 入账 +50,000 USDT、BTC −1；现价 BTC 60,000 → 净值 = −60,000 + 50,000
+        // 卖价 50,000 入账 +50,000 USDT、BTC −1；现价 BTC 60,000
+        // D29（2026-09-13 人工拍板方案 B）：负持仓市值**不计入净值**（数据缺口信号，非真实头寸），
+        // 合计值单列 anomalousExcludedFiat 供界面提示 → 净值 = 50,000（现金），排除 −60,000
         val metrics = PortfolioCalculator().compute(outcome, mapOf(Ev.BTC to "60000".bd(), Ev.USDT to "1".bd()))
-        assertMoney("-10000", metrics.netValueFiat)
+        assertMoney("50000", metrics.netValueFiat, "负持仓市值不计入净值")
+        assertMoney("-60000", metrics.anomalousExcludedFiat, "被排除的负市值单列（供界面提示）")
         val btc = metrics.holdings.getValue(Ev.BTC)
-        assertTrue(btc.anomalous)
-        assertMoney("-60000", assertNotNull(btc.marketValue))
+        assertTrue(btc.anomalous, "币种行仍标记「持仓异常」")
+        assertMoney("-60000", assertNotNull(btc.marketValue), "行内仍展示负市值（透明可见）")
         assertMoney("-60000", assertNotNull(btc.floatPnlFiat), "0 成本基数的负持仓浮亏按全额市值计")
         assertNull(btc.floatPnlPercent)
         assertTrue(metrics.missingPricedCoins.isEmpty())
+    }
+
+    /** D29 边界：负持仓的**可用现金**同样不计入（否则现金口径与净值口径分裂）。 */
+    @Test
+    fun `anomalous negative cash coin is excluded from available cash too`() {
+        val outcome = ReplayEngine.replay(
+            listOf(
+                Ev.deposit(1, Ev.USDT, "1000", "1000"),
+                // 导入路径：无对应入金的稳定币卖出 → usd-coin 负持仓
+                Ev.sell(2, "usd-coin", Ev.USDT, price = "1", qty = "400", source = RecordSource.Csv),
+            ),
+            NegativePolicy.LENIENT,
+        )
+        val metrics = PortfolioCalculator(cashCoinIds = setOf("tether", "usd-coin")).compute(
+            outcome,
+            mapOf(Ev.USDT to "1".bd(), "usd-coin" to "1".bd()),
+        )
+        assertMoney("1400", metrics.netValueFiat, "现金 1,400；usd-coin −400 不计入")
+        assertMoney("1400", metrics.availableCashFiat, "负持仓币不计入可用现金")
+        assertMoney("-400", metrics.anomalousExcludedFiat)
     }
 
     @Test

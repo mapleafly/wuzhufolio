@@ -10,7 +10,7 @@ import java.math.BigDecimal
  * - fiat                = 基础法币（ISO 代码，默认 "USD"；与 M7 起交易/资金折算读取的既有键同源）；
  * - display.precision   = 默认精度档（[PrecisionPreset.storageValue]，M12 数字格式化消费）；
  * - login.username.enum = 登录页用户名枚举开关（"on"/"off"，默认 on；M2 起登录页读取）；
- * - cash.coins          = 稳定币白名单用户扩展（JSON 字符串数组，cg_id；默认白名单固定于
+ * - cash.coins          = 现金类币种白名单用户扩展（JSON 字符串数组，cg_id；默认项固定于
  *                         [CASH_COIN_DEFAULTS]，扩展部分可移除——PRD「查看并扩展」语义）；
  * - small.threshold     = 小额币种阈值（基础法币数值串，>= 0；**0 = 不启用**小额归并；仪表盘
  *                         「其他」归并，M12 消费。自由数值——用户规模差异大（总额百元级到百万元级），
@@ -24,8 +24,12 @@ import java.math.BigDecimal
  * （顶栏与设置双向同步 + 持久化），不经本用例（保持「状态在 ViewModel、持久化在引导层」单一通路）。
  */
 
-/** 稳定币白名单默认值（PRD §7.2 模块 6.1：USDT/USDC/DAI/TUSD；与引擎 [PortfolioCalculator] 现金口径同源）。 */
-val CASH_COIN_DEFAULTS: Set<String> = setOf("tether", "usd-coin", "dai", "true-usd")
+/**
+ * 现金类币种白名单**默认值 = 仅 USDT**（**D28**，2026-09-13 人工拍板）：固定项不可移除；
+ * 其余稳定币由用户经设置增删（扩展项计入「可用现金」口径，但**按市价折算**——
+ * 1:1 锚定集合固定 = USDT，见 [com.wuzhufolio.domain.engine.PortfolioCalculator.ANCHORED_COIN_IDS]）。
+ */
+val CASH_COIN_DEFAULTS: Set<String> = setOf("tether")
 
 /** 基础法币候选（原型设置页下拉口径：USD/EUR/CNY）。 */
 val BASE_FIAT_OPTIONS: List<String> = listOf("USD", "EUR", "CNY")

@@ -14,7 +14,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 /**
- * 自选实现（D21）：settings 全局行 watch.coins（JSON [cg_id]）；未写入 → 默认种子（稳定币白名单）。
+ * 自选实现（D21）：settings 全局行 watch.coins（JSON [cg_id]）；未写入 → 默认种子（仅 USDT，2026-09-13 拍板）。
  * 目录解析在每次读取时进行（缺行跳过）；目录行顺序 = 存储序。
  */
 class SettingsMarketWatchService(
@@ -27,7 +27,7 @@ class SettingsMarketWatchService(
 
     override suspend fun watchCoins(): List<CatalogCoin> {
         val stored = readStoredIds()
-        val ids = stored ?: PortfolioCalculator.DEFAULT_CASH_COIN_IDS.toList()
+        val ids = stored ?: MarketConfig.DEFAULT_WATCH_SEED
         val out = mutableListOf<CatalogCoin>()
         for (cgId in ids) {
             val coin = catalog.getByCgId(cgId)
@@ -40,7 +40,7 @@ class SettingsMarketWatchService(
     }
 
     override suspend fun addCoin(cgId: String) {
-        val current = readStoredIds() ?: PortfolioCalculator.DEFAULT_CASH_COIN_IDS.toList()
+        val current = readStoredIds() ?: MarketConfig.DEFAULT_WATCH_SEED
         if (cgId in current) return
         require(current.size < MarketWatchService.WATCH_LIMIT) {
             "watch list is full (${MarketWatchService.WATCH_LIMIT})"
@@ -49,7 +49,7 @@ class SettingsMarketWatchService(
     }
 
     override suspend fun removeCoin(cgId: String) {
-        val current = readStoredIds() ?: PortfolioCalculator.DEFAULT_CASH_COIN_IDS.toList()
+        val current = readStoredIds() ?: MarketConfig.DEFAULT_WATCH_SEED
         persist(current.filterNot { it == cgId })
     }
 

@@ -37,7 +37,12 @@ sealed interface ExchangeError {
 }
 
 /** 平台级同步异常（数据层 HTTP 客户端内部抛用；用例层以结果类型呈现，见 [ExchangeSyncOutcome]）。 */
-class ExchangeApiException(val kind: ExchangeError) : RuntimeException(kind.toString())
+/**
+ * 交易所客户端异常（[kind] = 类型化错误）。[cause] 保留底层异常，口径同
+ * [com.wuzhufolio.domain.market.MarketApiException]（P5-2：不进用户文案，仅日志/诊断定位）。
+ */
+class ExchangeApiException(val kind: ExchangeError, cause: Throwable? = null) :
+    RuntimeException(kind.toString(), cause)
 
 /** 同名 API 密钥已存在（同一账户同一交易所内别名唯一，data-model §2.2 UNIQUE 约束）。 */
 class DuplicateApiKeyNameException(val name: String) : RuntimeException("duplicate api key name: " + name)

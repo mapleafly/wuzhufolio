@@ -137,6 +137,14 @@ class PortfolioViewModel(
     private val _state = MutableStateFlow(PortfolioUiState())
     val state: StateFlow<PortfolioUiState> = _state.asStateFlow()
 
+    /** 自动补价的冷却时刻（毫秒；见 [maybeAutoPrice]）。 */
+    private var lastAutoPriceAt: Long = 0L
+
+    private companion object {
+        /** 缺价币自动补价的最小间隔（毫秒）：防「上游确无行情」时的重复刷新。 */
+        const val AUTO_PRICE_COOLDOWN_MILLIS: Long = 60_000
+    }
+
     init {
         reload()
     }
@@ -154,11 +162,29 @@ class PortfolioViewModel(
                         threshold = settings.smallThreshold,
                     )
                 }
+                maybeAutoPrice(snapshot)
             } catch (t: Throwable) {
                 _state.update { it.copy(loading = false) }
                 toast(WzToastKind.Failure, t.message ?: portfolioStrings.loading)
             }
         }
+    }
+
+    /**
+     * 缺价币自动补价（P5 人工验收回归，2026-09-13）：录入买入后若该币尚无本地价格快照，
+     * 它会**不计入净值** → 仪表盘立刻显示假亏损（实测：增资 100,000 后买入 1 BTC@50,000，
+     * 因 BTC 无行情，ROI 卡显示 **−50%**）。
+     *
+     * 这里在聚合页加载时若发现缺价持仓，**自动补价一次**（静默，不弹 toast；刷新币集 = 持仓 ∪ 自选）。
+     * 60s 冷却 + 单飞（[MarketRefreshService] 内部 Mutex）：上游确实无该币行情时不会形成刷新风暴。
+     */
+    private fun maybeAutoPrice(snapshot: PortfolioSnapshot) {
+        val missing = snapshot.rows.filter { !it.priced }.map { it.cgId }
+        if (missing.isEmpty()) return
+        val now = System.currentTimeMillis()
+        if (now - lastAutoPriceAt < AUTO_PRICE_COOLDOWN_MILLIS) return
+        lastAutoPriceAt = now
+        refreshQuotes(silent = true)
     }
 
     fun toggleSort(key: AssetSortKey) {
@@ -172,7 +198,9 @@ class PortfolioViewModel(
     }
 
     /** 手动刷新行情（PRD 故事 3.2-6）：刷新当前持仓币种 → 重载快照。 */
-    fun refreshQuotes() {
+    fun refreshQuotes() = refreshQuotes(silent = false)
+
+    private fun refreshQuotes(silent: Boolean) {
         if (_state.value.refreshing) return
         val coins = _state.value.snapshot?.rows?.map { it.cgId }.orEmpty()
         if (coins.isEmpty()) {
@@ -188,6 +216,7 @@ class PortfolioViewModel(
                     fiats = listOf(_state.value.fiat),
                 )
                 reload()
+                if (silent) return@launch
                 val error: MarketRefreshError? = result.error
                 if (error != null) {
                     toast(WzToastKind.Failure, MarketCopy.errorText(error))

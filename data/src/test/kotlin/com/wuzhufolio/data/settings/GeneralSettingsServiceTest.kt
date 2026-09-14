@@ -50,7 +50,7 @@ class GeneralSettingsServiceTest {
                 assertTrue(view.usernameEnumOn)
                 assertTrue(view.proxyEnabled)
                 assertEquals(0, BigDecimal.ZERO.compareTo(view.smallThreshold), "默认 0 = 不启用")
-                assertEquals(setOf("tether", "usd-coin", "dai", "true-usd"), view.cashCoinIds)
+                assertEquals(setOf("tether"), view.cashCoinIds, "D28：现金白名单默认仅 USDT")
             }
         }
     }
@@ -108,8 +108,8 @@ class GeneralSettingsServiceTest {
                 assertFailsWith<IllegalArgumentException> { env.service.removeCashCoin("tether") }
                 env.service.removeCashCoin("first-digital-usd")
                 assertTrue("first-digital-usd" !in env.service.view().cashCoinIds)
-                // 默认集合不受移除影响
-                assertEquals(setOf("tether", "usd-coin", "dai", "true-usd"), env.service.view().cashCoinIds)
+                // 默认集合不受移除影响（D28：默认 = 仅 USDT，固定不可移除）
+                assertEquals(setOf("tether"), env.service.view().cashCoinIds)
             }
         }
     }

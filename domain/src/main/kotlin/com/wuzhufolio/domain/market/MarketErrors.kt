@@ -32,5 +32,12 @@ sealed interface MarketRefreshError {
 }
 
 /** 平台级 HTTP 异常（数据层内部/边缘使用；用例层一律经 [MarketRefreshResult.error] 呈现）。 */
-class MarketApiException(val kind: MarketRefreshError) :
-    RuntimeException(kind.toString())
+/**
+ * 行情客户端异常（[kind] = 类型化错误，UI 文案只消费它）。
+ *
+ * [cause] 保留底层异常（超时/TLS/限流响应解析等）：**不参与用户可见文案**，仅供日志与诊断报告定位
+ * （P5-2，2026-09-13 人工拍板 C1）——此前 cause 被吞，真实联调只看到 `Network(source=COINGECKO)`，
+ * 无法区分超时、TLS 抖动还是限流。
+ */
+class MarketApiException(val kind: MarketRefreshError, cause: Throwable? = null) :
+    RuntimeException(kind.toString(), cause)

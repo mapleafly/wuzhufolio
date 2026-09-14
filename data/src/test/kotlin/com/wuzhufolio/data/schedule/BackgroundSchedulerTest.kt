@@ -145,6 +145,28 @@ class BackgroundSchedulerTest {
         assertTrue(seen.none { it is SchedulerEvent.RateLimitFrequent }, "成功不提示限流")
     }
 
+    // ---- P5 人工验收回归（2026-09-13）：启动即刷新一次 ----
+
+    @Test
+    fun `market loop refreshes immediately at startup without waiting a full interval`() = runBlocking {
+        // 全新安装场景：若首轮刷新要等满一个频率间隔（默认 5 分钟），期间 coins 目录为空
+        // → 资金/交易录入报「币种未收录」（主流程阻断）
+        val sources = FakeSources().apply { frequency = 30 } // 故意设大：若等间隔，本测试会超时
+        val s = scheduler(sources)
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            s.start(scope)
+            withTimeout(5_000) {
+                while (sources.marketCalls == 0) delay(20)
+            }
+            assertEquals(1, sources.marketCalls, "启动后应立即执行一次行情刷新")
+            assertEquals(false, sources.lastManual, "启动刷新按非手动口径（额度/退避一致）")
+        } finally {
+            s.stop()
+            scope.cancel()
+        }
+    }
+
     @Test
     fun `repeated 429 emits frequent hint and keeps backoff window`() = runBlocking {
         var clock = Instant.parse("2026-09-10T00:00:00Z")

@@ -152,7 +152,7 @@ class BinanceAdapter(
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
-        throw ExchangeApiException(ExchangeError.Network)
+        throw ExchangeApiException(ExchangeError.Network, e)
     }
 
     private var timeOffsetMillis: Long = 0L
@@ -210,7 +210,7 @@ class BinanceAdapter(
         return try {
             Json.parseToJsonElement(bodyAsText())
         } catch (e: Exception) {
-            throw ExchangeApiException(ExchangeError.Http(status.value))
+            throw ExchangeApiException(ExchangeError.Http(status.value), e)
         }
     }
 
@@ -273,7 +273,7 @@ class BinanceAdapter(
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
-        throw ExchangeApiException(ExchangeError.Network)
+        throw ExchangeApiException(ExchangeError.Network, e)
     }
 
     companion object {

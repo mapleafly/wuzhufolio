@@ -109,7 +109,13 @@ object AppBootstrap {
     class SessionRuntime internal constructor(
         val authService: AccountService,
         private val rememberStore: RememberMeStore,
-        private val sessions: ActiveSessionStore,
+        /**
+         * 活动会话持有器（当前账户 + 内存 DEK）。公开供**装配层之外**的同一进程组件复用：
+         * 数据层服务（M6 同步 / M8 校准）按构造参数取会话，P5 集成联调在真实组合根上装配同类服务时
+         * 必须拿到**同一个**持有器实例（另起一个即拿不到已登录账户的 DEK）。写入路径仍只经
+         * [authService] 的登录/登出/切换/改密，[close] 统一擦除。
+         */
+        val sessions: ActiveSessionStore,
     ) {
         fun close() {
             // M13 T13.1 安全自查加固：进程退出路径此前只关存储、未擦内存 DEK
@@ -240,7 +246,17 @@ object AppBootstrap {
             ),
         )
 
-        val market = MarketServicesBundle.run(gate, settings, logger, proxyRuntime.selector)
+        // P5 人工验收回归（2026-09-13）：行情刷新的默认币集 = **持仓 ∪ 自选**（M5 模块记录 §6 登记的
+        // 「持仓币集注入点」遗留）。定时刷新/设置页「立即刷新」不传币集，此前回退到开箱 4 币 →
+        // 用户买入的新币永远拿不到行情（看板长期「无行情」）。聚合页服务在行情束之后装配，故晚绑定。
+        var defaultRefreshCoins: suspend () -> List<String> = { emptyList() }
+        val market = MarketServicesBundle.run(
+            gate,
+            settings,
+            logger,
+            proxyRuntime.selector,
+            defaultCoins = { defaultRefreshCoins() },
+        )
         val exchange = ExchangeServicesBundle.run(
             gate,
             settings,
@@ -258,6 +274,15 @@ object AppBootstrap {
             exchange = exchange,
             cashCoinIds = { (generalSettings as DefaultGeneralSettingsService).cashCoinIds() },
         )
+        // 晚绑定落地：默认币集 = 当前持仓（聚合页快照行）∪ 行情页自选；两者皆空（全新账户）→ 空集，
+        // 编排层回退开箱 4 币（首次刷新链路可用）。
+        defaultRefreshCoins = {
+            val holdings = runCatching { ledger.portfolioService.snapshot().rows.map { it.cgId } }
+                .getOrDefault(emptyList())
+            val watch = runCatching { market.marketWatchService.watchCoins().map { it.cgId } }
+                .getOrDefault(emptyList())
+            (holdings + watch).distinct()
+        }
         val backup = BackupServicesBundle.run(
             gate,
             settings,
@@ -442,6 +467,8 @@ object AppBootstrap {
                 logger: Logger,
                 /** M11 T11.3：系统代理 selector（null = OkHttp 默认；测试装配可不传）。 */
                 proxySelector: java.net.ProxySelector? = null,
+                /** P5：默认币集（持仓 ∪ 自选）晚绑定提供者——聚合页服务在行情束之后装配。 */
+                defaultCoins: suspend () -> List<String> = { emptyList() },
             ): MarketServicesBundle {
                 val deviceKeyring: MasterKeyStore =
                     KeychainMasterKeyStore(KeychainAccounts.SERVICE, KeychainAccounts.DEVICE_KEY)
@@ -465,6 +492,7 @@ object AppBootstrap {
                     settings = settings,
                     quota = SettingsQuotaLedger(settings),
                     rankCache = rankCache,
+                    defaultCoins = defaultCoins,
                     logger = logger,
                 )
                 val marketSettingsService: MarketSettingsService = DefaultMarketSettingsService(deviceStore, settings)
@@ -564,7 +592,8 @@ object AppBootstrap {
                 sessions: ActiveSessionStore,
                 catalog: SqlCoinCatalog,
                 exchange: ExchangeServicesBundle,
-                /** M10 T10.1：稳定币白名单运行期读取（设置扩展 → 事件构造 USD 锚定 + 资金总览可用现金）。 */
+                /** M10 T10.1 / D28：现金类币种白名单运行期读取（默认 USDT + 设置扩展项）——仅用于
+                 * 「可用现金」口径（资金总览/组合指标）；1:1 锚定集合固定 = USDT（事件构造层内部默认）。 */
                 cashCoinIds: () -> Set<String> = {
                     com.wuzhufolio.domain.engine.PortfolioCalculator.DEFAULT_CASH_COIN_IDS
                 },
@@ -574,7 +603,9 @@ object AppBootstrap {
                 val fundRepository = FundFlowRepository(gate)
                 val reconRepository = ReconciliationRepository(gate)
                 val snapshots = PriceSnapshotRepository(gate)
-                val eventBuilder = TransactionEventBuilder(catalog, snapshots, cashCoinIds)
+                // D28：事件构造层只接**锚定集合**（默认且固定 = 仅 USDT）；现金白名单（可增删）仅用于
+                // 「可用现金」口径（PortfolioCalculator / 资金总览），两者不再混用
+                val eventBuilder = TransactionEventBuilder(catalog, snapshots)
                 val assembler = LedgerEventAssembler(catalog, eventBuilder)
                 val service: TransactionLedgerService = DefaultTransactionLedgerService(
                     sessions = sessions,

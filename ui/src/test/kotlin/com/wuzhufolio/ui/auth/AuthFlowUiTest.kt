@@ -15,6 +15,7 @@ import androidx.compose.ui.test.v2.runComposeUiTest
 import com.wuzhufolio.domain.settings.PnlColorScheme
 import com.wuzhufolio.domain.settings.ThemeMode
 import kotlin.test.Test
+import kotlin.test.assertEquals
 
 /**
  * M2 T2.5 登录链路 UI 冒烟（假服务 + 离屏渲染）：首启创建 → 风险确认硬门控 → 向导 → 稍后进主壳 →
@@ -23,13 +24,17 @@ import kotlin.test.Test
 @OptIn(ExperimentalTestApi::class)
 class AuthFlowUiTest {
 
-    private fun ComposeUiTest.setGate(service: FakeAuthService) {
+    private fun ComposeUiTest.setGate(
+        service: FakeAuthService,
+        onSessionActive: ((Int) -> Unit)? = null,
+    ) {
         setContent {
             AuthGate(
                 authService = service,
                 themeMode = ThemeMode.LIGHT,
                 pnlScheme = PnlColorScheme.GREEN_UP,
                 usernameEnumEnabled = { true },
+                onSessionActive = onSessionActive,
             )
         }
     }
@@ -86,6 +91,30 @@ class AuthFlowUiTest {
         onNodeWithTag("lg-pw").performTextInput("password1A")
         onNodeWithTag("lg-btn").performClick()
         waitFor("main-shell")
+    }
+
+    /**
+     * P5 修复轮（2026-09-13 人工拍板 C1）：会话激活即回调一次 —— 组合根据此触发
+     * 「登录后立即同步交易数据 + 刷新行情」（PRD 故事 4.2）；登出（无会话）不得触发。
+     */
+    @Test
+    fun `session activation invokes the auto-sync callback exactly once per account`() = runComposeUiTest {
+        val service = FakeAuthService(listOf("Alex" to "password1A"))
+        val activated = mutableListOf<Int>()
+        setGate(service, onSessionActive = { activated += it })
+        waitFor("login-title")
+        assertEquals(emptyList(), activated, "登录前不得触发")
+
+        onNodeWithTag("lg-pw").performTextInput("password1A")
+        onNodeWithTag("lg-btn").performClick()
+        waitFor("main-shell")
+        assertEquals(1, activated.size, "登录成功后应回调一次")
+
+        onNodeWithTag("acct-chip").performClick()
+        waitFor("acct-menu")
+        onNodeWithTag("acct-logout", useUnmergedTree = true).performClick()
+        waitFor("login-title")
+        assertEquals(1, activated.size, "登出（无会话）不触发回调")
     }
 
     @Test

@@ -8,7 +8,7 @@ import java.time.Instant
  * D21 行情浏览页契约（决策：docs/dev/decisions/D21-行情浏览页-范围增量.md）。
  *
  * 自选为展示偏好：settings 全局行 `watch.coins`（JSON 数组 [cg_id]，上限 [WATCH_LIMIT]）持久化；
- * **未写入过**时返回默认种子（稳定币白名单——引擎口径 PortfolioCalculator.DEFAULT_CASH_COIN_IDS 同源）；
+ * **未写入过**时返回默认种子（= 仅 USDT，与现金白名单默认值 D28 对齐；用户可自行添加其他币种）；
  * 已写入（可为空数组）按存储返回。币展示信息（symbol/name）每次经 coins 目录解析——目录缺行显示时跳过
  * （解析期清理，不静默改写存储；目录恢复后重新出现）。
  */

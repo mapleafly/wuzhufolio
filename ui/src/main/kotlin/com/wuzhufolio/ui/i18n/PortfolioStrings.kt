@@ -62,6 +62,18 @@ interface PortfolioStrings {
 
     /** 仪表盘/资产列表顶部警示（N 个币种的历史负持仓使成本口径不可靠）。 */
     fun costUnreliableNotice(count: Int): String
+
+    /**
+     * 持仓异常币市值排除提示（D29，2026-09-13 人工拍板方案 B）：负持仓币市值不计入净值/可用现金，
+     * 必须显式告知用户被排除的金额（避免被读成「净值虚高」）。[amount] = 已格式化金额（含符号）。
+     */
+    fun anomalousExcludedNotice(count: Int, amount: String): String
+
+    /**
+     * 缺价币未计入提示（P5 人工验收回归）：无现价的持仓不计入净值与 ROI，
+     * 会让卡片显示「假亏损」（实测：买入后未刷新行情 → ROI −50%）。必须显式告知用户原因。
+     */
+    fun unpricedNotice(count: Int): String
     val estimatedBadge: String
     fun coverage(covered: Int, total: Int): String
     val mixedSource: String
@@ -170,6 +182,12 @@ object PortfolioStringsZh : PortfolioStrings {
             "补录缺失的入金/早期持仓，或做一次持仓校准后，才会与真实成本一致"
     override fun costUnreliableNotice(count: Int) =
         "⚠ " + count + " 个币种的历史持仓曾为负（账本缺少入金或早期记录），其中平均成本与已实现盈亏不可靠"
+    override fun anomalousExcludedNotice(count: Int, amount: String) =
+        "⚠ " + count + " 个币种持仓为负（导入路径缺入金/早期记录），其市值 " + amount +
+            " 未计入净值与可用现金；补录增资、补导入历史或执行持仓校准后自动恢复"
+    override fun unpricedNotice(count: Int) =
+        "⚠ " + count + " 个币种暂无行情，其市值未计入净值与 ROI（已自动尝试补价；" +
+            "也可点「刷新行情」重试，长时间无价说明行情源未收录该币）"
     override val estimatedBadge = "估算中"
     override fun coverage(covered: Int, total: Int) = "覆盖 " + covered + "/" + total + " 个币种"
     override val mixedSource = "混合数据源"
@@ -278,6 +296,14 @@ object PortfolioStringsEn : PortfolioStrings {
     override fun costUnreliableNotice(count: Int) =
         "⚠ " + count + " coins went negative at some point (missing deposits or earlier records); " +
             "their average cost and realized P&L are not reliable"
+    override fun anomalousExcludedNotice(count: Int, amount: String) =
+        "⚠ " + count + " coins are negative (imported history without the matching deposits/earlier trades); " +
+            "their market value " + amount + " is excluded from net value and available cash — record the " +
+            "missing deposits, import the missing history or run a calibration to restore it"
+    override fun unpricedNotice(count: Int) =
+        "⚠ " + count + " coin(s) have no market price yet, so their value is excluded from net value and ROI " +
+            "(auto-pricing already attempted; tap Refresh quotes to retry — a persistent miss means the " +
+            "market data source does not track that coin)"
     override val estimatedBadge = "Estimated"
     override fun coverage(covered: Int, total: Int) = "Covers " + covered + "/" + total + " coins"
     override val mixedSource = "Mixed sources"

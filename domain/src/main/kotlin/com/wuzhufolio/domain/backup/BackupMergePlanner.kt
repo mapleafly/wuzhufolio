@@ -108,14 +108,14 @@ object BackupMergePlanner {
         val inserts = ArrayList<CproTransaction>()
         for (tx in rows) {
             val orderKey = txOrderKey(tx)
-            val seenInPayload = tx.uuid in seenUuids || orderKey in seenOrderKeys
+            val seenInPayload = tx.uuid in seenUuids || (orderKey != null && orderKey in seenOrderKeys)
             val seenInLocal = !ctx.fullOverwrite &&
-                (tx.uuid in existing.txUuids || (tx.exchangeOrderId != null && orderKey in existing.txOrderKeys))
+                (tx.uuid in existing.txUuids || (orderKey != null && orderKey in existing.txOrderKeys))
             val missingLegs = listOf(tx.baseCgId, tx.quoteCgId).filter { it !in ctx.resolvable }
             when {
                 seenInPayload || seenInLocal -> {
                     seenUuids += tx.uuid
-                    seenOrderKeys += orderKey
+                    orderKey?.let { seenOrderKeys += it }
                     ctx.duplicateSkipped++
                 }
                 missingLegs.isNotEmpty() -> {
@@ -124,7 +124,7 @@ object BackupMergePlanner {
                 }
                 else -> {
                     seenUuids += tx.uuid
-                    seenOrderKeys += orderKey
+                    orderKey?.let { seenOrderKeys += it }
                     inserts += tx
                 }
             }
@@ -235,8 +235,17 @@ object BackupMergePlanner {
         return inserts
     }
 
-    private fun txOrderKey(tx: CproTransaction): String =
-        tx.exchange.trim().uppercase() + "|" + (tx.exchangeOrderId ?: "")
+    /**
+     * 交易所订单去重键；**仅当存在订单号时非空**。
+     *
+     * 手动 / CSV 交易的 `exchange_order_id` 为 null（M009 列可空）——若把 null 规约为同一键
+     * （`"BINANCE|"`），则**同一交易所的全部手动交易会互相判重**：增量合并与全量覆盖都只导入第一笔，
+     * 其余被静默计入 `duplicateSkipped`（P5 人工验收实测：跨账户恢复 3 笔只剩 1 笔）。
+     * 无订单号的行一律只以 `uuid` 判重（与类 KDoc 的「uuid → 交易所+订单号」优先级一致）。
+     */
+    internal fun txOrderKey(tx: CproTransaction): String? =
+        tx.exchangeOrderId?.trim()?.takeIf { it.isNotEmpty() }
+            ?.let { tx.exchange.trim().uppercase() + "|" + it }
 
     /** 快照幂等桶键（同 M006「同小时末条」桶口径）；时间非法 = 无法定位桶，按损坏行跳过。 */
     internal fun snapshotBucket(snapshot: CproSnapshot): String? {

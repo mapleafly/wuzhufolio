@@ -195,15 +195,25 @@ class BackgroundScheduler(
     // ---- 循环 ----
 
     private suspend fun marketLoop() {
+        var firstRun = true
         while (currentCoroutineContext().isActive) {
-            val waitMillis = marketDelayMillis()
-            val kicked = withTimeoutOrNull(waitMillis) { marketKick.receive() } != null
-            if (kicked && inBackoffWindow()) {
-                logger.info("market refresh kick ignored | within 429 backoff window")
-                continue
+            var manual = false
+            if (firstRun) {
+                // P5 人工验收回归（2026-09-13）：**启动即刷新一次**。此前循环先等一个刷新间隔
+                // （默认 5 分钟）才首次执行 → 全新安装的头几分钟 coins 目录为空，资金/交易录入
+                // 直接报「币种未收录」（主流程阻断）。启动即刷新使目录与持仓价尽快就绪
+                // （PRD §9.2「窗口恢复可见时立即刷新一次」同源口径）。
+                firstRun = false
+            } else {
+                val waitMillis = marketDelayMillis()
+                manual = withTimeoutOrNull(waitMillis) { marketKick.receive() } != null
+                if (manual && inBackoffWindow()) {
+                    logger.info("market refresh kick ignored | within 429 backoff window")
+                    continue
+                }
             }
             onTick()
-            runCatching { refreshMarketOnce(manual = kicked) }
+            runCatching { refreshMarketOnce(manual = manual) }
                 .onFailure { logger.warn("market refresh tick failed: " + it.javaClass.simpleName) }
         }
     }

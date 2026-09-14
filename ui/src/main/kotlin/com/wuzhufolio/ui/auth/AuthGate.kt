@@ -83,6 +83,11 @@ fun AuthGate(
         com.wuzhufolio.domain.proxy.ProxyStatus.DEFAULT,
     /** M12：状态栏数据源（同步状态/数据源/额度/备份提醒/断链）。 */
     shellStatus: ShellStatus = ShellStatus(),
+    /**
+     * P5：**会话激活回调**（登录 / 建户 / 记住我恢复 / 切换账户成功时调用一次，参数 = 账户 id）。
+     * 组合根据此触发一次交易数据同步与行情刷新（PRD 故事 4.2 启动时同步口径）。
+     */
+    onSessionActive: ((Int) -> Unit)? = null,
 ) {
     val vm = remember { AuthGateViewModel(authService).also { it.start() } }
     DisposableEffect(vm) {
@@ -95,6 +100,14 @@ fun AuthGate(
     // M12 修复轮：主壳 VM 提到门控层持有——语言/主题的运行期真源在 VM，门控层需跟随（否则登出回登录页
     // 会退回启动期语言）。会话变化（登录/登出/切换账户）时按账户 id 重建。
     val sessionKey = state.session?.account?.id
+
+    // P5 修复轮（2026-09-13 人工拍板 C1）：**会话激活即回调一次**——组合根据此触发一次交易数据同步
+    // 与行情刷新（PRD 故事 4.2「应用启动时和固定时间间隔自动执行交易数据同步」）。触发点覆盖
+    // 登录 / 建户 / 记住我免密恢复 / 切换账户；登出（sessionKey → null）不触发。
+    LaunchedEffect(sessionKey) {
+        sessionKey?.let { onSessionActive?.invoke(it) }
+    }
+
     val shellViewModel = remember(sessionKey) {
         state.session?.let {
             ShellViewModel(

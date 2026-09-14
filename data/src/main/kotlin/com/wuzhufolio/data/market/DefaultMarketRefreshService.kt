@@ -45,6 +45,15 @@ class DefaultMarketRefreshService(
     private val quota: SettingsQuotaLedger,
     private val rankCache: RefreshableRankProvider,
     private val clock: () -> Instant = Instant::now,
+    /**
+     * 默认币集提供者：调用方未指定 `coins` 时使用（**持仓 ∪ 自选**，组合根注入）。
+     *
+     * P5 人工验收回归（2026-09-13）：定时刷新与设置页「立即刷新」此前传空币集 → 回退到
+     * [MarketConfig.DEFAULT_FALLBACK_COINS]（仅 4 个现金白名单币），**用户买入的新币永远拿不到行情**
+     * （看板/资产列表长期停在「无行情」，只有顶栏/行情页手动刷新才会定价）。此处落地 M5 模块记录 §6
+     * 登记的「持仓币集注入点」遗留；提供者返回空（全新账户/无持仓）时仍回退开箱 4 币，行为不变。
+     */
+    private val defaultCoins: suspend () -> List<String> = { emptyList() },
     private val logger: Logger = LoggerFactory.getLogger(DefaultMarketRefreshService::class.java),
 ) : MarketRefreshService {
 
@@ -70,13 +79,17 @@ class DefaultMarketRefreshService(
                 refreshDirectory(keys)
             } catch (e: MarketApiException) {
                 directoryFailure = e.kind
-                logger.warn("directory refresh failed: {}", e.kind)
+                // P5-2：类型化错误进模型，底层原因只进日志（脱敏漏斗兜底）——真实联调据此区分超时/TLS/限流
+                logger.warn("directory refresh failed: {} | cause={}", e.kind, e.causeChain())
             } catch (t: Throwable) {
                 directoryFailure = MarketRefreshError.Internal(t.message ?: t.javaClass.simpleName)
                 logger.warn("directory refresh failed (internal): {}", t.message)
             }
         }
-        val targets = (coins.ifEmpty { MarketConfig.DEFAULT_FALLBACK_COINS }).distinct()
+        val targets = (
+            coins.ifEmpty { defaultCoins() }
+                .ifEmpty { MarketConfig.DEFAULT_FALLBACK_COINS }
+            ).distinct()
         val result = fetchCurrentWithFallback(
             targets, fiats.ifEmpty { defaultFiats() }, keys, directoryFailure,
         )
@@ -137,6 +150,7 @@ class DefaultMarketRefreshService(
                 quotes.forEach { pending.remove(it.coin) }
             } catch (e: MarketApiException) {
                 primaryError = e.kind
+                logger.warn("market current price failed (primary): {} | cause={}", e.kind, e.causeChain())
             } finally {
                 // 月度计数按「发起请求」口径（失败也计——PRD：含当前价刷新的月度调用计数）
                 if (cgKey != null) quota.record(QuotaCallKind.CURRENT)
@@ -162,6 +176,7 @@ class DefaultMarketRefreshService(
                     }
                 } catch (e: MarketApiException) {
                     fallbackError = e.kind
+                    logger.warn("market current price failed (fallback): {} | cause={}", e.kind, e.causeChain())
                 } finally {
                     // needFallback 分支已保证 cmcKey 非空（智能推导）；月度计数按发起请求口径
                     quota.record(QuotaCallKind.CURRENT)
@@ -322,5 +337,14 @@ class DefaultMarketRefreshService(
         const val RANK_PAGE_SIZE = 250
         const val CMC_MAP_MAX_PAGE = 4
     }
+    /**
+     * 底层异常链摘要（P5-2，2026-09-13 人工拍板 C1）：仅入日志用于定位（超时 / TLS / 被限流的响应），
+     * **不进入 [MarketRefreshError] 与用户文案**。消息写入前经 logback 脱敏漏斗（%msg → LogRedactor）。
+     */
+    private fun Throwable.causeChain(): String =
+        generateSequence(this) { it.cause }
+            .take(4)
+            .joinToString(" <- ") { t ->
+                t.javaClass.simpleName + (t.message?.takeIf { it.isNotBlank() }?.let { ": " + it } ?: "")
+            }
 }
-

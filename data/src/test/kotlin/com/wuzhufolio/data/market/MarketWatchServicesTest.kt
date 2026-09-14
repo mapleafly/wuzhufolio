@@ -20,12 +20,13 @@ import kotlin.test.assertTrue
 class MarketWatchServicesTest {
 
     @Test
-    fun `default seed is the stablecoin whitelist when no custom list written`() = runBlocking {
+    fun `default seed is usdt only when no custom list written`() = runBlocking {
         MarketTestEnv().use { env ->
             val service = SettingsMarketWatchService(env.settings, env.catalog)
             assertFalse(service.hasCustomList())
             val coins = service.watchCoins()
-            assertEquals(listOf("tether", "usd-coin", "dai", "true-usd"), coins.map { it.cgId })
+            // 2026-09-13 人工拍板：开箱种子由 4 个主流稳定币收敛为仅 USDT
+            assertEquals(listOf("tether"), coins.map { it.cgId })
         }
     }
 
@@ -35,12 +36,12 @@ class MarketWatchServicesTest {
             val service = SettingsMarketWatchService(env.settings, env.catalog)
             service.addCoin("bitcoin")
             service.addCoin("ethereum")
+            service.addCoin("usd-coin")
             service.removeCoin("tether") // 从默认种子移除（写入自定义列表）
             assertTrue(service.hasCustomList())
 
             val reloaded = SettingsMarketWatchService(env.settings, env.catalog)
-            assertEquals(listOf("usd-coin", "dai", "true-usd", "bitcoin", "ethereum"), reloaded.watchCoins().map {
-            it.cgId })
+            assertEquals(listOf("bitcoin", "ethereum", "usd-coin"), reloaded.watchCoins().map { it.cgId })
         }
     }
 
@@ -50,7 +51,7 @@ class MarketWatchServicesTest {
             val service = SettingsMarketWatchService(env.settings, env.catalog)
             service.addCoin("bitcoin")
             service.addCoin("bitcoin")
-            assertEquals(5, service.watchCoins().size, "默认 4 + 1 不重复")
+            assertEquals(2, service.watchCoins().size, "默认 1（USDT）+ 1 不重复")
             repeat(45) { i -> service.addCoin("extra-coin-$i") }
             assertEquals(MarketWatchService.WATCH_LIMIT, service.watchCoins().size)
             assertFailsWith<IllegalArgumentException> { service.addCoin("overflow-coin") }
@@ -64,7 +65,7 @@ class MarketWatchServicesTest {
             service.addCoin("bitcoin")
             service.addCoin("ghost-coin-not-in-catalog")
             val visible = service.watchCoins()
-            assertEquals(listOf("tether", "usd-coin", "dai", "true-usd", "bitcoin"), visible.map { it.cgId })
+            assertEquals(listOf("tether", "bitcoin"), visible.map { it.cgId })
             // 存储保留 ghost（目录恢复后可重新出现）
             val raw = assertNotNull(env.settings.getGlobal(MarketWatchService.SETTINGS_KEY))
             assertTrue(raw.contains("ghost-coin-not-in-catalog"))
@@ -76,7 +77,7 @@ class MarketWatchServicesTest {
         MarketTestEnv().use { env ->
             env.settings.putGlobal(MarketWatchService.SETTINGS_KEY, "{not-json")
             val service = SettingsMarketWatchService(env.settings, env.catalog)
-            assertEquals(4, service.watchCoins().size)
+            assertEquals(1, service.watchCoins().size, "损坏载荷回退默认种子（仅 USDT）")
         }
     }
 

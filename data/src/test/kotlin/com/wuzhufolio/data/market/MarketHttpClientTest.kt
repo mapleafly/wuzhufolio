@@ -122,6 +122,24 @@ class MarketHttpClientTest {
         assertIs<MarketRefreshError.Network>(e.kind)
     }
 
+    /** P5-2（2026-09-13 人工拍板 C1）：底层异常必须经 cause 保留，供日志/诊断定位（不进用户文案）。 */
+    @Test
+    fun `network failure preserves the underlying cause for diagnostics`() = runBlocking {
+        val refusal = java.io.IOException("connection refused")
+        val client = CoingeckoMarketClient(mockClient { throw refusal })
+        val e = assertFailsWith<MarketApiException> {
+            client.fetchCurrent(listOf("bitcoin"), listOf("USD"), apiKey = null)
+        }
+        assertIs<MarketRefreshError.Network>(e.kind)
+        // Ktor 可能再包一层同型 IOException —— 断言「原因链可回溯到原始消息」而非实例同一性
+        val chain = generateSequence(e.cause) { it.cause }.map { it.message.orEmpty() }.toList()
+        assertNotNull(e.cause, "P5-2：Network 错误必须携带 cause")
+        assertTrue(
+            chain.any { it.contains("connection refused") },
+            "原因链应可回溯到原始异常消息，实际链路 = $chain",
+        )
+    }
+
     // ---- CG 历史 / 目录 / 排名 ----
 
     @Test

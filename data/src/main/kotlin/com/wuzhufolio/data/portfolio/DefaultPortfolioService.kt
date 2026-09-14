@@ -58,7 +58,7 @@ import java.time.Instant
  * - 校准历史按 M8 `reconciliation_records` 展示（记录值固定，不随行情重解析）；
  * - 校准入口可见性按 M4 [ReconciliationService.classifySources]（仅单一交易所 API 来源可见）。
  */
-@Suppress("LongParameterList") // 依赖注入袋（会话/三类仓库/目录/快照/设置/装配器/现价兜底/白名单/时钟）固有
+@Suppress("LongParameterList", "TooManyFunctions") // 依赖注入袋（会话/三类仓库/目录/快照/设置/装配器/现价兜底/白名单/时钟）固有；动作面 = 快照/详情 + 取数/装配私有段
 class DefaultPortfolioService(
     private val sessions: ActiveSessionStore,
     private val transactions: LedgerTransactionRepository,
@@ -141,8 +141,9 @@ class DefaultPortfolioService(
     }
 
     /**
-     * 目录行 + 现价（cg_id 键；目录未收录 = 该币行不可得）。现价取数：快照优先，快照缺失时回落
-     * 现价兜底链（USD 锚定 1:1 / 最近可得估算）——口径与资金页 fundsOverview 一致，见类 KDoc。
+     * 目录行 + 现价（cg_id 键；目录未收录 = 该币行不可得）。现价取数：**USD 锚定白名单稳定币 1:1
+     * （D27，优先）→ 快照 → 现价兜底链**——与事件折算 [TransactionEventBuilder.priceOf] 严格同源，
+     * 否则会出现「成本按 1:1、市值按市价」的口径分裂（P5 人工验收实测：可用现金 99,964.80 ≠ 票面 100,000）。
      */
     private suspend fun loadMarket(outcome: ReplayOutcome, fiat: String): MarketData {
         val coins = LinkedHashMap<String, CatalogCoin>()
@@ -150,14 +151,25 @@ class DefaultPortfolioService(
         for (cgId in outcome.holdings.keys) {
             val coin = catalog.getByCgId(cgId) ?: continue // 仅目录命中项出行（契约口径）
             coins[cgId] = coin
-            val row = snapshots.latest(coin.id.toInt(), fiat)
-            if (row != null) {
-                quotes[cgId] = Quote(row.price, row.source, row.recordedAt)
-            } else {
-                eventBuilder.currentPrice(coin.id, fiat)?.let { quotes[cgId] = Quote(it, null, null) }
-            }
+            quoteOf(coin, fiat)?.let { quotes[cgId] = it }
         }
         return MarketData(coins, quotes, quotes.mapValues { it.value.price })
+    }
+
+    /** 单币现价：锚定币恒 1（快照仅用于展示），其余走「快照 → 兜底链」；null = 无任何可得价。 */
+    private suspend fun quoteOf(coin: CatalogCoin, fiat: String): Quote? {
+        if (eventBuilder.isAnchoredUsdStable(coin.id, fiat)) {
+            // 计价按 1:1；快照行只用于「行情时刻 / 数据源」展示（不参与折算）——避免稳定币持仓账户
+            // 因锚定而丢失 priceAsOf（上次成功刷新时刻仍是有用信息）
+            val display = snapshots.latest(coin.id.toInt(), fiat)
+            return Quote(BigDecimal.ONE, display?.source, display?.recordedAt)
+        }
+        val row = snapshots.latest(coin.id.toInt(), fiat)
+        return if (row != null) {
+            Quote(row.price, row.source, row.recordedAt)
+        } else {
+            eventBuilder.currentPrice(coin.id, fiat)?.let { Quote(it, null, null) }
+        }
     }
 
     private fun buildRows(
@@ -220,14 +232,16 @@ class DefaultPortfolioService(
             val coin = market.coins[holding.coinId] ?: continue
             val now = market.quotes[holding.coinId]
             val sourceNow = now?.source
-            val ago = snapshots.atBucket(coin.id.toInt(), fiat, pairBucket)
+            // D27：锚定稳定币 24h 变化恒为 0（1:1 → 1:1），不取市价快照——否则会显示 +0.0x% 的无意义波动
+            val anchored = eventBuilder.isAnchoredUsdStable(coin.id, fiat)
+            val ago = if (anchored) null else snapshots.atBucket(coin.id.toInt(), fiat, pairBucket)
             val sourceAgo = ago?.source
             inputs += TwentyFourHour.CoinInput(
                 coinId = holding.coinId,
                 quantity = holding.quantity,
                 priceNow = now?.price,
                 sourceNow = sourceNow,
-                priceAgo = ago?.price,
+                priceAgo = if (anchored) BigDecimal.ONE else ago?.price,
                 sourceAgo = sourceAgo,
                 mixed = sourceNow != null && sourceAgo != null && sourceNow != sourceAgo,
             )
