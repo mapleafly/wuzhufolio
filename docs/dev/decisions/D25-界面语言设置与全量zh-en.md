@@ -54,7 +54,7 @@ task-breakdown **T12.4** 早已要求「i18n：en/zh、UTC 存本地显、多法
 | `docs/design/ia.md` §2.12 通用分组 | ✅ 已回写：「界面语言」行（含说明文案口径） |
 | `docs/design/interaction.md` | ➖ 不适用：语言切换无新异常态（切换本身无失败路径） |
 | `docs/design/flows.md` | ➖ 不适用：非流程类设置项 |
-| `docs/design/prototype/wuzhufolio-light.html` | ⏳ **显式延期**：原型「通用」分组新增语言行（视觉基准补行）；到期检查点 = P5 联调或 P7 前视觉终审；DoD = 原型通用分组含语言行且与设置页实现一致 |
+| `docs/design/prototype/wuzhufolio-light.html` | ✅ **已补齐（2026-09-13，P5 联调到期检查点执行）**：原型「通用」分组在「主题」之后新增「界面语言」行（中文 / English 分段，与设置页 `language-row` 同位同序）；`prototype-verify.js` 新增 3 条断言（行存在 / 档位文案 / 小额阈值自由数值输入）守护，Playwright 复跑 errors=[] 全绿 |
 | `docs/tech/data-model.md` §2.3（settings 全局行） | ✅ 已回写：`locale` 键的消费方说明（M002 已种默认值 `zh-CN`，M12 起读写） |
 | `docs/tech/api-contracts.md` | ➖ 不适用：无接口变更（`AppLanguage` 为 domain 枚举，无 IPC） |
 | `docs/tech/task-breakdown.md` T12.4 | ✅ 已回写：验收句补「设置入口 + 语言切换 + 全量覆盖守护」 |
@@ -72,7 +72,7 @@ task-breakdown **T12.4** 早已要求「i18n：en/zh、UTC 存本地显、多法
 
 ## 6. 遗留
 
-1. **原型补行延期**（§4）：到期检查点与 DoD 见上，未到期前不得视为已完成。
+1. ~~**原型补行延期**（§4）~~ → **已闭环（2026-09-13，P5 联调）**：原型已补「界面语言」行并经 `prototype-verify.js` 断言守护（见 §4 表行）。
 2. **英文文案润色**：全量 en 由 Agent 落地（金融术语口径统一为 realized/unrealized P&L、
    calibration、watchlist、cost basis 等），建议人工在语言切换走查时抽查措辞。
 3. 领域层历史中文异常正文（`CoinResolutionException.reason` 等）已按类型化方案收敛

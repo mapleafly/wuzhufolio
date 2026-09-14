@@ -245,6 +245,11 @@ interface SettingsService {
 > - **合并规划**（BackupMergePlanner 纯规则）：业务记录 uuid → 交易所+订单号（v1 模糊级无输入面）；
 >   api_keys (exchange+别名) 跳过；fee_rules/settings 备份优先覆盖；快照 币种+法币+小时桶 幂等
 >  （本地同桶行保留）；全量覆盖 = 单写事务清账户业务表后全量插入（全局公共表不动）+ 临时备份；
+>  **`MergePlan` 各列表 = 「待插入行」，不是备份文件的记录全集**——命中本地去重键的行计入
+>  `duplicateSkipped` 而不出现在列表中（P5 联调口径澄清，2026-09-13）；
+>  **去重键 `交易所|订单号` 仅在订单号非空时成立**（P5 人工验收勘误，2026-09-13）：手动 / CSV 行的
+>  `exchange_order_id` 为 null，若规约为 `"BINANCE|"` 会让同交易所的全部手动交易互相判重
+> （跨账户恢复只进第一笔，全量覆盖丢行）——无订单号的行一律只按 `uuid` 判重。
 > - **恢复编排**（DefaultBackupService）：规划 → 单写事务应用（BackupRestoreStore：api_keys 先插后包
 >   目标账户 DEK 重加密）→ 恢复后全量重放（LENIENT）出「持仓异常」清单；全量覆盖前临时备份
 >   `~/.wuzhufolio/backups/pre-restore-*.cpro`（同备份密码加密，不记 backup.last_at）；
@@ -279,7 +284,72 @@ interface SettingsService {
 >   再裁 newest N）；SyncLogRepository 增 `countAll()` / `lastSyncAt()`（诊断报告取数）。
 > 回溯：PRD §7.2 模块 6.1/6.3/6.4、§6「日志管理与可追溯性」、§9.11、interaction.md §2.6、ia.md §2.12。
 
+> **M2 补录（账户与会话实现 · 2026-09-03 / P5 联调回写 2026-09-13，模块记录 M2.md）**：
+> §3 `AccountService` 落地为——`createAccount(CreateAccountReq): Session`（**返回 `Session` 而非草稿的
+> `AccountId`**：创建即登录，DEK 随即驻 `ActiveSessionStore`）、`login(LoginReq): Session`、
+> `logout()`、**`restoreSession(): Session?`（新增：记住我免密恢复，P5 联调回写）**、
+> `switchAccount(SwitchReq): Session`、`changePassword(ChangePwdReq)`、`listAccounts(): List<AccountSummary>`、
+> `hasRememberMe(): Boolean`。请求/响应类型为类型化 `*Req` 数据类（草稿的 `req` 占位落地）；
+> 错误语义：A1「不暴露账户存在性」（登录失败一律 `AUTH_INVALID`）、A2 改密原密码错、A3 切换严格模式、
+> A4 忘记密码路径。**会话持有器 `ActiveSessionStore` 为组合根单例**（当前账户 + 内存 DEK；
+> 登出/切换/改密/退出即擦）——P5 集成联调（app 模块 `integration` 包）在真实组合根上装配
+> M6/M8 服务时必须复用同一实例，故 `AppBootstrap.SessionRuntime.sessions` 对装配层公开。
+> 回溯：PRD §5.1（登录/记住我/切换/改密/忘记密码）、flows §1/§5、ia.md §2.1–2.3。
 
+> **M3 补录（币种主数据实现 · 2026-09-03 / P5 联调回写 2026-09-13，模块记录 M3.md）**：
+> - **CoinCatalog**（domain/catalog，11 动作）：`search(query, limit)` / `getBySymbol(symbol)`（大小写归一；
+>   同名返回多行——调用方须消歧）/ `getByCgId` / `getById` / `refreshDirectory(entries)`（全量幂等 upsert）/
+>   `refreshCmcIds(cmcByCgId)`（每日缓存）/ `resolve(exchange, asset, context)` /
+>   `freezeMapping(exchange, asset, coinId)`（用户选择固化 MANUAL）/ `mappingFor(exchange, asset)` /
+>   `exchangeAssetFor(exchange, coinId)`（余额反向映射，M8 校准用）/ `fiatQuoteLeg(quoteSymbol)`；
+> - **CoinResolver**（纯规则）：`resolve(RuleInput): Resolution` —— 四级消歧（① quote 上下文排除/退化对 →
+>   ② 合约地址精确匹配 → ③ 市值排名唯一最小（`MarketRankProvider`，默认 `NoopMarketRankProvider`）→
+>   ④ `Ambiguous` 候选返回；**不猜测降级**）；`Resolution` = Resolved / Ambiguous / NotFound 密封接口；
+> - **FiatNormalizer**：`classify(rawCode)`（TwinStable / ThirdCurrency / null）、
+>   `twinStableSymbolOf(rawCode)`（USD→USDT、EUR→EURC 孪生表）、`isKnownFiat(rawCode)`；
+> - **MarketRankProvider**：`fun interface` + `rankOf(cgId): Int?`（M5 实现 = 市值榜 4×250 缓存，
+>   M6 同步前预热——消歧规则③的输入面）。
+> 回溯：PRD 全局说明「币种标识与主数据规则」、§10-10 注、共享规范 §6、黄金用例 12。
+
+> **M11 补录（桌面集成实现 · 2026-09-10 / P5 联调回写 2026-09-13，模块记录 M11.md）**：
+> - **DesktopSettingsService**（domain/settings）：`view()`（四项开关视图）/ `autostartStatus()` /
+>   `setMinimizeOnClose` / `setSyncNotification` / `setBackupReminder` / `setAutostartEnabled(on): Result<Unit>`
+>   （**先平台注册后落键**，失败不落键）/ `reconcileAutostart()`（启动自愈，返回修正说明）；
+>   存储 = settings 全局行（tray.minimize_on_close / autostart.enabled / tray.sync_notification /
+>   backup.reminder）；运行期镜像 `DesktopPreferences`（EDT 判定不查库）；
+> - **AutostartService**（domain/autostart）+ `AutostartRules`（纯规则：`detect(osName)` /
+>   `relativeEntryPath` / `macPlist` / `linuxDesktopEntry` / `windowsRunKey` / `quoteForPlatform`）+
+>   `AutostartCommand.resolve(jpackageAppPath, commandLine)`（**开发态 = null = 不支持**，仅打包版注册）；
+> - **系统代理**（domain/proxy）：`ProxyEndpoint`（仅 host:port，**不含凭据**）/ `ProxyKind` / `ProxyMode` /
+>   `ProxyStatus`（指示文案 + 悬停提示）/ `ProxyEnvironment.parse(env)`；运行期 `ProxyRuntime`
+>   （开关感知 `ProxySelector`，**行情与交易所客户端共用同一实例**——PRD §7.2-6.2 全请求经代理）；
+> - **调度宿主契约**（domain/schedule 纯规则 + data/schedule `BackgroundScheduler`）：
+>   `ScheduleJitter.apply`（±20%）、`BackupReminder.isDue`（距上次备份 > 30 天，从未备份退化为账户创建时刻）、
+>   `LogRotationCadence.isDue`（6 小时）；宿主经窄接口 `SchedulerSources`（行情刷新 / 目录与额度 /
+>   同步 / 日志轮转 / 快照降采样 / 备份提醒天数）驱动三条循环，**每 tick 异常隔离**；
+>   调度宿主与托盘共享同一可见性真源（`windowVisible && !minimized` → 托盘驻留降频）。
+> 回溯：PRD §7.2-6.2/6.5、故事 4.2、§6「日志管理与可追溯性」、ADR-001（托盘/分发口径）。
+
+> **M12 补录（UI 整合收尾实现 · 2026-09-12 / P5 联调回写 2026-09-13，模块记录 M12.md）**：
+> - **PortfolioService**（domain/portfolio，**P5 联调中经真实组合根端到端使用**）：
+>   `snapshot(): PortfolioSnapshot`（账户级聚合 = 全量重放 → `PortfolioCalculator` → 逐币补目录/现价；
+>   含 `rows` 市值降序、`change24h`（固定数量回算 + 覆盖 N/M + 异源标注）、`priceAsOf`、`estimated`、
+>   `anomalousCoins`）/ `coinDetail(cgId, filter): CoinDetail`（币种汇总行 + 校准历史 + 校准入口可见性
+>   〔复用 `ReconciliationService.classifySources`〕）；**只读**，不产生任何写入；
+> - **i18n（D25）**：`AppLanguage`（ZH=zh-CN / EN=en-US，`fromStorage` 容错回中文）+ 设置键 `locale`
+>   （复用 M002 既有键，**不另立新键**）+ `GeneralSettingsService.setLanguage(language)`；
+>   UI 文案经 `ui/i18n` 门面（`I18n` + 各模块 `*Copy`）动态取值，切换即时生效并持久化；
+> - **ShellStatus**：状态栏数据源/额度/断链文案与顶栏刷新入口（`ShellStatusText` 纯渲染，
+>   **渲染期派生**——不预存 StateFlow，避免语言切换滞后）。
+> 回溯：ia.md §2.4–2.6/§2.19/§2.12、PRD §9.5、D21、D25。
+
+> **M13 补录（发布准备 · 2026-09-12）**：**无内部服务契约变更**（安全自查为加固与守护测试、
+> 打包为构建配置；`BuildInfo.VERSION` 为构建期注入常量，消费方 = `.cpro` 头部 `app_version`、关于页、
+> 诊断报告）。回溯：PRD §1.1、§12、ADR-006。
+
+> **P5 契约一致性核对（2026-09-13 · P5 集成联调）**：上列补录由 P5 逐接口签名比对补齐（M2/M3/M11/M12
+> 此前仅在模块记录声明「已补录」而本文未回写——属文档回写缺口，非契约行为不一致）；比对结论与
+> 差异清单见 `docs/test/integration-report.md` §3。
 
 ## 4. 错误码与提示文案映射（统一异常处理）
 
@@ -315,6 +385,19 @@ interface SettingsService {
 
 ---
 
+> **引擎折算口径补注（D27 + D28，2026-09-13 人工拍板）**：**1:1 锚定集合固定 = USDT**（D28 修订 D27），
+> 在基础法币为 USD 时**折算价恒取 1**，优先于市价快照——作用于事件折算
+> （`TransactionEventBuilder.priceOf`/`resolveFiatValue`/`currentPrice`，构造参数 `anchoredCoinIds`
+> 默认 = `PortfolioCalculator.ANCHORED_COIN_IDS`）与当前估值（`DefaultPortfolioService` 的市值/可用现金/
+> 未实现与 24h 盈亏，USDT 24h 恒 0）。**现金白名单**（`cashCoinIds`，默认 {tether} + 设置扩展项）
+> 仅用于「可用现金」口径，扩展项按市价折算。非白名单币种与非 USD 基础法币同样照市价。
+> 契约签名与返回结构不变，仅折算语义在该面上收敛（决策档 `D27`（§2 已被 D28 修订）、`D28`）。
+>
+> **引擎净值口径补注（D29，2026-09-13 人工拍板方案 B）**：持仓数量 < 0 的币种其市值**不计入**
+> `PortfolioMetrics.netValueFiat` 与 `availableCashFiat`，被排除金额单列
+> `PortfolioMetrics.anomalousExcludedFiat`（新增字段，默认 0，构造兼容）供界面显式提示；
+> 币种行 `HoldingMetrics.marketValue` 仍为负值（透明可见）。决策档 `D29-负持仓不计入净值.md`。
+>
 > **引擎成本口径补注（D26，2026-09-11 人工拍板方案甲）**：`ReplayEngine.replay` 的持仓成本满足
 > 「数量 ≤ 0 ⟹ 成本 = 0」；负持仓被流入穿越归零点时按数量比例拆分成本（清偿部分不建成本）。
 > 契约签名与返回结构不变，仅成本语义在该边界上收敛（决策档 `docs/dev/decisions/D26-负持仓区间成本口径.md`）。

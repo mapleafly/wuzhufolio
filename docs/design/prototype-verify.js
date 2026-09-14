@@ -126,28 +126,34 @@ const PROTO = 'file://' + path.resolve(__dirname, 'prototype', 'wuzhufolio-light
   await page.locator('.toolbar .select').nth(1).selectOption('全部时间');
 
   // ===== D21 行情页（第六页 · 只读列表 + 持久化自选）=====
-  await page.evaluate(() => { try{ localStorage.removeItem('wuzhufolio.watch'); }catch(e){} window.WATCH = ['USDT','USDC','DAI','TUSD']; });
+  await page.evaluate(() => { try{ localStorage.removeItem('wuzhufolio.watch'); }catch(e){} window.WATCH = ['USDT']; });
   await page.locator('.nav-item').nth(4).click();
   await page.waitForTimeout(150);
   T.quotesNav = (await page.locator('.nav-item').nth(4).textContent()).trim();
-  T.quotesDefaultRows = await page.locator('.panel tbody tr').count();          // 默认 4 现金币行（种子 = 稳定币白名单）
+  T.quotesDefaultRows = await page.locator('.panel tbody tr').count();          // 默认 1 行（种子 = USDT，2026-09-13 拍板收敛）
   T.quotesFirstCoin = (await page.locator('.panel tbody tr').first().locator('td').first().textContent()).trim();
   await page.locator('#watchSearch').fill('btc');
   await page.locator('#watchSearch').dispatchEvent('input');
   T.quotesSugCount = await page.locator('#watchSug .opt').count();
   await page.locator('#watchSug .opt').first().dispatchEvent('mousedown');
   await page.waitForTimeout(150);
-  T.quotesRowsAfterAdd = await page.locator('.panel tbody tr').count();         // 5
+  T.quotesRowsAfterAdd = await page.locator('.panel tbody tr').count();         // 2（USDT + BTC）
   T.quotesBtcAdded = (await page.locator('.panel tbody').textContent()).indexOf('BTC') >= 0;
   T.quotesPersisted = await page.evaluate(() => { try{ var v=localStorage.getItem('wuzhufolio.watch'); return v ? v.indexOf('BTC')>=0 : false; }catch(e){ return false; } });
   await page.locator('.panel tbody tr').last().locator('button').click();       // 移除 BTC（末行）
   await page.waitForTimeout(150);
-  T.quotesRowsAfterRemove = await page.locator('.panel tbody tr').count();      // 4
+  T.quotesRowsAfterRemove = await page.locator('.panel tbody tr').count();      // 1（移除 BTC）
 
   // ===== 设置页：F8 主题行 / F2 网络 / F3 日志与诊断 / F9 API 弹窗 =====
   await page.locator('.nav-item').nth(5).click();
   await page.waitForTimeout(150);
   T.settingsGroups = await page.locator('.settings-group h3').allTextContents();
+  // D25 补行（2026-09-13，P5 联调到期检查点）：通用组新增「界面语言」行；
+  // M10 走查反馈后「小额币种阈值」= 自由数值输入（非预设档 select）——两条随本脚本守护。
+  T.settingsLanguageRow = await page.locator('.set-row').filter({ hasText: '界面语言' }).count();
+  T.settingsLanguageSeg = await page.locator('#langSeg button').allTextContents();
+  T.thresholdIsNumericInput =
+    await page.locator('.set-row').filter({ hasText: '小额币种阈值' }).locator('input').count();
   await page.locator('#themeSeg button').nth(1).click();
   T.themeViaSettings = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
   await page.locator('#themeSeg button').nth(0).click();

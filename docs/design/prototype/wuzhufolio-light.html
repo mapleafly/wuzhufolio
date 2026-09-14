@@ -274,7 +274,7 @@ var MARKET_DIR=[
   {s:'LINK',n:'Chainlink',price:24.10,src:'COINGECKO'},
   {s:'AVAX',n:'Avalanche',price:42.30,src:'COINGECKO'}
 ];
-var WATCH_SEED=['USDT','USDC','DAI','TUSD'];
+var WATCH_SEED=['USDT']; /* 2026-09-13 拍板：开箱种子收敛为仅 USDT（与 D28 现金白名单默认值对齐） */
 var MARKET_TS='09:41';
 function dirCoin(s){ for(var i=0;i<MARKET_DIR.length;i++){ if(MARKET_DIR[i].s===s) return MARKET_DIR[i]; } return null; }
 function loadWatch(){ try{ var v=localStorage.getItem('wuzhufolio.watch'); if(v){ var a=JSON.parse(v); if(Array.isArray(a)) return a.filter(function(s){ return dirCoin(s); }); } }catch(e){} return WATCH_SEED.slice(); }
@@ -513,11 +513,12 @@ function pageSettings(){
   h+='<div class="panel"><div class="settings-group"><h3>通用</h3>';
   h+=settingsRow('基础法币','计价与折算基准（默认 USD）','<select class="select" aria-label="基础法币"><option>USD</option><option>EUR</option><option>CNY</option></select>');
   h+=settingsRow('主题（明 / 暗）','与顶栏 ☾ 快捷切换同步（PRD 6.1）','<div class="seg" id="themeSeg"><button type="button" class="'+(THEME==='light'?'on':'')+'" onclick="segPickTheme(this,\'light\')">明亮</button><button type="button" class="'+(THEME==='dark'?'on':'')+'" onclick="segPickTheme(this,\'dark\')">黑暗</button></div>');
+  h+=settingsRow('界面语言','界面文案与日期时间格式随语言切换（即时生效）','<div class="seg" id="langSeg"><button type="button" class="on" onclick="segPick(this)">中文</button><button type="button" onclick="segPick(this)">English</button></div>');
   h+=settingsRow('盈亏颜色方案','数值强制显示 ± 符号，颜色仅辅助','<select class="select" aria-label="盈亏颜色方案"><option>绿涨红跌（默认）</option><option>红涨绿跌</option><option>色盲友好（蓝涨橙跌）</option></select>');
   h+=settingsRow('默认精度','金额/价格 8 位、市值/盈亏 2 位、百分比 2 位','<select class="select" aria-label="默认精度"><option>8 / 2 / 2</option><option>2 / 2 / 2</option></select>');
   h+=settingsRow('登录页用户名枚举','关闭后用户名改为纯手动输入','<div style="text-align:right">'+sw(true)+'</div>');
-  h+=settingsRow('稳定币白名单','现金类币种判定（默认 USDT/USDC/DAI/TUSD）','<button class="btn ghost sm" type="button" onclick="toast(\'白名单：USDT · USDC · DAI · TUSD\')">查看</button>');
-  h+=settingsRow('小额币种阈值','低于阈值合计归入「其他」（当前 $4,000）','<select class="select" aria-label="小额币种阈值"><option>$1,000</option><option>$2,000</option><option selected>$4,000</option><option>$10,000</option></select>');
+  h+=settingsRow('稳定币白名单','现金类币种判定（默认 USDT/USDC/DAI/TUSD，可扩展）','<button class="btn ghost sm" type="button" onclick="toast(\'白名单：USDT · USDC · DAI · TUSD（可添加扩展，默认项不可移除）\')">查看</button>');
+  h+=settingsRow('小额币种阈值','低于阈值的币种合计归入「其他」（按基础法币计；0 = 不启用）。自由数值，按自身规模设定','<div style="text-align:right"><input class="search" style="width:140px;text-align:right" value="0" aria-label="小额币种阈值（基础法币，0 = 不启用）" onchange="toast(\'小额阈值已保存（\'+this.value+\'）\')"></div>');
   h+='</div></div>';
   h+='<div class="panel"><div class="settings-group"><h3>网络</h3>';
   h+=settingsRow('系统代理','自动检测并使用操作系统代理 · 当前：系统代理已启用','<div style="text-align:right">'+sw(true)+'</div>');
