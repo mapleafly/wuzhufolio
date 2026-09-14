@@ -1046,8 +1046,13 @@ macos-native 281MB（dmg+pkg）/ ubuntu-native 390MB（deb+rpm+AppImage）+ `art
 - **转 P7 / 人工**：真实交易所只读 Key 的线上同步冒烟（Agent 无凭据、不索取）；托盘/自启环境实测；签名公证合规。
 - **CI 三平台复跑待推送**（P5 新增 10 项集成测试与 live smoke 的跳过语义需在 win/mac 观察一次）。
 
-**CI 留痕（2026-09-13 关闭提交）**：见下方「交接记录」末行——推送后由 CI 三平台（ubuntu/windows/macos）
-`build` + `package` 六 job 复跑，结果回填本节。
+**CI 留痕（2026-09-14 关闭提交）**：推送 `72bbc05..9592dbe`（P5 代码与文档两提交）触发
+**CI run [34819348526](https://github.com/mapleafly/wuzhufolio/actions/runs/34819348526)：六 job 全绿** ——
+`build`（ubuntu 3m00s / windows 4m31s / macos 3m36s）+ `package`（ubuntu 3m32s / windows 4m07s / macos 3m28s）。
+**三平台 `test-results-*` 逐项可核验**：P5 新增 **10 项集成测试**（CoreJourney 3 / ErrorPath 4 / ExchangeLoopback 1 /
+IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真实回环 HTTP 与真实 SQLCipher 库路径）；
+门控项按预期跳过（`LiveMarketRefreshWiringTest` ×1、`LiveNetworkSmokeTest` ×2）；
+**4 项钥匙串真实后端用例在 windows/macos 执行通过**（ubuntu 无 Secret Service 跳过 4 项，与 ADR-002 降级口径一致）。
 
 **建议的下一步**（已执行：P5 已通过关闭）：**P6 系统测试与质量**（T6 阶段）——按 PRD V2.0 验收标准做全量验证，
 重点压安全与隐私（M13 安全清单逐条复跑打勾），产出 `docs/test/test-plan.md` / `test-cases.md` /
