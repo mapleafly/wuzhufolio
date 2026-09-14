@@ -56,6 +56,20 @@
 | 币种详情时间筛选（DEF-03/D30） | `ui/portfolio/PortfolioPagesUiTest`（近 30 天 / 90 天以上） | 1 |
 | **合计** | | **14** |
 
+### 1.2 CI 三平台实证（P6 两轮）
+
+| 轮次 | commit | 结果 |
+|------|--------|------|
+| 首轮 | `64dcc1a` | run [34838015499](https://github.com/mapleafly/wuzhufolio/actions/runs/34838015499)：ubuntu ✓ / macos ✓ / **windows ✗** → 新增守护测试 `SettingsKeyNamespaceGuardTest` **顺序依赖**（**DEF-12**，裸名 HashMap 覆盖致 `watch.coins` 在 NTFS 遍历顺序下丢失）；`package` skipped |
+| 复跑 | `ec88982`（DEF-12 修复） | run [34838910866](https://github.com/mapleafly/wuzhufolio/actions/runs/34838910866)：**六 job 全绿**——`build` ubuntu 2m09s / windows 3m01s / macos 1m39s + `package` ubuntu 3m55s / windows 4m53s / macos 4m13s |
+
+**三平台测试结果逐项核验**（下载 `test-results-*` 构件）：**windows 678 用例 0 失败**（4 跳过 = live smoke 门控）、
+**4 项钥匙串真实后端用例在 windows 执行通过**、P6 新增 5 个测试类（`SettingsKeyNamespaceGuardTest` 2 /
+`DefaultBackupServiceTest` 12 / `BackgroundSchedulerTest` 15 / `CproLargePayloadTest` 1 / `BinanceAdapterTest` 9）
+三平台全绿；三平台原生产物（msi+exe / dmg+pkg / deb+rpm+AppImage）已归档。
+**修复方式**：符号索引改「限定名 → 表达式集合」+ 限定名优先 + 裸名跨限定符唯一（否则 fail-closed）+ 限定符覆盖全部类型声明；
+顺序无关性以「本地反转文件遍历顺序复跑仍绿」实证。
+
 ### 1.2 运行期实证
 
 | 实证 | 命令 | 结果 |

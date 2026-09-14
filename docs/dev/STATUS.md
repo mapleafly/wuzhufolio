@@ -1162,6 +1162,22 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
   `keyName=null` 分支用例）、大数据量列表装载耗时、跨页时间档位组件提取（`FundDateRange` 命名债）。
 - **CI**：P6 新增 13 项回归待推送观察（win/mac 钥匙串用例可逐项核验）。
 
+**CI 留痕（2026-09-14，两轮）**：
+
+1. **首轮 run [34838015499](https://github.com/mapleafly/wuzhufolio/actions/runs/34838015499)（`64dcc1a`）：ubuntu ✓ / macos ✓ / windows ✗**
+   ——windows `:data:test` 红，失败用例 = 本轮新增的 `SettingsKeyNamespaceGuardTest`（登记 **DEF-12**）；
+   `package` 三 job 因 build 失败 skipped。**根因** = 该守护测试的符号索引用「裸名 → 表达式」HashMap，
+   同名常量（`AppLanguage.SETTINGS_KEY="locale"` vs `MarketWatchService.SETTINGS_KEY="watch.coins"`）互相覆盖，
+   解析结果**依赖文件遍历顺序**：ubuntu/macos 恰好解析出 watch.coins，NTFS 目录顺序下丢失 → 「登记表腐化」断言红。
+2. **修复 `ec88982`（DEF-12，C0/测试基础设施）**：索引改「**限定名 → 表达式集合**」+ 解析限定名优先、裸名要求跨全部限定符唯一
+   （否则 fail-closed）+ 限定符跟踪覆盖 `interface`/`enum class`/`data class` 等；**顺序无关性实证** = 本地把文件遍历顺序反转为降序后复跑仍绿。
+3. **复跑 run [34838910866](https://github.com/mapleafly/wuzhufolio/actions/runs/34838910866)（`ec88982`）：六 job 全绿** ——
+   `build`（ubuntu 2m09s / windows 3m01s / macos 1m39s）+ `package`（ubuntu 3m55s / windows 4m53s / macos 4m13s）；
+   `test-results-*` 逐项可核验：**windows 678 用例 0 失败**（4 跳过 = live smoke 门控），
+   **4 项钥匙串真实后端用例在 windows 执行通过**（`KeyringRememberMeStoreTest` 3 项 0 跳过等），
+   P6 新增测试（`SettingsKeyNamespaceGuardTest` 2 / `DefaultBackupServiceTest` 12 / `BackgroundSchedulerTest` 15 /
+   `CproLargePayloadTest` 1 / `BinanceAdapterTest` 9）在三平台全部通过；`ubuntu/windows/macos-native` 三平台原生产物已归档。
+
 **建议的下一步**（已执行：P6 完成并停人工门）：人工按上节验收 + 裁决 5 项 → 通过后 **P7 发布**解锁
 （`docs/release/`：release-plan / rollback / CHANGELOG / user-guide / 签名公证；**产品宣传动画为 P7 必做项**，AGENTS.md §7.2-3）。
 
