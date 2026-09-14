@@ -1,0 +1,407 @@
+# WuZhuFolio 人工门用例执行指南（Windows / Ubuntu 双环境）
+
+> **用途**：P6 人工门的 🔵 用例（`docs/test/test-cases.md §7`：TC-MAN-01…10）在 **Windows** 与 **Ubuntu**
+> 两套环境下的**环境要求、构建运行步骤、执行路径与取证方式**。用例判据以 `test-cases.md §7` 为准，
+> 本文件解决「在哪台机器、装什么、敲什么命令、怎么留证据」。
+> **执行人**：项目负责人 / 人工验收者（Agent 不可替代：托盘、读屏、真实 Key、目标机、视觉走查）。
+> **前置**：自动化基线绿（§3.3）；如失败先回到 P6 报告排查，不要带着红基线做人工走查。
+> **日期**：2026-09-14 · **有效需求**：PRD V2.0 + Δ{D21, D24, D25, D26, D27, D28, D29, D30}
+
+---
+
+## 1. 执行总览
+
+### 1.1 用例 × 平台 × 路径矩阵
+
+| 用例 | 内容 | Windows | Ubuntu | 推荐路径 | 备注 |
+|------|------|---------|--------|----------|------|
+| TC-MAN-01 | 真实桌面托盘走查 | **必做** | **必做**（需托盘宿主） | 路径 B（打包态） | WSLg 不可做（无托盘协议）；GNOME 需 AppIndicator 扩展，无宿主时验证**降级分支** |
+| TC-MAN-02 | 开机自启实机验证 | **必做** | **必做** | 路径 B（打包态） | 开发态预期置灰（`jpackage.app-path` 为空） |
+| TC-MAN-03 | 读屏 NVDA / JAWS | **必做** | 可选（Orca） | 路径 A 或 B | Windows 是主战场 |
+| TC-MAN-04 | 目标机性能（4GB 双核） | 任一平台 | 任一平台 | 路径 B（打包版自带 JRE） | 开发态需 JDK 17；打包版**无需预装 Java** |
+| TC-MAN-05 | 断网 / 代理异常 | **必做** | **必做** | 路径 A | 用系统代理开关或防火墙模拟 |
+| TC-MAN-06 | 纯键盘全流程 | **必做** | 可选 | 路径 A | 只记键盘路径 |
+| TC-MAN-07 | 真实交易所只读 Key 冒烟 | 任一平台 | 任一平台 | 路径 A 或 B | 需人工准备币安**只读** Key；Agent 不索取 |
+| TC-MAN-08 | 真实桌面 GUI 全流程 | **必做** | **必做** | 路径 A 或 B | 1280×800 与 1024×768 两档窗口 |
+| TC-MAN-09 | 出站抓包 + 权限实证 | **必做** | **必做** | 路径 A | 权限判据按平台不同（见 §6 TC-MAN-09） |
+| TC-MAN-10 | 外链与关于页走查 | **必做** | **必做** | 路径 A | 需系统浏览器 |
+
+> **Ubuntu 与 Windows 的分工建议**：托盘/自启/读屏在 Windows 最完整（Credential Manager + SystemTray 原生可用）；
+> Ubuntu 覆盖 deb/rpm/AppImage 三种分发形态与 Linux 钥匙串/托盘宿主行为。两平台都做的项见上表「必做」。
+
+### 1.2 建议顺序（约 2–4 小时）
+
+1. §3 通用准备 + 自动化基线（10 分钟）
+2. Windows：路径 B 安装打包版 → TC-MAN-02（自启）→ TC-MAN-01（托盘）→ TC-MAN-08（全流程）→ TC-MAN-03（读屏）（60–90 分钟）
+3. Ubuntu：路径 A 开发态 → TC-MAN-05/06/09/10 → 路径 B 安装 deb/AppImage → TC-MAN-01/08（60–90 分钟）
+4. TC-MAN-04（目标机，单独安排）；TC-MAN-07（有真实只读 Key 时随时可做）
+5. §7 汇总证据 → 在 `docs/dev/STATUS.md` P6 门写结论
+
+---
+
+## 2. 环境要求
+
+### 2.1 两平台共同
+
+| 组件 | 要求 | 用途 / 缺失后果 |
+|------|------|-----------------|
+| Git | 2.30+ | 取源码；`git rev-parse --short HEAD` 记录被测版本 |
+| JDK | **Temurin 17**（`JAVA_HOME` 指向它） | Gradle 构建与开发态运行；jpackage 要求 17+ |
+| Gradle | **不安装** | 仓库 `./gradlew`（8.14.4）为唯一真源 |
+| 图形会话 | 真实桌面（非 SSH 无头） | GUI 走查；无头环境无法执行 TC-MAN-01/08 |
+| 磁盘 | ≥ 3 GB 空闲 | 构建缓存 + 打包产物（deb/rpm/AppImage 各 130–145 MB） |
+| 内存 | 开发态 ≥ 4 GB（构建期）；目标机用例另见 TC-MAN-04 | JVM + Compose |
+| 网络 | 可选（离线路径本身就是用例） | TC-MAN-05 需要能切网 |
+
+### 2.2 Windows 专用
+
+| 项 | 要求 | 说明 |
+|----|------|------|
+| 系统 | Windows 10/11 x64（桌面版） | Server Core 无桌面 → GUI/托盘不可用 |
+| JDK 安装 | `winget install EclipseAdoptium.Temurin.17.JDK` | 装完设 `$env:JAVA_HOME`（见 §4.1） |
+| 钥匙串 | **系统自带**（凭据管理器 / Credential Manager） | 无需安装；启动日志应出现 `keyring` 正常路径（无「降级」告警） |
+| 托盘 | **系统自带**（通知区域） | `SystemTray.isSupported()=true` |
+| Python 3（可选） | 用于 `scripts/outbound-capture-proxy.py` | TC-MAN-09 抓包；不装可改用 Ubuntu 侧执行抓包 |
+| WiX（仅本地出 msi） | WiX Toolset 3.14（`dotnet tool install --global wix` 或官方安装包） | 只做「本地出包」时需要；**用 CI 产物可免** |
+| 权限 | 安装 msi/exe 需管理员 | `msiexec /i` 或双击安装器 |
+
+### 2.3 Ubuntu 专用
+
+| 项 | 要求 | 说明 |
+|----|------|------|
+| 系统 | Ubuntu 22.04 / 24.04 x64（**桌面版**） | 无桌面会话 → 无 GUI/托盘 |
+| JDK 安装 | `sudo apt install -y openjdk-17-jdk`（或 mise/temurin 仓库） | `java -version` 应显示 17 |
+| 钥匙串（真实路径） | `sudo apt install -y gnome-keyring libsecret-1-0` | **缺失时应用按设计降级**为 0600 密钥文件 + 启动「安全提示」（这是 M1 既定语义，不是缺陷；若要验真实钥匙串路径必须装并在**桌面会话内**运行） |
+| 托盘宿主 | GNOME：安装「AppIndicator and KStatusNotifierItem Support」扩展；KDE/XFCE 自带 | 无宿主时 `SystemTray.isSupported()=false` → 应用走**降级分支**（关窗即退出，不静默藏窗口）；此时 TC-MAN-01 验的是降级分支，托盘菜单本身需在有宿主的桌面执行 |
+| 图形依赖 | 虚拟机无 3D 加速时用软件渲染：`JAVA_TOOL_OPTIONS="-Dskiko.renderApi=SOFTWARE_FAST"` | 否则可能 `skiko.RenderException: Cannot create Linux GL context`（字体已内嵌，无需装 CJK 字体） |
+| 打包依赖（仅本地出包） | `sudo apt install -y fakeroot rpm`（rpm 需 `rpmbuild`）；AppImage 需 `libfuse2`（无 FUSE 用 `APPIMAGE_EXTRACT_AND_RUN=1`） | 用 CI 产物可免 |
+| 抓包脚本 | `python3`（系统自带） | `scripts/outbound-capture-proxy.py` |
+
+> **WSL2（本仓库开发基准环境）不算 Ubuntu 桌面**：WSLg 无托盘协议、通常无 Secret Service，
+> 只适合跑自动化与开发态功能走查；TC-MAN-01/02/03 必须在**真实桌面**或打包版上做。
+
+---
+
+## 3. 通用准备（两平台一致）
+
+### 3.1 取代码并锁定被测版本
+
+```bash
+git clone https://github.com/mapleafly/wuzhufolio.git
+cd wuzhufolio
+git rev-parse --short HEAD          # 记录到证据表（被测版本）
+```
+
+### 3.2 JDK 就绪
+
+```bash
+java -version        # 期望 17.x（Temurin 或其他 17 发行版）
+```
+
+### 3.3 自动化基线（必须先绿）
+
+```bash
+# Windows PowerShell
+.\gradlew.bat clean build detekt --no-build-cache
+# Ubuntu
+./gradlew clean build detekt --no-build-cache
+```
+
+期望：**678 用例（670 执行 0 失败 + 8 跳过）+ detekt 0 + 编译警告 0**（跳过 = 钥匙串真实后端/真实网络门控，
+按平台不同：Linux 跳过 4 项钥匙串、三平台跳过 4 项 live smoke）。
+
+### 3.4 数据隔离与安全（**强烈建议**）
+
+人工走查**不要**用日常库，用独立数据目录；同一条用例可反复重来：
+
+| 平台 | 设置方式 |
+|------|----------|
+| Windows PowerShell | `$env:WUZHUFOLIO_DATA_DIR="$env:TEMP\wzf-manual"` |
+| Ubuntu / WSL | `export WUZHUFOLIO_DATA_DIR=/tmp/wzf-manual` |
+| 打包版任意平台 | 同样读该环境变量；也可用 JVM 参数 `-Dwuzhufolio.dataDir=...`（开发态 `:app:run` 用 `JAVA_TOOL_OPTIONS`） |
+
+安全纪律（PRD §1.1）：
+
+1. **只用只读 Key**（TC-MAN-07），测试建议用小额账户；
+2. 走查数据可用假数据；若涉真实数据，证据包内**不要**包含 `.cpro`、CSV 导出、`master.key`/`device.key`、完整日志；
+3. 日志导出/诊断报告本身已脱敏，但仍建议人工复核后再外发（PRD §6）。
+
+### 3.5 日志与证据位置
+
+| 项 | Windows | Ubuntu |
+|----|---------|--------|
+| 日志 | `%USERPROFILE%\.wuzhufolio\logs\wuzhufolio.log`（隔离目录下为 `%TEMP%\wzf-manual\logs\...`） | `~/.wuzhufolio/logs/wuzhufolio.log`（隔离目录同理） |
+| 数据/密钥/库 | 同目录：`master.key` / `device.key` / `wuzhufolio.db` | 同左 |
+| 备份临时目录 | `<数据目录>\backups\` | `<数据目录>/backups/` |
+
+---
+
+## 4. 执行路径 A：开发态（`:app:run`）
+
+> 覆盖：功能走查、异常态、键盘、外链、抓包、性能计时（非目标机）。
+> 不覆盖：托盘（WSLg）、开机自启（开发态置灰）、打包版 JRE/安装行为。
+
+### 4.1 Windows（PowerShell）
+
+```powershell
+# 1) JDK 17（已装可跳过）
+winget install EclipseAdoptium.Temurin.17.JDK
+$env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-17.0.20.101-hotspot"   # 按实际安装路径
+
+# 2) 隔离数据目录 + 运行
+$env:WUZHUFOLIO_DATA_DIR = "$env:TEMP\wzf-manual"
+.\gradlew.bat :app:run
+```
+
+### 4.2 Ubuntu（bash）
+
+```bash
+sudo apt install -y openjdk-17-jdk            # 已装可跳过
+export WUZHUFOLIO_DATA_DIR=/tmp/wzf-manual
+export JAVA_TOOL_OPTIONS="-Dskiko.renderApi=SOFTWARE_FAST"   # 无 3D 加速的虚拟机需要
+./gradlew :app:run
+```
+
+### 4.3 专项命令（两平台对照）
+
+| 用途 | Windows | Ubuntu |
+|------|---------|--------|
+| KDF 基准（TC-MAN-04） | `.\gradlew.bat :domain:kdfBenchmark` | `./gradlew :domain:kdfBenchmark` |
+| `.cpro` 内存曲线（TC-MAN-04） | `.\gradlew.bat :domain:backupBenchmark` / 加 `-PbenchXmx=512m` | `./gradlew :domain:backupBenchmark -PbenchXmx=512m` |
+| 真实网络冒烟（TC-MAN-07 前置） | `$env:WZF_LIVE_SMOKE="1"; .\gradlew.bat --no-daemon :data:test --tests "com.wuzhufolio.data.smoke.*" --rerun-tasks` | `WZF_LIVE_SMOKE=1 ./gradlew --no-daemon :data:test --tests "com.wuzhufolio.data.smoke.*" --rerun-tasks` |
+| 出站抓包（TC-MAN-09） | 见 §6 TC-MAN-09（Windows 用「系统代理」指向抓包端口） | 见 §6 TC-MAN-09（`https_proxy` 即可） |
+
+---
+
+## 5. 执行路径 B：打包态（托盘 / 自启 / 安装验收必用）
+
+### 5.1 用 CI 产物（最快，推荐）
+
+三平台安装包由 CI 的 `package` job 产出并归档（每次推送后可在 Actions 页面下载）。命令行取最新一次成功产物：
+
+```bash
+# 任平台（需 gh CLI 已登录）
+RUN=$(gh run list --repo mapleafly/wuzhufolio --workflow CI --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+gh run download "$RUN" --repo mapleafly/wuzhufolio -n wuzhufolio-windows-latest-native -D ./ci-native   # Windows 机器上
+gh run download "$RUN" --repo mapleafly/wuzhufolio -n wuzhufolio-ubuntu-latest-native  -D ./ci-native   # Ubuntu 机器上
+```
+
+产物文件名（版本取自 `app/build.gradle.kts` 的 `appVersion`，当前 `0.1.0`）：
+
+| 平台 | 文件 |
+|------|------|
+| Windows | `msi/WuZhuFolio-0.1.0.msi`、`exe/WuZhuFolio-0.1.0.exe`（jpackage 安装器） |
+| Ubuntu | `deb/wuzhufolio_0.1.0-1_amd64.deb`、`rpm/wuzhufolio-0.1.0-1.x86_64.rpm`、`appimage/wuzhufolio-0.1.0-x86_64.AppImage` |
+| 校验 | 同 run 的 `wuzhufolio-<os>-artifacts-manifest` 内含 SHA256，可先核对再安装 |
+
+### 5.2 本地出包（可选）
+
+```powershell
+# Windows（需 WiX）
+.\gradlew.bat :app:packageDistributionForCurrentOS      # → msi + exe
+.\gradlew.bat :app:createDistributable                  # → app-image（免安装目录）
+```
+
+```bash
+# Ubuntu
+sudo apt install -y fakeroot rpm
+./gradlew :app:packageDistributionForCurrentOS          # → deb + rpm
+./gradlew :app:createDistributable && scripts/package-appimage.sh   # → AppImage
+```
+
+### 5.3 安装 / 运行 / 卸载
+
+**Windows**
+
+```powershell
+msiexec /i .\ci-native\msi\WuZhuFolio-0.1.0.msi          # 或双击 .exe
+# 启动：开始菜单「WuZhuFolio」，或
+& "$env:LOCALAPPDATA\WuZhuFolio\WuZhuFolio.exe"          # 路径以安装器实际落点为准
+# 卸载：设置 → 应用 → WuZhuFolio → 卸载（或 msiexec /x {ProductCode}）
+```
+
+**Ubuntu**
+
+```bash
+sudo dpkg -i ./ci-native/deb/wuzhufolio_0.1.0-1_amd64.deb     # 缺依赖时 sudo apt -f install
+dpkg -L wuzhufolio | grep -E 'bin/|\.desktop'                 # 查可执行文件与桌面入口（通常 /opt/wuzhufolio/bin/WuZhuFolio）
+/opt/wuzhufolio/bin/WuZhuFolio &                              # 或从应用菜单启动
+sudo dpkg -r wuzhufolio                                       # 卸载
+
+# 免安装形态（AppImage）
+chmod +x ./ci-native/appimage/wuzhufolio-0.1.0-x86_64.AppImage
+./ci-native/appimage/wuzhufolio-0.1.0-x86_64.AppImage
+# 无 FUSE 环境：APPIMAGE_EXTRACT_AND_RUN=1 ./…AppImage
+```
+
+> **打包版数据目录同样受 `WUZHUFOLIO_DATA_DIR` 控制**；不设置则用 `~/.wuzhufolio`（Windows：`%USERPROFILE%\.wuzhufolio`）。
+> 走查前建议先设隔离目录，避免污染日常库。
+
+---
+
+## 6. 用例执行卡（关键命令与取证）
+
+> 判据以 `docs/test/test-cases.md §7` 为准；此处只补「在哪跑、怎么起、怎么取证、常见假失败」。
+
+### TC-MAN-01 托盘走查
+
+- **平台**：Windows 必做；Ubuntu 需托盘宿主（无宿主则验降级分支）。
+- **起法**：§5.3 安装并启动打包版（或 `:app:run`，Windows 原生桌面可用）。
+- **取证**：① 关窗后进程仍在（Windows `Get-Process WuZhuFolio`；Ubuntu `pgrep -af WuZhuFolio`）；
+  ② 托盘菜单三项各截一张图；③ 设置页「托盘与后台」四项开关截图；④ 关闭「最小化到托盘」后再关窗 → 进程消失。
+- **常见假失败**：Ubuntu 无 AppIndicator 扩展时看不到图标 → 属**预期降级**（此时验「关窗即退出且不藏窗口」，
+  并在记录里注明「本机无托盘宿主，托盘菜单项未验」）。
+
+### TC-MAN-02 开机自启
+
+- **平台**：Windows 必做；Ubuntu 必做。**必须打包版**（开发态界面置灰并说明原因，属预期）。
+- **步骤与取证**：开启开关后按平台查注册项，把命令输出留档：
+
+```powershell
+# Windows
+reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v WuZhuFolio
+```
+
+```bash
+# Ubuntu
+cat ~/.config/autostart/*.desktop
+```
+
+  然后**注销并重新登录**，确认应用自动驻留托盘；关闭开关后复查注册项已消失（命令同上，应无输出）。
+- **常见假失败**：路径含空格时的引号处理；重装/移动安装目录 → 依赖「启动自愈」重建注册项。
+
+### TC-MAN-03 读屏（Windows + NVDA）
+
+- **起法**：安装 NVDA（免费）→ 启动 NVDA → 启动应用 → 全程 `Tab`/方向键。
+- **取证**：录屏（30–60 秒/场景）或逐条文字记录「朗读内容」；重点 5 处：登录页控件名、仪表盘六卡与环形图分区、
+  资产列表行、弹窗字段与按钮、toast 自动朗读。
+- **常见假失败**：NVDA 需要先启动再启动应用才会挂接；Compose 的语义树在首帧后建立，稍等 1–2 秒再 Tab。
+
+### TC-MAN-04 目标机性能（4GB 双核）
+
+- **起法**：优先用**打包版**（自带私有 JRE，**目标机无需预装 Java**）；若用开发态则需 JDK 17。
+- **计时**：口令提交 → 主壳出现（秒表或录屏帧差）；仪表盘/资产列表首屏 ≤2 秒；刷新期间仍可滚动/切页。
+- **取证**：`kdfBenchmark` 与 `backupBenchmark` 原始输出（贴入证据）+ 手写计时表。
+- **常见假失败**：首次启动含建库/迁移会明显更慢 → 以**第二次冷启动**为准并在记录中注明。
+
+### TC-MAN-05 断网 / 代理异常
+
+- **起法（Windows）**：设置 → 网络和 Internet → 代理 → 手动设置代理（或直接禁用网卡）。
+- **起法（Ubuntu）**：`nmcli networking off` / 拔网线 / 设一个不存在的代理。
+- **取证**：状态栏断链文案截图 + 日志中 `market refresh … error=` 行 + 恢复网络后自动/手动刷新成功的截图；
+  离线记录标「待定价」「估算中」，联网后回填并消除标注。
+- **常见假失败**：应用启动即刷新（P5 修复）——断网启动时首刷失败属预期，恢复网络后需点刷新或等下一轮。
+
+### TC-MAN-06 纯键盘全流程
+
+- **起法**：收起鼠标；`Tab`/`Shift+Tab`/`Enter`/`Esc`/方向键完成：登录 → 增资 → 买入 → 看仪表盘 → 备份导出。
+- **取证**：录屏 1 段 + 记录任何「鼠标才能完成」的卡点（即为缺陷）。
+- **常见假失败**：下拉/候选浮层需方向键 + 回车确认（不是 Tab）；`Esc` 关闭弹窗后焦点应回到触发按钮。
+
+### TC-MAN-07 真实只读 Key 冒烟（Binance）
+
+- **前置**：币安**只读** API Key（禁用提现/交易权限）；先用 §4.3 的真实网络冒烟确认网络连通。
+- **取证**：同步记录页截图（新增/跳过/未解析计数）+ 二次「立即同步」为 0 新增 + 校准前后持仓与指标截图 +
+  `.cpro` 恢复前后一致性核对表。
+- **常见假失败**：币安只返回最近 500 条成交（更早需 CSV）；首次同步会预热市值排名缓存，耗时略长属预期。
+
+### TC-MAN-08 真实桌面 GUI 全流程
+
+- **起法**：§4 或 §5；窗口调至 1280×800 与 1024×768 各走一遍关键页。
+- **取证**：逐页截图（含空态/错误态/标注）+ 一条「核心操作点击层级 ≤3」的记录表。
+- **常见假失败**：小窗口下表单需滚动（可滚动到即算通过，判据是「不裁切且可达」）。
+
+### TC-MAN-09 出站抓包 + 权限实证
+
+**抓包（推荐仓库内工具，不解密 TLS、不接触业务数据）**
+
+```bash
+# Ubuntu / WSL / macOS：抓包代理 + 让应用走它
+python3 scripts/outbound-capture-proxy.py --port 8899 --log /tmp/wzf-outbound.log &
+export WUZHUFOLIO_DATA_DIR=/tmp/wzf-capture
+https_proxy=http://127.0.0.1:8899 http_proxy=http://127.0.0.1:8899 ./gradlew --no-daemon :app:run
+# 走查：登录 → 设置→行情与同步→立即刷新 → （可选）同步交易
+awk '{print $3}' /tmp/wzf-outbound.log | sort -u     # 期望仅三个白名单主机
+```
+
+**Windows**：`python3 scripts\outbound-capture-proxy.py --port 8899 --log $env:TEMP\wzf-outbound.log`，
+然后 **设置 → 网络和 Internet → 代理 → 手动设置代理** 填 `127.0.0.1:8899`（应用在 Windows 走 JDK 系统代理，
+优先级高于环境变量），启动应用后查看日志文件；结束时把该代理关掉。
+若不想在 Windows 装 Python：改在 Ubuntu 侧执行本用例，Windows 只做权限实证。
+
+**权限判据（按平台不同）**
+
+```bash
+# Linux / macOS
+stat -c '%a %n' <数据目录> <数据目录>/logs <数据目录>/master.key <数据目录>/*.db   # 期望 700/700/600/600
+```
+
+```powershell
+# Windows：无 POSIX 权限模型（FilePermissions 按设计跳过），验 ACL 仅当前用户可读写
+icacls "$env:TEMP\wzf-manual" | Select-String "BUILTIN|Users"    # 期望不出现 Everyone/Users 的可写授权
+```
+
+**另需**：`.cpro` 与 CSV 导出内 `grep` 不到任何密钥明文；安装包内不含 `master.key`/`device.key`/`.db`。
+
+### TC-MAN-10 外链与关于页
+
+- **步骤**：关于页隐私政策/发布渠道、API 弹窗教程链接、行情设置页 CG/CMC 注册链接、429 提示注册引导。
+- **取证**：点击后系统浏览器截图（URL 可见）+ 关掉浏览器后确认应用自身未发起该域名请求（抓包日志佐证）。
+- **常见假失败**：外链由系统浏览器打开属预期；应用内不内置任何 Key 申请页自动填充。
+
+---
+
+## 7. 证据留痕与提交
+
+### 7.1 目录与命名建议
+
+```
+docs/test/manual-evidence/<YYYYMMDD>-<platform>/          # 本地留存；是否入库存疑时勿提交敏感内容
+  result-table.md          # 汇总表（模板见下）
+  tc-man-01-tray-*.png
+  tc-man-05-offline-*.png
+  tc-man-09-outbound.log   # 抓包日志（只含主机名，无业务数据）
+  logs/wuzhufolio.log      # 脱敏日志（提交前人工复核，勿含真实账户名/金额）
+```
+
+### 7.2 结果汇总表模板
+
+| 用例 | 日期 | 平台与版本 | 被测 commit | 结果 | 证据 | 备注/缺陷 |
+|------|------|------------|-------------|------|------|-----------|
+| TC-MAN-01 | 2026-09-15 | Windows 11 23H2 | `0763b61` | 通过 | `tc-man-01-*.png` | 托盘菜单三项均生效 |
+| TC-MAN-03 | 2026-09-15 | Windows 11 + NVDA 2026.1 | `0763b61` | 部分通过 | 录屏 | 环形图朗读缺少占比 → 记为缺陷候选 |
+
+### 7.3 提交方式
+
+1. 把汇总表粘贴进 `docs/dev/STATUS.md` 的 P6 节（人工门结论），**不要**提交含真实数据的日志/备份；
+2. 发现缺陷时按 `docs/test/defects.md` 格式追加一行（现象/根因/影响/建议级别），由人工定级；
+3. 全部通过后在 STATUS 写「P6 人工门通过」并解锁 P7；有 P0/P1 缺陷则停在 P6 修复后复验。
+
+---
+
+## 8. 故障排查（双平台对照）
+
+| 症状 | Windows | Ubuntu |
+|------|---------|--------|
+| `java: command not found` / 版本不对 | 检查 `$env:JAVA_HOME` 与 PATH；`java -version` 应 17 | `sudo apt install openjdk-17-jdk` 或 `export JAVA_HOME=$(mise where java)` |
+| GUI 起不来 / GL 报错 | 一般无（走 DirectX）；虚拟机可试 `-Dskiko.renderApi=SOFTWARE_FAST` | `JAVA_TOOL_OPTIONS="-Dskiko.renderApi=SOFTWARE_FAST"` |
+| 启动弹「安全提示」（钥匙串降级） | 不应出现；出现说明 Credential Manager 访问被拒（检查账户策略） | 预期（未装/未运行 gnome-keyring）；装 `gnome-keyring libsecret-1-0` 并在**桌面会话内**运行 |
+| 关窗就退出、托盘无图标 | 检查通知区域折叠区是否隐藏了图标 | 无 AppIndicator 宿主 → 预期降级；装扩展后重启应用 |
+| 开机自启开关置灰 | 说明跑的是开发态：用打包版 | 同左 |
+| 端口/代理冲突 | 关掉系统里的其他代理或换抓包端口 | 同上 |
+| 打包失败（本地） | 装 WiX 3.14；或直接用 CI 产物 | `sudo apt install -y fakeroot rpm`；AppImage 报 FUSE 错 → `APPIMAGE_EXTRACT_AND_RUN=1` |
+| 测试/运行污染日常库 | 始终设 `WUZHUFOLIO_DATA_DIR` | 同左 |
+
+---
+
+## 9. 需求回溯
+
+| 本指南条目 | 锚点 |
+|------------|------|
+| 用例判据与覆盖点 | `docs/test/test-cases.md §7`（TC-MAN-01…10）、`docs/test/test-plan.md §7` |
+| 托盘/自启 DoD | `docs/dev/modules/M11.md §5-2/§5-3`（延期登记与到期检查点） |
+| 安全与隐私判据 | `docs/test/security-checklist.md`（§1 数据本地化 / §3.4 权限 / §8 复核命令） |
+| 读屏与键盘 | PRD §6 无障碍基线、ADR-001 风险表（Compose 读屏弱于 Web） |
+| 目标机性能门槛 | PRD §12（登录 KDF ≤2s）、PRD §6（核心数据 ≤2s）、M1/M13 开放待办 |
+| 打包与分发 | ADR-006 §1/§2（三平台格式、签名公证口径）、`scripts/package-appimage.sh` |
+| 开发环境 | `docs/tech/dev-setup.md`（mise / WSL2 注记 / 故障排查） |

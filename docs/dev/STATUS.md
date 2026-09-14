@@ -1085,6 +1085,9 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
   §7 残留风险到期状态更新 + §8 复跑命令
 - `docs/test/defects.md` —— 缺陷/问题清单：**P0 = 0 / P1 = 0 / P2 = 6**（DEF-01/02/06 本轮修复；
   DEF-03/04/05 待人工定级，均含影响面扫描与分级建议）+ P3/观察 5 项（DEF-07…11 登记 P8）
+- `docs/test/manual-test-guide.md` —— **人工门执行指南（Windows / Ubuntu 双环境）**：环境要求（JDK/钥匙串/托盘宿主/
+  打包依赖）/ 两条执行路径（开发态 `:app:run` 与打包态安装包）/ CI 产物获取与安装卸载命令 / 用例 × 平台 × 路径矩阵 /
+  10 条用例的起法与取证 / 证据模板 / 双平台故障排查表
 - `docs/test/test-report.md` —— **P6 主产物**：DoD 对照结论 / 执行情况 / 覆盖结论 / 缺陷汇总 / 安全专项结论 /
   P6 专项（内存曲线·出站抓包·隐私评估）/ **待人工裁决 5 项** / 残留风险 / 复跑命令 / 需求回溯
 - 新增测试与夹具（13 项回归）：`DefaultBackupServiceTest`(+3) · `ui/BackupExportErrorCopyTest`(2) ·
@@ -1140,6 +1143,7 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
 
 1. 读 `docs/test/test-report.md`：**§0 DoD 对照** → §3 缺陷汇总 → §4 安全专项 → **§6 待裁决 5 项**；
 2. 读 `docs/test/security-checklist.md`：§0 结论表 → §1.4 抓包实证 → §3.7 内存曲线 → §7 到期项更新；
+   人工用例按 `docs/test/manual-test-guide.md` 在 **Windows / Ubuntu** 上执行（环境要求 + 构建运行 + 安装包获取 + 取证模板）；
 3. 复跑全量：`./gradlew clean build detekt --no-build-cache`（期望 **678 用例 = 670 执行 0 失败 + 8 跳过** + detekt 0 + 警告 0）；
 4. 复跑专项：`./gradlew :domain:backupBenchmark`（内存曲线）·
    `python3 scripts/outbound-capture-proxy.py … + WZF_LIVE_SMOKE=1 …`（抓包）·
