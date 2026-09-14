@@ -1147,7 +1147,7 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
 
 | # | 人工观察 | 核实与处置 |
 |---|----------|-----------|
-| 1 | 托盘三行菜单**文字乱码** | **P1 · DEF-15**（根因：Compose `Tray` 的菜单由 AWT `PopupMenu` 渲染、无法注入字体 + 菜单项硬编码中文）→ **已修复**：自建 AWT 托盘宿主 `AwtTrayHost` + 显式挂内嵌 Noto Sans SC（`TrayFont`）+ 文案入 i18n（zh/en）+ 通知改 `displayMessage`；**待人工在 Windows 复验** |
+| 1 | 托盘三行菜单**文字乱码** | **P1 · DEF-15**：第 2 版（自建 AWT 菜单 + 内嵌 Noto 字体）**人工复验仍乱码** → 推翻字体假设，根因是 **AWT 菜单文本渲染路径本身**；**第 3 版修复**：菜单改 **Compose/Skia 自绘**（`TrayMenuContent` + `TrayMenuWindow`，AWT 只留图标与点击），字体链与应用界面一致；配套加 **构建标识**（启动日志 `build=0.1.0+<git short sha>`）便于确认版本；**待人工用新构建复验** |
 | 2 | 开机自启**未测** | 待人工执行（打包版；开发态置灰属预期）——步骤见 `manual-test-guide.md §6 TC-MAN-02` |
 | 3 | Tab 只在侧边栏移动、焦点进不到页面 | **P1 · DEF-13**（根因：`WzButton`/`WzSelect`/弹层卡片同时有 `clickable` 与显式 `.focusable()` → 每两次 Tab 落到**无标识隐形焦点目标**，按键无反应）→ **已修复**（去掉重复焦点目标；弹层吞点击改 `pointerInput` + 显式语义边界）；新增 `ui/KeyboardA11yUiTest` 钉死「每一步 Tab 必须落在真实可聚焦节点 + 页面内按钮可达」 |
 | 4 | 4GB 双核目标机不可得 | **等效受限环境模拟**（`taskset -c 0,1`）：KDF(m=64MiB/t=3/p=1) **172.6 ms** ≪2 s 预算（≈11× 余量）；`.cpro` 512 MiB 堆下轻/典型/重度峰值 88/139/434 MiB；真机首屏计时仍需人工或明确放过 |

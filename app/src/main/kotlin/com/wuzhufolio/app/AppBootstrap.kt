@@ -348,7 +348,9 @@ object AppBootstrap {
 
         logger.info(
             LogRedactor.redact(
-                "bootstrap ok | db=" + AppDirs.dbPath() +
+                // build 标识（P6：人工验收/缺陷复现时确认「跑的是哪一版」——版本号相同、提交不同）
+                "bootstrap ok | build=" + BuildInfo.VERSION + "+" + BuildInfo.COMMIT +
+                    " | db=" + AppDirs.dbPath() +
                     " | key_backend=" + report.backend +
                     " | schema=" + hello.schemaVersion +
                     " | settings(count=" + hello.settings.size + ")" +

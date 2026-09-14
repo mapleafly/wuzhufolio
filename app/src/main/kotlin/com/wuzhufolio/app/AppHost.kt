@@ -23,7 +23,7 @@ import com.wuzhufolio.app.tray.DesktopNoticeText
 import com.wuzhufolio.app.tray.NoticeLevel
 import com.wuzhufolio.app.tray.NoticePolicy
 import com.wuzhufolio.app.tray.TrayIcon
-import com.wuzhufolio.app.tray.TrayLabels
+import com.wuzhufolio.app.tray.TrayMenuWindow
 import com.wuzhufolio.app.tray.TraySupport
 import com.wuzhufolio.app.tray.WindowCloseBehavior
 import com.wuzhufolio.data.schedule.SchedulerEvent
@@ -48,6 +48,9 @@ fun ApplicationScope.AppHost(runtime: AppBootstrap.Runtime, onExit: () -> Unit) 
     val trayCapable = remember { TraySupport.isSupported() }
     val trayIcon = remember { TrayIcon.painter() }
     var trayHost by remember { mutableStateOf<AwtTrayHost?>(null) }
+    // DEF-15 三次修复：菜单不再交给 AWT PopupMenu（Windows 上文本乱码），改为 Compose 自绘窗口，
+    // 位置 = 右键时的屏幕坐标（px → dp 需按屏幕缩放换算）
+    var trayMenuAt by remember { mutableStateOf<Pair<Float, Float>?>(null) }
     val windowState = rememberWindowState(width = 1280.dp, height = 800.dp)
     val scope = rememberCoroutineScope()
     var windowVisible by remember { mutableStateOf(true) }
@@ -74,15 +77,9 @@ fun ApplicationScope.AppHost(runtime: AppBootstrap.Runtime, onExit: () -> Unit) 
                     LayoutDirection.Ltr,
                     androidx.compose.ui.geometry.Size(TrayIcon.DEFAULT_SIZE.toFloat(), TrayIcon.DEFAULT_SIZE.toFloat()),
                 ),
-                labels = TrayLabels(
-                    open = com.wuzhufolio.ui.i18n.shellStrings.trayOpen,
-                    syncNow = com.wuzhufolio.ui.i18n.shellStrings.traySyncNow,
-                    quit = com.wuzhufolio.ui.i18n.shellStrings.trayQuit,
-                ),
                 logger = runtime.logger,
                 onOpen = { showWindow() },
-                onSync = { scope.launch { runCatching { runtime.scheduler.syncNow() } } },
-                onExit = onExit,
+                onMenuRequest = { x, y -> trayMenuAt = x.toFloat() to y.toFloat() },
             ).takeIf { it.install() }
         } else {
             null
@@ -115,6 +112,24 @@ fun ApplicationScope.AppHost(runtime: AppBootstrap.Runtime, onExit: () -> Unit) 
             if (!traySupported) return@collect
             trayHost?.notify(notice.title, notice.message, error = notice.level == NoticeLevel.ERROR)
         }
+    }
+
+    // 托盘菜单（Compose 自绘，DEF-15）：定位到右键位置；失焦/Esc/点选后关闭
+    trayMenuAt?.let { (xPx, yPx) ->
+        val scale = remember {
+            runCatching {
+                java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment()
+                    .defaultScreenDevice.defaultConfiguration.defaultTransform.scaleX
+            }.getOrDefault(1.0)
+        }
+        TrayMenuWindow(
+            position = androidx.compose.ui.window.WindowPosition((xPx / scale).dp, (yPx / scale).dp),
+            themeMode = runtime.uiState.theme,
+            onDismiss = { trayMenuAt = null },
+            onOpen = { showWindow(); trayMenuAt = null },
+            onSync = { scope.launch { runCatching { runtime.scheduler.syncNow() } }; trayMenuAt = null },
+            onQuit = { trayMenuAt = null; onExit() },
+        )
     }
 
     Window(

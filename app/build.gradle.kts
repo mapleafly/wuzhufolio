@@ -32,8 +32,13 @@ val appVersion = "0.1.0"
 val buildInfoDir = layout.buildDirectory.dir("generated/buildinfo/kotlin")
 val generateBuildInfo by tasks.registering {
     val versionValue = appVersion
+    // 构建标识（P6 人工门：需要能区分「测的是哪一版」，否则修没修都无法确认）
+    val commitValue = providers.exec {
+        commandLine("git", "rev-parse", "--short", "HEAD")
+    }.standardOutput.asText.map { it.trim() }.orElse("unknown").get()
     val outputDir = buildInfoDir
     inputs.property("appVersion", versionValue)
+    inputs.property("buildCommit", commitValue)
     outputs.dir(outputDir)
     doLast {
         val file = outputDir.get().asFile.resolve("com/wuzhufolio/app/BuildInfo.kt")
@@ -48,6 +53,9 @@ val generateBuildInfo by tasks.registering {
             | */
             |object BuildInfo {
             |    const val VERSION: String = "$versionValue"
+            |
+            |    /** 构建提交（short SHA）——人工验收/缺陷复现时用于确认「跑的是哪一版」。 */
+            |    const val COMMIT: String = "$commitValue"
             |}
             |
             """.trimMargin(),

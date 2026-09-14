@@ -98,15 +98,18 @@
 | **回归** | `ui/KeyboardA11yUiTest`：`enter in password field submits the login form`（断言提交参数三元组）+ `enter with empty password shows the inline error instead of submitting` |
 | **影响面** | `WzTextField`（新增可选参数，既有调用点零改动）/ `GatePages` 登录页；不涉数据与接口 |
 
-### DEF-15 ✅ 已修复（**P1** · 人工门实测暴露 · 建议 C0）· Windows 托盘菜单中文乱码（且不随界面语言）
+### DEF-15 🔁 **二次修复后仍复现 → 三次修复（Skia 自绘菜单）**（**P1** · 人工门实测 · 建议 C0）· Windows 托盘菜单中文乱码
 
 | 项 | 内容 |
 |----|------|
 | **来源** | P6 人工门 Windows 11 走查：「托盘有三行菜单，文字全是乱码」 |
 | **根因** | Compose Desktop 的 `Tray` 用 **AWT `PopupMenu`/`MenuItem`** 承载菜单（`ui-desktop-1.12.0.jar` 的 `Tray_desktopKt` 反汇编实证：`java.awt.SystemTray` + `java.awt.PopupMenu`），菜单文字因此**不由应用内嵌字体渲染**，而由目标机 AWT 逻辑字体交给系统绘制——该路径缺 CJK 覆盖即乱码；且 Compose 的 `Item(text)` 无法注入字体。附带缺陷：三个菜单项**硬编码中文**，英文界面下不跟随 |
-| **修复** | 自建 AWT 托盘宿主 `app/tray/AwtTrayHost.kt` 替代 Compose `Tray`：① 每个 `MenuItem` 与菜单显式挂 **内嵌 Noto Sans SC**（`TrayFont`：从 `fonts/NotoSansSC.ttf` 载入并按 `canDisplayUpTo` 校验覆盖，失败回退系统可用字体、绝不阻断托盘注册）；② 文案改由 i18n 提供（`ShellStrings.trayOpen/traySyncNow/trayQuit`，zh/en）；③ 通知改 `TrayIcon.displayMessage`（等价替代 `TrayState.sendNotification`）；④ 保持 M11 既有语义：托盘不可用 → 不注册 + 关窗即退出（降级），左键打开主界面，右键原生菜单 |
-| **回归** | `app/TrayFontTest`：托盘字体必须覆盖中文菜单文字且来自内嵌 Noto（不依赖系统字体）；托盘文案随语言切换（en 档零 CJK） |
-| **待办** | **本机（WSLg）无系统托盘，无法目视复验 → 请人工在 Windows 重新走查 TC-MAN-01**（复验点：三行菜单为可读中文；切英文界面后为英文；三项动作生效） |
+| **修复（第 2 版，2026-09-14）** | 自建 AWT 托盘宿主 + 每个 `MenuItem` 显式挂**内嵌 Noto Sans SC**（`TrayFont`，`canDisplayUpTo` 校验覆盖）+ 文案入 i18n + 通知改 `displayMessage` |
+| **第 2 版结果** | ❌ **人工复验仍乱码** → **推翻字体假设**：不是「系统缺字形」，而是 **AWT 菜单文本的渲染/转码路径本身**（Windows 上由 AWT→native 菜单绘制，应用无法干预）。这也解释了为何换字体无效 |
+| **修复（第 3 版，2026-09-15）** | **彻底绕开 AWT 文本**：AWT 只负责**托盘图标与点击事件**（图像/坐标与文本无关），右键回调屏幕坐标 → 由 **Compose/Skia 自绘菜单窗口**渲染三项（`ui/tray/TrayMenuContent` + `app/tray/TrayMenuWindow`）。字体/渲染链与应用界面完全一致（界面中文已实证正常）。交互贴合原生：无边框置顶、**失焦即关**、Esc 关闭、点选执行并关闭；菜单容器自取焦点保证 Esc 可达。`TrayFont`（AWT 字体方案）随第 2 版一并删除 |
+| **回归（第 3 版）** | `ui/tray/TrayMenuContentUiTest`（3 项）：三项按当前语言渲染 / 点选各自触发动作并关闭 / Esc 关闭；字体链路 = 应用同一 Compose 主题（界面中文正常即此路径可信） |
+| **构建标识（配套）** | 人工反馈需能确认「跑的是哪一版」：`BuildInfo.COMMIT` 由构建期注入 git short SHA，启动日志首行输出 `bootstrap ok \| build=0.1.0+<sha> \| …`（`AppBootstrap`）——复验时请以此确认已装新版 |
+| **待办** | 本机（WSLg）无系统托盘，**无法目视复验** → 请人工用**新构建**重走 TC-MAN-01：① 托盘右键三项为可读中文；② 切换 English 后为英文；③ 三项动作分别生效；④ Esc/点别处可关闭菜单。若仍乱码，请提供截图 + 启动日志 `build=` 行 + Windows 显示语言/区域设置（届时可判定为更深层的系统级文本路径问题） |
 | **影响面** | 代码：新增 `app/tray/AwtTrayHost.kt`、`app/tray/TrayFont.kt`，`AppHost.kt` 托盘装配与通知路径改写，`ui/i18n/ShellStrings.kt` +3 键 ×2 档；不涉数据/接口/schema；托盘能力探测与降级口径不变 |
 
 ### DEF-16 ➖ 非缺陷（口径确认）· 断网后状态栏不是「立即」变为网络断开
