@@ -1,8 +1,10 @@
 package com.wuzhufolio.ui.components
 
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -22,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -83,11 +86,11 @@ fun WzModal(
                         false
                     }
                 }
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {},
-                )
+                // DEF-13：吞点击改 pointerInput（clickable 会再建一个焦点目标 → Tab 落隐形目标）；
+                // 卡片保留唯一焦点目标（上面的 focusable）以承接无输入框弹窗的 Esc。
+                .pointerInput(Unit) { detectTapGestures { } }
+                // 弹层作为单一语义边界（与改前 clickable 合并行为一致，测试与读屏按卡片粒度取节点）
+                .semantics(mergeDescendants = true) {}
                 .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
         ) {
             Column(modifier = Modifier.padding(20.dp)) {

@@ -15,11 +15,15 @@
 |------|------|------|
 | **P0** | **0** | — |
 | **P1** | **0** | — |
-| **P2** | 6 | **4 项已修复**（DEF-01/02/03/06）· **2 项已按人工裁决处置**（DEF-04 登记 P8；DEF-05 按 C0 文档澄清并已回写）<br>（另有 **DEF-12** = CI 三平台复跑暴露的**测试缺陷**，已修复，见 §3） |
+| **P2** | 6 | **4 项已修复**（DEF-01/02/03/06）· **2 项已按人工裁决处置**（DEF-04 登记 P8；DEF-05 按 C0 文档澄清并已回写） |
+| **P1（人工门新增）** | 2 | **均已修复**：**DEF-13**（Tab 焦点链重复目标 → 页面内容键盘不可达）、**DEF-15**（Windows 托盘菜单中文乱码）——见 §1.5 |
+| **P2（人工门新增）** | 1 | **已修复**：**DEF-14**（登录页回车不提交）；另 **DEF-16** 为口径确认（非缺陷） |
+| 测试缺陷（CI 暴露） | 1 | **DEF-12** 已修复（见 §3） |
 | **P3 / 观察项** | 6 | 登记（DEF-07…DEF-12），详见 §3 |
-| 合计 | 12 | P0/P1 清零 ✅；P2 全部有明确结论 ✅ |
+| 合计 | 16 | P0 = 0 ✅；**P1 曾出现 2 项并已修复闭环**（人工门实测暴露）；P2 全部有明确结论 ✅ |
 
-> 结论：**无 P0/P1 缺陷**；P2 六项在人工 P6 门全部裁决完毕（见 §0.1），**无遗留未决项**。
+> 结论：**P0 = 0**；**P1 两项（DEF-13/DEF-15）由人工门实测暴露并已修复闭环**（修复即回归，见 §1.5），
+> 当前无未修复 P1；P2 六项在人工 P6 门全部裁决完毕（见 §0.1），**无遗留未决项**。
 
 ### 0.1 人工裁决记录（2026-09-14 · 原话「裁决：5项都按建议来处理」）
 
@@ -71,6 +75,48 @@
 | **影响面** | `BackupCopy.kt` / `BackupViewModel.kt` / `BackupStrings.kt`；无契约变化 |
 
 ---
+
+### DEF-13 ✅ 已修复（**P1** · 人工门实测暴露 · 建议 C0）· Tab 焦点链重复目标导致页面内容键盘不可达
+
+| 项 | 内容 |
+|----|------|
+| **来源** | P6 人工门 Windows 11 走查（2026-09-14）：①「按 Tab 只能在左侧功能项移动焦点」；②「进入资金页后无法用键盘执行增资，焦点进不到页面组件」 |
+| **复现** | Compose UI 探针（`:ui:test`）实测序列 = `nav-DASHBOARD → … → nav-GALLERY → theme-toggle → (无焦点) → …`：页面内按钮（`dashboard-refresh` / `fund-add-deposit`）**完全不可达** |
+| **根因** | `WzButton`/`WzSelect` 同时挂了 `clickable`（自身即焦点目标）与**显式 `.focusable()`** → **同一节点两个焦点目标**；`WzModal`/认证弹层卡片同样如此（`clickable` 吞点击 + `focusable` 承接 Esc）。Tab 会在「有语义、有焦点环的目标」与「无标识的隐形目标」之间交替，隐形目标上按 Enter/Space 无任何反应 → 用户感知为「焦点动不了 / 按键没反应」 |
+| **修复** | ① `WzButton`/`WzSelect` 去掉重复的显式 `.focusable()`（保留 `clickable` 自带焦点与 `onFocusChanged` 焦点环）；② `WzModal`/`GateWidgets` 卡片把「吞点击」的 `clickable` 换成 `pointerInput { detectTapGestures {} }`（不产生焦点目标），保留唯一 `focusable()` 承接无输入框弹窗的 Esc，并显式 `semantics(mergeDescendants = true)` 维持原有语义边界（4 个弹层用例靠它取节点） |
+| **回归** | 新增 `ui/KeyboardA11yUiTest`：**Tab 每一步必须恰好一个可聚焦且带标识的节点**（隐形目标会让断言红）+ 页面内按钮可达（`probe-funds-btn`/`probe-withdraw-btn`）+ 侧边栏/顶栏仍可达；修复后实测序列 = `nav-* → topbar-refresh-quotes → topbar-sync → theme-toggle → 页面按钮 → 循环`，**无空焦点步进** |
+| **影响面扫描** | 代码：`WzButton`/`WzSelect`/`WzModal`/`GateWidgets`（4 文件，仅焦点/指针修饰链）；不涉数据、接口、schema、备份格式；既有 UI 测试全量复跑绿（其中 4 个弹层用例因语义边界写法变化同步暴露并已修复） |
+| **PRD 回溯** | PRD §6「无障碍基线：桌面端支持全键盘导航（Tab 焦点顺序合理、核心操作可达）」；`interaction.md §3-9` |
+
+### DEF-14 ✅ 已修复（P2 · 建议 C0）· 登录页输入密码后回车不提交
+
+| 项 | 内容 |
+|----|------|
+| **来源** | P6 人工门 Windows 走查：「填完密码按回车没反应，需 Tab 到『登录』按钮再回车」 |
+| **根因** | 登录表单只在按钮 `onClick` 里做提交，输入框未接 Enter 通路（桌面端物理回车不触发 IME action） |
+| **修复** | `WzTextField` 新增 `onSubmit`：物理回车走 `onPreviewKeyEvent`（`Enter`/`NumPadEnter`），并同时声明 `ImeAction.Done` + `KeyboardActions(onDone)`（软键盘/无障碍路径一致）；登录页把提交逻辑抽为局部函数，密码框回车与按钮**共用同一路径**（空密码回车 → 内联错误，不提交） |
+| **回归** | `ui/KeyboardA11yUiTest`：`enter in password field submits the login form`（断言提交参数三元组）+ `enter with empty password shows the inline error instead of submitting` |
+| **影响面** | `WzTextField`（新增可选参数，既有调用点零改动）/ `GatePages` 登录页；不涉数据与接口 |
+
+### DEF-15 ✅ 已修复（**P1** · 人工门实测暴露 · 建议 C0）· Windows 托盘菜单中文乱码（且不随界面语言）
+
+| 项 | 内容 |
+|----|------|
+| **来源** | P6 人工门 Windows 11 走查：「托盘有三行菜单，文字全是乱码」 |
+| **根因** | Compose Desktop 的 `Tray` 用 **AWT `PopupMenu`/`MenuItem`** 承载菜单（`ui-desktop-1.12.0.jar` 的 `Tray_desktopKt` 反汇编实证：`java.awt.SystemTray` + `java.awt.PopupMenu`），菜单文字因此**不由应用内嵌字体渲染**，而由目标机 AWT 逻辑字体交给系统绘制——该路径缺 CJK 覆盖即乱码；且 Compose 的 `Item(text)` 无法注入字体。附带缺陷：三个菜单项**硬编码中文**，英文界面下不跟随 |
+| **修复** | 自建 AWT 托盘宿主 `app/tray/AwtTrayHost.kt` 替代 Compose `Tray`：① 每个 `MenuItem` 与菜单显式挂 **内嵌 Noto Sans SC**（`TrayFont`：从 `fonts/NotoSansSC.ttf` 载入并按 `canDisplayUpTo` 校验覆盖，失败回退系统可用字体、绝不阻断托盘注册）；② 文案改由 i18n 提供（`ShellStrings.trayOpen/traySyncNow/trayQuit`，zh/en）；③ 通知改 `TrayIcon.displayMessage`（等价替代 `TrayState.sendNotification`）；④ 保持 M11 既有语义：托盘不可用 → 不注册 + 关窗即退出（降级），左键打开主界面，右键原生菜单 |
+| **回归** | `app/TrayFontTest`：托盘字体必须覆盖中文菜单文字且来自内嵌 Noto（不依赖系统字体）；托盘文案随语言切换（en 档零 CJK） |
+| **待办** | **本机（WSLg）无系统托盘，无法目视复验 → 请人工在 Windows 重新走查 TC-MAN-01**（复验点：三行菜单为可读中文；切英文界面后为英文；三项动作生效） |
+| **影响面** | 代码：新增 `app/tray/AwtTrayHost.kt`、`app/tray/TrayFont.kt`，`AppHost.kt` 托盘装配与通知路径改写，`ui/i18n/ShellStrings.kt` +3 键 ×2 档；不涉数据/接口/schema；托盘能力探测与降级口径不变 |
+
+### DEF-16 ➖ 非缺陷（口径确认）· 断网后状态栏不是「立即」变为网络断开
+
+| 项 | 内容 |
+|----|------|
+| **来源** | P6 人工门 Windows 走查：「启动时连通良好显示『直连 同步：空闲』；拔网后短时间内仍显示连接状态，手动刷新行情后才显示『网络断开』；恢复网络后点刷新即恢复」 |
+| **核实结论** | **与设计一致**：状态栏断链指示的输入是**最近一次行情刷新的结果**（`ShellStatusViewModel.marketOffline = market?.error is MarketRefreshError.Network`），即「请求失败即提示、保留上次价格与时间戳、点击可重试」（PRD 故事 3.2-3 / `interaction.md §1.1 N1`）。拔网本身不触发探测，故最长需等到下一轮自动刷新（默认 5 分钟，可设 15/30/60）。手动刷新即刻反映，恢复网络后点刷新即回到「直连」，均符合预期 |
+| **可选增强（登记 P8）** | 若希望「拔网即刻提示」，可加**轻量连通性探测**（在调度 tick 上做一次 HEAD/连接探测，或监听 OS 网络事件）——属新增行为（PRD 未要求），登记 P8 评估，不在 P6 实施 |
+| **手册更新** | `docs/test/manual-test-guide.md` TC-MAN-05 已写明该预期，避免复验时误判为缺陷 |
 
 ## 2. 待人工定级 / 登记（P2，不阻断发布）
 

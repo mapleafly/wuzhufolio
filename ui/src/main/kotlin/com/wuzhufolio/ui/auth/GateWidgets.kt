@@ -1,5 +1,7 @@
 package com.wuzhufolio.ui.auth
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -247,11 +250,10 @@ fun InPlaceModal(
                         false
                     }
                 }
-                .clickable(
-                    interactionSource = androidx.compose.foundation.interaction.MutableInteractionSource(),
-                    indication = null,
-                    onClick = {},
-                )
+                // DEF-13：吞点击改 pointerInput（避免第二个焦点目标；卡片 focusable 承接 Esc）
+                .pointerInput(Unit) { detectTapGestures { } }
+                // 弹层作为单一语义边界（与改前 clickable 合并行为一致，测试与读屏按卡片粒度取节点）
+                .semantics(mergeDescendants = true) {}
                 .padding(20.dp)
                 .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
             horizontalAlignment = Alignment.CenterHorizontally,

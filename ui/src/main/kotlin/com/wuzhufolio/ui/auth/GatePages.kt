@@ -66,6 +66,15 @@ fun LoginPage(
                     testTag = "lg-user",
                 )
             }
+            // DEF-14：登录提交逻辑抽为局部函数，密码框回车与「登录」按钮共用（PRD §6 键盘可用性）
+            val submitLogin: () -> Unit = {
+                if (password.isEmpty()) {
+                    passwordError = AuthCopy.LOGIN_ERROR_PASSWORD_EMPTY
+                } else {
+                    val user = if (usernameEnumEnabled && accounts.isNotEmpty()) selectedUser else typedUser.trim()
+                    onLogin(user, password, rememberMe)
+                }
+            }
             WzTextField(
                 value = password,
                 onValueChange = {
@@ -78,18 +87,12 @@ fun LoginPage(
                 error = passwordError,
                 isPassword = true,
                 testTag = "lg-pw",
+                onSubmit = submitLogin,
             )
             RememberRow(AuthCopy.LOGIN_REMEMBER_LABEL, rememberMe, { rememberMe = it }, testTag = "lg-remember")
             WzButton(
                 text = busyText ?: AuthCopy.LOGIN_BUTTON,
-                onClick = {
-                    if (password.isEmpty()) {
-                        passwordError = AuthCopy.LOGIN_ERROR_PASSWORD_EMPTY
-                        return@WzButton
-                    }
-                    val user = if (usernameEnumEnabled && accounts.isNotEmpty()) selectedUser else typedUser.trim()
-                    onLogin(user, password, rememberMe)
-                },
+                onClick = submitLogin,
                 enabled = busyText == null,
                 modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
                 testTag = "lg-btn",

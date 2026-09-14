@@ -1,5 +1,12 @@
 package com.wuzhufolio.ui.components
 
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.Key
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -37,6 +44,12 @@ fun WzTextField(
     testTag: String? = null,
     /** 弹窗内自动聚焦（GUI 共性约束 7.3-②：首输入框打开即聚焦，键盘立即可用）。 */
     fieldFocusRequester: FocusRequester? = null,
+    /**
+     * 回车提交（DEF-14，P6 人工门：登录页填完密码按回车无反应，须 Tab 到按钮再回车）。
+     * 桌面端物理回车走 [onPreviewKeyEvent]（不依赖 IME action），并同时声明 ImeAction.Done
+     * 的 [KeyboardActions]，保证软键盘/无障碍路径一致。
+     */
+    onSubmit: (() -> Unit)? = null,
 ) {
     val colors = WzTheme.colors
     Column(modifier = modifier) {
@@ -48,15 +61,38 @@ fun WzTextField(
                 .fillMaxWidth()
                 .padding(top = 4.dp)
                 .then(if (fieldFocusRequester != null) Modifier.focusRequester(fieldFocusRequester) else Modifier)
+                .then(
+                    if (onSubmit != null) {
+                        Modifier.onPreviewKeyEvent { event ->
+                            val enter = event.key == Key.Enter || event.key == Key.NumPadEnter
+                            if (enter && event.type == KeyEventType.KeyDown) {
+                                onSubmit()
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                    } else {
+                        Modifier
+                    },
+                )
                 .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
             placeholder = { Text(placeholder, color = colors.ink3) },
             isError = error != null,
             singleLine = singleLine,
             visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
             keyboardOptions = if (isPassword) {
-                KeyboardOptions(keyboardType = KeyboardType.Password)
+                KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    imeAction = if (onSubmit != null) ImeAction.Done else ImeAction.Default,
+                )
             } else {
-                KeyboardOptions.Default
+                KeyboardOptions(imeAction = if (onSubmit != null) ImeAction.Done else ImeAction.Default)
+            },
+            keyboardActions = if (onSubmit != null) {
+                KeyboardActions(onDone = { onSubmit() })
+            } else {
+                KeyboardActions.Default
             },
             shape = RoundedCornerShape(7.dp),
             textStyle = WzTheme.typography.body,

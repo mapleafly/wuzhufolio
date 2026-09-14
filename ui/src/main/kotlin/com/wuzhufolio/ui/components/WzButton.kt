@@ -3,7 +3,6 @@ package com.wuzhufolio.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -65,9 +64,11 @@ fun WzButton(
             .clip(shape)
             .background(if (enabled) containerColor else colors.surface2)
             .border(borderWidth, borderColor, shape)
+            // P6 人工门 DEF-13：clickable 本身即焦点目标——此前追加的显式 .focusable() 造成
+            // **同一节点两个焦点目标**，Tab 会落在没有语义/没有焦点环的隐形目标上（表现为「焦点进不了页面」
+            // 「按键无反应」）。此处只保留 clickable（禁用态自然不可聚焦）。
             .clickable(enabled = enabled, onClick = onClick)
             .onFocusChanged { focused = it.isFocused }
-            .focusable()
             .alpha(if (enabled) 1f else 0.55f)
             .padding(horizontal = 14.dp, vertical = 6.dp)
             .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),

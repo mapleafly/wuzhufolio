@@ -10,18 +10,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.toAwtImage
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.window.ApplicationScope
-import androidx.compose.ui.window.Notification
-import androidx.compose.ui.window.Tray
 import androidx.compose.ui.window.Window
-import androidx.compose.ui.window.rememberTrayState
 import androidx.compose.ui.window.rememberWindowState
+import com.wuzhufolio.app.tray.AwtTrayHost
 import com.wuzhufolio.app.tray.CloseAction
 import com.wuzhufolio.app.tray.DesktopNotice
 import com.wuzhufolio.app.tray.DesktopNoticeText
 import com.wuzhufolio.app.tray.NoticeLevel
 import com.wuzhufolio.app.tray.NoticePolicy
 import com.wuzhufolio.app.tray.TrayIcon
+import com.wuzhufolio.app.tray.TrayLabels
 import com.wuzhufolio.app.tray.TraySupport
 import com.wuzhufolio.app.tray.WindowCloseBehavior
 import com.wuzhufolio.data.schedule.SchedulerEvent
@@ -41,9 +43,11 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun ApplicationScope.AppHost(runtime: AppBootstrap.Runtime, onExit: () -> Unit) {
-    val traySupported = remember { TraySupport.isSupported() }
-    val trayState = rememberTrayState()
+    // P6 DEF-15：自建 AWT 托盘（字体 = 内嵌 Noto Sans SC，文案随界面语言）——Compose Tray 的菜单
+    // 由 AWT 逻辑字体渲染，在 Windows 上中文乱码且无法注入字体。
+    val trayCapable = remember { TraySupport.isSupported() }
     val trayIcon = remember { TrayIcon.painter() }
+    var trayHost by remember { mutableStateOf<AwtTrayHost?>(null) }
     val windowState = rememberWindowState(width = 1280.dp, height = 800.dp)
     val scope = rememberCoroutineScope()
     var windowVisible by remember { mutableStateOf(true) }
@@ -61,6 +65,35 @@ fun ApplicationScope.AppHost(runtime: AppBootstrap.Runtime, onExit: () -> Unit) 
         runtime.scheduler.start(scope)
         onDispose { runtime.scheduler.stop() }
     }
+
+    DisposableEffect(trayCapable) {
+        val host = if (trayCapable) {
+            AwtTrayHost(
+                icon = trayIcon.toAwtImage(
+                    Density(1f),
+                    LayoutDirection.Ltr,
+                    androidx.compose.ui.geometry.Size(TrayIcon.DEFAULT_SIZE.toFloat(), TrayIcon.DEFAULT_SIZE.toFloat()),
+                ),
+                labels = TrayLabels(
+                    open = com.wuzhufolio.ui.i18n.shellStrings.trayOpen,
+                    syncNow = com.wuzhufolio.ui.i18n.shellStrings.traySyncNow,
+                    quit = com.wuzhufolio.ui.i18n.shellStrings.trayQuit,
+                ),
+                logger = runtime.logger,
+                onOpen = { showWindow() },
+                onSync = { scope.launch { runCatching { runtime.scheduler.syncNow() } } },
+                onExit = onExit,
+            ).takeIf { it.install() }
+        } else {
+            null
+        }
+        trayHost = host
+        onDispose {
+            host?.close()
+            trayHost = null
+        }
+    }
+    val traySupported = trayCapable && trayHost != null
 
     // 托盘能力与关窗行为留痕（走查/冒烟可核；托盘不可用时关窗即退出，见头注降级口径）
     LaunchedEffect(traySupported) {
@@ -80,26 +113,8 @@ fun ApplicationScope.AppHost(runtime: AppBootstrap.Runtime, onExit: () -> Unit) 
             runtime.logger.debug("scheduler event: " + event.javaClass.simpleName)
             val notice = noticeFor(event, runtime) ?: return@collect
             if (!traySupported) return@collect
-            trayState.sendNotification(notificationOf(notice))
+            trayHost?.notify(notice.title, notice.message, error = notice.level == NoticeLevel.ERROR)
         }
-    }
-
-    if (traySupported) {
-        Tray(
-            icon = trayIcon,
-            state = trayState,
-            tooltip = "WuZhuFolio",
-            onAction = { showWindow() },
-            menu = {
-                Item("打开主界面", onClick = { showWindow() })
-                Item(
-                    "立即同步",
-                    onClick = { scope.launch { runCatching { runtime.scheduler.syncNow() } } },
-                )
-                Separator()
-                Item("退出", onClick = onExit)
-            },
-        )
     }
 
     Window(
@@ -134,13 +149,3 @@ private fun noticeFor(event: SchedulerEvent, runtime: AppBootstrap.Runtime): Des
         backupReminder = runtime.desktopPreferences.backupReminder,
     )
 
-/** 通知级别 → 托盘通知类型（系统托盘决定图标与提示音）。 */
-private fun notificationOf(notice: DesktopNotice): Notification = Notification(
-    title = notice.title,
-    message = notice.message,
-    type = when (notice.level) {
-        NoticeLevel.INFO -> Notification.Type.Info
-        NoticeLevel.WARNING -> Notification.Type.Warning
-        NoticeLevel.ERROR -> Notification.Type.Error
-    },
-)

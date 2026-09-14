@@ -3,7 +3,6 @@ package com.wuzhufolio.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
@@ -57,9 +56,9 @@ fun <T> WzSelect(
                 color = if (focused) colors.accent else colors.line,
                 shape = shape,
             )
+            // DEF-13：仅保留 clickable（自带焦点目标）——重复 .focusable() 会产生隐形焦点目标
             .clickable { expanded = true }
             .onFocusChanged { focused = it.isFocused }
-            .focusable()
             .padding(horizontal = 12.dp, vertical = 6.dp)
             .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
         contentAlignment = Alignment.CenterStart,

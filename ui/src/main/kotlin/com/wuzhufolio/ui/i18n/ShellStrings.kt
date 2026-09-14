@@ -29,6 +29,11 @@ interface ShellStrings {
 
     // 顶栏
     val manualSync: String
+
+    /** 托盘菜单（P6 DEF-15：自建 AWT 托盘，文案随界面语言——此前硬编码中文）。 */
+    val trayOpen: String
+    val traySyncNow: String
+    val trayQuit: String
     val syncing: String
     val themeToggleTooltip: String
     /** 顶栏按钮短文案（宽度受限；状态栏用长文案 [refreshQuotes]）。 */
@@ -70,6 +75,9 @@ object ShellStringsZh : ShellStrings {
     override val navSettings = "设置"
     override val navGallery = "组件走查"
     override val manualSync = "立即同步"
+    override val trayOpen = "打开主界面"
+    override val traySyncNow = "立即同步"
+    override val trayQuit = "退出"
     override val syncing = "同步中…"
     override val themeToggleTooltip = "切换明/暗主题"
     override val refreshQuotesShort = "刷新行情"
@@ -122,6 +130,9 @@ object ShellStringsEn : ShellStrings {
     override val navSettings = "Settings"
     override val navGallery = "Components"
     override val manualSync = "Sync now"
+    override val trayOpen = "Open WuZhuFolio"
+    override val traySyncNow = "Sync now"
+    override val trayQuit = "Quit"
     override val syncing = "Syncing…"
     override val themeToggleTooltip = "Toggle light/dark theme"
     override val refreshQuotesShort = "Refresh"
