@@ -8,9 +8,10 @@ import androidx.compose.ui.window.ApplicationScope
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
-import com.wuzhufolio.ui.i18n.shellStrings
+import com.wuzhufolio.domain.settings.AppLanguage
 import com.wuzhufolio.ui.theme.WuzhuTheme
 import com.wuzhufolio.ui.tray.TrayMenuContent
+import com.wuzhufolio.ui.tray.trayLabels
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
 
@@ -33,6 +34,8 @@ import java.awt.event.WindowEvent
 fun ApplicationScope.TrayMenuWindow(
     position: WindowPosition,
     themeMode: com.wuzhufolio.domain.settings.ThemeMode,
+    /** 当前界面语言（**必须显式传入**：独立窗口的主题调用会重置全局 I18n，见 `trayLabels` 头注）。 */
+    language: AppLanguage,
     onDismiss: () -> Unit,
     onOpen: () -> Unit,
     onSync: () -> Unit,
@@ -63,11 +66,12 @@ fun ApplicationScope.TrayMenuWindow(
             window.addWindowFocusListener(listener)
             onDispose { window.removeWindowFocusListener(listener) }
         }
-        WuzhuTheme(themeMode = themeMode) {
+        val labels = trayLabels(language)
+        WuzhuTheme(themeMode = themeMode, language = language) {
             TrayMenuContent(
-                open = shellStrings.trayOpen,
-                syncNow = shellStrings.traySyncNow,
-                quit = shellStrings.trayQuit,
+                open = labels.open,
+                syncNow = labels.syncNow,
+                quit = labels.quit,
                 onOpen = onOpen,
                 onSync = onSync,
                 onQuit = onQuit,

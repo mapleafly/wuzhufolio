@@ -1153,7 +1153,8 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
 | 4 | 4GB 双核目标机不可得 | **等效受限环境模拟**（`taskset -c 0,1`）：KDF(m=64MiB/t=3/p=1) **172.6 ms** ≪2 s 预算（≈11× 余量）；`.cpro` 512 MiB 堆下轻/典型/重度峰值 88/139/434 MiB；真机首屏计时仍需人工或明确放过 |
 | 5 | 拔网后不立即显示断网，手动刷新才显示；恢复后点刷新即恢复 | **DEF-16 口径确认（非缺陷）**：断链指示输入 = 最近一次行情刷新结果（PRD 故事 3.2-3 / interaction §1.1 N1），最长等下一轮自动刷新（默认 5 分钟）；「拔网即刻提示」＝新增探测行为，登记 P8 评估 |
 | 6 | 登录页回车不提交；进页面键盘无法操作 | **P2 · DEF-14**（登录回车）+ **DEF-13**（同上）→ **已修复**：`WzTextField.onSubmit`（物理回车 + ImeAction.Done 双通路），登录页密码框回车与按钮共用提交路径；空密码回车给内联错误 |
-| 7 | **复验时启动失败**（Windows 跨零点） | **P0 · DEF-17**：`LogRotator` 列举目录后逐条 `getLastModifiedTime`，与 logback 跨日滚动/清理竞争 → `NoSuchFileException` 被当作致命错误终止 bootstrap。**已修复**：单条目 IO 失败一律跳过（`EntryOutcome.Skipped`）+ 启动期/运行期两处轮转包 `runCatching`（维护性工作不阻断启动）+ 2 项回归 |
+| 7 | **二轮复验**：托盘中文正常，但切英文后仍中文、重启不变 | **P2 · DEF-18**（根因：菜单是独立窗口，其 `WuzhuTheme` 未传 language → 把全局 `I18n` 重置为中文；菜单文案又走全局读取器）→ **已修复**：`trayLabels(language)` 显式取词 + 窗口接收 `language` + `AppHost` 传 `runtime.uiState.language`；回归 2 例（全局被重置为中文时按 EN 取词仍须英文） |
+| 8 | **复验时启动失败**（Windows 跨零点） | **P0 · DEF-17**：`LogRotator` 列举目录后逐条 `getLastModifiedTime`，与 logback 跨日滚动/清理竞争 → `NoSuchFileException` 被当作致命错误终止 bootstrap。**已修复**：单条目 IO 失败一律跳过（`EntryOutcome.Skipped`）+ 启动期/运行期两处轮转包 `runCatching`（维护性工作不阻断启动）+ 2 项回归 |
 
 **本轮修复验证**：`./gradlew clean build detekt --no-build-cache` → **683 用例（675 执行 0 失败 + 8 跳过）** + detekt 0 + 警告 0
 （较上轮 +5：`KeyboardA11yUiTest` 3 项 + `TrayFontTest` 2 项）；焦点序列实测 = `nav-* → 顶栏按钮 → 主题切换 → 页面内按钮 → 循环`，**无空焦点步进**。

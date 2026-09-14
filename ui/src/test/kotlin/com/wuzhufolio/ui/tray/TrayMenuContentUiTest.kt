@@ -16,7 +16,6 @@ import com.wuzhufolio.domain.settings.AppLanguage
 import com.wuzhufolio.domain.settings.PnlColorScheme
 import com.wuzhufolio.domain.settings.ThemeMode
 import com.wuzhufolio.ui.i18n.I18n
-import com.wuzhufolio.ui.i18n.shellStrings
 import com.wuzhufolio.ui.theme.WuzhuTheme
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -41,11 +40,12 @@ class TrayMenuContentUiTest {
         onQuit: () -> Unit = {},
         onDismiss: () -> Unit = {},
     ): @Composable () -> Unit = {
+        val labels = trayLabels(AppLanguage.ZH)
         WuzhuTheme(themeMode = ThemeMode.LIGHT, pnlScheme = PnlColorScheme.GREEN_UP) {
             TrayMenuContent(
-                open = shellStrings.trayOpen,
-                syncNow = shellStrings.traySyncNow,
-                quit = shellStrings.trayQuit,
+                open = labels.open,
+                syncNow = labels.syncNow,
+                quit = labels.quit,
                 onOpen = onOpen,
                 onSync = onSync,
                 onQuit = onQuit,
@@ -58,9 +58,10 @@ class TrayMenuContentUiTest {
     fun `tray menu renders three items in the active language`() = runComposeUiTest {
         setContent(content())
         onNodeWithTag("tray-menu").assertIsDisplayed()
-        onNodeWithText(shellStrings.trayOpen).assertIsDisplayed()
-        onNodeWithText(shellStrings.traySyncNow).assertIsDisplayed()
-        onNodeWithText(shellStrings.trayQuit).assertIsDisplayed()
+        val zh = trayLabels(AppLanguage.ZH)
+        onNodeWithText(zh.open).assertIsDisplayed()
+        onNodeWithText(zh.syncNow).assertIsDisplayed()
+        onNodeWithText(zh.quit).assertIsDisplayed()
     }
 
     @Test

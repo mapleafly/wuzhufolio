@@ -100,10 +100,3 @@ class AwtTrayHost(
         const val TOOLTIP = "WuZhuFolio"
     }
 }
-
-/** 托盘菜单文案（按当前界面语言传入；zh/en 由 ui/i18n 提供）。 */
-data class TrayLabels(
-    val open: String,
-    val syncNow: String,
-    val quit: String,
-)

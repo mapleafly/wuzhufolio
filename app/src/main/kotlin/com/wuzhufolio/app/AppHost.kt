@@ -125,6 +125,7 @@ fun ApplicationScope.AppHost(runtime: AppBootstrap.Runtime, onExit: () -> Unit) 
         TrayMenuWindow(
             position = androidx.compose.ui.window.WindowPosition((xPx / scale).dp, (yPx / scale).dp),
             themeMode = runtime.uiState.theme,
+            language = runtime.uiState.language,
             onDismiss = { trayMenuAt = null },
             onOpen = { showWindow(); trayMenuAt = null },
             onSync = { scope.launch { runCatching { runtime.scheduler.syncNow() } }; trayMenuAt = null },
