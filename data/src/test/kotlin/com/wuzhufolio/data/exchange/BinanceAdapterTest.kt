@@ -66,6 +66,11 @@ class BinanceAdapterTest {
         assertTrue(decodedUrl().contains("/api/v3/account"), decodedUrl())
         assertTrue(lastUrl.contains(SIGNATURE + "="), "签名参数必须存在: " + lastUrl)
         assertTrue(lastUrl.contains("timestamp="), "时间戳参数必须存在: " + lastUrl)
+        // P6 勘误回归：recvWindow 属 ADR-004 §2 / api-contracts §2.1 明文契约，必须随签名请求发送
+        assertTrue(
+            decodedUrl().contains("recvWindow=" + ExchangeConfig.DEFAULT_RECV_WINDOW),
+            "recvWindow 契约参数必须存在: " + decodedUrl(),
+        )
         assertTrue(lastHeaders["X-MBX-APIKEY"] == "test-api-key")
     }
 

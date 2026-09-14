@@ -137,11 +137,11 @@ class BackupViewModel(
                     reloadMetadata()
                 }
                 .onFailure { t ->
-                    patchExport { e -> e.copy(busy = false, errors = e.errors + (KEY_PASSWORD to (t.message ?: ""))) }
+                    // P6 · P5-4：类型化导出失败 → 可读整句（不再透出原始加密异常）
+                    val text = BackupCopy.exportErrorCopy(t)
+                    patchExport { e -> e.copy(busy = false, errors = e.errors + (KEY_PASSWORD to text)) }
                     _state.update {
-                        it.copy(
-                            toast = WzToast(WzToastKind.Failure, BackupCopy.EXPORT_FAILED_PREFIX + (t.message ?: "")),
-                        )
+                        it.copy(toast = WzToast(WzToastKind.Failure, BackupCopy.EXPORT_FAILED_PREFIX + text))
                     }
                 }
         }.invokeOnCompletion { pw.fill('\u0000') }
@@ -309,10 +309,7 @@ class BackupViewModel(
         }
     }
 
-    private fun decodeCopy(t: Throwable): String = when (t) {
-        is CproDecodeException -> BackupCopy.decodeErrorCopy(t.reason)
-        else -> BackupCopy.ERR_GENERIC + (t.message ?: "")
-    }
+    private fun decodeCopy(t: Throwable): String = BackupCopy.restoreErrorCopy(t)
 
     companion object {
         const val KEY_PASSWORD = "password"

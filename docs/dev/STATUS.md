@@ -6,24 +6,27 @@
 
 ## 当前阶段
 
-- **当前状态**：**P5 集成与联调 ✅ 已通过（2026-09-13 人工「P5通过」关闭）**——核心用户旅程在真实组合根上
-  端到端打通，三轮缺陷修复 + 五项人工裁决全部实施，PRD V2.0 / 共享规范 V1.1 回写随本门一并确认；
-  **P0–P5 全部关闭**。**P6 系统测试与质量 解锁为「进行中」，待人工下达启动指令。**
+- **当前状态**：**P6 系统测试与质量 ⏳ 待审核（2026-09-14 完成，停人工门）**——按 PRD V2.0 验收标准做全量验证，
+  产出 `docs/test/test-plan.md` / `test-cases.md`（299 条）/ `security-checklist.md`（P6 复跑版，五条硬约束逐条打勾）/
+  `defects.md` / `test-report.md`；**677 用例（669 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；
+  **P0/P1 缺陷 = 0**；P2 = 6（3 项已修复：DEF-01/02/06；3 项待人工定级：DEF-03/04/05）。
+  **下一步 = 人工测试 + 拍板是否达到发布标准**（P6 门）。
 - **推进顺序**：先桌面端，后移动端。**P1–P8 只针对桌面端或两端共同部分；移动端相关工作放到下一个版本。**（移动端相关技能/技术方案/开发待桌面端主线稳定后再启用。）
-- **下一人工门**：**P6 系统测试与质量启动指令**——目标：按 PRD 验收标准做全量验证（重点安全与隐私），
-  产出 `docs/test/test-plan.md` / `test-cases.md` / `security-checklist.md`（M13 版逐条复跑打勾）/ `defects.md` / `test-report.md`；
-  输入 = P5 集成版 + PRD V2.0 验收标准 + `docs/design/interaction.md` 异常态清单 + `docs/test/security-checklist.md`；
-  DoD = P0/P1 缺陷清零、P2 有明确处理结论、安全清单全部通过。
-- **P5 待人工裁决 2 项**（报告 §8，Agent 不代为定级）：
-  ① M12 遗留「负持仓且**有行情**的币其负市值仍计入净值」是否按建议返工（触及 `PortfolioCalculator` 语义 → 属 C2）；
-  ② P5-2「行情网络异常丢失底层 cause」是否按 C1 处置（保留 cause 链、不进用户文案，供日志/诊断定位）。
-- **P5 登记转 P6**：P5-2（同上）、P5-4（备份导出遇到不可解密 `api_keys` 密文时的失败模式）。
+- **下一人工门**：**P6 系统测试与质量人工门**——输入 = `docs/test/test-report.md`（§0 结论 + §6 待裁决 5 项）+
+  `test-cases.md §7`（人工门 10 条）+ `security-checklist.md`（五条硬约束）+ GUI 实机走查；
+  DoD = P0/P1 清零（✅ 已达）+ P2 有明确处理结论（✅ 已达，待人工确认定级）+ 安全清单全部通过（✅ 已达）。
+- **P6 待人工裁决 5 项**（报告 §6，Agent 不代为定级）：
+  ① 行情请求币种集合隐私最小化（接受现状 / 隐私开关 C1 / 改默认路径 C2）；② DEF-03 币种详情缺「时间」筛选（建议 C1）；
+  ③ DEF-04 CMC 兜底计入 CG 额度账本（建议登记 P8 或 C1）；④ DEF-05 interaction「列表滚动加载」口径（建议 C0 文档澄清）；
+  ⑤ DEF-01/02/06 定级确认（建议维持 C0）。
+- **P6 登记转 P7/人工**：真实交易所只读 Key 线上同步冒烟、三平台托盘实测、读屏实测、目标机 KDF ≤2s、
+  签名/公证合规与 Linux 包 GPG 签名、托盘/打包图标、字体子集化。
 - **三项延期验证在册**（到期检查点与 DoD 见各自条目，未到期前不得视为已完成）：
-  ① M11 §5-3 托盘 GUI 走查 → 真实 Windows/macOS/Linux 桌面（检查点 = P6 系统测试）；
-  ② M11 §5-2 开机自启端到端 → P7 打包版（检查点 = P7 发布前）；
-  ③ ~~D25 原型补「界面语言」行~~ → ✅ **已闭环（2026-09-13，P5 联调到期检查点执行）**。
+  ① M11 §5-3 托盘 GUI 走查 → 真实桌面（检查点 = P6 人工门，本轮已提报为人工用例，未在本机闭环）；
+  ② M11 §5-2 开机自启端到端 → P7 打包版；
+  ③ ~~D25 原型补「界面语言」行~~ → ✅ 已闭环（2026-09-13）。
   ④（M13 新增）签名/公证合规实证 + Linux 包 GPG 签名 + 证书采购 → P7（ADR-006 §2.1）；
-  ⑤（M13 新增）`.cpro` 大载荷内存曲线（非流式读写）→ P6。
+  ⑤（M13 新增）~~`.cpro` 大载荷内存曲线（非流式读写）~~ → ✅ **P6 已实测闭环**（维持非流式；流式化 = C2，留 P8 评估）。
 
 ## 阶段总览
 
@@ -35,7 +38,7 @@
 | P3 | 工程脚手架 | ✅ 已通过 | 代码骨架 + CI + dev-setup + hello 链路 + 迁移框架 + UI 基座（内嵌 CJK 字体）；Gradle 8.14.4；P3评审报告 | 2026-09-01 完成 M0 + 验收修复轮 + 评审闭环；人工「P3 通过」关闭 |
 | P4 | 分模块开发 | ✅ 已通过 | 代码 + `docs/dev/modules/`（M1–M13）+ `docs/test/security-checklist.md` | M1 ✅…M12 ✅（2026-09-12）、**M13 ✅（2026-09-12 人工「M13 通过」）**；**M1–M13 全部通过**；CI 三平台 build + package 六 job 全绿（run 34698502287）；GitHub 仓库 https://github.com/mapleafly/wuzhufolio |
 | P5 | 集成与联调 | ✅ 已通过（2026-09-13 人工「P5通过」关闭） | `docs/test/integration-report.md` + `app/src/test/.../integration/*`（10 项）+ `data/src/test/.../smoke/LiveNetworkSmokeTest`（2，门控） | 核心旅程真实组合根端到端打通；契约核对缺口已补；D25 原型补行闭环；**人工验收暴露 P0 恢复丢行 + 2 项 P1 已修复**；人工裁决 5 项（D27 稳定币 1:1 / cause 保留 / 启动即同步 / **D28 白名单收敛** / **D29 负持仓不计入**）已实施；**664 用例 0 失败（657 执行 + 7 跳过）**+ detekt 0 + 警告 0 |
-| P6 | 系统测试与质量 | 进行中（待启动指令） | `docs/test/`（test-plan / test-cases / security-checklist 复跑 / defects / test-report） | P5 关闭后解锁（2026-09-13）；输入 = P5 集成版 + PRD V2.0 验收标准 + interaction 异常态 + M13 安全清单 |
+| P6 | 系统测试与质量 | ⏳ 待审核（2026-09-14 完成，停人工门） | `docs/test/`（test-plan / test-cases 299 条 / security-checklist P6 复跑版 / defects / test-report） | **677 用例（669 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；P0/P1 = 0；P2 = 6（3 修复 + 3 待定级）；安全清单五条硬约束逐条通过；运行期抓包仅三白名单主机 |
 | P7 | 发布 | 未开始 | `docs/release/` | |
 | P8 | 上线后运营与迭代 | 未开始 | `docs/dev/retrospective.md` | |
 
@@ -1062,6 +1065,93 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
 （输入 = P5 集成版 + PRD 验收标准 + `interaction.md` 异常态清单 + `docs/test/security-checklist.md`；
 产出 test-plan / test-cases / security-checklist 逐条复跑 / defects / test-report）。
 
+## P6 系统测试与质量（⏳ 待审核--2026-09-14 完成，停人工门）
+
+> **启动记录**：人工原话「执行P6」（2026-09-14）。范围 = `AGENTS.md §4 P6`：按 PRD V2.0 验收标准做全量验证，
+> 重点压安全与隐私；产出 `docs/test/test-plan.md` / `test-cases.md` / `security-checklist.md`（复跑）/
+> `defects.md` / `test-report.md`；DoD = P0/P1 清零 + P2 有明确处理结论 + 安全清单全部通过。
+> **输入**：P5 集成版 + PRD V2.0（有效需求 = PRD V2.0 + Δ{D21, D24, D25, D26, D27, D28, D29}）+
+> `docs/design/interaction.md` 异常态清单 + `docs/test/security-checklist.md`（M13）+ P5 交接开放项。
+
+**产物清单**：
+
+- `docs/test/test-plan.md` —— 测试计划与范围（分层策略 L1–L5 / 环境 / 进出入准则 / 覆盖矩阵 / 缺陷分级 /
+  **P6 启动须携带 9 项开放项逐条处置** / 人工门 10 条 / 风险与限制 / 需求回溯）
+- `docs/test/test-cases.md` —— **299 条测试用例**（PRD §5 故事 109 + §7.2 功能 60 + interaction 异常态 21 +
+  加载·空·错误·离线·限流·UX 71 + 黄金用例 12 + 安全专项 16 + 人工门 10），逐条挂需求锚点与自动化映射：
+  ✅ 186 / 🟡 87 / ⬜ 10（均有去向）/ 🔵 16
+- `docs/test/security-checklist.md` —— **P6 复跑版**：五条硬约束逐条复核打勾（M13 取证 + P6 新证据）+
+  §3.6 导出失败模式 + §3.7 `.cpro` 大载荷内存曲线 + §5.3 settings 键命名空间 + §6 M13 修复项回归 +
+  §7 残留风险到期状态更新 + §8 复跑命令
+- `docs/test/defects.md` —— 缺陷/问题清单：**P0 = 0 / P1 = 0 / P2 = 6**（DEF-01/02/06 本轮修复；
+  DEF-03/04/05 待人工定级，均含影响面扫描与分级建议）+ P3/观察 5 项（DEF-07…11 登记 P8）
+- `docs/test/test-report.md` —— **P6 主产物**：DoD 对照结论 / 执行情况 / 覆盖结论 / 缺陷汇总 / 安全专项结论 /
+  P6 专项（内存曲线·出站抓包·隐私评估）/ **待人工裁决 5 项** / 残留风险 / 复跑命令 / 需求回溯
+- 新增测试与夹具（13 项回归）：`DefaultBackupServiceTest`(+3) · `ui/BackupExportErrorCopyTest`(2) ·
+  `domain/backup/CproLargePayloadTest`(1) · `data/settings/SettingsKeyNamespaceGuardTest`(2) ·
+  `BackgroundSchedulerTest`(+2) · `TransactionsPageUiTest`(+2) · `ProxyRoutingSmokeTest`(1，env 门控) ·
+  `BinanceAdapterTest` recvWindow 断言扩展 · `domain/backup/BackupLoadBenchmark` + Gradle 任务 `:domain:backupBenchmark`
+- 工具：`scripts/outbound-capture-proxy.py`（出站抓包记录代理，可复跑）
+- 文档回写：`docs/design/interaction.md` **§2.9 备份与恢复异常态**（P6 补，C0 口径回写）·
+  `docs/tech/api-contracts.md` §3（M9 导出侧类型化错误 / M11 `SchedulerSources.hasActiveSession`）+ §4（`BACKUP_EXPORT_FAILED`）
+
+**本次改了什么**：
+
+1. **全量验证**：按 PRD V2.0 逐条建立 299 条用例并执行；全量无缓存构建 **677 用例（669 执行 0 失败 + 8 跳过）**
+   + detekt 0 + 编译警告 0（33 任务全部真正执行，基线 P5 关闭时 664 → P6 净增 13）。
+2. **修复 3 项 P2 实现偏差（建议 C0，待确认）**：
+   ① **DEF-01 备份导出失败模式**（P5-4 闭环）：`BackupExportException(CREDENTIAL_UNREADABLE)` + 中英双档整句 +
+   **导出不落文件 / 全量覆盖恢复不清库**断言；② **DEF-02 Binance 签名请求补发 `recvWindow`**（ADR-004 §2 契约漂移）；
+   ③ **DEF-06 恢复向导映射导出错误**。
+3. **闭环 4 项 M13 到期登记项**：`.cpro` 大载荷内存曲线（四档实测，维持非流式，流式化 = C2 留 P8）、
+   settings 键命名空间守护（fail-closed，已用注入冲突验证会红）、登出后调度 tick 噪声（会话门 + 短路 + 2 回归）、
+   P5-4 导出失败模式。
+4. **运行期实证**：出站抓包**仅三白名单主机**（CG/Binance/CMC）+ **两类 API 客户端均实证走代理**（PRD 4.2-2）；
+   GUI 冒烟 `GRADLE_RC=124` + `schema=12`；权限实测 700/600；真实网络冒烟（CG/Binance/CMC 探测）；
+   顺带真实复现 CG 429 路径（保持上次数据 + `cause=` 链留痕）。
+5. **隐私评估（未实施，交人工定级）**：行情请求外发「持仓∪自选」币种 id 集合，不含金额/交易/密钥；
+   给出 5 个候选方案与额度量化（最小化边际额度成本 ≈ 0）。
+
+**已验证（Agent 实证，供人工复核）**：
+
+- 全量：`./gradlew clean build detekt --no-build-cache` → **677 用例（669 执行 0 失败 0 错误 + 8 跳过）**、
+  detekt 0、警告 0；模块分布 domain 222 / data 284 / ui 140 / app 31；跳过 8 = 4 钥匙串真实后端（CI win/mac 实证）
+  + 3 live smoke（env 门控）+ 1 首启真实网络链路（env 门控）。
+- 出站抓包（`scripts/outbound-capture-proxy.py`）：`api.coingecko.com` ×3 / `api.binance.com` ×2 /
+  `pro-api.coinmarketcap.com` ×1，**无第四方主机**。
+- `.cpro` 内存曲线：典型（35k 记录）解码峰值 142 MiB / 重度（201k）483 MiB / 压力（706k）1.4 GiB
+  （1 GB 堆下压力档 OOM → 标定容量边界）。
+- GUI 冒烟（隔离目录）：`GRADLE_RC=124`（窗口驻留）、`bootstrap ok | schema=12`、`scheduler started`、
+  `tray support supported=false`（WSLg 预期）、`market refresh finished source=COINGECKO`、0 渲染异常。
+- 权限：数据/日志目录 700；`master.key`/`device.key`/`.db` 600。
+
+**怎么验收（人工门）**：
+
+1. 读 `docs/test/test-report.md`：**§0 DoD 对照** → §3 缺陷汇总 → §4 安全专项 → **§6 待裁决 5 项**；
+2. 读 `docs/test/security-checklist.md`：§0 结论表 → §1.4 抓包实证 → §3.7 内存曲线 → §7 到期项更新；
+3. 复跑全量：`./gradlew clean build detekt --no-build-cache`（期望 **677 用例 = 669 执行 0 失败 + 8 跳过** + detekt 0 + 警告 0）；
+4. 复跑专项：`./gradlew :domain:backupBenchmark`（内存曲线）·
+   `python3 scripts/outbound-capture-proxy.py … + WZF_LIVE_SMOKE=1 …`（抓包）·
+   `:data:test --tests "…data.settings.SettingsKeyNamespaceGuardTest"`（键命名空间）；
+5. **人工用例**（`test-cases.md §7`）：真实桌面托盘走查 / 读屏 NVDA·JAWS / 真实 Binance 只读 Key 线上同步冒烟 /
+   4GB 目标机 KDF ≤2s / 全流程 GUI 走查（登录→增资→交易→看板→备份恢复→异常态→语言·双主题）/ 跨设备备份演练；
+6. **裁决 5 项**（报告 §6）：隐私最小化 ①、DEF-03 ②、DEF-04 ③、DEF-05 ④、DEF-01/02/06 定级确认 ⑤。
+
+**遗留问题（转 P7 / 人工，详见 `test-report.md §7`）**：
+
+- **P7**：签名/公证合规实证 + Linux 包 GPG 签名 + 证书采购（ADR-006 §2.1）、托盘/打包图标、jlink 裁剪与字体子集化、
+  打包版开机自启端到端、发布产物 SHA256/CHANGELOG/用户指南（含「备份文件密码强度 = 凭证保护强度」提示）。
+- **人工门/P7**：三平台托盘实测、读屏实测、真实只读 Key 线上同步冒烟、4GB 目标机 KDF ≤2s。
+- **待裁决后实施**：DEF-03（币种详情时间筛选）、DEF-04（CMC 额度账本口径）、DEF-05（interaction 口径澄清）、
+  隐私最小化（若选 C1/C2）。
+- **P8 登记**：UI 展示层 🟡 项的视觉走查深化、DB 损坏全屏框演练、ROI=0 提示展示、行情行内 loading、
+  备份/恢复进度条、DEF-07…DEF-11（导出静默跳过计数 / 备份元数据读失败提示 / 调度 `onTick` 异常隔离 / i18n 兜底路径 /
+  `keyName=null` 分支用例）、大数据量列表装载耗时。
+- **CI**：P6 新增 13 项回归待推送观察（win/mac 钥匙串用例可逐项核验）。
+
+**建议的下一步**（已执行：P6 完成并停人工门）：人工按上节验收 + 裁决 5 项 → 通过后 **P7 发布**解锁
+（`docs/release/`：release-plan / rollback / CHANGELOG / user-guide / 签名公证；**产品宣传动画为 P7 必做项**，AGENTS.md §7.2-3）。
+
 ## P0 需求基线（✅ 已通过--两端 + 跨端规范全部定稿）
 
 产物清单（只读基准，不得改动）：
@@ -1110,24 +1200,20 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
 
 ## 当前阻塞点
 
-- **阶段推进点（2026-09-13）**：**P5 集成与联调 ✅ 已通过（人工「P5通过」关闭）——P0–P5 全部关闭**；
-  **P6 系统测试与质量 已解锁为「进行中」，待人工下达启动指令**（目标：PRD V2.0 验收标准全量验证 +
-  安全与隐私重点；产出 `test-plan.md` / `test-cases.md` / `security-checklist.md` 逐条复跑 / `defects.md` / `test-report.md`）。
-- **P6 启动须携带的开放项**（各自到期检查点见条目，不得视为已完成）：
-  ① **M11 §5-3 托盘 GUI 走查** → 真实 Windows/macOS/Linux 桌面（检查点 = P6 人工测试）；
-  ② `.cpro` 大载荷内存曲线（非流式读写，M13 登记 §7-1）→ P6；
-  ③ 行情请求币种集合隐私最小化评估（清单 §7-2）→ P6；
-  ④ 读屏（NVDA/JAWS）实测（ADR-001 既有风险）→ P6；
-  ⑤ settings 键命名空间守护建议 + 登出后调度 tick 噪声（清单 §7-5/§7-6）→ P6；
-  ⑥ **运行期出站抓包实证**（确认仅三主机）→ P6；
-  ⑦ **真实交易所只读 Key 的线上同步冒烟**（Agent 无凭据、不索取；人工提供即可随时验）；
-  ⑧ **阶段 4 安全清单逐条复跑打勾**（M13 T13.1 清单 §8 复核命令）；
-  ⑨ P5 登记转 P6：**P5-4**（备份导出遇到不可解密 `api_keys` 密文时抛原始加密异常 → 建议类型化错误 + interaction 文案）。
+- **阶段推进点（2026-09-14）**：**P6 系统测试与质量 ⏳ 待审核**（Agent 已完成全量验证并停人工门）——
+  **P0/P1 缺陷 = 0**、安全清单五条硬约束逐条通过、677 用例 0 失败；**待人工测试 + 拍板是否达到发布标准**。
+- **P6 门须携带的裁决项（5 项，`test-report.md §6`）**：① 行情请求隐私最小化（接受现状 / C1 开关 / C2 改默认）；
+  ② DEF-03 币种详情时间筛选（建议 C1）；③ DEF-04 CMC 额度账本（建议登记 P8 或 C1）；
+  ④ DEF-05 interaction「滚动加载」口径（建议 C0 文档澄清）；⑤ DEF-01/02/06 定级确认（建议 C0）。
+- **P6 门须人工执行的用例**（`test-cases.md §7`）：真实桌面托盘走查 / 读屏 NVDA·JAWS / 真实 Binance 只读 Key
+  线上同步冒烟（Agent 无凭据、不索取）/ 4GB 目标机 KDF ≤2s / 全流程 GUI 走查 / 跨设备备份演练。
+- **P6 已闭环的开放项**（原「P6 启动须携带」9 项）：② `.cpro` 大载荷内存曲线 ✅ · ③ 隐私最小化评估 ✅（待定级）·
+  ⑤ settings 键命名空间 + 登出 tick ✅ · ⑥ 出站抓包 ✅ · ⑧ 安全清单复跑 ✅ · ⑨ P5-4 导出失败模式 ✅；
+  ①④转人工门（托盘/读屏）；⑦转人工（真实 Key）。
 - **P7 携带项**：M11 §5-2 打包版开机自启端到端；签名/公证合规实证 + Linux 包 GPG 签名 + 证书采购（ADR-006 §2.1）；
-  托盘/打包图标、jlink 裁剪与字体子集化；发布产物 SHA256/CHANGELOG/用户指南。
-- **测试关注点（P5 已登记、供 P6 用例设计引用）**：缺价币不计入净值会形成「假亏损」表达（已修自动补价 + 显式提示，
-  P6 需覆盖「行情源不收录该币」的持久缺价路径）；负持仓币市值排除口径（D29 + interaction §2.8）；
-  稳定币 1:1 与白名单扩展项市价折算（D27/D28）；启动时自动同步与首启目录就绪（§11-2/§11-3）。
+  托盘/打包图标、jlink 裁剪与字体子集化；发布产物 SHA256/CHANGELOG/用户指南；**P7 产品宣传动画（必做项）**。
+- **测试关注点（P6 结论，供 P7/P8 引用）**：缺价币不计入净值（已修自动补价 + 显式提示）；负持仓币市值排除（D29 + interaction §2.8）；
+  稳定币 1:1 与白名单扩展项市价折算（D27/D28）；启动时自动同步与首启目录就绪；**UI 展示层 87 条 🟡 由人工走查覆盖**。
 - **CI 改进项已闭环（M13）**：ci.yml 增 `actions/upload-artifact@v6` 归档 `*/build/test-results/test/*.xml`
   （`if: always()`）——钥匙串真实后端用例在 win/mac 的执行/跳过可逐项核验；action 升 v5/v6 系；
   `package` job 三平台产物归档 + 校验和清单。**P5 关闭提交的 CI 复跑结果见本文件 P5 节「CI 留痕」**。
@@ -1245,3 +1331,5 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
 | 2026-09-13 | Agent | **缺价假亏损修复 + 锚定口径落档** | ① 复核确认人工判断：缺价币不计入净值 → 净值只剩现金 50,000 → **ROI −50%（假亏损）**；新增用例 `p5UnpricedHoldingMakesRoiLookLikeALossUntilQuotesArrive` 锁定（缺价 −50.00% / 补价 0.00%）；② 修复（C0 实现/表达补全）：聚合页**缺价自动补价**（`PortfolioViewModel.maybeAutoPrice`，静默 + 60s 冷却 + 持仓∪自选）+ 仪表盘**缺价提示**（`dashboard-unpriced-notice`）；③ 裁定落档：D28 §5-3「不再允许 USDT 之外再增锚定币」+ 台账 D28 行 + 《跨端共享规范》V1.1/PRD V2.0 术语明文「**锚定币 ≠ 稳定币**」；**664 用例（657 执行 0 失败 + 7 跳过）+ detekt 0 + 警告 0** |
 | 2026-09-13 | 人 | **通过 P5** | 原话「**P5通过，完成git本地提交，远程推送**」——P5 ✅ 关闭，**P0–P5 全部关闭**；PRD V2.0 / 跨端共享规范 V1.1 回写随本门一并确认生效；**P6 系统测试与质量 解锁为「进行中」，待人工启动指令** |
 | 2026-09-13 | Agent | **P5 关闭提交 + 远程推送** | 关闭记录落盘（STATUS/报告/评审说明/台账）+ 本地提交 + 推送 `origin/main`；CI 三平台复跑（build ×3 + package ×3）结果见 P5 节「CI 留痕」 |
+| 2026-09-14 | 人 | **下达 P6 启动指令** | 原话「执行P6」——关闭 P5 收尾门，P6 系统测试与质量置为「进行中」，授权执行全量验证（重点安全与隐私） |
+| 2026-09-14 | Agent | **执行 P6 系统测试与质量** | 产出 `test-plan.md`（分层策略 + 9 项开放项处置 + 人工门 10 条）· `test-cases.md`（**299 条**：✅186/🟡87/⬜10/🔵16，逐条可追溯）· `security-checklist.md`（**P6 复跑版**：五条硬约束逐条打勾 + 4 项到期项闭环）· `defects.md`（**P0/P1=0**，P2=6）· `test-report.md`（主产物，含待裁决 5 项）；**修复 3 项 P2 实现偏差**（DEF-01 备份导出失败模式 / DEF-02 recvWindow 契约 / DEF-06 恢复向导映射）+ 闭环 4 项 M13 到期登记项（大载荷内存曲线 / settings 键命名空间 / 登出 tick / P5-4）+ 运行期出站抓包与 GUI·权限实证；回写 `interaction.md §2.9`、`api-contracts.md §3/§4`；**677 用例（669 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；**P6 置待审核，停人工门** |

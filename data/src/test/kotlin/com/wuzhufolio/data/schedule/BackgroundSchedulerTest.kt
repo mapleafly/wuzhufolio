@@ -42,6 +42,8 @@ class BackgroundSchedulerTest {
         var reminderDays: Long? = null
         var marketCalls = 0
         var lastManual: Boolean? = null
+        var activeSession = true
+        var syncCalls = 0
 
         override suspend fun marketFrequencyMinutes(): Int = frequency
 
@@ -57,7 +59,12 @@ class BackgroundSchedulerTest {
             return marketResult
         }
 
-        override suspend fun syncNow(): List<ApiKeySyncResult> = syncResults
+        override suspend fun syncNow(): List<ApiKeySyncResult> {
+            syncCalls++
+            return syncResults
+        }
+
+        override suspend fun hasActiveSession(): Boolean = activeSession
 
         override suspend fun rotateLogs(): String = rotateSummary
 
@@ -222,6 +229,36 @@ class BackgroundSchedulerTest {
             assertEquals(1, s.syncNow().size)
         }
         assertTrue(seen.any { it is SchedulerEvent.SyncFinished })
+    }
+
+    /** P6 §7-6：登出（无活动会话）后同步 tick 直接短路——不进入用例层制造被吞的噪声异常。 */
+    @Test
+    fun `sync tick is skipped without an active session`() = runBlocking {
+        val sources = FakeSources().apply {
+            activeSession = false
+            syncResults = listOf(syncResult(SyncStatus.OK))
+        }
+        val s = scheduler(sources)
+        val seen = collectEvents(s) {
+            assertEquals(emptyList(), s.syncNow(), "无会话应直接返回空列表")
+        }
+        assertEquals(0, sources.syncCalls, "无会话不得调用用例层 syncNow")
+        assertTrue(seen.none { it is SchedulerEvent.SyncFinished }, "跳过时不应发同步完成事件")
+        // 行情刷新不受影响（行情走设备级 Key，与账户会话无关）
+        s.refreshMarketNow(manual = false)
+        assertEquals(1, sources.marketCalls, "登出后行情循环照常")
+    }
+
+    /** P6 §7-6 正例：有会话时行为不变（回归守护）。 */
+    @Test
+    fun `sync tick runs normally with an active session`() = runBlocking {
+        val sources = FakeSources().apply {
+            activeSession = true
+            syncResults = listOf(syncResult(SyncStatus.OK))
+        }
+        val s = scheduler(sources)
+        assertEquals(1, s.syncNow().size)
+        assertEquals(1, sources.syncCalls)
     }
 
     @Test

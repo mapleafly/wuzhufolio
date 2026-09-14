@@ -250,6 +250,12 @@ interface SettingsService {
 >  **去重键 `交易所|订单号` 仅在订单号非空时成立**（P5 人工验收勘误，2026-09-13）：手动 / CSV 行的
 >  `exchange_order_id` 为 null，若规约为 `"BINANCE|"` 会让同交易所的全部手动交易互相判重
 > （跨账户恢复只进第一笔，全量覆盖丢行）——无订单号的行一律只按 `uuid` 判重。
+> - **导出侧类型化错误（P6 · P5-4 闭环，2026-09-14）**：`BackupExportException(reason, keyName)`
+>   ——`Reason.CREDENTIAL_UNREADABLE` = 库内 `api_keys` 凭证列无法用**当前账户 DEK/AAD** 解密
+>   （DB 被外部改动 / 位翻转 / 跨库误拷）。语义：**导出整体中止且不落文件**；全量覆盖前的临时备份
+>   同样会经此失败，**此时恢复中止且不清库**（临时备份早于清库执行）。`keyName` 仅用于点名问题密钥，
+>   不含明文/密文/DEK。UI 映射：导出 →「备份未生成…」整句；恢复 →「恢复已中止…未改动任何数据」整句
+>   （`BackupCopy.exportErrorCopy` / `restoreErrorCopy`，中英双档；§4 错误码 `BACKUP_EXPORT_FAILED`）。
 > - **恢复编排**（DefaultBackupService）：规划 → 单写事务应用（BackupRestoreStore：api_keys 先插后包
 >   目标账户 DEK 重加密）→ 恢复后全量重放（LENIENT）出「持仓异常」清单；全量覆盖前临时备份
 >   `~/.wuzhufolio/backups/pre-restore-*.cpro`（同备份密码加密，不记 backup.last_at）；
@@ -326,7 +332,9 @@ interface SettingsService {
 > - **调度宿主契约**（domain/schedule 纯规则 + data/schedule `BackgroundScheduler`）：
 >   `ScheduleJitter.apply`（±20%）、`BackupReminder.isDue`（距上次备份 > 30 天，从未备份退化为账户创建时刻）、
 >   `LogRotationCadence.isDue`（6 小时）；宿主经窄接口 `SchedulerSources`（行情刷新 / 目录与额度 /
->   同步 / 日志轮转 / 快照降采样 / 备份提醒天数）驱动三条循环，**每 tick 异常隔离**；
+>   同步 / 日志轮转 / 快照降采样 / 备份提醒天数 / **`hasActiveSession()`**〔P6 §7-6 增补：无活动会话时
+>   同步 tick 直接短路，不再进入用例层制造被吞的 `IllegalStateException` 噪声；默认实现 `true` 保持
+>   既有行为兼容〕）驱动三条循环，**每 tick 异常隔离**；
 >   调度宿主与托盘共享同一可见性真源（`windowVisible && !minimized` → 托盘驻留降频）。
 > 回溯：PRD §7.2-6.2/6.5、故事 4.2、§6「日志管理与可追溯性」、ADR-001（托盘/分发口径）。
 
@@ -369,6 +377,7 @@ interface SettingsService {
 | `INSUFFICIENT_POSITION` | 撤资持仓不足 | 「XX 持仓不足，无法撤资」（V7） |
 | `REPLAY_CONFLICT` | 重放负持仓 | 冲突原因提示（V9） |
 | `BACKUP_INVALID` | 备份密码错/文件损坏 | 「无效的备份文件或密码错误」 |
+| `BACKUP_EXPORT_FAILED` | 导出中止：库内 API 密钥凭证不可解密（P6 · P5-4；恢复侧 = 覆盖前临时备份失败） | 「备份未生成：API 密钥「X」的本地凭证无法解密…」（导出）/「恢复已中止：…本次恢复未改动任何数据」（恢复） |
 
 ## 5. 需求回溯
 

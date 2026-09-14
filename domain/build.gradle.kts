@@ -24,3 +24,13 @@ val kdfBenchmark by tasks.registering(JavaExec::class) {
     classpath = sourceSets.test.get().runtimeClasspath
     mainClass.set("com.wuzhufolio.domain.security.Argon2BenchmarkKt")
 }
+
+// P6 .cpro 大载荷内存曲线夹具：./gradlew :domain:backupBenchmark
+// （M13 安全清单 §7-1 到期检查点；默认 -Xmx1g 模拟 4GB 目标机打包版默认堆，可 -PbenchXmx=512m 覆盖）
+val backupBenchmark by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "P6 .cpro 非流式编解码内存曲线：轻量/典型/重度/压力四档（峰值堆 + 耗时 + 文件体积）"
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("com.wuzhufolio.domain.backup.BackupLoadBenchmarkKt")
+    jvmArgs("-Xmx" + (project.findProperty("benchXmx") as String? ?: "1g"))
+}

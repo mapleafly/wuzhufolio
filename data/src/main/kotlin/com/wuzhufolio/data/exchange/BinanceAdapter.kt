@@ -4,9 +4,11 @@ import com.wuzhufolio.data.exchange.ExchangeConfig.ACCOUNT_ENDPOINT
 import com.wuzhufolio.data.exchange.ExchangeConfig.API_KEY_HEADER
 import com.wuzhufolio.data.exchange.ExchangeConfig.BINANCE_BASE_URL
 import com.wuzhufolio.data.exchange.ExchangeConfig.EXCHANGE_INFO_ENDPOINT
+import com.wuzhufolio.data.exchange.ExchangeConfig.DEFAULT_RECV_WINDOW
 import com.wuzhufolio.data.exchange.ExchangeConfig.MAX_TIMESTAMP_RETRY
 import com.wuzhufolio.data.exchange.ExchangeConfig.MY_TRADES_ENDPOINT
 import com.wuzhufolio.data.exchange.ExchangeConfig.MY_TRADES_LIMIT
+import com.wuzhufolio.data.exchange.ExchangeConfig.RECV_WINDOW_PARAM
 import com.wuzhufolio.data.exchange.ExchangeConfig.SERVER_TIME_ENDPOINT
 import com.wuzhufolio.data.exchange.ExchangeConfig.SIGNATURE_PARAM
 import com.wuzhufolio.data.exchange.ExchangeConfig.TIMESTAMP_PARAM
@@ -172,6 +174,9 @@ class BinanceAdapter(
         val all = buildMap {
             putAll(params)
             put(TIMESTAMP_PARAM, (System.currentTimeMillis() + timeOffsetMillis).toString())
+            // P6 勘误：recvWindow 属 ADR-004 §2 / api-contracts §2.1 的明文契约，此前两常量声明未接线
+            // （不发送时 Binance 默认 5000ms，行为等价但契约漂移）——现按契约显式发送
+            put(RECV_WINDOW_PARAM, DEFAULT_RECV_WINDOW.toString())
         }
         val query = all.entries.sortedBy { it.key }
             .joinToString("&") { (k, v) -> k + "=" + v }

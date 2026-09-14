@@ -502,6 +502,127 @@ class DefaultBackupServiceTest {
         }
     }
 
+    // ---- P6 · P5-4：不可解密 api_keys 密文时导出失败模式（类型化 + 不落文件） ----
+
+    @Test
+    fun `export aborts with typed error when a stored credential cannot be decrypted`() = runBlocking {
+        newEnv().use { env ->
+            val session = env.login("alice")
+            val accountId = session.account.id
+            // 用**另一个 DEK** 加密的两列密文（模拟 DB 被外部改动/位翻转损坏/跨库误拷）
+            val foreignDek = ByteArray(32) { (it + 99).toByte() }
+            env.apiKeysRepo.create(accountId, "坏行", "BINANCE") { rowId ->
+                com.wuzhufolio.data.exchange.ApiKeyCiphers(
+                    apiKey = env.crypto.encryptField(
+                        "AKIA-BROKEN", foreignDek, accountId.toString(), rowId.toString(), "api_key",
+                    ),
+                    secretKey = env.crypto.encryptField(
+                        "SECRET-BROKEN", foreignDek, accountId.toString(), rowId.toString(), "secret_key",
+                    ),
+                )
+            }
+            val file = env.cproPath("broken-key.cpro")
+
+            val error = assertFailsWith<com.wuzhufolio.domain.backup.BackupExportException> {
+                env.service.exportBackup(file, "Backup-Pass-1".toCharArray())
+            }
+            assertEquals(
+                com.wuzhufolio.domain.backup.BackupExportException.Reason.CREDENTIAL_UNREADABLE,
+                error.reason,
+            )
+            assertEquals("坏行", error.keyName)
+            // 失败方向偏安全侧：整体中止、不落文件（也不留临时文件）
+            assertTrue(!Files.exists(file), "导出失败不得留下 .cpro 文件")
+            assertTrue(
+                Files.list(env.dir).use { s -> s.noneMatch { it.fileName.toString().endsWith(".cpro") } },
+                "导出失败不得留下临时文件",
+            )
+            // 未泄露密钥材料（错误对象自身不带明文/密文）
+            val described = error.message + "|" + error.keyName
+            assertTrue(!described.contains("AKIA-BROKEN") && !described.contains("SECRET-BROKEN"))
+        }
+    }
+
+    /** P6 · P5-4 边界：仅 passphrase 一列损坏（前两列正常）同样类型化中止——逐列都要过认证。 */
+    @Test
+    fun `export aborts when only the passphrase column is unreadable`() = runBlocking {
+        newEnv().use { env ->
+            val session = env.login("alice")
+            val accountId = session.account.id
+            val foreignDek = ByteArray(32) { (it + 7).toByte() }
+            env.apiKeysRepo.create(accountId, "半坏行", "BINANCE") { rowId ->
+                com.wuzhufolio.data.exchange.ApiKeyCiphers(
+                    apiKey = env.crypto.encryptField(
+                        "AKIA-OK", session.dek, accountId.toString(), rowId.toString(), "api_key",
+                    ),
+                    secretKey = env.crypto.encryptField(
+                        "SECRET-OK", session.dek, accountId.toString(), rowId.toString(), "secret_key",
+                    ),
+                    passphrase = env.crypto.encryptField(
+                        "PASS-BROKEN", foreignDek, accountId.toString(), rowId.toString(), "passphrase",
+                    ),
+                )
+            }
+            val error = assertFailsWith<com.wuzhufolio.domain.backup.BackupExportException> {
+                env.service.exportBackup(env.cproPath("half-broken.cpro"), "Backup-Pass-1".toCharArray())
+            }
+            assertEquals(
+                com.wuzhufolio.domain.backup.BackupExportException.Reason.CREDENTIAL_UNREADABLE,
+                error.reason,
+            )
+            assertEquals("半坏行", error.keyName)
+        }
+    }
+
+    /**
+     * P6 · P5-4 恢复侧：全量覆盖路径的「覆盖前临时备份」失败必须**整体中止且不清库**
+     * （临时备份早于 `deleteAccountBusinessRowsWithinTx` 执行）。这是数据完整性断言，不只看异常类型。
+     */
+    @Test
+    fun `full overwrite aborts before clearing data when the safety backup cannot be created`() = runBlocking {
+        newEnv().use { env ->
+            val session = env.login("alice")
+            val accountId = session.account.id
+            seedAccountA(env)
+            val backupFile = env.cproPath("source.cpro")
+            val password = "Backup-Pass-1".toCharArray()
+            env.service.exportBackup(backupFile, password) // 合法备份（含正常密钥行）
+
+            // 事后新增一条坏密钥行（另一把 DEK 加密）→ 覆盖前临时备份（导出当前库）必失败
+            val foreignDek = ByteArray(32) { (it + 42).toByte() }
+            env.apiKeysRepo.create(accountId, "坏行", "BINANCE") { rowId ->
+                com.wuzhufolio.data.exchange.ApiKeyCiphers(
+                    apiKey = env.crypto.encryptField(
+                        "AKIA-BROKEN", foreignDek, accountId.toString(), rowId.toString(), "api_key",
+                    ),
+                    secretKey = env.crypto.encryptField(
+                        "SECRET-BROKEN", foreignDek, accountId.toString(), rowId.toString(), "secret_key",
+                    ),
+                )
+            }
+            val rowsBefore = countRows(env, accountId)
+            val keysBefore = env.apiKeysRepo.list(accountId).size
+
+            val error = assertFailsWith<com.wuzhufolio.domain.backup.BackupExportException> {
+                env.service.restoreBackup(backupFile, password, RestoreMode.FULL_OVERWRITE)
+            }
+            assertEquals(
+                com.wuzhufolio.domain.backup.BackupExportException.Reason.CREDENTIAL_UNREADABLE,
+                error.reason,
+                "恢复路径必须把临时备份失败上浮为类型化导出错误（UI 映射为「恢复已中止」整句）",
+            )
+            // 关键数据完整性断言：清库发生在临时备份之后 → 业务数据一行未少
+            assertEquals(rowsBefore, countRows(env, accountId), "全量覆盖在临时备份失败时不得清空业务数据")
+            assertEquals(keysBefore, env.apiKeysRepo.list(accountId).size, "密钥行保持原样")
+            val backupsDir = env.dir.resolve("backups")
+            assertTrue(
+                !Files.exists(backupsDir) ||
+                    Files.list(backupsDir).use { s -> s.noneMatch { it.fileName.toString().endsWith(".cpro") } },
+                "失败的临时备份不得留下文件",
+            )
+        }
+    }
+
     // ---- CSV 明文导出：不含任何 API 密钥 ----
 
     @Test

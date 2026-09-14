@@ -334,6 +334,7 @@ object AppBootstrap {
                 marketRefreshService = market.marketRefreshService,
                 marketSettingsService = market.marketSettingsService,
                 syncService = exchange.exchangeSyncService,
+                sessions = sessions, // P6 §7-6：登出后跳过同步 tick（不再制造被吞的噪声异常）
                 rotateLogs = { rotateLogsNow(gate) },
                 // M13：历史快照降采样执行点（ADR-005 §3「降采样后快照随备份」；幂等）
                 compactSnapshots = {

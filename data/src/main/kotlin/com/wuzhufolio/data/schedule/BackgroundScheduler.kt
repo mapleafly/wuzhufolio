@@ -77,6 +77,13 @@ interface SchedulerSources {
     /** 立即同步交易数据（无密钥 = 空列表）。 */
     suspend fun syncNow(): List<ApiKeySyncResult>
 
+    /**
+     * 是否存在活动账户会话（P6 闭环 security-checklist §7-6：登出后循环仍在跑，同步 tick 命中用例层
+     * `requireActive` 抛 IllegalStateException，被吞成只含类名的 WARN——与真实同步故障无法区分）。
+     * 默认 `true` = 既有行为不变；生产装配注入会话持有器。
+     */
+    suspend fun hasActiveSession(): Boolean = true
+
     /** 运行期日志轮转，返回脱敏摘要。 */
     suspend fun rotateLogs(): String
 
@@ -250,6 +257,12 @@ class BackgroundScheduler(
     }
 
     private suspend fun syncOnce(): List<ApiKeySyncResult> {
+        // P6 §7-6：无活动会话（登出/未登录）直接跳过本轮——不进入用例层制造噪声异常；
+        // 收口点选在 syncOnce（而非循环）以便同时覆盖托盘/顶栏「立即同步」入口共用路径。
+        if (!sources.hasActiveSession()) {
+            logger.debug("sync tick skipped: no active session")
+            return emptyList()
+        }
         val results = sources.syncNow()
         // 无密钥 = 用户尚未配置交易所：不发事件（避免每次 tick 空通知）
         if (results.isNotEmpty()) emit(SchedulerEvent.SyncFinished(results))
@@ -330,10 +343,12 @@ class BackgroundScheduler(
  * 生产装配：把三个用例服务 + 三个引导层动作（日志轮转/快照降采样/备份提醒）适配成 [SchedulerSources]
  * （组合根唯一装配点，见 `AppBootstrap.run`）。
  */
+@Suppress("LongParameterList") // 组合根适配器：三条循环所需的全部窄接口来源一次注入（服务 3 + 会话 1 + 引导层动作 3）
 class DefaultSchedulerSources(
     private val marketRefreshService: MarketRefreshService,
     private val marketSettingsService: MarketSettingsService,
     private val syncService: ExchangeSyncService,
+    private val sessions: com.wuzhufolio.data.accounts.ActiveSessionStore,
     private val rotateLogs: suspend () -> String,
     private val compactSnapshots: suspend () -> Int,
     private val backupReminderDays: suspend () -> Long?,
@@ -351,6 +366,8 @@ class DefaultSchedulerSources(
         marketRefreshService.refresh(manual = manual)
 
     override suspend fun syncNow(): List<ApiKeySyncResult> = syncService.syncNow()
+
+    override suspend fun hasActiveSession(): Boolean = sessions.get() != null
 
     override suspend fun rotateLogs(): String = rotateLogs.invoke()
 

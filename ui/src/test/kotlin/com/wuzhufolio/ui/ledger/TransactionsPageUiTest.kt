@@ -307,6 +307,40 @@ class TransactionsPageUiTest {
         waitUntil(timeoutMillis = 2_000) { textCount(TransactionCopy.UPDATE_SUCCESS) >= 1 }
     }
 
+    /** P6 · V1/V2 边界：价格为 0、数量为负、手续费为负 → 逐字段红字且不触达服务（原用例只覆盖空值）。 */
+    @Test
+    fun zeroAndNegativeAmountsAreRejectedByV1V2Rules() = runComposeUiTest {
+        val svc = FakeLedgerService()
+        setContent { TransactionsPage(svc, { null }, { null }) }
+        onNodeWithTag("tx-add").performClick()
+        onNodeWithTag("tx-base-input").performTextInput("BTC")
+        onNodeWithTag("tx-quote-input").performTextInput("USDT")
+        onNodeWithTag("tx-price-input").performTextInput("0")
+        onNodeWithTag("tx-qty-input").performTextInput("-1")
+        onNodeWithTag("tx-fee-input").performTextInput("-0.5")
+        onNodeWithTag("tx-save", useUnmergedTree = true).performClick()
+        waitUntil(timeoutMillis = 2_000) { textCount(TransactionCopy.V1_PRICE) >= 1 }
+        waitUntil(timeoutMillis = 2_000) { textCount(TransactionCopy.V1_QTY) >= 1 }
+        waitUntil(timeoutMillis = 2_000) { textCount(TransactionCopy.V2_FEE) >= 1 }
+        assertTrue(svc.savedInput == null, "非法数值不得触达服务")
+    }
+
+    /** P6 · V3：手续费币种选「自定义」时必须填写币种，否则阻止提交。 */
+    @Test
+    fun customFeeRoleRequiresFeeCurrency() = runComposeUiTest {
+        val svc = FakeLedgerService()
+        setContent { TransactionsPage(svc, { null }, { null }) }
+        onNodeWithTag("tx-add").performClick()
+        onNodeWithTag("tx-base-input").performTextInput("BTC")
+        onNodeWithTag("tx-quote-input").performTextInput("USDT")
+        onNodeWithTag("tx-price-input").performTextInput("50000")
+        onNodeWithTag("tx-qty-input").performTextInput("0.1")
+        onNodeWithTag("tx-fee-role-custom").performClick()
+        onNodeWithTag("tx-save", useUnmergedTree = true).performClick()
+        waitUntil(timeoutMillis = 2_000) { textCount(TransactionCopy.V3_FEE_CURRENCY) >= 1 }
+        assertTrue(svc.savedInput == null, "自定义手续费币种为空不得触达服务")
+    }
+
     /** 问题 4：计价币输入应出目录候选并可点选。 */
     @Test
     fun quoteInputShowsCandidatesAndPicks() = runComposeUiTest {

@@ -128,6 +128,18 @@ interface BackupStrings {
 
     /** 增量合并预览整句（将新增 N 条；已存在跳过 N 条；缺失币种跳过 N 条）。 */
     fun mergePreview(inserts: Int, duplicates: Int, missingCoins: Int): String
+
+    /**
+     * 导出中止整句（P6 · P5-4）：库内某条 API 密钥凭证无法解密，点名该密钥别名供用户定位。
+     * 失败方向偏安全侧——导出整体中止且不落文件（`BackupExportException.CREDENTIAL_UNREADABLE`）。
+     */
+    fun exportCredentialUnreadable(keyName: String): String
+
+    /**
+     * 恢复中止整句（P6 · P5-4 的恢复侧）：全量覆盖前的自动临时备份因凭证不可解密而失败 →
+     * 恢复整体中止、**账户数据未被清除**（临时备份早于清库执行）。文案须说明数据未受影响。
+     */
+    fun restoreAbortedCredentialUnreadable(keyName: String): String
 }
 
 object BackupStringsZh : BackupStrings {
@@ -251,6 +263,14 @@ object BackupStringsZh : BackupStrings {
 
     override fun mergePreview(inserts: Int, duplicates: Int, missingCoins: Int): String =
         mergePreviewPrefix + inserts + mergePreviewDup + duplicates + mergePreviewMissing + missingCoins + "条"
+
+    override fun exportCredentialUnreadable(keyName: String): String =
+        "备份未生成：API 密钥「" + keyName + "」的本地凭证无法解密（数据可能被外部改动或损坏）。" +
+            "请在「API 管理」中重新保存或移除该密钥后重试；文件未写入，数据未受影响。"
+
+    override fun restoreAbortedCredentialUnreadable(keyName: String): String =
+        "恢复已中止：API 密钥「" + keyName + "」的本地凭证无法解密，未能生成覆盖前的临时备份。" +
+            "本次恢复未改动任何数据；请先在「API 管理」中重新保存或移除该密钥后重试。"
 }
 
 object BackupStringsEn : BackupStrings {
@@ -383,6 +403,16 @@ object BackupStringsEn : BackupStrings {
     /** 英语单复数（0 与 >1 用复数；仅 en 档需要，zh 档量词无变化）。 */
     private fun count(n: Int, singular: String): String =
         n.toString() + " " + if (n == 1) singular else singular + "s"
+
+    override fun exportCredentialUnreadable(keyName: String): String =
+        "No backup was created: the stored credential for API key \"" + keyName + "\" cannot be decrypted " +
+            "(the data may have been modified or corrupted externally). Re-save or remove that key under " +
+            "\"API management\" and try again; no file was written and your data is unaffected."
+
+    override fun restoreAbortedCredentialUnreadable(keyName: String): String =
+        "Restore aborted: the stored credential for API key \"" + keyName + "\" cannot be decrypted, so the " +
+            "pre-overwrite safety backup could not be created. Nothing was changed; re-save or remove that key " +
+            "under \"API management\" and try again."
 }
 
 val backupStrings: BackupStrings get() = if (I18n.isZh) BackupStringsZh else BackupStringsEn

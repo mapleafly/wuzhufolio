@@ -146,4 +146,30 @@ object BackupCopy {
         com.wuzhufolio.domain.backup.CproDecodeException.Reason.UNSUPPORTED_FORMAT -> ERR_UNSUPPORTED
         com.wuzhufolio.domain.backup.CproDecodeException.Reason.MALFORMED_FILE -> ERR_MALFORMED
     }
+
+    /**
+     * **导出**失败文案映射（P6 · P5-4 闭环，与 [decodeErrorCopy] 导入侧三态对称）：
+     * `BackupExportException.CREDENTIAL_UNREADABLE` → 点名密钥的可读整句；
+     * 其余异常保留原始信息（导出侧无其它已知类型化失败）。
+     */
+    fun exportErrorCopy(t: Throwable): String = when (t) {
+        is com.wuzhufolio.domain.backup.BackupExportException -> when (t.reason) {
+            com.wuzhufolio.domain.backup.BackupExportException.Reason.CREDENTIAL_UNREADABLE ->
+                backupStrings.exportCredentialUnreadable(t.keyName ?: "?")
+        }
+        else -> t.message ?: EXPORT_FAILED_PREFIX
+    }
+
+    /**
+     * **恢复**失败文案映射（P6 · P5-4 恢复侧）：导入三态（[decodeErrorCopy]）+ 覆盖前临时备份失败
+     * （`BackupExportException` 经恢复路径上浮——此时账户数据未被清除，文案须明确说明）。
+     */
+    fun restoreErrorCopy(t: Throwable): String = when (t) {
+        is com.wuzhufolio.domain.backup.CproDecodeException -> decodeErrorCopy(t.reason)
+        is com.wuzhufolio.domain.backup.BackupExportException -> when (t.reason) {
+            com.wuzhufolio.domain.backup.BackupExportException.Reason.CREDENTIAL_UNREADABLE ->
+                backupStrings.restoreAbortedCredentialUnreadable(t.keyName ?: "?")
+        }
+        else -> ERR_GENERIC + (t.message ?: "")
+    }
 }

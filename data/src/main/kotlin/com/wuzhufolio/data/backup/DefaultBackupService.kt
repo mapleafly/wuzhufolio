@@ -11,6 +11,7 @@ import com.wuzhufolio.data.ledger.LedgerTxRow
 import com.wuzhufolio.data.ledger.ReconciliationRecordRow
 import com.wuzhufolio.data.settings.SettingsRepository
 import com.wuzhufolio.domain.accounts.AccountPolicy
+import com.wuzhufolio.domain.backup.BackupExportException
 import com.wuzhufolio.domain.backup.BackupExportSummary
 import com.wuzhufolio.domain.backup.BackupMergePlanner
 import com.wuzhufolio.domain.backup.BackupMetadata
@@ -33,6 +34,7 @@ import com.wuzhufolio.domain.engine.FlowKind
 import com.wuzhufolio.domain.engine.NegativePolicy
 import com.wuzhufolio.domain.engine.ReplayEngine
 import com.wuzhufolio.domain.engine.Side
+import com.wuzhufolio.domain.security.AuthenticationFailedException
 import com.wuzhufolio.domain.security.CryptoService
 import com.wuzhufolio.domain.security.FilePermissions
 import com.wuzhufolio.domain.security.KdfParams
@@ -370,27 +372,50 @@ class DefaultBackupService(
 
     // ---- 内部：导出装配 ----
 
+    /**
+     * 凭证解密入载荷（PRD 5.2-9）。解密失败 → [BackupExportException.CREDENTIAL_UNREADABLE]
+     * （P6 · P5-4 闭环：此前直接上浮 `AuthenticationFailedException`，UI 只能透出原始加密异常）。
+     * 失败即整体中止导出、不落文件——凭证解不开就不能进备份（失败方向偏安全侧）。
+     */
     private fun apiKeyRowsToPayload(accountId: Int, s: ActiveSession): List<com.wuzhufolio.domain.backup.CproApiKey> =
         apiKeys.list(accountId).map { rec ->
-            com.wuzhufolio.domain.backup.CproApiKey(
-                name = rec.name,
-                exchangeName = rec.exchangeName,
-                apiKey = crypto.decryptField(
-                    rec.apiKeyCipher, s.dek, accountId.toString(), rec.id.toString(), "api_key",
-                ),
-                secretKey = crypto.decryptField(
-                    rec.secretKeyCipher, s.dek, accountId.toString(), rec.id.toString(), "secret_key",
-                ),
-                passphrase = rec.passphraseCipher?.let {
-                    crypto.decryptField(it, s.dek, accountId.toString(), rec.id.toString(), "passphrase")
-                },
-                extra = rec.extraCipher?.let {
-                    crypto.decryptField(it, s.dek, accountId.toString(), rec.id.toString(), "extra")
-                },
-                lastSyncTime = rec.lastSyncTime,
-                status = rec.status,
-            )
+            try {
+                com.wuzhufolio.domain.backup.CproApiKey(
+                    name = rec.name,
+                    exchangeName = rec.exchangeName,
+                    apiKey = crypto.decryptField(
+                        rec.apiKeyCipher, s.dek, accountId.toString(), rec.id.toString(), "api_key",
+                    ),
+                    secretKey = crypto.decryptField(
+                        rec.secretKeyCipher, s.dek, accountId.toString(), rec.id.toString(), "secret_key",
+                    ),
+                    passphrase = rec.passphraseCipher?.let {
+                        crypto.decryptField(it, s.dek, accountId.toString(), rec.id.toString(), "passphrase")
+                    },
+                    extra = rec.extraCipher?.let {
+                        crypto.decryptField(it, s.dek, accountId.toString(), rec.id.toString(), "extra")
+                    },
+                    lastSyncTime = rec.lastSyncTime,
+                    status = rec.status,
+                )
+            } catch (e: AuthenticationFailedException) {
+                throw credentialUnreadable(rec.name, rec.id, e)
+            } catch (e: IllegalArgumentException) {
+                // FieldCipher 的格式校验（前缀/版本/长度）失败同样意味着该行凭证不可读
+                throw credentialUnreadable(rec.name, rec.id, e)
+            }
         }
+
+    private fun credentialUnreadable(name: String, id: Int, cause: Throwable): BackupExportException {
+        // 只记密钥别名与行 id（不含明文/密文/DEK）；日志经统一脱敏漏斗
+        logger.warn("backup export aborted | reason=credential_unreadable | key={} | id={}", name, id)
+        return BackupExportException(
+            reason = BackupExportException.Reason.CREDENTIAL_UNREADABLE,
+            message = "api_keys credential unreadable: $name (id=$id)",
+            keyName = name,
+            cause = cause,
+        )
+    }
 
     /** 涉及币种（交易两腿 + 资金/校准币种）——快照导出范围（ADR-005 §3）。 */
     private fun involvedCoinIds(
