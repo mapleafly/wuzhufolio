@@ -71,65 +71,80 @@ class SettingsKeyNamespaceGuardTest {
             .flatMap { root -> root.walkTopDown().filter { it.isFile && it.extension == "kt" }.toList() }
         result.files = files.size
         val symbols = indexSymbols(files)
-        val ambiguous = symbols.entries.groupBy { it.key.substringAfterLast('.') }
-            .filter { (_, entries) -> entries.map { it.value }.distinct().size > 1 }
-            .keys
-        files.forEach { collectCallSites(it, symbols, ambiguous, result) }
+        files.forEach { collectCallSites(it, symbols, result) }
         return result
     }
 
-    /** ① 符号索引：`NAME` 与 `Qualifier.NAME` → 字面量或别名表达式（只收「键形状」字面量 / 符号引用）。 */
-    private fun indexSymbols(files: List<File>): HashMap<String, String> {
-        val symbols = HashMap<String, String>()
+    /**
+     * ① 符号索引：`Qualifier.NAME` / 顶层 `NAME` → 该名字**出现过的全部表达式集合**。
+     *
+     * 关键：按「限定名 → 表达式集合」建索引，**不依赖文件遍历顺序**（CI windows-latest 曾暴露：
+     * 早期实现用 HashMap<NAME, 表达式> 让同名常量互相覆盖，解析结果随目录顺序变化 → 未按限定名解析的
+     * `watch.coins` 在 Windows 上丢失，见 `docs/test/defects.md` **DEF-12**）。
+     * 解析规则：限定名唯一命中即用；裸名要求**跨全部限定符只对应一个字面量**，否则视为歧义（fail-closed）。
+     */
+    private class SymbolIndex {
+        private val byQualified = HashMap<String, MutableSet<String>>()
+
+        fun add(qualifier: String?, name: String, expression: String) {
+            val key = if (qualifier == null) name else qualifier + "." + name
+            byQualified.getOrPut(key) { linkedSetOf() }.add(expression)
+        }
+
+        /** 解析符号为字面量或别名表达式；歧义/未知名 → null（fail-closed）。 */
+        fun resolve(symbol: String): String? {
+            byQualified[symbol]?.let { return it.singleOrNull() }
+            val bare = symbol.substringAfterLast('.')
+            val candidates = byQualified.entries
+                .filter { it.key == bare || it.key.endsWith("." + bare) }
+                .flatMap { it.value }
+                .toSet()
+            return candidates.singleOrNull()
+        }
+    }
+
+    /** ① 符号索引构建（逐文件、逐行；限定符 = 最近一次出现的 object/class/interface 名）。 */
+    private fun indexSymbols(files: List<File>): SymbolIndex {
+        val index = SymbolIndex()
         files.forEach { file ->
             var qualifier: String? = null
             file.readText().lineSequence().forEach { line ->
                 QUALIFIER.find(line)?.let { qualifier = it.groupValues[1] }
-                indexLine(line, qualifier, symbols)
+                indexLine(line, qualifier, index)
             }
         }
-        return symbols
+        return index
     }
 
     /** 单行索引：字面量声明与别名声明各一条规则。 */
-    private fun indexLine(line: String, qualifier: String?, symbols: HashMap<String, String>) {
+    private fun indexLine(line: String, qualifier: String?, index: SymbolIndex) {
         SYMBOL.find(line)?.let { m ->
             val literal = m.groupValues[2]
-            if (KEY_SHAPE.matches(literal)) put(symbols, qualifier, m.groupValues[1], literal)
+            if (KEY_SHAPE.matches(literal)) index.add(qualifier, m.groupValues[1], literal)
         }
         ALIAS.find(line)?.let { m ->
             if (m.groupValues[2].substringAfterLast('.') != m.groupValues[1]) {
-                put(symbols, qualifier, m.groupValues[1], m.groupValues[2])
+                index.add(qualifier, m.groupValues[1], m.groupValues[2])
             }
         }
     }
 
-    private fun put(symbols: HashMap<String, String>, qualifier: String?, name: String, expression: String) {
-        symbols[name] = expression
-        qualifier?.let { q -> symbols[q + "." + name] = expression }
-    }
-
     /** ② 调用点抽取（一行内可能有多类调用，逐条记录）。 */
-    private fun collectCallSites(
-        file: File,
-        symbols: Map<String, String>,
-        ambiguous: Set<String>,
-        result: Scan,
-    ) {
+    private fun collectCallSites(file: File, symbols: SymbolIndex, result: Scan) {
         val relative = file.path.replace('\\', '/')
         file.readText().lineSequence().forEachIndexed { index, line ->
             if (DECLARATION.containsMatchIn(line)) return@forEachIndexed // 声明行不是调用点
             GLOBAL_CALL.findAll(line).forEach { m ->
-                record(result, m, symbols, ambiguous, intoGlobal = true, relative, index, line)
+                record(result, m, symbols, intoGlobal = true, relative, index, line)
             }
             ACCOUNT_CALL.findAll(line).forEach { m ->
-                record(result, m, symbols, ambiguous, intoGlobal = false, relative, index, line)
+                record(result, m, symbols, intoGlobal = false, relative, index, line)
             }
             SEED_KEY.findAll(line).forEach { result.global += it.groupValues[1] }
             PREFERENCE_KEY.findAll(line).forEach { result.global += it.groupValues[1] }
             // 设备密钥条目（行情 Key，ADR-002 §2.1 方案甲）：`store.put(MarketConfig.KEY_CG, …)`
             DEVICE_SECRET_CALL.findAll(line).forEach { m ->
-                record(result, m, symbols, ambiguous, intoGlobal = true, relative, index, line)
+                record(result, m, symbols, intoGlobal = true, relative, index, line)
             }
         }
     }
@@ -138,8 +153,7 @@ class SettingsKeyNamespaceGuardTest {
     private fun record(
         result: Scan,
         match: MatchResult,
-        symbols: Map<String, String>,
-        ambiguous: Set<String>,
+        symbols: SymbolIndex,
         intoGlobal: Boolean,
         path: String,
         lineIndex: Int,
@@ -151,7 +165,7 @@ class SettingsKeyNamespaceGuardTest {
         when {
             literal.isNotEmpty() -> target += literal
             else -> {
-                val resolved = resolveSymbol(symbol, symbols, ambiguous)
+                val resolved = resolveSymbol(symbol, symbols)
                 if (resolved != null) {
                     target += resolved
                 } else if (dynamicCallAllowlist.none { (file, name) -> path.endsWith(file) && symbol == name }) {
@@ -163,23 +177,22 @@ class SettingsKeyNamespaceGuardTest {
     }
 
     /**
-     * 解析符号：先试完整限定名，再试末段裸名（裸名歧义则不可解析）；
-     * 别名（`val A = B.C`）按 [MAX_ALIAS_HOPS] 跳数继续解析。解析不到 → null（fail-closed）。
+     * 解析符号：限定名优先，裸名要求跨全部限定符唯一；别名（`val A = B.C`）按 [MAX_ALIAS_HOPS] 跳数继续解析。
+     * 解析不到 → null（fail-closed：宁可红，也不静默放过）。
      */
-    private fun resolveSymbol(symbol: String, symbols: Map<String, String>, ambiguous: Set<String>): String? {
+    private fun resolveSymbol(symbol: String, symbols: SymbolIndex): String? {
         var current = symbol
         var resolved: String? = null
         var hops = 0
         while (resolved == null && hops < MAX_ALIAS_HOPS) {
-            val bare = current.substringAfterLast('.')
-            val expression = symbols[current] ?: symbols[bare].takeIf { bare !in ambiguous }
-            when {
-                expression == null -> hops = MAX_ALIAS_HOPS
-                KEY_SHAPE.matches(expression) -> resolved = expression
-                else -> {
-                    current = expression
-                    hops++
-                }
+            val expression = symbols.resolve(current)
+            if (expression == null) {
+                hops = MAX_ALIAS_HOPS
+            } else if (KEY_SHAPE.matches(expression)) {
+                resolved = expression
+            } else {
+                current = expression
+                hops++
             }
         }
         return resolved
@@ -223,9 +236,14 @@ class SettingsKeyNamespaceGuardTest {
     }
 
     private companion object {
-        /** `object X` / `class X` / `companion object`（用于限定名解析）。 */
+        /**
+         * 类型声明（限定名跟踪）：`object X` / `class X` / `interface X` / `enum class X` / `data class X` /
+         * `sealed interface X` …（修饰词统一由 `(?:\w+\s+)*` 吸收）。
+         * **无名 `companion object`** 不匹配 → 保留外层类型名（`interface MarketWatchService` 内的
+         * `companion object { const val SETTINGS_KEY }` 因此解析为 `MarketWatchService.SETTINGS_KEY`）。
+         */
         val QUALIFIER = Regex(
-            """^\s*(?:internal\s+|private\s+|public\s+)?(?:companion\s+)?(?:object|class)\s+([A-Za-z_][A-Za-z0-9_]*)""",
+            """^\s*(?:\w+\s+)*(?:object|class|interface)\s+([A-Za-z_][A-Za-z0-9_]*)""",
         )
 
         /** `const val X = "…"` / `val X: String = "…"` / `val X = "…"`。 */
