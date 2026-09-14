@@ -131,7 +131,10 @@ object AppBootstrap {
         val db: WzDatabase,
         val gate: DbGate,
         val settings: SettingsRepository,
+        /** 启动时快照（主壳 ViewModel 的**初始值**；不随后续切换变化——见 [uiPreferences]）。 */
         val uiState: UiState,
+        /** 运行期可观察的界面偏好（P6 DEF-19：主壳之外的组件（托盘菜单）需即时跟随语言/主题切换）。 */
+        val uiPreferences: UiPreferenceState,
         val session: SessionRuntime,
         /** M5：行情 Key 设置用例（T5.5，设备密钥加密全局行）。 */
         val marketSettingsService: MarketSettingsService,
@@ -364,16 +367,18 @@ object AppBootstrap {
                     " | pnl_scheme=" + hello.pnlScheme.storageValue,
             ),
         )
+        val uiState = UiState(
+            theme = hello.theme,
+            pnlScheme = hello.pnlScheme,
+            language = AppLanguage.fromStorage(settings.getGlobal(GeneralSettingsKeys.LANGUAGE)),
+            securityNotice = securityNotice(report, keyFile),
+        )
         return Runtime(
             db = db,
             gate = gate,
             settings = settings,
-            uiState = UiState(
-                theme = hello.theme,
-                pnlScheme = hello.pnlScheme,
-                language = AppLanguage.fromStorage(settings.getGlobal(GeneralSettingsKeys.LANGUAGE)),
-                securityNotice = securityNotice(report, keyFile),
-            ),
+            uiState = uiState,
+            uiPreferences = UiPreferenceState(uiState),
             session = SessionRuntime(
                 authService = authService,
                 rememberStore = rememberStore,

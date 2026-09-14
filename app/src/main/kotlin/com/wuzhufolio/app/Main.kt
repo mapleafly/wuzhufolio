@@ -168,7 +168,11 @@ internal fun MainWindowContent(
         usernameEnumEnabled = { usernameEnumEnabled(runtime) },
         startupNotice = runtime.uiState.securityNotice,
         // M10：主题/盈亏配色持久化（顶栏 ☾ 与设置页「主题（明/暗）」双向同步，PRD 6.1）
-        onShellPreferenceChange = { key, value -> runtime.settings.putGlobal(key, value) },
+        onShellPreferenceChange = { key, value ->
+            runtime.settings.putGlobal(key, value)
+            // P6 DEF-19：主壳之外的组件（托盘菜单窗口）需即时跟随语言/主题——同步可观察状态
+            runtime.uiPreferences.apply(key, value)
+        },
         settingsPageContent = { shellViewModel ->
             SettingsPage(
                 shellViewModel = shellViewModel,

@@ -51,6 +51,8 @@ fun ApplicationScope.AppHost(runtime: AppBootstrap.Runtime, onExit: () -> Unit) 
     // DEF-15 三次修复：菜单不再交给 AWT PopupMenu（Windows 上文本乱码），改为 Compose 自绘窗口，
     // 位置 = 右键时的屏幕坐标（px → dp 需按屏幕缩放换算）
     var trayMenuAt by remember { mutableStateOf<Pair<Float, Float>?>(null) }
+    // P6 DEF-19：菜单窗口是独立组合树——语言/主题必须取**可观察**状态（启动快照会在切换后过期）
+    val uiPreferences by runtime.uiPreferences.state.collectAsState()
     val windowState = rememberWindowState(width = 1280.dp, height = 800.dp)
     val scope = rememberCoroutineScope()
     var windowVisible by remember { mutableStateOf(true) }
@@ -124,8 +126,8 @@ fun ApplicationScope.AppHost(runtime: AppBootstrap.Runtime, onExit: () -> Unit) 
         }
         TrayMenuWindow(
             position = androidx.compose.ui.window.WindowPosition((xPx / scale).dp, (yPx / scale).dp),
-            themeMode = runtime.uiState.theme,
-            language = runtime.uiState.language,
+            themeMode = uiPreferences.theme,
+            language = uiPreferences.language,
             onDismiss = { trayMenuAt = null },
             onOpen = { showWindow(); trayMenuAt = null },
             onSync = { scope.launch { runCatching { runtime.scheduler.syncNow() } }; trayMenuAt = null },
