@@ -166,17 +166,25 @@
 
 ## 7. 取最新构建（复测用）
 
+本轮修复（DEF-20/DEF-21）随 commit `9c0b98c` 推送，CI run
+[34920902335](https://github.com/mapleafly/wuzhufolio/actions/runs/34920902335) **六 job 全绿**
+（ubuntu / windows / macos × build+package），Windows 原生产物：
+
+| 产物 | SHA256 |
+|------|--------|
+| `msi\WuZhuFolio-0.1.0.msi` | `4585a849ca8633df277580b18d9e87e749df6684942341958bdaa851d789f771` |
+| `exe\WuZhuFolio-0.1.0.exe` | `433c4710b1f9d9f9ae4ea9ceba0ae90e6f84c494b04a6b7ff80ac07d1f330d8c` |
+
 ```powershell
-# 任选仓库外目录执行
-gh run download 34871378773 --repo mapleafly/wuzhufolio -n wuzhufolio-windows-latest-native -D .\wzf-windows
-Get-FileHash .\wzf-windows\msi\WuZhuFolio-0.1.0.msi -Algorithm SHA256   # cf40ba5c…
+# 任选**仓库外**目录执行（下载目录不在 .gitignore 内，别放进仓库）
+gh run download 34920902335 --repo mapleafly/wuzhufolio -n wuzhufolio-windows-latest-native -D .\wzf-windows
+Get-FileHash .\wzf-windows\msi\WuZhuFolio-0.1.0.msi -Algorithm SHA256   # 应等于上表
 msiexec /i .\wzf-windows\msi\WuZhuFolio-0.1.0.msi
 ```
 
-> 每次修复后我会在 `STATUS.md` / `defects.md` 记录 run 号与 build 标识；**测之前先核对 `build=` 行**，
+> 启动后**先核对日志首行** `bootstrap ok | build=0.1.0+9c0b98c | db=…`（Windows 路径：
+> `%USERPROFILE%\.wuzhufolio\logs\wuzhufolio.log`）——`build=` 与本轮提交一致才继续走查，
 > 可避免「拿旧包装新问题」的来回。
-
----
 
 ## 8. 需求回溯
 
@@ -185,4 +193,5 @@ msiexec /i .\wzf-windows\msi\WuZhuFolio-0.1.0.msi
 | 键位语义与焦点顺序 | PRD §6「无障碍基线：桌面端支持全键盘导航（Tab 焦点顺序合理、核心操作可达）」；`interaction.md §3-9` |
 | 弹窗键盘可用（打开即聚焦首输入框 / Esc 关闭） | `AGENTS.md §7.3` GUI 共性约束 |
 | DEF-13 / DEF-14 修复与回归 | `docs/test/defects.md` §1.5；`ui/KeyboardA11yUiTest`、`FundsPageUiTest::commandAreaIsReachableByKeyboardOnly` |
+| DEF-20（候选选中后焦点留在表单）/ DEF-21（回车进页面 + Esc/↑↓ 回外壳） | `docs/test/defects.md` §1.7；`ui/shell/ShellFocusFlowUiTest`（5 例）、`ui/KeyboardA11yUiTest`、`FundsPageUiTest`/`TransactionsPageUiTest` 焦点交接回归 |
 | 人工门用例对应 | `docs/test/test-cases.md` TC-MAN-06（纯键盘全流程）、TC-MAN-03（读屏） |
