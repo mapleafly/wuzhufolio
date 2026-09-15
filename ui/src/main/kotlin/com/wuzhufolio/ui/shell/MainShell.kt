@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,6 +26,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.wuzhufolio.domain.proxy.ProxyStatus
@@ -105,13 +110,37 @@ fun MainShell(
     val coinDetailId by viewModel.coinDetailId.collectAsState()
     val toast by viewModel.toast.collectAsState()
     var showStartupNotice by remember { mutableStateOf(startupNotice != null) }
+    // 键盘焦点编排（2026-09-15 人工走查反馈）：
+    // ① 选中导航项后焦点**进入页面内容**，不必再 Tab 逐个穿过顶栏（进入即用）；
+    // ② 页面内未被控件消费的 Esc / ↑ / ↓ 把焦点交回侧边栏当前项，回到「侧边栏→顶栏→页面」外壳循环；
+    // ③ 侧边栏内 ↑ / ↓ 在导航项之间移动。
+    val pageEntryFocus = remember { FocusRequester() }
+    val navFocusRequesters = remember { NAV_FOCUS_ORDER.associateWith { FocusRequester() } }
+    var lastEntryKey by remember { mutableStateOf<String?>(null) }
+    var reentryNonce by remember { mutableStateOf(0) }
+    val entryKey = page.name + "/" + (coinDetailId ?: "")
+    // 首次组合不抢焦点（启动时焦点仍在侧边栏，与键盘走查记录一致）；此后每次切页/进入详情子页、
+    // 或对当前项再次回车（reentryNonce）都把焦点交给页面内容。
+    LaunchedEffect(entryKey, reentryNonce) {
+        if (lastEntryKey != null) runCatching { pageEntryFocus.requestFocus() }
+        lastEntryKey = entryKey
+    }
 
     WuzhuTheme(themeMode = themeMode, pnlScheme = pnlScheme, language = activeLanguage) {
         val colors = WzTheme.colors
         Box(modifier = modifier.fillMaxSize().background(colors.bg).testTag("main-shell")) {
             Column(modifier = Modifier.fillMaxSize()) {
                 Row(modifier = Modifier.weight(1f)) {
-                    Sidebar(currentPage = page, onSelect = viewModel::selectPage, accountArea = accountArea)
+                    Sidebar(
+                        currentPage = page,
+                        onSelect = { selected ->
+                            viewModel.selectPage(selected)
+                            // 对当前项再次回车 = 直接进入页面内容（无需先切页再 Tab）
+                            if (selected == page) reentryNonce++
+                        },
+                        accountArea = accountArea,
+                        navFocusRequesters = navFocusRequesters,
+                    )
                     Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
                         TopBar(
                             title = page.label,
@@ -123,7 +152,15 @@ fun MainShell(
                             refreshQuotesBusy = refreshQuotesBusy,
                             status = shellStatus,
                         )
-                        Box(modifier = Modifier.weight(1f)) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                // 页面进入焦点目标：requestFocus 会落到子树内第一个可聚焦控件（Compose 语义），
+                                // 容器自身**不加** focusable，避免多出一个无焦点环的 Tab 停靠点（DEF-13 教训）。
+                                .focusRequester(pageEntryFocus)
+                                // 冒泡阶段：页面内控件已消费的键（输入框方向键、弹层 Esc）不受影响
+                                .onKeyEvent { event -> handlePageExitKey(event, page, navFocusRequesters) },
+                        ) {
                             PageHost(
                                 page = page,
                                 coinDetailId = coinDetailId,
@@ -242,8 +279,11 @@ private fun Sidebar(
     currentPage: ShellPage,
     onSelect: (ShellPage) -> Unit,
     accountArea: @Composable () -> Unit,
+    navFocusRequesters: Map<ShellPage, FocusRequester>,
 ) {
     val colors = WzTheme.colors
+    // 当前获得焦点的导航项（供 ↑/↓ 计算相邻项；鼠标点击不入此状态也无需入）
+    var focusedNavPage by remember { mutableStateOf<ShellPage?>(null) }
     Column(
         modifier = Modifier
             .width(220.dp)
@@ -251,6 +291,7 @@ private fun Sidebar(
             .background(colors.surface)
             .border(0.dp, colors.line)
             .padding(vertical = 12.dp)
+            .onKeyEvent { event -> handleSidebarArrowKey(event, focusedNavPage, navFocusRequesters) }
             .testTag("sidebar"),
     ) {
         Text(
@@ -271,6 +312,8 @@ private fun Sidebar(
                 active = page == currentPage,
                 onClick = { onSelect(page) },
                 testTag = "nav-" + page.name,
+                focusRequester = navFocusRequesters[page],
+                onFocused = { focusedNavPage = page },
             )
         }
         Box(modifier = Modifier.weight(1f))
@@ -279,13 +322,22 @@ private fun Sidebar(
             active = currentPage == ShellPage.GALLERY,
             onClick = { onSelect(ShellPage.GALLERY) },
             testTag = "nav-" + ShellPage.GALLERY.name,
+            focusRequester = navFocusRequesters[ShellPage.GALLERY],
+            onFocused = { focusedNavPage = ShellPage.GALLERY },
         )
         accountArea()
     }
 }
 
 @Composable
-private fun SidebarNavItem(label: String, active: Boolean, onClick: () -> Unit, testTag: String) {
+private fun SidebarNavItem(
+    label: String,
+    active: Boolean,
+    onClick: () -> Unit,
+    testTag: String,
+    focusRequester: FocusRequester?,
+    onFocused: () -> Unit,
+) {
     val colors = WzTheme.colors
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
@@ -300,6 +352,10 @@ private fun SidebarNavItem(label: String, active: Boolean, onClick: () -> Unit, 
             .height(36.dp)
             .background(bg)
             .hoverable(interactionSource)
+            // DEF-13 教训：clickable 自带唯一焦点目标，这里不得再加 .focusable()；
+            // focusRequester/onFocusChanged 必须排在 clickable **之前**（焦点节点只向链上更外层上报）。
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .onFocusChanged { if (it.isFocused) onFocused() }
             .clickable(onClick = onClick)
             .testTag(testTag),
         verticalAlignment = Alignment.CenterVertically,

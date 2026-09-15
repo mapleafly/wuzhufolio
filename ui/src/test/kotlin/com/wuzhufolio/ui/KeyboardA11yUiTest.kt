@@ -3,15 +3,18 @@ package com.wuzhufolio.ui
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.v2.runComposeUiTest
@@ -45,7 +48,7 @@ class KeyboardA11yUiTest {
     fun `tab traversal reaches page content without landing on invisible focus targets`() = runComposeUiTest {
         fun focusedTags(): List<String> =
             onAllNodes(isFocused()).fetchSemanticsNodes().map {
-                (runCatching { it.config[SemanticsProperties.TestTag] }.getOrNull() ?: "?").toString()
+                runCatching { it.config[SemanticsProperties.TestTag] }.getOrNull() ?: "?"
             }
 
         setContent {
@@ -61,25 +64,35 @@ class KeyboardA11yUiTest {
                 },
             )
         }
-        val seen = mutableListOf<String>()
-        repeat(20) {
+        // ① 外壳一轮：侧边栏 7 项 → 顶栏 3 项，每一步恰好一个**有标识的真实**焦点目标（DEF-13 护栏）
+        val shellOrder = mutableListOf<String>()
+        repeat(10) {
             onRoot().performKeyInput { pressKey(Key.Tab) }
             waitForIdle()
             val tags = focusedTags()
-            // ① 每一步恰好一个焦点目标，且必须是有标识的真实节点（DEF-13 的隐形目标会让这里变空）
-            assertEquals(1, tags.size, "Tab 后应恰好一个焦点目标，实际：$tags（第 ${seen.size + 1} 步）")
+            assertEquals(1, tags.size, "Tab 后应恰好一个焦点目标，实际：$tags（第 ${shellOrder.size + 1} 步）")
             assertTrue(tags.single() != "?", "Tab 落在无标识的隐形焦点目标上：$tags")
-            seen += tags.single()
-            if (tags.single() == "nav-FUNDS") {
-                onNodeWithTag("nav-FUNDS").performKeyInput { pressKey(Key.Enter) }
-                waitForIdle()
-            }
+            shellOrder += tags.single()
         }
-        // ② 页面内容可达（修复前 focus 只在侧边栏 + 顶栏循环）
-        assertTrue("probe-funds-btn" in seen, "Tab 应能进入页面内容，实际序列：$seen")
-        assertTrue("probe-withdraw-btn" in seen, "页面内第二个按钮也应可达，实际序列：$seen")
-        // ③ 侧边栏与顶栏控件同样保持可达（回归）
-        assertTrue("nav-DASHBOARD" in seen && "topbar-sync" in seen, "侧边栏/顶栏应保持可达：$seen")
+        assertEquals(
+            listOf(
+                "nav-DASHBOARD", "nav-ASSETS", "nav-TRANSACTIONS", "nav-FUNDS", "nav-QUOTES", "nav-SETTINGS",
+                "nav-GALLERY", "topbar-refresh-quotes", "topbar-sync", "theme-toggle",
+            ),
+            shellOrder,
+            "外壳 Tab 顺序（侧边栏 7 + 顶栏 3）",
+        )
+
+        // ② 键盘选中「资金管理」→ 焦点**直接进入页面内容**（走查改进项 A / DEF-20 修复后的焦点流）
+        onNodeWithTag("nav-FUNDS").performSemanticsAction(SemanticsActions.RequestFocus)
+        onNodeWithTag("nav-FUNDS").performKeyInput { pressKey(Key.Enter) }
+        waitForIdle()
+        onNodeWithTag("probe-funds-btn").assertIsFocused()
+
+        // ③ 页面内继续 Tab：第二个页面控件可达，且仍是真实节点（修复前 focus 只在侧边栏 + 顶栏循环）
+        onRoot().performKeyInput { pressKey(Key.Tab) }
+        waitForIdle()
+        assertEquals(listOf("probe-withdraw-btn"), focusedTags(), "页面内第二个按钮应经 Tab 可达")
     }
 
     @Test

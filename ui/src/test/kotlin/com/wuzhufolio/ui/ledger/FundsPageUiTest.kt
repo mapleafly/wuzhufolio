@@ -176,7 +176,6 @@ class FundsPageUiTest {
 
         fun focusedTag(): String? = onAllNodes(isFocused()).fetchSemanticsNodes().firstOrNull()
             ?.let { runCatching { it.config[androidx.compose.ui.semantics.SemanticsProperties.TestTag] }.getOrNull() }
-            ?.toString()
 
         // Tab 直到「记录增资」获得焦点（上限 20 步，覆盖总览卡/命令区/列表等前置节点）
         var hops = 0
@@ -242,6 +241,28 @@ class FundsPageUiTest {
         onNodeWithTag("fund-save", useUnmergedTree = true).performClick()
         waitUntil(timeoutMillis = 2_000) { svc.savedInput != null }
         assertEquals(FlowKind.WITHDRAWAL, svc.savedInput!!.kind)
+    }
+
+    /**
+     * DEF-20（2026-09-15 Windows 人工走查）：币种候选行点选后该行消失，焦点此前掉回窗口根
+     * （下一次 Tab 从侧边栏重来）。修复后焦点交到弹窗内的「数量」字段，键盘可继续录入。
+     */
+    @Test
+    fun coinPickHandsFocusToQuantityFieldInsideModal() = runComposeUiTest {
+        val picked = CatalogCoin(78L, "tether", null, "USDT", "Tether", CoinStatus.ACTIVE)
+        val svc = FakeFundService().apply { searchResults = listOf(picked) }
+        setContent { FundsPage(svc, FakeCalibration()) }
+        onNodeWithTag("fund-add-deposit").performClick()
+        onNodeWithTag("fund-coin-input").performTextInput("USDT")
+        waitUntil(timeoutMillis = 2_000) { textCount("tether") >= 1 }
+        onNodeWithTag("fund-suggestion-78").performClick()
+        waitForIdle()
+        onNodeWithTag("fund-qty-input").assertIsFocused()
+
+        // 继续 Tab：仍在弹窗内（数量 → 日期时间），焦点没有回到窗口根的焦点环
+        onNodeWithTag("fund-qty-input").performKeyInput { pressKey(Key.Tab) }
+        waitForIdle()
+        onNodeWithTag("fund-time-input").assertIsFocused()
     }
 
     /** 修复轮 §8-1：候选点选必须直达保存（pickedCoinId 传入服务），且候选行展示 cg_id。 */

@@ -18,8 +18,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -35,6 +39,26 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.wuzhufolio.ui.i18n.commonStrings
 import com.wuzhufolio.ui.theme.WzTheme
+
+/**
+ * 当前打开的 [WzModal] 数量（0 = 无弹层）。
+ *
+ * 用途：主壳判断「页面内容区键盘退出（Esc/↑/↓）是否安全」——弹层打开时键盘输入归弹层，
+ * 绝不允许把焦点移回侧边栏（否则弹层还开着、焦点却在弹层背后，键盘用户被卡住）。
+ * 弹层作为就地叠加层没有独立窗口，主壳无法从布局上感知，故用计数登记（DisposableEffect 配对增减）。
+ */
+internal object WzOverlayRegistry {
+    var openModalCount by mutableStateOf(0)
+        private set
+
+    fun onModalOpened() {
+        openModalCount++
+    }
+
+    fun onModalClosed() {
+        openModalCount = (openModalCount - 1).coerceAtLeast(0)
+    }
+}
 
 /**
  * Modal（design-tokens §4.2）：居中 380-680dp 宽、圆角 10dp、半透明遮罩、esc/遮罩点击/关闭按钮可关。
@@ -59,6 +83,11 @@ fun WzModal(
     val colors = WzTheme.colors
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { (initialFocusRequester ?: focusRequester).requestFocus() }
+    // 弹层存续期登记（主壳据 openModalCount 决定是否接管 Esc/方向键）
+    DisposableEffect(Unit) {
+        WzOverlayRegistry.onModalOpened()
+        onDispose { WzOverlayRegistry.onModalClosed() }
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()

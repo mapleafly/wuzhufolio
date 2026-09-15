@@ -1,5 +1,7 @@
 package com.wuzhufolio.ui.components
 
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -45,6 +47,7 @@ fun <T> WzSelect(
     val colors = WzTheme.colors
     var expanded by remember { mutableStateOf(false) }
     var focused by remember { mutableStateOf(false) }
+    val triggerFocus = remember { FocusRequester() }
     val shape = RoundedCornerShape(7.dp)
     Box(
         modifier = modifier
@@ -57,6 +60,7 @@ fun <T> WzSelect(
                 shape = shape,
             )
             // DEF-13：仅保留 clickable（自带焦点目标）——重复 .focusable() 会产生隐形焦点目标
+            .focusRequester(triggerFocus)
             .clickable { expanded = true }
             .onFocusChanged { focused = it.isFocused }
             .padding(horizontal = 12.dp, vertical = 6.dp)
@@ -85,6 +89,8 @@ fun <T> WzSelect(
                     onClick = {
                         expanded = false
                         onSelect(option)
+                        // DEF-20：候选浮层选中后把焦点收回触发框，避免下一次 Tab 从窗口根（侧边栏）重来
+                        runCatching { triggerFocus.requestFocus() }
                     },
                     modifier = Modifier.testTag((testTag ?: "select") + "-opt-" + index),
                 )

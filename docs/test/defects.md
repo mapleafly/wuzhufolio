@@ -1,7 +1,7 @@
 # WuZhuFolio P6 缺陷与问题清单（docs/test/defects.md）
 
 > **阶段**：P6 系统测试与质量 · 启动指令：人工「执行P6」（2026-09-14）
-> **有效需求基线**：PRD V2.0 + Δ{D21, D24, D25, D26, D27, D28, D29}
+> **有效需求基线**：PRD V2.0 + Δ{D21, D24, D25, D26, D27, D28, D29, D30}
 > **级别口径**：P0 数据/密钥/启动/主流程阻断 · P1 主要功能错误或验收标准未满足 · P2 次要偏差/体验/可诊断性 · P3 文案细节
 > **变更控制**：凡触及已通过模块的行为/数据/接口，均给出 `AGENTS.md §8.1` 分级建议 + 影响面扫描，
 > **由人工在 P6 门拍板**（Agent 不自行定级 C1/C2；纯实现偏差按 C0 处理并留痕）。
@@ -16,14 +16,15 @@
 | **P0** | **1** | **DEF-17**（Windows 跨零点启动被日志轮转竞争打挂）→ **已修复并加回归**，见 §1.6 |
 | **P1** | **0** | — |
 | **P2** | 6 | **4 项已修复**（DEF-01/02/03/06）· **2 项已按人工裁决处置**（DEF-04 登记 P8；DEF-05 按 C0 文档澄清并已回写） |
-| **P1（人工门新增）** | 2 | **均已修复**：**DEF-13**（Tab 焦点链重复目标 → 页面内容键盘不可达）、**DEF-15**（Windows 托盘菜单中文乱码）——见 §1.5 |
-| **P2（人工门新增）** | 3 | **均已修复**：**DEF-14**（登录页回车不提交）、**DEF-18**（托盘菜单不随界面语言）、**DEF-19**（托盘菜单不随语言**即时**切换，需重启）；另 **DEF-16** 为口径确认（非缺陷） |
+| **P1（人工门新增）** | 3 | **均已修复**：**DEF-13**（Tab 焦点链重复目标 → 页面内容键盘不可达）、**DEF-15**（Windows 托盘菜单中文乱码）、**DEF-20**（表单候选选中后焦点掉出弹窗）——见 §1.5/§1.7 |
+| **P2（人工门新增）** | 4 | **均已修复**：**DEF-14**（登录页回车不提交）、**DEF-18**（托盘菜单不随界面语言）、**DEF-19**（托盘菜单不随语言**即时**切换，需重启）、**DEF-21**（走查提案 A：焦点入页面 + 外壳退出键）；另 **DEF-16** 为口径确认（非缺陷） |
 | 测试缺陷（CI 暴露） | 1 | **DEF-12** 已修复（见 §3） |
 | **P3 / 观察项** | 6 | 登记（DEF-07…DEF-12），详见 §3 |
-| 合计 | 18 | P0 曾出现 1 项（DEF-17）· P1 曾出现 2 项（DEF-13/15）——**均已修复闭环**（人工门实测暴露）；P2 全部有明确结论 ✅ |
+| 合计 | 20 | P0 曾出现 1 项（DEF-17）· P1 曾出现 3 项（DEF-13/15/20）——**均已修复闭环**（人工门实测暴露）；P2 全部有明确结论 ✅ |
 
-> 结论：**P0 = 0**；**P1 两项（DEF-13/DEF-15）由人工门实测暴露并已修复闭环**（修复即回归，见 §1.5），
-> 当前无未修复 P1；P2 六项在人工 P6 门全部裁决完毕（见 §0.1），**无遗留未决项**。
+> 结论：**P0 = 0**；**P1 三项（DEF-13/DEF-15/DEF-20）由人工门实测暴露并已修复闭环**（修复即回归，见 §1.5/§1.7），
+> 当前无未修复 P1；P2 各项在人工 P6 门全部裁决完毕或已登记（见 §0.1），**无遗留未决项**。
+> 2026-09-15 第四轮 Windows 人工门新增 **DEF-20（P1，已修复）** 与 **DEF-21（P2，焦点流改进落地，分级待裁决）**。
 
 ### 0.1 人工裁决记录（2026-09-14 · 原话「裁决：5项都按建议来处理」）
 
@@ -134,6 +135,30 @@
 | **影响面** | 代码：新增 `app/UiPreferenceState.kt`、`AppBootstrap.Runtime`（+1 字段与新构造）、`Main.kt`（偏好钩子 +2 行）、`AppHost.kt`（订阅 + 传参）；不涉数据/接口/schema；`Runtime.uiState` 保留为「主壳初始值」语义 |
 | **口径沉淀** | 与 DEF-18 同源：**跨组合树共享的界面偏好必须有可观察状态**（快照只可用于「初始值」）。后续新增二级窗口/托盘类组件一律订阅 `uiPreferences` |
 
+### DEF-20 ✅ 已修复（**P1** · 人工门四轮实测暴露 · 建议 C0）· 表单候选选中后焦点掉出弹窗（下次 Tab 从侧边栏重来）
+
+| 项 | 内容 |
+|----|------|
+| **现象** | 「记录增资」的**币种**候选、「添加交易」的**交易对**候选，用键盘选中（Tab 到候选行 + Enter）后候选行消失，**焦点掉出弹窗**；下一次 Tab 从**侧边栏第一项**重新开始，键盘用户被迫重走整条路径（交易表单里甚至要重走 3 次：基础币、计价币、自定义手续费币种） |
+| **复现** | 纯键盘：弹窗内输入 `USDT` → 候选出现 → Tab 到候选行 → Enter；观察焦点框消失、再按 Tab 落在侧边栏 |
+| **根因** | 候选行由 `clickable` 提供**唯一焦点目标**；选中后该行立即从组合中移除（`candidates = emptyList()`），Compose 焦点系统**无处可恢复**（触发候选的输入框并未保存/恢复焦点）→ 焦点回落到窗口根，即 Tab 序第一个节点（侧边栏首项） |
+| **修复** | ① `FundFormModal`：币种候选选中 → 焦点交「数量」（`qtyFocus`）；② `TransactionFormModal`：基础币候选 → 「计价币」（`quoteFocus`）、计价币候选 → 「价格」（`priceFocus`）、自定义手续费币种 → 原字段（`feeFocus`）；③ `WzSelect`：下拉候选选中 → 焦点收回触发框（`triggerFocus`），避免同类「浮层选项消失」路径再次掉焦点；④ 交易候选行补 `tx-suggestion-<id>` 标签（与资金页 `fund-suggestion-<id>` 同口径），供自动化与人工走查定位 |
+| **回归** | `FundsPageUiTest::coinPickHandsFocusToQuantityFieldInsideModal`（选中 → 数量聚焦 → 继续 Tab 到「日期时间」仍在弹窗内）<br>`TransactionsPageUiTest::pickingBaseCandidateHandsFocusToQuoteField`（基础币 → 计价币 → Tab 到价格）<br>`TransactionsPageUiTest::pickingQuoteCandidateHandsFocusToPriceField`（计价币 → 价格） |
+| **影响面扫描** | 代码：`ui/ledger/FundFormModal.kt`、`ui/ledger/TransactionFormModal.kt`、`ui/components/WzSelect.kt`；测试：上述 3 例 + 新增候选行标签。**不涉数据模型/schema/加密/接口/持久化格式**（纯焦点编排） |
+| **分级建议** | **C0**（实现偏差纠正：`AGENTS.md §7.3` 要求弹窗键盘可用，候选消失导致焦点链断裂属实现未达约束；不改产品语义、不新增需求）；请人工在 P6 门确认 |
+
+### DEF-21 ✅ 已实施（**P2** · 走查提案 A 落地 · 建议 **C1**，**分级待人工拍板**）· 焦点流：回车进页面内容 + 外壳退出键
+
+| 项 | 内容 |
+|----|------|
+| **来源** | 第四轮 Windows 人工门反馈 + `docs/test/keyboard-walkthrough.md §6 改进提案 A`（人工已给方向：「回车选中后直接进页面内容，并能用方向键/Esc 回到侧边栏/顶栏循环」） |
+| **诉求** | ① 回车选中侧边栏项后焦点**直接进入页面内容**，不要再逐个 Tab 穿过侧边栏余项与顶栏；② 焦点在页面内时要有**回到外壳循环**的出口；③ 侧边栏内方向键应能上下移动 |
+| **实现** | ① 切页 / 进入币种详情子页 / 对**当前项再次回车** → 焦点交页面内容（页面槽挂 `focusRequester`，Compose 语义：请求挂在**非可聚焦容器**上时焦点落到子树内第一个可聚焦控件；容器**不加** `focusable`，避免多出无焦点环的 Tab 停靠点 = DEF-13 教训）；② 页面内**未被页面控件消费**的 Esc / ↑ / ↓ → 焦点回侧边栏当前项（**冒泡阶段** `onKeyEvent`：输入框方向键/下拉导航等已消费的键不受影响）；③ 侧边栏 ↑/↓ 在导航项间移动（`NAV_FOCUS_ORDER` = 六个一级页 + 组件走查页） |
+| **三条护栏** | ① **弹层打开时不接管**：`WzModal` 新增 `WzOverlayRegistry.openModalCount` 计数登记，弹层存续期主壳让出 Esc/方向键（否则焦点会跑到弹层背后，弹层开着而键盘已无法操作）；② **组合键不接管**（Ctrl/Alt/Meta 留给 P8 全局快捷键，提案 B）；③ 无页面内容可聚焦时（如仪表盘只读卡/环形图）请求自然失败，焦点留在侧边栏，不产生报错 |
+| **回归** | `ShellFocusFlowUiTest`（5 例）：回车进页面 / Esc 与 ↑ 退回侧边栏 / 侧边栏 ↑↓ 移动 / **弹层打开时退出键不接管**（含 `openModalCount` 打开=1、关闭=0）/ 页面进入不引入隐形焦点停靠点；`KeyboardA11yUiTest` 改为断言**外壳 10 步固定顺序**（侧边栏 7 + 顶栏 3）+ 回车进页面后 Tab 到页面第二个控件 |
+| **影响面扫描** | 代码：`ui/shell/MainShell.kt`（焦点编排 + 侧边栏项 `focusRequester`/`onFocusChanged`；helper 拆到新文件以满足 detekt 文件函数上限）、新增 `ui/shell/ShellFocusNavigation.kt`、`ui/components/WzModal.kt`（弹层计数）；文档：`keyboard-walkthrough.md`（键位语义/焦点顺序/走查脚本/判定表/提案状态）、`manual-test-guide.md` TC-MAN-06、`docs/dev/modules/M12.md` §勘误；**不涉数据模型/schema/加密/接口/持久化格式**，不改变页面内容与业务行为（纯焦点编排） |
+| **分级建议（待拍板）** | **C1**：新增焦点行为、不改数据/格式/加密边界、不返工已通过模块的接口（`AGENTS.md §8.1` 红线 1–5 均未命中）。人工拍板 C1 后由 Agent 补齐 C1 最小落盘清单：决策档 `docs/dev/decisions/D31-键盘焦点流.md` + `增量台账.md` 登记行 + 下游回写（`ia.md` 导航条款 / `interaction.md` 键盘交互 / `task-breakdown.md` 任务条目）+ `M12.md` 模块记录 + STATUS 「已决策事项」；若拍板 C0，则改为「模块记录 §勘误 + 回写交互文档」，不建决策档 |
+
 ### DEF-16 ➖ 非缺陷（口径确认）· 断网后状态栏不是「立即」变为网络断开
 
 | 项 | 内容 |
@@ -218,6 +243,12 @@ export JAVA_HOME=$(mise where java)
 
 # DEF-02（recvWindow 契约）
 ./gradlew :data:test --tests "com.wuzhufolio.data.exchange.BinanceAdapterTest"
+
+# DEF-20（候选选中后焦点交接）· DEF-21（焦点流：进页面 / 回到外壳）
+./gradlew :ui:test --tests "com.wuzhufolio.ui.ledger.FundsPageUiTest" \
+                   --tests "com.wuzhufolio.ui.ledger.TransactionsPageUiTest" \
+                   --tests "com.wuzhufolio.ui.shell.ShellFocusFlowUiTest" \
+                   --tests "com.wuzhufolio.ui.KeyboardA11yUiTest"
 ```
 
 ---
@@ -232,3 +263,9 @@ export JAVA_HOME=$(mise where java)
 | DEF-04 | PRD 故事 3.2 验收 6、共享规范「额度治理」、ADR-003 §4 |
 | DEF-05 | `docs/design/interaction.md` §2.1/§3-2 |
 | DEF-07…DEF-11 | P5 交接项、M13 安全清单 §7、P6 勘查观察项 |
+| DEF-12 | CI 三平台一致性（`SettingsKeyNamespaceGuardTest` 符号索引）；见 §3 |
+| DEF-13 / DEF-14 / DEF-20 | PRD §6「无障碍基线：桌面端支持全键盘导航（Tab 焦点顺序合理、核心操作可达）」；`AGENTS.md §7.3` GUI 共性约束（弹窗打开即聚焦、键盘可用为验收强制项） |
+| DEF-15 / DEF-18 / DEF-19 | 设计规范「托盘/通知规范」（`design-tokens.md`）、`interaction.md` 语言切换即时生效条款 |
+| DEF-16 | PRD 故事 3.2-3、`interaction.md §1.1 N1`（失败即提示、保留上次价格） |
+| DEF-17 | PRD「启动可靠性」（应用可启动为前提）；`AGENTS.md §1.1` 本地数据约束下的日志维护 |
+| DEF-21 | PRD §6 无障碍基线；`docs/design/ia.md` 导航条款、`interaction.md` 键盘交互；`keyboard-walkthrough.md §6 提案 A` |

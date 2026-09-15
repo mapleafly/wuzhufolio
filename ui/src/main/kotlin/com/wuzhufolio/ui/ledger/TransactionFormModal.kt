@@ -46,6 +46,11 @@ fun TransactionFormModal(
 ) {
     val colors = WzTheme.colors
     val baseFocus = remember { FocusRequester() }
+    // DEF-20：候选行点击后该行从组合中消失，焦点会掉回窗口根（下次 Tab 从侧边栏重来）——
+    // 因此选中后**显式**把焦点交给下一字段（基础币→计价币；计价币→价格；手续费币种→原字段）
+    val quoteFocus = remember { FocusRequester() }
+    val priceFocus = remember { FocusRequester() }
+    val feeFocus = remember { FocusRequester() }
     WzModal(
         title = if (state.id == null) TransactionCopy.FORM_TITLE_ADD else TransactionCopy.FORM_TITLE_EDIT,
         onDismiss = onDismiss,
@@ -121,7 +126,10 @@ fun TransactionFormModal(
                             fieldFocusRequester = baseFocus,
                             testTag = "tx-base-input",
                         )
-                        SuggestionList(state.baseCandidates) { vm.pickBaseCandidate(it) }
+                        SuggestionList(state.baseCandidates) {
+                            vm.pickBaseCandidate(it)
+                            runCatching { quoteFocus.requestFocus() }
+                        }
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         WzTextField(
@@ -131,8 +139,12 @@ fun TransactionFormModal(
                             placeholder = "USDT",
                             error = state.errors[TxField.PAIR.key],
                             testTag = "tx-quote-input",
+                            fieldFocusRequester = quoteFocus,
                         )
-                        SuggestionList(state.quoteCandidates) { vm.pickQuoteCandidate(it) }
+                        SuggestionList(state.quoteCandidates) {
+                            vm.pickQuoteCandidate(it)
+                            runCatching { priceFocus.requestFocus() }
+                        }
                     }
                 }
                 Text(
@@ -155,6 +167,7 @@ fun TransactionFormModal(
                         error = state.errors[TxField.PRICE.key],
                         modifier = Modifier.weight(1f),
                         testTag = "tx-price-input",
+                        fieldFocusRequester = priceFocus,
                     )
                     WzTextField(
                         value = state.quantity,
@@ -226,8 +239,12 @@ fun TransactionFormModal(
                         error = state.errors[TxField.FEE_CUSTOM.key],
                         modifier = Modifier.padding(top = 10.dp),
                         testTag = "tx-fee-custom-input",
+                        fieldFocusRequester = feeFocus,
                     )
-                    SuggestionList(state.feeCandidates) { vm.pickFeeCandidate(it) }
+                    SuggestionList(state.feeCandidates) {
+                        vm.pickFeeCandidate(it)
+                        runCatching { feeFocus.requestFocus() }
+                    }
                     Text(
                         text = TransactionCopy.CUSTOM_FEE_HINT,
                         color = colors.ink3,
@@ -362,7 +379,9 @@ private fun SuggestionList(candidates: List<CatalogCoin>, onPick: (CatalogCoin) 
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onPick(coin) }
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                    // 行标识：DEF-20 焦点交接的自动化回归 + 人工键盘走查定位
+                    .testTag("tx-suggestion-" + coin.id),
             ) {
                 Text(
                     text = coin.symbol + " · " + coin.name,

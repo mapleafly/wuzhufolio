@@ -6,16 +6,18 @@
 
 ## 当前阶段
 
-- **当前状态**：**P6 系统测试与质量 ⏳ 待审核（2026-09-14 完成 + 人工裁决 5 项已落地，停人工门）**——按 PRD V2.0 验收标准做全量验证，
+- **当前状态**：**P6 系统测试与质量 ⏳ 待审核（2026-09-15 第四轮人工门修复已落地，停人工门）**——按 PRD V2.0 验收标准做全量验证，
   产出 `docs/test/test-plan.md` / `test-cases.md`（299 条）/ `security-checklist.md`（P6 复跑版，五条硬约束逐条打勾）/
-  `defects.md` / `test-report.md`；**678 用例（670 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；
-  **P0/P1 缺陷 = 0**；P2 = 6（**4 项已修复**：DEF-01/02/03/06；**DEF-04 登记 P8**；**DEF-05 按 C0 文档澄清已回写**）；
+  `defects.md`（DEF-01…DEF-21）/ `test-report.md`；**700 用例（692 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；
+  **P0/P1 缺陷 = 0**（P1 三项 DEF-13/15/20 均由人工门暴露并已修复闭环）；P2 全部有明确结论；
   **人工裁决 5 项（2026-09-14「5项都按建议来处理」）全部落地**（新增决策档 **D30** + 台账 + T12.5）；
-  **Windows 11 首轮人工走查已执行（2026-09-14）**：报出 6 条 —— **2 项 P1 + 1 项 P2 缺陷已修复闭环**
-  （**DEF-13** Tab 焦点链重复目标致页面键盘不可达 / **DEF-15** 托盘菜单中文乱码且不随语言 / **DEF-14** 登录回车不提交），
+  **Windows 11 人工走查已执行四轮（2026-09-14 ~ 09-15）**：累计报出 8 条 ——
+  **3 项 P1 + 4 项 P2 缺陷已修复闭环**（DEF-13 Tab 焦点链重复目标 / DEF-15 托盘乱码 / **DEF-20 候选选中后焦点掉出弹窗** /
+  DEF-14 登录回车不提交 / DEF-18·DEF-19 托盘语言不跟随 / **DEF-21 焦点流：回车进页面 + Esc/↑↓ 回外壳**），
   **1 项口径确认**（DEF-16 断网指示在下次刷新才变，符合 PRD 与 interaction N1），
   **1 项等效替代**（目标机性能：2 核受限模拟 KDF 172.6 ms ≪2 s），**1 项待人工执行**（开机自启）。
-  **下一步 = 人工复验本轮修复 + 完成剩余人工用例 + 拍板是否达到发布标准**（P6 门）。
+  **待人工**：① 复验本轮修复（`keyboard-walkthrough.md §4` 步骤 2/3/4/7）；② **DEF-21 变更分级拍板**（Agent 建议 **C1**，
+  DEF-20 建议 **C0**）；③ 完成剩余人工用例后拍板是否达到发布标准（P6 门）。
 - **推进顺序**：先桌面端，后移动端。**P1–P8 只针对桌面端或两端共同部分；移动端相关工作放到下一个版本。**（移动端相关技能/技术方案/开发待桌面端主线稳定后再启用。）
 - **下一人工门**：**P6 系统测试与质量人工门**——输入 = `docs/test/test-report.md`（§0 结论 + §6 裁决记录）+
   `test-cases.md §7`（人工门 10 条）+ `security-checklist.md`（五条硬约束）+ GUI 实机走查；
@@ -1160,15 +1162,24 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
 | 7b | **二轮复验**：托盘中文正常，但切英文后仍中文、重启不变 | **P2 · DEF-18**（根因：菜单是独立窗口，其 `WuzhuTheme` 未传 language → 把全局 `I18n` 重置为中文；菜单文案又走全局读取器）→ **已修复**：`trayLabels(language)` 显式取词 + 窗口接收 `language` + `AppHost` 传 `runtime.uiState.language`；回归 2 例（全局被重置为中文时按 EN 取词仍须英文） |
 | 8 | **复验时启动失败**（Windows 跨零点） | **P0 · DEF-17**：`LogRotator` 列举目录后逐条 `getLastModifiedTime`，与 logback 跨日滚动/清理竞争 → `NoSuchFileException` 被当作致命错误终止 bootstrap。**已修复**：单条目 IO 失败一律跳过（`EntryOutcome.Skipped`）+ 启动期/运行期两处轮转包 `runCatching`（维护性工作不阻断启动）+ 2 项回归 |
 
-**本轮修复验证**：`./gradlew clean build detekt --no-build-cache` → **683 用例（675 执行 0 失败 + 8 跳过）** + detekt 0 + 警告 0
-（较上轮 +5：`KeyboardA11yUiTest` 3 项 + `TrayFontTest` 2 项）；焦点序列实测 = `nav-* → 顶栏按钮 → 主题切换 → 页面内按钮 → 循环`，**无空焦点步进**。
+**人工门进展 · Windows 11 第四轮走查（2026-09-15 人工执行，Agent 已按反馈修复）**：
+
+| # | 人工观察 | 核实与处置 |
+|---|----------|-----------|
+| 9 | 「记录增资」币种 /「添加交易」交易对**选完候选后焦点掉出弹窗**，下次 Tab 从侧边栏重来 | **P1 · DEF-20**（根因：候选行选中后该行从组合移除 → Compose 焦点无处可恢复 → 回落窗口根）。**已修复**：选中后显式交接焦点（资金：币种→数量；交易：基础币→计价币、计价币→价格、自定义手续费币种→原字段；`WzSelect` 候选→触发框）；交易候选行补 `tx-suggestion-<id>` 标签；回归 3 例 |
+| 10 | 回车选中侧边栏项后**仍要 Tab 穿过侧边栏余项与顶栏**才进页面；页面内也**没有回外壳的出口** | **P2 · DEF-21**（走查提案 A 落地，人工已给方向）。**已实施**：① 切页/进详情/对当前项再次回车 → 焦点进页面内容（容器不加 `focusable`，避免隐形 Tab 停靠点）；② 页面内未被控件消费的 **Esc/↑/↓ → 焦点回侧边栏当前项**；③ 侧边栏 ↑/↓ 移动。护栏：弹层打开时外壳不接管（`WzOverlayRegistry` 计数）、组合键不接管。回归 `ShellFocusFlowUiTest` 5 例 + `KeyboardA11yUiTest` 改为外壳 10 步固定顺序断言 |
+| 11 | 该两项的**变更分级** | 待人工拍板：**DEF-20 建议 C0**（实现偏差纠正，§7.3 键盘可用性强制项）；**DEF-21 建议 C1**（新增焦点行为，未触 §8.1 红线 1–5）→ 拍板 C1 后补决策档 `D31-键盘焦点流.md` + 台账 + 下游回写（ia/interaction/task-breakdown）+ M12 记录 |
+
+**本轮修复验证**：`./gradlew clean build detekt --no-build-cache` → **700 用例（692 执行 0 失败 + 8 跳过）** + detekt 0 + 警告 0
+（较上轮 +8：`ShellFocusFlowUiTest` 5 项 + DEF-20 回归 3 项）；外壳焦点顺序实测 = `侧边栏 7 → 顶栏 3 → 页面内容 → 循环`（**无空焦点步进**），
+回车进页面 → Esc/↑ 回侧边栏当前项 → ↑/↓ 在导航项间移动，四条路径均已由自动化钉死。
 
 **怎么验收（人工门）**：
 
 1. 读 `docs/test/test-report.md`：**§0 DoD 对照** → §3 缺陷汇总 → §4 安全专项 → **§6 待裁决 5 项**；
 2. 读 `docs/test/security-checklist.md`：§0 结论表 → §1.4 抓包实证 → §3.7 内存曲线 → §7 到期项更新；
    人工用例按 `docs/test/manual-test-guide.md` 在 **Windows / Ubuntu** 上执行（环境要求 + 构建运行 + 安装包获取 + 取证模板）；
-3. 复跑全量：`./gradlew clean build detekt --no-build-cache`（期望 **678 用例 = 670 执行 0 失败 + 8 跳过** + detekt 0 + 警告 0）；
+3. 复跑全量：`./gradlew clean build detekt --no-build-cache`（期望 **700 用例 = 692 执行 0 失败 + 8 跳过** + detekt 0 + 警告 0）；
 4. 复跑专项：`./gradlew :domain:backupBenchmark`（内存曲线）·
    `python3 scripts/outbound-capture-proxy.py … + WZF_LIVE_SMOKE=1 …`（抓包）·
    `:data:test --tests "…data.settings.SettingsKeyNamespaceGuardTest"`（键命名空间）；
@@ -1181,6 +1192,10 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
    ② 主壳 Tab 能到达页面内可交互控件且无「按一下没反应」（DEF-13）；
    ③ 登录页填完密码**直接回车**即登录、空密码回车给内联错误（DEF-14）；
    ④ 补充执行 TC-MAN-02 开机自启（打包版）与其余未做用例。
+8. **Windows 第四轮走查修复复验（2026-09-15，`keyboard-walkthrough.md` §4 步骤 2/3/4/7）**：
+   ① 侧边栏回车切页后焦点**直接进页面内容**，页面内 `Esc`/`↑`/`↓` 回侧边栏当前项（DEF-21）；
+   ② 表单里选完候选焦点**留在弹窗内**（币种→数量；基础币→计价币→价格），不再掉回侧边栏（DEF-20）；
+   ③ 补做 TC-MAN-02（自启）、TC-MAN-03（读屏）、TC-MAN-07（真实只读 Key）、TC-MAN-08（GUI 全流程）、TC-MAN-10（外链）。
 
 **遗留问题（转 P7 / 人工，详见 `test-report.md §7`）**：
 
@@ -1262,6 +1277,13 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
 25. **界面语言设置 + 全量 zh/en 文案（D25，2026-09-11，人工拍板「B 本次一并做全量 zh/en」）**：T12.4 i18n 的落地口径——`ui/src/main` 全部用户可见中文文案抽取为 zh/en 双档（10 个模块目录 ~620 条），新增「设置 → 通用 → 界面语言」入口（**复用 M002 迁移既有的 `locale` 键**，值 zh-CN/en-US，不另立新键），切换即时生效并持久化；zh 文案逐字保持（既有 UI 测试断言不变），源码内联中文由守护测试拦红。决策档 `docs/dev/decisions/D25-界面语言设置与全量zh-en.md`（C1，含影响面扫描七处 + 原型补行延期登记）；**有效需求版本串 = PRD V1.9 + Δ{D21, D24, D25}**。
 24. **备份文件密码独立设置（D24，2026-09-10，人工裁决「不默认使用当前账户密码，也不能是空密码，现由用户设置独立密码」）**：裁决 PRD 5.2-3「界面默认填当前账户密码」口径不可实现（密码永不落盘/不留存，PRD 5.1-4/ADR-002）；固化为「用户设置独立密码（不回填、禁空）」，恢复语义不变（只依赖备份文件密码）。决策档 `docs/dev/decisions/D24-备份密码独立设置不回填.md`（C1，含影响面扫描五处回写：flows §6/ADR-005 修订/原型/task-breakdown T9.4/api-contracts §3）；**有效需求版本串 = PRD V1.9 + Δ{D21, D24, D25, D26}**（D25/D26 后更新）——P6 备份用例、P8 复盘、移动端对齐以此为准。
 
+28. **⏳ 待人工拍板：键盘焦点流变更分级（DEF-20 / DEF-21，2026-09-15 人工门第四轮）**：人工提出两项
+    （① 候选选中后焦点留在表单；② 回车进页面内容 + 方向键/Esc 回外壳循环），Agent 已按方向实现并加回归，
+    **分级由人工拍板**：**DEF-20 建议 C0**（实现偏差纠正，`AGENTS.md §7.3` 键盘可用性强制项）；
+    **DEF-21 建议 C1**（新增焦点行为，未触 §8.1 红线 1–5）。**拍板 C1 后**由 Agent 补齐 C1 最小落盘清单：
+    决策档 `docs/dev/decisions/D31-键盘焦点流.md` + `增量台账.md` 行 + 索引 + 下游回写
+    （`ia.md` 导航条款 / `interaction.md` 键盘交互 / `task-breakdown.md` 任务条目）+ `M12.md` 摘要 + 本表更新；
+    拍板 C0 则仅需模块记录 §勘误 + 交互文档回写（已先行登记，见 `defects.md` DEF-21）。
 27. **币种详情交易记录补「时间」筛选维度（D30，2026-09-14，人工裁决「按建议处理」· C1）**：P6 系统测试发现 PRD 故事 3.4-4 要求的「交易所 / 交易类型 / 时间」三维筛选只实现了前两维 + 搜索（DEF-03）→ 人工 P6 门裁决本轮补做。落点 = `CoinDetailViewModel`（`dateRange` 状态 + 按 `FundDateRange.contains` 过滤）+ `CoinDetailPage` 时间档位下拉（testTag `coin-filter-date`）+ `PortfolioStrings.dateRangeLabel` zh/en；**复用资金页四档口径**（全部时间/近 30 天/30–90 天/90 天以上），不新增查询参数、无 schema 变化。决策档 `docs/dev/decisions/D30-币种详情时间筛选.md` + 台账 + 索引 + `task-breakdown **T12.5**` + `ia.md §2.6` + 原型/verify 同步；回归 `PortfolioPagesUiTest::coin detail filters transactions by time range`（去掉实现必红）。**有效需求版本串 = PRD V2.0 + Δ{D21, D24, D25, D26, D27, D28, D29, D30}**。
 
 ## 当前阻塞点
@@ -1401,4 +1423,6 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
 | 2026-09-14 | Agent | **人工门反馈修复轮（DEF-13/14/15 + DEF-16 口径确认）** | ① **DEF-13（P1）焦点链重复目标**：`WzButton`/`WzSelect` 去重复 `.focusable()`、弹层吞点击改 `pointerInput` + 显式语义边界 → Tab 可达页面内容；新增 `KeyboardA11yUiTest`（隐形焦点目标必红）；② **DEF-14（P2）登录回车不提交**：`WzTextField.onSubmit` + 登录页共用提交路径；③ **DEF-15（P1）托盘菜单乱码**：自建 `AwtTrayHost` + 内嵌 Noto 字体（`TrayFont`）+ i18n 文案 + `displayMessage` 通知，新增 `TrayFontTest`；④ **DEF-16** 断网指示滞后 = 设计口径（登记 P8 可选增强）；⑤ 目标机性能以 `taskset` 2 核受限模拟替代（KDF 172.6 ms）；文档：`defects.md §1.5` + `manual-test-guide §10` + `test-cases` 相关条目；**683 用例（675 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；**P6 维持待审核，待人工复验** |
 | 2026-09-14 | 人 | **P6 门裁决 5 项** | 原话「裁决：5项都按建议来处理」——① 隐私最小化接受现状（P7 用户指南/隐私声明明示）；② DEF-03 币种详情补时间筛选本轮做（C1）；③ DEF-04 CMC 额度账本登记 P8；④ DEF-05 interaction 滚动加载口径按 C0 澄清；⑤ DEF-01/02/06 维持 C0 |
 | 2026-09-14 | Agent | **裁决 5 项落地** | 新增决策档 **D30**（C1）+ 台账 D30 行 + 决策索引 + `task-breakdown T12.5` + `ia.md §2.6` + 原型时间档位下拉/`DEMO_NOW` + verify 4 断言（`errors=[]`）+ 代码（VM/Page/i18n）+ UI 回归（去掉实现必红）；DEF-04 登记 P8、DEF-05 回写 `interaction.md §2.1/§3-2`、DEF-01/02/06 确认 C0；test-cases 计数更新为 299 = ✅190/🟡87/⬜6/🔵16；**678 用例（670 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；**P6 维持待审核，停人工门** |
+| 2026-09-15 | 人 | **Windows 11 第四轮人工走查** | 报出 2 条：① 记录增资「币种」/ 添加交易「交易对」**选完候选后焦点掉出弹窗**（下次 Tab 从侧边栏重来）；② 回车选中侧边栏项后**仍要 Tab 穿过侧边栏与顶栏**才进页面，且页面内**没有回外壳的出口**（要求：方向键/Esc 可回到外壳循环） |
+| 2026-09-15 | Agent | **人工门第四轮修复（DEF-20 修复 + DEF-21 落地）** | ① **DEF-20（P1，建议 C0）**：候选行选中即从组合移除 → 焦点回落窗口根；改为**显式交接**（资金：币种→数量；交易：基础币→计价币、计价币→价格、自定义手续费币种→原字段；`WzSelect` 候选→触发框）+ 交易候选行 `tx-suggestion-<id>` 标签 + 3 项回归；② **DEF-21（P2，建议 C1 待拍板）**：走查提案 A 落地——切页/进详情/对当前项再次回车 → 焦点进页面内容（容器不加 `focusable`，避免 DEF-13 式隐形停靠点）；页面内未被控件消费的 Esc/↑/↓ → 焦点回侧边栏当前项（冒泡阶段 + 弹层打开时不接管 `WzOverlayRegistry` + 组合键不接管）；侧边栏 ↑/↓ 移动；焦点 helper 拆 `ui/shell/ShellFocusNavigation.kt`；回归 `ShellFocusFlowUiTest` 5 例 + `KeyboardA11yUiTest` 改外壳 10 步固定顺序断言；文档：`defects.md` DEF-20/21 + `keyboard-walkthrough.md`（键位语义/焦点顺序/走查脚本/判定表/提案状态）+ `manual-test-guide.md` TC-MAN-06 + `M7/M8/M12` 勘误；**700 用例（692 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；**P6 维持待审核，待人工复验 + DEF-21 分级拍板** |
 | 2026-09-14 | Agent | **执行 P6 系统测试与质量** | 产出 `test-plan.md`（分层策略 + 9 项开放项处置 + 人工门 10 条）· `test-cases.md`（**299 条**：✅186/🟡87/⬜10/🔵16，逐条可追溯）· `security-checklist.md`（**P6 复跑版**：五条硬约束逐条打勾 + 4 项到期项闭环）· `defects.md`（**P0/P1=0**，P2=6）· `test-report.md`（主产物，含待裁决 5 项）；**修复 3 项 P2 实现偏差**（DEF-01 备份导出失败模式 / DEF-02 recvWindow 契约 / DEF-06 恢复向导映射）+ 闭环 4 项 M13 到期登记项（大载荷内存曲线 / settings 键命名空间 / 登出 tick / P5-4）+ 运行期出站抓包与 GUI·权限实证；回写 `interaction.md §2.9`、`api-contracts.md §3/§4`；**677 用例（669 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；**P6 置待审核，停人工门** |

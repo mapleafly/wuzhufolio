@@ -43,6 +43,8 @@ fun FundFormModal(
 ) {
     val colors = WzTheme.colors
     val coinFocus = remember { FocusRequester() }
+    // DEF-20：候选行选中后该行消失会让焦点掉回窗口根 → 显式交给「数量」字段
+    val qtyFocus = remember { FocusRequester() }
     WzModal(
         title = if (state.kind == FlowKind.DEPOSIT) FundsCopy.FORM_TITLE_DEPOSIT else FundsCopy.FORM_TITLE_WITHDRAW,
         onDismiss = onDismiss,
@@ -73,7 +75,10 @@ fun FundFormModal(
                     fieldFocusRequester = coinFocus,
                     testTag = "fund-coin-input",
                 )
-                FundSuggestionList(state.candidates) { vm.pickCandidate(it) }
+                FundSuggestionList(state.candidates) {
+                    vm.pickCandidate(it)
+                    runCatching { qtyFocus.requestFocus() }
+                }
                 if (state.pickedLabel != null) {
                     Text(
                         text = FundsCopy.PICKED_PREFIX + state.pickedLabel,
@@ -102,6 +107,7 @@ fun FundFormModal(
                         error = state.errors[FundField.QTY.key],
                         modifier = Modifier.weight(1f),
                         testTag = "fund-qty-input",
+                        fieldFocusRequester = qtyFocus,
                     )
                     WzTextField(
                         value = state.timeText,

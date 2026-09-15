@@ -1,13 +1,16 @@
 package com.wuzhufolio.ui.ledger
 
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.wuzhufolio.domain.catalog.CatalogCoin
 import com.wuzhufolio.domain.catalog.CoinStatus
@@ -351,6 +354,47 @@ class TransactionsPageUiTest {
         onNodeWithTag("tx-quote-input").performTextInput("USDT")
         waitUntil(timeoutMillis = 2_000) { textCount("USDT · Tether") >= 1 }
         onNodeWithTag("suggestion-list", useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    /**
+     * DEF-20（2026-09-15 Windows 人工走查）：候选行点选后该行随即消失，焦点此前会掉回窗口根，
+     * 下一次 Tab 从侧边栏重来。修复后：基础币候选 → 焦点交到「计价币」，再 Tab 继续在弹窗内走。
+     */
+    @Test
+    fun pickingBaseCandidateHandsFocusToQuoteField() = runComposeUiTest {
+        val btc = CatalogCoin(1L, "bitcoin", null, "BTC", "Bitcoin", CoinStatus.ACTIVE)
+        val svc = FakeLedgerService().apply { searchResults = listOf(btc) }
+        setContent { TransactionsPage(svc, { null }, { null }) }
+        onNodeWithTag("tx-add").performClick()
+        onNodeWithTag("tx-base-input").performTextInput("BTC")
+        waitUntil(timeoutMillis = 2_000) { textCount("BTC · Bitcoin") >= 1 }
+        onNodeWithTag("tx-suggestion-1", useUnmergedTree = true).performClick()
+        waitForIdle()
+        onNodeWithTag("tx-quote-input").assertIsFocused()
+
+        // 继续 Tab：仍在弹窗内（计价币 → 价格），不会回到窗口根的焦点环
+        onNodeWithTag("tx-quote-input").performKeyInput { pressKey(Key.Tab) }
+        waitForIdle()
+        onNodeWithTag("tx-price-input").assertIsFocused()
+    }
+
+    /** DEF-20：计价币候选点选后焦点交到「价格」。 */
+    @Test
+    fun pickingQuoteCandidateHandsFocusToPriceField() = runComposeUiTest {
+        val btc = CatalogCoin(1L, "bitcoin", null, "BTC", "Bitcoin", CoinStatus.ACTIVE)
+        val usdt = CatalogCoin(3L, "tether", null, "USDT", "Tether", CoinStatus.ACTIVE)
+        val svc = FakeLedgerService().apply { searchResults = listOf(btc, usdt) }
+        setContent { TransactionsPage(svc, { null }, { null }) }
+        onNodeWithTag("tx-add").performClick()
+        onNodeWithTag("tx-base-input").performTextInput("BTC")
+        waitUntil(timeoutMillis = 2_000) { textCount("BTC · Bitcoin") >= 1 }
+        onNodeWithTag("tx-suggestion-1", useUnmergedTree = true).performClick()
+        waitForIdle()
+        onNodeWithTag("tx-quote-input").performTextInput("USDT")
+        waitUntil(timeoutMillis = 2_000) { textCount("USDT · Tether") >= 1 }
+        onNodeWithTag("tx-suggestion-3", useUnmergedTree = true).performClick()
+        waitForIdle()
+        onNodeWithTag("tx-price-input").assertIsFocused()
     }
 
     /** 问题 8：文件选择器须在非 EDT 线程调用（此前 invokeAndWait 从 EDT 调用直接崩溃）。 */
