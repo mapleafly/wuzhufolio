@@ -600,3 +600,18 @@ msiexec /i .\wzf-windows\msi\WuZhuFolio-0.1.0.msi
 | 币种资产详情 | 成交表同为网格表；筛选/校准入口/时间档位功能不变 |
 
 > 复验前核对日志首行 `build=0.1.0+<本轮短 sha>`。
+
+**本轮产物（CI run [34987250801](https://github.com/mapleafly/wuzhufolio/actions/runs/34987250801) 六 job 全绿，commit `d365e27`）**：
+
+| 产物 | SHA256 |
+|------|--------|
+| `msi\WuZhuFolio-0.1.0.msi` | `f832793bc1e4e8abf03f8564538407a9613debb36bbe6d9ce45412bac9d56998` |
+| `exe\WuZhuFolio-0.1.0.exe` | `8e4e9b6e3fd6fdde8400f96ca4dfe1b160cde84f3d5d627cefad6e0fde9a957e` |
+
+```powershell
+gh run download 34987250801 --repo mapleafly/wuzhufolio -n wuzhufolio-windows-latest-native -D .\wzf-windows
+Get-FileHash .\wzf-windows\msi\WuZhuFolio-0.1.0.msi -Algorithm SHA256   # 应等于上表
+msiexec /i .\wzf-windows\msi\WuZhuFolio-0.1.0.msi
+```
+
+> 复验前核对日志首行 `build=0.1.0+d365e27`。
