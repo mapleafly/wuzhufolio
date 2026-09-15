@@ -1,7 +1,7 @@
 # WuZhuFolio P6 缺陷与问题清单（docs/test/defects.md）
 
 > **阶段**：P6 系统测试与质量 · 启动指令：人工「执行P6」（2026-09-14）
-> **有效需求基线**：PRD V2.0 + Δ{D21, D24, D25, D26, D27, D28, D29, D30, D31}
+> **有效需求基线**：PRD V2.0 + Δ{D21, D24, D25, D26, D27, D28, D29, D30, D31, D32}
 > **级别口径**：P0 数据/密钥/启动/主流程阻断 · P1 主要功能错误或验收标准未满足 · P2 次要偏差/体验/可诊断性 · P3 文案细节
 > **变更控制**：凡触及已通过模块的行为/数据/接口，均给出 `AGENTS.md §8.1` 分级建议 + 影响面扫描，
 > **由人工在 P6 门拍板**（Agent 不自行定级 C1/C2；纯实现偏差按 C0 处理并留痕）。
@@ -39,7 +39,8 @@
 | ③ | DEF-04 CMC 兜底计入 CG 额度账本 | **登记 P8** | ✅ 已登记（P8 立项输入：账本增 provider 维度 + 旧载荷兼容；影响面见 §2 DEF-04） |
 | ④ | DEF-05 interaction「列表滚动加载」口径 | **按 C0 文档澄清** | ✅ **已回写**：`interaction.md §2.1` 增「列表装载口径」注 + §3-2 措辞订正（本地库单次装载 + `LazyColumn` 虚拟化，不适用分页）；大数据量装载耗时登记 P8 观察项 |
 | ⑤ | DEF-01 / DEF-02 / DEF-06 定级 | **维持 C0** | ✅ 已确认（三项均为实现偏差/失败模式补全，未改产品语义、未改数据模型与格式；回写见各自条目） |
-| ⑥ | **第四轮人工门两项焦点问题定级**（2026-09-15） | **按建议变更分级**（原话）→ **DEF-20 = C0**、**DEF-21 = C1** | ✅ **DEF-20**：C0 勘误（模块记录 `M7.md`/`M8.md` §勘误 + 交互文档回写，不建档不进台账）；**DEF-21**：C1 完整落盘 —— 决策档 **D31** + 台账 D31 行（有效需求串 `Δ{…, D30, D31}`）+ 决策索引 + `task-breakdown **T12.6**` + `ia.md §1.1` + `interaction.md §3-9` + `M12.md §1.7`；验收标准 A1–A6 见 D31 §6 |
+| ⑥ | **第四轮人工门两项焦点问题定级**（2026-09-15） | **按建议变更分级**（原话）→ **DEF-20 = C0**、**DEF-21 = C1** | ✅ **DEF-20**：C0 勘误（`M7.md`/`M8.md` §勘误 + `interaction.md §3-9` 回写，不建档不进台账）；**DEF-21**：C1 完整落盘 —— 决策档 **D31** + 台账 D31 行 + 决策索引 + `task-breakdown **T12.6**` + `ia.md §1.1` + `interaction.md §3-9` + `M12.md §1.7`（验收 A1–A6 见 D31 §6） |
+| ⑦ | **第五轮人工门（真实只读 Key 冒烟）四项定级**（2026-09-15） | **拍板，按建议变更分级**（原话）→ **DEF-22/23 = C0**、**DEF-25 = C0**、**DEF-24 = C1** | ✅ **C0 三项**：`M6/M9/M10` §勘误 + `api-contracts.md §3`（`addAndSync` 落库后失败不得上抛 + 去重口径）+ `design-tokens.md §4.2`（弹层承载位置）+ `AGENTS.md §7.3-5/6`；**C1 一项（D32）**：决策档 + 台账 D32 行 + 索引 + `task-breakdown **T10.5**` + `design-tokens.md §3` 层级标准（验收 B1–B5）；**DEF-26** 为核实非缺陷（同步不覆盖手写交易，已加回归） | ✅ **DEF-20**：C0 勘误（模块记录 `M7.md`/`M8.md` §勘误 + 交互文档回写，不建档不进台账）；**DEF-21**：C1 完整落盘 —— 决策档 **D31** + 台账 D31 行（有效需求串 `Δ{…, D30, D31}`）+ 决策索引 + `task-breakdown **T12.6**` + `ia.md §1.1` + `interaction.md §3-9` + `M12.md §1.7`；验收标准 A1–A6 见 D31 §6 |
 
 ---
 
@@ -173,7 +174,7 @@
 | **修复** | 新增**页面级叠加槽** `ui/components/PageOverlay.kt`（`PageOverlayHost` + `PageOverlay`）：页面根用 `PageOverlayHost(Modifier.fillMaxSize())` 包住滚动内容，深层组件用 `PageOverlay { WzModal(...) }` 把弹层提交到**页面根**渲染（有限约束 → 铺满页面、整页居中）；**无宿主时就地渲染**（单测/独立预览兼容）。已接入设置页三处：`ApiManagementSection`、`MarketSettingsSection`、`DataManagementSection`（备份导出 + 恢复向导） |
 | **回归** | `ui/settings/PageOverlayUiTest`（2 例）：弹层由页面根承载（卡片**整页**居中）且**不改变**页面元素位置（不再撑开/挤占）；无宿主时退化为就地渲染仍可用；`SettingsPageUiTest::settings modals are hosted by the page root and do not push content`（真实设置页：打开「添加 API」后 `group-api` 位置不变 + 卡片在设置页居中） |
 | **影响面扫描** | 代码：新增 `ui/components/PageOverlay.kt`；`ui/settings/SettingsPage.kt`（宿主）、`ui/market/MarketSettingsSection.kt`、`ui/exchange/ApiManagementSection.kt`、`ui/backup/DataManagementSection.kt`（改为提交弹层）。**不涉数据模型/schema/加密/接口**；弹层视觉与交互（遮罩、Esc、首输入框聚焦）不变 |
-| **分级建议** | **C0**（实现偏差纠正：`AGENTS.md §7.3` 要求弹层同窗口**覆盖页面**，落在滚动容器内属实现未达约束；不改产品语义）；请人工在 P6 门确认 |
+| **分级（人工拍板 2026-09-15）** | ✅ **C0**（实现偏差纠正：`AGENTS.md §7.3` 要求弹层同窗口**覆盖页面**，落在滚动容器内属实现未达约束；不改产品语义）。回写：`design-tokens.md §4.2`（Modal 承载位置）+ `AGENTS.md §7.3-5` + `M10.md`/`M9.md` §勘误；不建档、不进台账（§8.1） |
 
 ### DEF-23 ✅ 已修复（**P1** · 人工门第五轮实测 · 建议 C0）· 恢复数据弹窗「浮在备份区域上，感觉有点错位」
 
@@ -183,7 +184,7 @@
 | **根因** | 与 DEF-22 **同一根因**（`DataManagementSection` 的两个弹层挂在分区 `Box` 内，处于设置页滚动列中）：卡片只在自己的内容块内居中，纵向位置随该分组在长页中的位置漂移 → 「浮在备份区域」；同时整页遮罩无法覆盖 |
 | **修复** | 同 DEF-22（`PageOverlay` 提交到页面根）；备份导出弹窗与恢复向导一并接入 |
 | **回归** | 同 DEF-22 三项；`DataManagementSectionUiTest`（7 例）在无宿主场景下继续通过（就地渲染兜底） |
-| **分级建议** | **C0**（同 DEF-22） |
+| **分级（人工拍板 2026-09-15）** | ✅ **C0**（同 DEF-22）。回写：`M9.md` §勘误 + `design-tokens.md §4.2` |
 
 ### DEF-24 ✅ 已修复（**P2** · 人工门第五轮实测 · 建议 C1）· 设置页层级字号/字重不统一
 
@@ -194,7 +195,7 @@
 | **修复** | 定死**设置页层级标准**（写入 `design-tokens.md §3`）：页面标题 20/600 → **分组一级标题 15/600**（新增排版令牌 `WzTypography.sectionTitle`，`colors.ink`）→ **卡内二级标题 14/600**（`bodyStrong`，`colors.ink`）→ 行标签 14/400（`body`）→ 说明 11/400（`caption`，`ink3`）。三处组件全部归位：分组标题用 `sectionTitle`；数据管理卡片标题由 20sp 降为 14/600（与手续费卡片同层）；行情与同步/API 管理的二级标题由「14/400 + ink2」升为「14/600 + ink」 |
 | **回归** | `SettingsPageUiTest::all settings first level titles share one typography level`：9 个分组一级标题高度完全一致、5 个卡内二级标题（数据管理 3 + 手续费 2）完全一致，且**二级 < 一级**、一级 > 行标签「基础法币」（= 人工反馈 ① 的反向断言）。标题节点加 `group-title` / `card-title` tag 供跨组件守护 |
 | **影响面扫描** | 代码：`ui/theme/Typography.kt`（+`sectionTitle`）、`ui/settings/SettingsPage.kt`、`ui/backup/DataManagementSection.kt`、`ui/ledger/FeeRuleSettingsSection.kt`、`ui/exchange/ApiManagementSection.kt`、`ui/market/MarketSettingsSection.kt`；设计：`design-tokens.md §3`（层级标准行）；**不涉数据/接口/行为语义**（纯视觉层级） |
-| **分级建议** | **C1**（新增设计规范条目「设置页层级标准」+ 跨模块样式统一；未触 §8.1 红线 1–5）→ 人工拍板后补决策档 + 台账 + 回写；若判 C0 则按勘误登记 |
+| **分级（人工拍板 2026-09-15）** | ✅ **C1**：**C1 最小落盘清单已齐全** —— 决策档 `docs/dev/decisions/D32-设置页层级标准.md`（含影响面扫描 + 验收 B1–B5）+ `增量台账.md` D32 行（有效需求串 = `PRD V2.0 + Δ{…, D31, D32}`）+ `决策索引.md` + `task-breakdown **T10.5**` + `design-tokens.md §3` + `M10.md` §5.x；未触 §8.1 红线 1–5 |
 
 ### DEF-25 ✅ 已修复（**P1** · 人工门第五轮实测 · 建议 C0）· 添加 API 密钥：首次同步失败 → 弹窗不关，但密钥其实已保存
 
@@ -205,7 +206,7 @@
 | **修复** | ① **数据层契约收紧**：`addAndSync` 在密钥已落库后**不再抛异常**，把「已保存 + 首次同步未成功」收敛为 `ApiKeySyncResult(status=FAILED, error=…, message="首次同步未完成，可稍后点「立即同步」重试")`（新增 `savedButSyncFailed`）；② **VM**：新增路径保存成功后**一律关弹窗 + 刷新列表**，失败只作为 toast 提示；未知异常在新增路径上也按「已保存、同步未成功」收尾（避免用户重复提交）；③ **文案（zh/en）**：新增 `savedButSyncFailed(reason)`（明确「密钥已保存」+ 指明可点「立即同步」重试）、`savingBusy`（保存中…）、`savingBusyHint`（首次同步可能数十秒，请勿关闭窗口）；④ 忙碌态显示说明行，避免「点了没反应」的观感 |
 | **回归** | `data/DefaultExchangeSyncServiceTest::add and sync keeps the saved key and reports failure when the first sync cannot complete`（不抛异常 + status=FAILED + **密钥确实已落库** + 一笔交易未入账 + 修好后 `syncNow` 可正常补同步）<br>`ApiManagementSectionUiTest::save closes the dialog and reports saved when the first sync fails`（弹窗消失 + 「密钥已保存」提示）<br>`ApiManagementSectionUiTest::save closes the dialog when the service throws after persisting the key`（落库后抛异常的极端路径同样关弹窗 + 刷新列表） |
 | **影响面扫描** | 代码：`data/exchange/DefaultExchangeSyncService.kt`（+`savedButSyncFailed`）、`ui/exchange/ApiManagementViewModel.kt`、`ui/exchange/ApiManagementSection.kt`（忙碌文案/提示行）、`ui/i18n/ExchangeStrings.kt`（zh/en 各 +3 词条）、`ui/exchange/ApiCopy.kt`；**接口签名不变**（`addAndSync` 仍返回 `ApiKeySyncResult`），无 schema/加密/格式变更 |
-| **分级建议** | **C0**（失败模式补全 + 实现偏差纠正，先例 = DEF-01：导出失败模式类型化；不改产品语义）；请人工在 P6 门确认 |
+| **分级（人工拍板 2026-09-15）** | ✅ **C0**（失败模式补全 + 实现偏差纠正，先例 = DEF-01：导出失败模式类型化；不改产品语义）。回写：`api-contracts.md §3`（`addAndSync` 失败语义）+ `interaction.md §3-12` + `AGENTS.md §7.3-6` + `M6.md` §勘误；不建档、不进台账 |
 | **残留体验项（登记 P8 可选增强）** | 首次同步仍**内联执行**（PRD 流程图 3「保存后立即首次同步」；预算 ≤120 次 `myTrades` 调用，大账户可能数十秒），期间弹窗保持打开并显示「保存中…」+「首次同步可能需要数十秒，请勿关闭窗口」。若人工复验后认为等待仍偏长，可选增强 = **保存与首次同步解耦**（落库即关窗 + 后台同步 + 完成 toast）——需在 `ExchangeSyncService` 增加「仅落库不首次同步」的入口，属接口新增（**C1**），登记 P8 |
 
 ### DEF-26 ➖ 非缺陷（核实结论 + 回归）· 同步交易数据不会覆盖手写录入的交易

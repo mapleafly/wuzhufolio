@@ -171,6 +171,16 @@ interface SettingsService {
 > `ExchangeSyncPolicy`（余额推导 ∪ 已同步 pair 收敛 + ≤120 次调用预算分批）。数据表 M007 api_keys / M008 sync_logs /
 > M009 transactions（schema 6→9）；同步编排见 DefaultExchangeSyncService（每 key 一轮：余额→枚举→增量拉取→币解析冻结→
 > 去重写账本→sync_logs/状态）；真实端点/签名/错误映射对齐 ADR-004 §2（MockEngine 全分支绿）。
+> **`addAndSync` 失败语义（DEF-25，C0 回写 2026-09-15）**：`addAndSync` = 校验 → **建行（落库）** → 立即首次同步。
+> **落库之后**的任何同步问题（同步失败/超时/未返回结果）**不得以异常上抛**：返回
+> `ApiKeySyncResult(status=FAILED, error=<类型化错误>, message="首次同步未完成，可稍后点「立即同步」重试")`；
+> 仅**落库前**的校验类失败（`CredentialValidationFailed` / `DuplicateApiKeyNameException` / `IllegalArgumentException`）
+> 才抛异常。调用方（UI）据此在保存成功后**关闭弹窗 + 刷新列表**，失败以「密钥已保存；首次同步未成功（原因）…可重试」
+> 提示（`interaction.md §3-12`、`AGENTS.md §7.3-6`）。回归：`DefaultExchangeSyncServiceTest::add and sync keeps the saved
+> key and reports failure when the first sync cannot complete`。
+> **同步不覆盖手写交易（DEF-26 核实口径）**：`insertIfAbsent` 仅 INSERT；去重键 `(account_id, exchange, exchange_order_id)`
+> 且 `exchange_order_id IS NOT NULL`（部分唯一索引），手动行订单号为 NULL 既不参与去重也不被吞并；同步**不修改/不删除**
+> 任何既有行（含手动行）。
 > 实现注：sync 只写交易行（source='BINANCE API'），不覆盖本地持仓；`fetchTrades` 以已同步最大成交 id 为增量游标；
 > 币解析未命中（NotFound/Ambiguous/未收录）跳过并计数（sync_logs message 注明，目录更新/CSV 补录）。回溯：ADR-004、PRD 故事 4.1。
 

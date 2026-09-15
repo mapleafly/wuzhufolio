@@ -2,7 +2,7 @@
 
 > **阶段**：P6 系统测试与质量（`AGENTS.md §4 P6`）
 > **输入**：P5 集成版（`docs/test/integration-report.md`）+ PRD V2.0 验收标准（`docs/prd/桌面端prd.md`）+ 异常态清单（`docs/design/interaction.md`）+ 安全硬约束（`docs/test/security-checklist.md`）
-> **有效需求基线**：**PRD V2.0 + Δ{D21, D24, D25, D26, D27, D28, D29, D30, D31}**（`docs/dev/增量台账.md` 表头串；P6/P8/移动端对齐统一引用此串）
+> **有效需求基线**：**PRD V2.0 + Δ{D21, D24, D25, D26, D27, D28, D29, D30, D31, D32}**（`docs/dev/增量台账.md` 表头串；P6/P8/移动端对齐统一引用此串）
 > **日期**：2026-09-14 · **编写依据**：全量测试盘点（扫描基线 100 个 `*Test.kt` / 676 `@Test`，逐条 grep + 阅读，未运行 gradle；扫描后新增 `CproLargePayloadTest.kt`、`BackupExportErrorCopyTest.kt` 已并入本文件的 DEF-01 回归项）
 > **文档关系**：本文件是 P6 的**用例真源**，与 `test-plan.md`（范围与策略）、`security-checklist.md`（安全逐条核验）、`defects.md`（缺陷台账）、`test-report.md`（结论）配套。
 

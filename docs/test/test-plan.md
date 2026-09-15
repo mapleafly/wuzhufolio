@@ -3,7 +3,7 @@
 > **阶段**：P6 系统测试与质量（`AGENTS.md §4 P6`）· 启动指令：人工「执行P6」（2026-09-14）
 > **输入**：P5 集成版（`P0–P5 全部关闭`）+ PRD **V2.0** 验收标准 + `docs/design/interaction.md` 异常态清单
 > + `docs/test/security-checklist.md`（M13 · T13.1）+ `docs/test/integration-report.md`（P5 交接开放项）
-> **有效需求基线**：**PRD V2.0 + Δ{D21, D24, D25, D26, D27, D28, D29, D30, D31}**（`docs/dev/增量台账.md`）
+> **有效需求基线**：**PRD V2.0 + Δ{D21, D24, D25, D26, D27, D28, D29, D30, D31, D32}**（`docs/dev/增量台账.md`）
 > **目标**：按 PRD 验收标准做**全量验证**，重点压安全与隐私；产出 `test-plan / test-cases / security-checklist（复跑）/
 > defects / test-report`；DoD = **P0/P1 缺陷清零、P2 有明确处理结论、`security-checklist.md` 全部通过**。
 > **状态**：执行中 → 完成后停在人工门（人工测试 + 拍板是否达到发布标准）。
@@ -22,7 +22,7 @@
 | 非功能态 | interaction §2.1 加载 / §2.2 空 / §2.3 错误降级 / §2.4 离线 / §2.5 429 限流 / §2.6 日志诊断 / §2.7 行情页 / §2.8 持仓异常 | `test-cases.md` §4 |
 | 计算口径 | PRD 附录 A 黄金用例 1–12（含 D26/D27/D28/D29 修订后的口径） | `test-cases.md` §5 |
 | 安全与隐私 | `AGENTS.md §1.1` 五条硬约束 + M13 清单逐条复跑 + P6 新增抓包/大载荷/命名空间/会话噪声项 | `security-checklist.md`（P6 版） |
-| 决策增量 | Δ{D21, D24, D25, D26, D27, D28, D29, D30, D31} 的已实现口径回归（含 D24 备份密码独立设置） | `test-cases.md` §1/§2/§5 |
+| 决策增量 | Δ{D21, D24, D25, D26, D27, D28, D29, D30, D31, D32} 的已实现口径回归（含 D24 备份密码独立设置） | `test-cases.md` §1/§2/§5 |
 
 ### 1.2 不在范围内（及理由）
 

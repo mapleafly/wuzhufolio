@@ -160,6 +160,15 @@ flowchart LR
 - **T10.3 诊断报告**：版本/schema/脱敏片段/调用计数。验收：内容受限清单达标。回溯：PRD §6、interaction §2.6。
 - **T10.4 设置页 UI（Compose）**：设置页全分组（常规/手续费/网络代理/日志与诊断/关于），与 T5.5 行情分组汇合。验收：与原型设置页走查一致；设置持久化生效；诊断报告可生成导出。回溯：ia.md §2、PRD §7.2 模块 6。
 
+- **T10.5 设置页层级标准（D32，P6 DEF-24 视觉规范补齐）**：设置页（含内嵌分组组件）标题层级统一为
+  页面标题 20/600 → **分组一级 15/600（新增排版令牌 `sectionTitle`）** → **卡内二级 14/600（`bodyStrong`）** →
+  行标签 14/400（`body`）→ 说明 11/400（`caption`）；禁止分组组件自行另取字号表达标题。落点：`SettingsPage.SettingsGroup`
+  （原 `caption` 11sp）、`DataManagementSection.SectionCard`（原 `pageTitle` 20sp）、`FeeRuleSettingsSection`、
+  `ApiManagementSection`（二级标题由 14/400+ink2 升 14/600+ink）、`MarketSettingsSection`。验收：9 个分组一级标题
+  字号一致、5 个卡内二级标题一致且**小于**一级、一级**大于**行标签（`SettingsPageUiTest::all settings first level
+  titles share one typography level`）+ 人工双主题视觉复验（`manual-test-guide.md §12` 项 5/6）。回溯：PRD §6、
+  `design-tokens.md §3`、决策档 D32。
+
 ### M11 桌面集成
 - **T11.1 托盘与通知**：最小化到托盘、托盘菜单、同步通知开关。验收：托盘驻留行为正确。回溯：PRD §7.2 模块 9、design-tokens §5。
 - **T11.2 开机自启**：默认关，可开关（平台注册）。验收：开启后自启驻留托盘。回溯：PRD §7.2 模块 9.3。
