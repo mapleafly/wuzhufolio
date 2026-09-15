@@ -122,6 +122,105 @@ class DefaultExchangeSyncServiceTest {
         assertEquals(15, svc.syncIntervalMinutes())
     }
 
+    /**
+     * DEF-25（P6 人工门第五轮）：密钥**已落库**之后首次同步失败，不得以异常上抛——
+     * 否则 UI 只能表现成「保存失败、弹窗不关」，而库里其实已有该密钥，用户重填再保存只会撞「别名已存在」。
+     */
+    @Test
+    fun `add and sync keeps the saved key and reports failure when the first sync cannot complete`() =
+        kotlinx.coroutines.runBlocking {
+            env.loginAccount()
+            val svc = service()
+            adapter.balances = listOf(com.wuzhufolio.domain.exchange.Balance("BTC", BigDecimal("1"), BigDecimal.ZERO))
+            adapter.pairs = listOf(PairInfo("BTCUSDT", "BTC", "USDT", "TRADING"))
+            // 关键级错误（密钥失效）：首次同步必然失败
+            adapter.tradesError = ExchangeError.InvalidKey
+
+            val result = svc.addAndSync(
+                com.wuzhufolio.domain.exchange.ApiKeyInput("主号", "BINANCE", "ak", "sk"))
+
+            // ① 不抛异常，返回失败结果（调用方据此关弹窗 + 提示「已保存、首次同步失败」）
+            assertEquals(com.wuzhufolio.domain.exchange.SyncStatus.FAILED, result.status)
+            assertNotNull(result.error)
+            // ② 密钥确实已保存（用户看到的那一行不是幻觉），且带状态
+            val keys = svc.listKeys()
+            assertEquals(1, keys.size, "密钥应当已落库")
+            assertEquals("主号", keys.single().name)
+            // ③ 交易一笔未入账（同步失败不写半截数据）
+            assertEquals(0, env.transactions.countByAccount(env.sessions.get()!!.account.id))
+            // ④ 重试路径可用：错误修好后 syncNow 仍能正常工作
+            adapter.tradesError = null
+            adapter.tradesBySymbol["BTCUSDT"] = mutableListOf(trade(200, "BTCUSDT", TradeSide.BUY, "50000", "0.5"))
+            val retry = svc.syncNow(keys.single().id).single()
+            assertEquals(com.wuzhufolio.domain.exchange.SyncStatus.OK, retry.status)
+            assertEquals(1, retry.newTrades)
+        }
+
+    /**
+     * DEF-26（P6 人工门第五轮 · 人工问询「同步是否覆盖手写交易」）：
+     * 同步只**追加**交易所成交，绝不修改/删除手动录入行；同 pair 同时间的手写行也不参与去重
+     * （手动行 exchange_order_id = NULL，部分唯一索引与去重键均不命中）。
+     */
+    @Test
+    fun `sync appends exchange trades without touching manually entered rows`() = kotlinx.coroutines.runBlocking {
+        env.loginAccount()
+        val accountId = env.sessions.get()!!.account.id
+        val svc = service()
+        val ledger = com.wuzhufolio.data.ledger.LedgerTransactionRepository(env.gate)
+        val btc = env.catalog.getBySymbol("BTC").single().id.toInt()
+        val usdt = env.catalog.getBySymbol("USDT").single().id.toInt()
+
+        // 用户手写一笔与交易所成交「同 pair、同时间、同价量」的交易（最容易被误判为重复的场景）
+        val manualId = ledger.insert(
+            com.wuzhufolio.data.ledger.NewLedgerTxRow(
+                accountId = accountId,
+                exchange = "BINANCE",
+                exchangeOrderId = null, // 手动行：无订单号
+                pair = "BTC/USDT",
+                baseCoinId = btc,
+                quoteCoinId = usdt,
+                side = com.wuzhufolio.domain.engine.Side.BUY,
+                price = BigDecimal("50000"),
+                quantity = BigDecimal("0.5"),
+                fee = BigDecimal("0.001"),
+                feeCurrency = "BNB",
+                time = Instant.parse("2026-09-01T08:00:00Z").plusSeconds(100),
+                notes = "手写：日记账",
+                source = "Manual",
+                priceStatus = "OK",
+            ),
+        )
+        val before = ledger.findById(accountId, manualId)
+        assertNotNull(before)
+
+        // 交易所返回同参数成交（id=100 与手动行时间一致）
+        adapter.balances = listOf(com.wuzhufolio.domain.exchange.Balance("BTC", BigDecimal("1"), BigDecimal.ZERO))
+        adapter.pairs = listOf(PairInfo("BTCUSDT", "BTC", "USDT", "TRADING"))
+        adapter.tradesBySymbol["BTCUSDT"] = mutableListOf(trade(100, "BTCUSDT", TradeSide.BUY, "50000", "0.5"))
+        val key = svc.addAndSync(com.wuzhufolio.domain.exchange.ApiKeyInput("主号", "BINANCE", "ak", "sk"))
+        assertEquals(1, key.newTrades, "交易所成交应作为新行导入，不得被手写行吞掉")
+
+        // ① 手写行原样保留（内容、来源、备注、订单号均未被改写）
+        val after = ledger.findById(accountId, manualId)
+        assertEquals(before, after, "同步不得修改手动录入的交易行")
+        assertEquals("Manual", after!!.source)
+        assertEquals(null, after.exchangeOrderId)
+        assertEquals("手写：日记账", after.notes)
+        // ② 库里是两行（手写 + 交易所），没有互相覆盖
+        val all = ledger.listAll(accountId)
+        assertEquals(2, all.size, "手写行与交易所行并存：$all")
+        assertEquals(1, all.count { it.source == "Manual" })
+        assertEquals(1, all.count { it.source.contains("BINANCE") && it.exchangeOrderId != null })
+
+        // ③ 再同步一轮：交易所行去重跳过，手写行仍不动（幂等）
+        env.transactions.syncedPairs(accountId, "BINANCE").let { pairs ->
+            assertEquals(1, pairs.size)
+        }
+        svc.syncNow(key.apiKeyId)
+        assertEquals(2, ledger.listAll(accountId).size, "重复同步不得新增或删除任何行")
+        assertEquals(before, ledger.findById(accountId, manualId), "重复同步后手写行仍原样")
+    }
+
     @Test
     fun `balance derived plus already synced symbols both enumerated`() = kotlinx.coroutines.runBlocking {
         env.loginAccount()

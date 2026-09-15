@@ -82,9 +82,24 @@ class DefaultExchangeSyncService(
                 secretKey = crypto.encryptField(input.secretKey, session.dek, id, rowId.toString(), "secret_key"),
             )
         }
-        // PRD 流程图 3：保存后立即执行首次同步
-        return syncNow(record.id.toLong()).singleOrNull()
-            ?: error("first sync did not return a result")
+        // PRD 流程图 3：保存后立即执行首次同步。
+        // 关键口径（P6 DEF-25，2026-09-15 人工门第五轮）：**密钥已落库**之后的任何同步问题都不得以异常上抛——
+        // 否则 UI 只能表现为「保存失败且弹窗不关」，而库里其实已有该密钥；用户再点保存只会撞「别名已存在」。
+        // 因此这里把「已保存 + 首次同步未成功」统一收敛为**失败结果**（status=FAILED + error + 提示 message），
+        // 由调用方关闭弹窗并按「已保存、首次同步失败」提示（可随后点「立即同步」重试）。
+        val synced = runCatching { syncNow(record.id.toLong()).singleOrNull() }
+        return synced.getOrNull() ?: savedButSyncFailed(record, synced.exceptionOrNull())
+    }
+
+    /** 密钥已保存、首次同步未能取得结果（抛出或无记录）：返回失败结果而非异常（DEF-25）。 */
+    private fun savedButSyncFailed(record: ApiKeyRecord, cause: Throwable?): ApiKeySyncResult {
+        logger.warn("first sync after saving api key failed (key={})", record.id, cause)
+        return failureResult(
+            record = record,
+            error = ExchangeError.Internal(cause?.message ?: "first sync did not return a result"),
+            message = "首次同步未完成，可稍后点「立即同步」重试",
+            at = Instant.now(),
+        )
     }
 
     /** 编辑密钥（M6 验收修复轮）：别名必填；密钥均留空 = 仅改别名；均提供 = 验证后重包覆盖原行。 */

@@ -6,12 +6,17 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.height
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.wuzhufolio.domain.backup.BackupService
 import com.wuzhufolio.domain.backup.CsvExportKind
@@ -302,6 +307,74 @@ class SettingsPageUiTest {
         scrollToTag("group-about")
         onNodeWithText("版本").assertIsDisplayed()
         onNodeWithText("无遥测声明").assertIsDisplayed()
+    }
+
+    /**
+     * DEF-24（P6 人工门第五轮 · 人工反馈 5/6）：设置页层级字号字重必须**一个标准**。
+     * 人工观察：「通用」等分组标题比其下二级标签还小；「数据管理」卡片标题比其它分组标题明显大；
+     * 手续费卡片标题加粗而其它分组标题不加粗。
+     * 现统一为：分组一级标题 = 数据管理卡片标题 = `sectionTitle`（15sp/600），故同级标题**高度必须一致**。
+     */
+    @Test
+    fun `all settings first level titles share one typography level`() = runComposeUiTest {
+        install(desktop = FakeDesktopSettings())
+        // 分组一级标题（9 个：通用/网络/托盘与后台/行情与同步/日志与诊断/手续费/API 管理/数据管理/关于）
+        // 注意用 unclipped 边界：长页里离屏节点被父容器裁剪后 boundsInRoot 会变成 0
+        fun titleHeights(tag: String, unmerged: Boolean = false): List<Dp> {
+            val nodes = onAllNodesWithTag(tag, useUnmergedTree = unmerged)
+            val count = nodes.fetchSemanticsNodes().size
+            return (0 until count).map { nodes[it].getUnclippedBoundsInRoot().height }
+        }
+        val heights = titleHeights("group-title")
+        assertEquals(9, heights.size, "设置页应有 9 个分组一级标题")
+        assertEquals(1, heights.distinct().size, "分组一级标题字号/行高必须一致，实际：$heights")
+        val titleHeight = heights.first()
+
+        // 卡内二级标题：数据管理 3 个（备份/恢复/明文导出）+ 手续费 2 个（全局默认费率/交易所费率）
+        // —— 此前数据管理用 pageTitle（20sp）、手续费用 bodyStrong（14sp），两处同级却不同字号（人工反馈 6）
+        scrollToTag("group-fee")
+        val cardHeights = titleHeights("card-title", unmerged = true)
+        assertEquals(5, cardHeights.size, "应有 5 个卡内二级标题（数据管理 3 + 手续费 2）")
+        assertEquals(1, cardHeights.distinct().size, "同级卡内标题字号必须一致，实际：$cardHeights")
+        val cardHeight = cardHeights.first()
+
+        // 层级自证：一级（15sp）> 二级卡片标题（14sp）——「一级标题比二级还小」的反向回归
+        assertTrue(cardHeight < titleHeight, "二级卡片标题应小于一级分组标题（$cardHeight vs $titleHeight）")
+
+        // 层级自证：一级标题（15sp）必须**大于**正文/二级标签（14sp）——人工反馈 5「标题比二级标题还小」
+        val rowLabelHeight = onNodeWithText("基础法币").getUnclippedBoundsInRoot().height
+        assertTrue(
+            rowLabelHeight < titleHeight,
+            "一级标题应大于二级行标签（title=$titleHeight row=$rowLabelHeight）",
+        )
+    }
+
+    /**
+     * DEF-22/23（P6 人工门第五轮 · 人工反馈 1–3）：设置页弹层必须由**页面根**承载。
+     * 人工实测：添加 API / 行情数据源 / 恢复数据弹窗「撑开页面、挤占后面内容、浮在某个区域上」——
+     * 根因是弹层落在 `verticalScroll` 容器内部（无限高约束下 `fillMaxSize()` 退化为内容高度）。
+     */
+    @Test
+    fun `settings modals are hosted by the page root and do not push content`() = runComposeUiTest {
+        install()
+        scrollToTag("group-api")
+        val groupBefore = onNodeWithTag("group-api").getUnclippedBoundsInRoot()
+        onNodeWithTag("api-add").performClick()
+        onNodeWithTag("api-modal", useUnmergedTree = true).assertIsDisplayed()
+
+        // ① 打开弹层不改变页面内容位置（不再撑开/挤占）
+        assertEquals(
+            groupBefore,
+            onNodeWithTag("group-api").getUnclippedBoundsInRoot(),
+            "弹层不得挤占设置页内容",
+        )
+        // ② 卡片在**整页**（设置页根）居中，而不是在其所在分组内居中（=「浮在某个区域上」的观感）
+        val modal = onNodeWithTag("api-modal", useUnmergedTree = true).getUnclippedBoundsInRoot()
+        val page = onNodeWithTag("settings-page").getUnclippedBoundsInRoot()
+        val modalCenterY = (modal.top + modal.bottom) / 2
+        val pageCenterY = (page.top + page.bottom) / 2
+        val delta = if (modalCenterY > pageCenterY) modalCenterY - pageCenterY else pageCenterY - modalCenterY
+        assertTrue(delta < 1.dp, "弹层应在设置页整页垂直居中（page=$page modal=$modal）")
     }
 
     @Test

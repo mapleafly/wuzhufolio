@@ -41,19 +41,34 @@ class ApiManagementSectionUiTest {
 
         override suspend fun listKeys(): List<ApiKeyInfo> = keys.toList()
 
+        /** DEF-25：首次同步失败（已落库）——返回失败结果而非异常（数据层契约）。 */
+        var firstSyncError: ExchangeError? = null
+
+        /** DEF-25：落库后抛出未知异常（极端路径，UI 也必须按「已保存」收尾）。 */
+        var throwAfterSave: Boolean = false
+
         override suspend fun addAndSync(input: ApiKeyInput): ApiKeySyncResult {
             val failed = testResult
             if (failed is CredentialValidation.Failed) {
                 throw CredentialValidationFailed(failed)
             }
             savedInput = input
+            if (throwAfterSave) {
+                keys.add(ApiKeyInfo(1L, 1L, input.name, "BINANCE", Instant.now(), "FAILED", true))
+                error("首轮同步内部错误")
+            }
+            val error = firstSyncError
             val result = ApiKeySyncResult(
-                apiKeyId = 1L, apiKeyName = input.name, status = SyncStatus.OK,
-                newTrades = 2, duplicatesSkipped = 0, unresolvedSkipped = 0,
-                partial = false, queuedSymbols = 0, error = null,
-                message = "同步成功 · 新增 2", at = Instant.parse("2026-09-04T10:00:00Z"),
+                apiKeyId = 1L, apiKeyName = input.name,
+                status = if (error == null) SyncStatus.OK else SyncStatus.FAILED,
+                newTrades = if (error == null) 2 else 0, duplicatesSkipped = 0, unresolvedSkipped = 0,
+                partial = false, queuedSymbols = 0, error = error,
+                message = if (error == null) "同步成功 · 新增 2" else "首次同步未完成",
+                at = Instant.parse("2026-09-04T10:00:00Z"),
             )
-            keys.add(ApiKeyInfo(1L, 1L, input.name, "BINANCE", Instant.now(), "OK", true))
+            keys.add(
+                ApiKeyInfo(1L, 1L, input.name, "BINANCE", Instant.now(), if (error == null) "OK" else "FAILED", true),
+            )
             return result
         }
 
@@ -142,6 +157,46 @@ class ApiManagementSectionUiTest {
         waitUntil(timeoutMillis = 2_000) { svc.savedInput != null }
         assertEquals("币安主号", svc.savedInput!!.name)
         waitUntil(timeoutMillis = 2_000) { textCount(ApiCopy.SAVE_AND_SYNC_TOAST, substring = true) >= 1 }
+    }
+
+    /**
+     * DEF-25（P6 人工门第五轮 · 人工反馈 4）：添加密钥时首次同步失败，弹窗**必须关闭**——
+     * 密钥已落库，若留着弹窗让用户重填再保存，只会撞「别名已存在」，观感就是「保存没反应但内容已保存」。
+     */
+    @Test
+    fun `save closes the dialog and reports saved when the first sync fails`() = runComposeUiTest {
+        val svc = FakeSyncService().apply { firstSyncError = ExchangeError.Network }
+        setContent { ApiManagementSection(svc) }
+        onNodeWithTag("api-add").performClick()
+        onNodeWithTag("api-name-input").performTextInput("币安只读")
+        onNodeWithTag("api-key-input").performTextInput("ak-abc")
+        onNodeWithTag("api-secret-input").performTextInput("sk-xyz")
+        onNodeWithTag("api-save").performClick()
+        waitUntil(timeoutMillis = 2_000) { svc.savedInput != null }
+        waitUntil(timeoutMillis = 2_000) {
+            runCatching { onNodeWithTag("api-modal", useUnmergedTree = true).assertDoesNotExist() }.isSuccess
+        }
+        // 文案须明确「已保存」，避免用户以为没保存而重复提交
+        waitUntil(timeoutMillis = 2_000) { textCount("密钥已保存", substring = true) >= 1 }
+    }
+
+    /** DEF-25 极端路径：落库后抛异常同样按「已保存、同步未成功」收尾（弹窗关闭 + 列表刷新）。 */
+    @Test
+    fun `save closes the dialog when the service throws after persisting the key`() = runComposeUiTest {
+        val svc = FakeSyncService().apply { throwAfterSave = true }
+        setContent { ApiManagementSection(svc) }
+        onNodeWithTag("api-add").performClick()
+        onNodeWithTag("api-name-input").performTextInput("币安只读")
+        onNodeWithTag("api-key-input").performTextInput("ak-abc")
+        onNodeWithTag("api-secret-input").performTextInput("sk-xyz")
+        onNodeWithTag("api-save").performClick()
+        waitUntil(timeoutMillis = 2_000) { svc.savedInput != null }
+        waitUntil(timeoutMillis = 2_000) {
+            runCatching { onNodeWithTag("api-modal", useUnmergedTree = true).assertDoesNotExist() }.isSuccess
+        }
+        waitUntil(timeoutMillis = 2_000) { textCount("密钥已保存", substring = true) >= 1 }
+        // 密钥行已刷新可见（load() 已执行）
+        waitUntil(timeoutMillis = 2_000) { textCount("币安只读", substring = true) >= 1 }
     }
 
     @Test

@@ -18,13 +18,17 @@
 | **P2** | 6 | **4 项已修复**（DEF-01/02/03/06）· **2 项已按人工裁决处置**（DEF-04 登记 P8；DEF-05 按 C0 文档澄清并已回写） |
 | **P1（人工门新增）** | 3 | **均已修复**：**DEF-13**（Tab 焦点链重复目标 → 页面内容键盘不可达）、**DEF-15**（Windows 托盘菜单中文乱码）、**DEF-20**（表单候选选中后焦点掉出弹窗）——见 §1.5/§1.7 |
 | **P2（人工门新增）** | 4 | **均已修复**：**DEF-14**（登录页回车不提交）、**DEF-18**（托盘菜单不随界面语言）、**DEF-19**（托盘菜单不随语言**即时**切换，需重启）、**DEF-21**（走查提案 A：焦点入页面 + 外壳退出键）；另 **DEF-16** 为口径确认（非缺陷） |
+| **P1（第五轮 · 真实只读 Key 冒烟）** | 2 | **均已修复**：**DEF-22**（设置页弹层落在滚动容器内 → 撑开页面/挤占内容）、**DEF-25**（添加 API 密钥首次同步失败 → 弹窗不关但密钥已保存）；**DEF-23** 为同根因的恢复弹窗错位（已修复） |
+| **P2（第五轮）** | 1 | **已修复**：**DEF-24**（设置页层级字号/字重不统一）；另 **DEF-26** 为**核实结论（非缺陷）**：同步只追加交易所成交、不覆盖手写交易（已加回归） |
 | 测试缺陷（CI 暴露） | 1 | **DEF-12** 已修复（见 §3） |
 | **P3 / 观察项** | 6 | 登记（DEF-07…DEF-12），详见 §3 |
-| 合计 | 20 | P0 曾出现 1 项（DEF-17）· P1 曾出现 3 项（DEF-13/15/20）——**均已修复闭环**（人工门实测暴露）；P2 全部有明确结论 ✅ |
+| 合计 | 26 | P0 曾出现 1 项（DEF-17）· P1 曾出现 5 项（DEF-13/15/20/22/25）——**均已修复闭环**（人工门实测暴露）；P2 全部有明确结论 ✅ |
 
 > 结论：**P0 = 0**；**P1 三项（DEF-13/DEF-15/DEF-20）由人工门实测暴露并已修复闭环**（修复即回归，见 §1.5/§1.7），
 > 当前无未修复 P1；P2 各项在人工 P6 门全部裁决完毕或已登记（见 §0.1），**无遗留未决项**。
-> 2026-09-15 第四轮 Windows 人工门新增 **DEF-20（P1，已修复）** 与 **DEF-21（P2，焦点流改进落地，分级待裁决）**。
+> 2026-09-15 第四轮 Windows 人工门新增 **DEF-20（P1，已修复）** 与 **DEF-21（P2，焦点流改进，C1 已建档 D31）**。
+> 2026-09-15 **第五轮（真实只读 Key 冒烟）**新增 **DEF-22/23（P1，弹层撑开页面/错位，已修复）**、**DEF-24（P2，设置页层级统一，已修复）**、
+> **DEF-25（P1，添加密钥保存后弹窗不关，已修复）**、**DEF-26（核实非缺陷：同步不覆盖手写交易，已加回归）**。
 
 ### 0.1 人工裁决记录（2026-09-14 · 原话「裁决：5项都按建议来处理」）
 
@@ -160,6 +164,58 @@
 | **影响面扫描** | 代码：`ui/shell/MainShell.kt`（焦点编排 + 侧边栏项 `focusRequester`/`onFocusChanged`；helper 拆到新文件以满足 detekt 文件函数上限）、新增 `ui/shell/ShellFocusNavigation.kt`、`ui/components/WzModal.kt`（弹层计数）；文档：`keyboard-walkthrough.md`（键位语义/焦点顺序/走查脚本/判定表/提案状态）、`manual-test-guide.md` TC-MAN-06、`docs/dev/modules/M12.md` §勘误；**不涉数据模型/schema/加密/接口/持久化格式**，不改变页面内容与业务行为（纯焦点编排） |
 | **分级（人工拍板 2026-09-15）** | ✅ **C1**：新增焦点行为、不改数据/格式/加密边界、不返工已通过模块的接口（§8.1 红线 1–5 均未命中）。**C1 最小落盘清单已补齐**：决策档 `docs/dev/decisions/D31-键盘焦点流.md`（背景/结论/需求回溯/影响面扫描/验收标准 A1–A6/关联文档）+ `增量台账.md` D31 行与有效需求串 + `决策索引.md` + `task-breakdown **T12.6**` + `ia.md §1.1` + `interaction.md §3-9` + `M12.md §1.7` + STATUS 已决策事项 28 |
 
+### DEF-22 ✅ 已修复（**P1** · 人工门第五轮实测 · 建议 C0）· 设置页弹层落在滚动容器内 → 撑开页面、挤占后续内容
+
+| 项 | 内容 |
+|----|------|
+| **现象** | 设置 → API 管理 →「添加 API」打开的弹窗**像是插进了页面**（把后面的内容挤下去）；设置 → 行情与同步 → 行情数据源/兜底右侧「已配置/未配置」弹窗**撑开了页面**（人工原话：「好像把窗口内容插入了现在的页面一样」） |
+| **根因** | `WzModal` 是**就地叠加层**（`AGENTS.md §7.3`：不用 Popup），靠根 `Box(Modifier.fillMaxSize())` 铺满页面。但设置页是「一个 `verticalScroll` 长列 + 各组组件内联」结构，上述弹层挂在**分组组件自己的 `Box(fillMaxWidth())`** 里 → 该处**高度约束无限**，`fillMaxSize()/fillMaxHeight()` 无法撑开、退化为内容高度 → 弹层变成滚动列里的**普通块**（撑开页面/挤占后续内容）。台账页（交易/资金）弹层挂在页面根 `Box(fillMaxSize())` 下，所以没有该症状 |
+| **修复** | 新增**页面级叠加槽** `ui/components/PageOverlay.kt`（`PageOverlayHost` + `PageOverlay`）：页面根用 `PageOverlayHost(Modifier.fillMaxSize())` 包住滚动内容，深层组件用 `PageOverlay { WzModal(...) }` 把弹层提交到**页面根**渲染（有限约束 → 铺满页面、整页居中）；**无宿主时就地渲染**（单测/独立预览兼容）。已接入设置页三处：`ApiManagementSection`、`MarketSettingsSection`、`DataManagementSection`（备份导出 + 恢复向导） |
+| **回归** | `ui/settings/PageOverlayUiTest`（2 例）：弹层由页面根承载（卡片**整页**居中）且**不改变**页面元素位置（不再撑开/挤占）；无宿主时退化为就地渲染仍可用；`SettingsPageUiTest::settings modals are hosted by the page root and do not push content`（真实设置页：打开「添加 API」后 `group-api` 位置不变 + 卡片在设置页居中） |
+| **影响面扫描** | 代码：新增 `ui/components/PageOverlay.kt`；`ui/settings/SettingsPage.kt`（宿主）、`ui/market/MarketSettingsSection.kt`、`ui/exchange/ApiManagementSection.kt`、`ui/backup/DataManagementSection.kt`（改为提交弹层）。**不涉数据模型/schema/加密/接口**；弹层视觉与交互（遮罩、Esc、首输入框聚焦）不变 |
+| **分级建议** | **C0**（实现偏差纠正：`AGENTS.md §7.3` 要求弹层同窗口**覆盖页面**，落在滚动容器内属实现未达约束；不改产品语义）；请人工在 P6 门确认 |
+
+### DEF-23 ✅ 已修复（**P1** · 人工门第五轮实测 · 建议 C0）· 恢复数据弹窗「浮在备份区域上，感觉有点错位」
+
+| 项 | 内容 |
+|----|------|
+| **现象** | 设置 → 数据管理 →「恢复数据」弹窗浮在备份区域位置、看起来错位（人工原话） |
+| **根因** | 与 DEF-22 **同一根因**（`DataManagementSection` 的两个弹层挂在分区 `Box` 内，处于设置页滚动列中）：卡片只在自己的内容块内居中，纵向位置随该分组在长页中的位置漂移 → 「浮在备份区域」；同时整页遮罩无法覆盖 |
+| **修复** | 同 DEF-22（`PageOverlay` 提交到页面根）；备份导出弹窗与恢复向导一并接入 |
+| **回归** | 同 DEF-22 三项；`DataManagementSectionUiTest`（7 例）在无宿主场景下继续通过（就地渲染兜底） |
+| **分级建议** | **C0**（同 DEF-22） |
+
+### DEF-24 ✅ 已修复（**P2** · 人工门第五轮实测 · 建议 C1）· 设置页层级字号/字重不统一
+
+| 项 | 内容 |
+|----|------|
+| **现象** | ① 分组标题（「通用」「网络」「托盘与后台」…）**比其下二级标签（基础法币/主题/界面语言）还小**；② 手续费卡片标题（全局默认费率/交易所费率）是**加重黑体**，其它块一级标题不加黑；③ 数据管理卡片标题（备份/恢复/明文导出）**明显比其它块标题大** |
+| **根因** | 三个组件各自取值：`SettingsPage.SettingsGroup` 用 `caption`（11sp/400 + ink3）、`DataManagementSection.SectionCard` 用 `pageTitle`（20sp/600）、`FeeRuleSettingsSection` 用 `bodyStrong`（14sp/600）→ 同级标题三种字号 |
+| **修复** | 定死**设置页层级标准**（写入 `design-tokens.md §3`）：页面标题 20/600 → **分组一级标题 15/600**（新增排版令牌 `WzTypography.sectionTitle`，`colors.ink`）→ **卡内二级标题 14/600**（`bodyStrong`，`colors.ink`）→ 行标签 14/400（`body`）→ 说明 11/400（`caption`，`ink3`）。三处组件全部归位：分组标题用 `sectionTitle`；数据管理卡片标题由 20sp 降为 14/600（与手续费卡片同层）；行情与同步/API 管理的二级标题由「14/400 + ink2」升为「14/600 + ink」 |
+| **回归** | `SettingsPageUiTest::all settings first level titles share one typography level`：9 个分组一级标题高度完全一致、5 个卡内二级标题（数据管理 3 + 手续费 2）完全一致，且**二级 < 一级**、一级 > 行标签「基础法币」（= 人工反馈 ① 的反向断言）。标题节点加 `group-title` / `card-title` tag 供跨组件守护 |
+| **影响面扫描** | 代码：`ui/theme/Typography.kt`（+`sectionTitle`）、`ui/settings/SettingsPage.kt`、`ui/backup/DataManagementSection.kt`、`ui/ledger/FeeRuleSettingsSection.kt`、`ui/exchange/ApiManagementSection.kt`、`ui/market/MarketSettingsSection.kt`；设计：`design-tokens.md §3`（层级标准行）；**不涉数据/接口/行为语义**（纯视觉层级） |
+| **分级建议** | **C1**（新增设计规范条目「设置页层级标准」+ 跨模块样式统一；未触 §8.1 红线 1–5）→ 人工拍板后补决策档 + 台账 + 回写；若判 C0 则按勘误登记 |
+
+### DEF-25 ✅ 已修复（**P1** · 人工门第五轮实测 · 建议 C0）· 添加 API 密钥：首次同步失败 → 弹窗不关，但密钥其实已保存
+
+| 项 | 内容 |
+|----|------|
+| **现象** | 设置 → API 管理 → 添加 API，填写后点「保存」：**编辑窗口不关闭**，而密钥**实际已保存**（列表里能看到该行）；行内「编辑」→ 保存则会正常关闭（人工原话） |
+| **根因** | `ExchangeSyncService.addAndSync` = 校验 → **建行（落库）** → 立即 `syncNow`（网络，可能耗时数十秒或失败）；任何**落库之后**的问题（同步异常/超时/未返回结果）都会以异常上抛 → VM 走 catch 分支：`dialogBusy=false + dialogError=...`、**不关弹窗**、不刷新列表。于是「已保存」被渲染成「保存失败且弹窗不关」；用户重填再点保存只会撞「别名已存在」（`DuplicateApiKeyNameException`），观感即「保存没反应但内容已保存」。对比编辑路径（仅改别名、无网络）所以立刻关闭 |
+| **修复** | ① **数据层契约收紧**：`addAndSync` 在密钥已落库后**不再抛异常**，把「已保存 + 首次同步未成功」收敛为 `ApiKeySyncResult(status=FAILED, error=…, message="首次同步未完成，可稍后点「立即同步」重试")`（新增 `savedButSyncFailed`）；② **VM**：新增路径保存成功后**一律关弹窗 + 刷新列表**，失败只作为 toast 提示；未知异常在新增路径上也按「已保存、同步未成功」收尾（避免用户重复提交）；③ **文案（zh/en）**：新增 `savedButSyncFailed(reason)`（明确「密钥已保存」+ 指明可点「立即同步」重试）、`savingBusy`（保存中…）、`savingBusyHint`（首次同步可能数十秒，请勿关闭窗口）；④ 忙碌态显示说明行，避免「点了没反应」的观感 |
+| **回归** | `data/DefaultExchangeSyncServiceTest::add and sync keeps the saved key and reports failure when the first sync cannot complete`（不抛异常 + status=FAILED + **密钥确实已落库** + 一笔交易未入账 + 修好后 `syncNow` 可正常补同步）<br>`ApiManagementSectionUiTest::save closes the dialog and reports saved when the first sync fails`（弹窗消失 + 「密钥已保存」提示）<br>`ApiManagementSectionUiTest::save closes the dialog when the service throws after persisting the key`（落库后抛异常的极端路径同样关弹窗 + 刷新列表） |
+| **影响面扫描** | 代码：`data/exchange/DefaultExchangeSyncService.kt`（+`savedButSyncFailed`）、`ui/exchange/ApiManagementViewModel.kt`、`ui/exchange/ApiManagementSection.kt`（忙碌文案/提示行）、`ui/i18n/ExchangeStrings.kt`（zh/en 各 +3 词条）、`ui/exchange/ApiCopy.kt`；**接口签名不变**（`addAndSync` 仍返回 `ApiKeySyncResult`），无 schema/加密/格式变更 |
+| **分级建议** | **C0**（失败模式补全 + 实现偏差纠正，先例 = DEF-01：导出失败模式类型化；不改产品语义）；请人工在 P6 门确认 |
+
+### DEF-26 ➖ 非缺陷（核实结论 + 回归）· 同步交易数据不会覆盖手写录入的交易
+
+| 项 | 内容 |
+|----|------|
+| **人工问询** | 「添加只读 key 后可以同步到交易数据，请检查同步交易数据时，是否覆盖了原来手动填写的交易？」 |
+| **核实结论** | **不覆盖、不修改、不删除**。同步链路只做一件事：把交易所返回的成交**追加**为新行（`ExchangeTransactionRepository.insertIfAbsent`）。去重键 = `(account_id, exchange, exchange_order_id)` **且 `exchange_order_id IS NOT NULL`**（部分唯一索引 `idx_transactions_dedup`）；手动行 `exchange_order_id = NULL`，既不参与去重也不会被判重丢弃（SQL `= NULL` 不成立）。手写行的 `source='Manual'`、备注、订单号均无任何 UPDATE 路径 |
+| **回归（新增）** | `data/DefaultExchangeSyncServiceTest::sync appends exchange trades without touching manually entered rows`：手写一笔与交易所成交**同 pair/同时间/同价量**的交易（最易被误判重复的场景）→ 断言 ① 交易所成交仍作为新行导入（`newTrades=1`，不被手写行吞掉）；② 手写行内容**逐字段不变**（`findById` 前后相等）；③ 库内两行并存（1 Manual + 1 BINANCE 带订单号）；④ 再同步一轮仍为两行且手写行不变（幂等） |
+| **口径提示（写入手册）** | 若用户**先手写、后开启只读 Key 同步**，同一笔真实交易会**各存一行 → 重复计入持仓/盈亏**；这是「手动录入 + 交易所同步并存」的固有语义（PRD 未要求自动合并），处理办法 = 删除手写那一行后重新同步，或先同步再补录差异。已记入 `manual-test-guide.md §12` 与 P8 观察项（可选的「手动/同步疑似重复提示」增强） |
+
 ### DEF-16 ➖ 非缺陷（口径确认）· 断网后状态栏不是「立即」变为网络断开
 
 | 项 | 内容 |
@@ -245,6 +301,14 @@ export JAVA_HOME=$(mise where java)
 # DEF-02（recvWindow 契约）
 ./gradlew :data:test --tests "com.wuzhufolio.data.exchange.BinanceAdapterTest"
 
+# DEF-22/23/24（设置页弹层宿主 + 层级统一）· DEF-25（保存即关弹窗）
+./gradlew :ui:test --tests "com.wuzhufolio.ui.settings.PageOverlayUiTest" \
+                   --tests "com.wuzhufolio.ui.settings.SettingsPageUiTest" \
+                   --tests "com.wuzhufolio.ui.exchange.ApiManagementSectionUiTest"
+
+# DEF-25/26（同步契约：失败不上抛 / 不覆盖手写交易）
+./gradlew :data:test --tests "com.wuzhufolio.data.exchange.DefaultExchangeSyncServiceTest"
+
 # DEF-20（候选选中后焦点交接）· DEF-21（焦点流：进页面 / 回到外壳）
 ./gradlew :ui:test --tests "com.wuzhufolio.ui.ledger.FundsPageUiTest" \
                    --tests "com.wuzhufolio.ui.ledger.TransactionsPageUiTest" \
@@ -270,3 +334,7 @@ export JAVA_HOME=$(mise where java)
 | DEF-16 | PRD 故事 3.2-3、`interaction.md §1.1 N1`（失败即提示、保留上次价格） |
 | DEF-17 | PRD「启动可靠性」（应用可启动为前提）；`AGENTS.md §1.1` 本地数据约束下的日志维护 |
 | DEF-21 | PRD §6 无障碍基线；`docs/design/ia.md` 导航条款、`interaction.md` 键盘交互；`keyboard-walkthrough.md §6 提案 A` |
+| DEF-22 / DEF-23 | `AGENTS.md §7.3` GUI 共性约束（弹层一律同窗口**就地叠加并覆盖页面**）；`design-tokens.md §4.2` Modal |
+| DEF-24 | `design-tokens.md §3` 字体层级（P6 补「设置页层级标准」）；PRD §6 一致性要求 |
+| DEF-25 | PRD 流程图 3（保存后立即首次同步）、故事 4.1/4.3、`interaction.md` 异常态；`api-contracts.md §3`（M6 调用面） |
+| DEF-26 | PRD 故事 4.2（增量去重「不覆盖」语义）、`data-model.md §2.5`（transactions 去重键与 source）、M7 §5-9 手动/CSV 写入口径 |

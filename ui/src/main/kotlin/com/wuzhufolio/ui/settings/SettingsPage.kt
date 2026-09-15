@@ -43,6 +43,7 @@ import com.wuzhufolio.domain.settings.ThemeMode
 import com.wuzhufolio.ui.backup.DataManagementSection
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
+import com.wuzhufolio.ui.components.PageOverlayHost
 import com.wuzhufolio.ui.components.WzModal
 import com.wuzhufolio.ui.components.WzSelect
 import com.wuzhufolio.ui.components.WzSegmented
@@ -139,337 +140,343 @@ fun SettingsPage(
     }
 
     Box(modifier = modifier.fillMaxSize().testTag("settings-page")) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp)
-                .testTag("settings-scroll"),
-        ) {
-            Text(text = SettingsCopy.PAGE_TITLE, color = colors.ink, style = WzTheme.typography.pageTitle)
-            Text(
-                text = SettingsCopy.PAGE_SUB,
-                color = colors.ink3,
-                style = WzTheme.typography.caption,
-                modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
-            )
+        // 页面级叠加宿主（DEF-22）：分组组件把弹层提交到页面根，而不是落在滚动列内部——
+        // 滚动容器内高度约束无限，WzModal 的 fillMaxSize 会失效（弹层「撑开页面 / 挤占后面内容」）
+        PageOverlayHost(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp)
+                    .testTag("settings-scroll"),
+            ) {
+                Text(text = SettingsCopy.PAGE_TITLE, color = colors.ink, style = WzTheme.typography.pageTitle)
+                Text(
+                    text = SettingsCopy.PAGE_SUB,
+                    color = colors.ink3,
+                    style = WzTheme.typography.caption,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
+                )
 
-            // ---- 通用 ----
-            SettingsGroup(title = SettingsCopy.GROUP_GENERAL, testTag = "group-general") {
-                SettingsRow(
-                    title = SettingsCopy.FIAT_LABEL,
-                    description = SettingsCopy.FIAT_SUB,
-                ) {
-                    WzSelect(
-                        options = BASE_FIAT_OPTIONS,
-                        selected = generalState.view.baseFiat,
-                        onSelect = generalVm::setBaseFiat,
-                        labelOf = { it },
-                        testTag = "fiat-select",
-                    )
-                }
-                SettingsRow(
-                    title = SettingsCopy.THEME_LABEL,
-                    description = SettingsCopy.THEME_SUB,
-                ) {
-                    WzSegmented(
-                        options = listOf(ThemeMode.LIGHT, ThemeMode.DARK),
-                        selected = themeMode,
-                        onSelect = shellViewModel::setTheme,
-                        labelOf = { if (it == ThemeMode.LIGHT) SettingsCopy.THEME_LIGHT else SettingsCopy.THEME_DARK },
-                        testTag = "theme-seg",
-                    )
-                }
-                // M12 T12.4：界面语言（PRD §6 I18N；与顶栏/主壳文案同源，切换即时生效并持久化）
-                SettingsRow(
-                    title = SettingsCopy.LANGUAGE_LABEL,
-                    description = SettingsCopy.LANGUAGE_SUB,
-                    testTag = "language-row",
-                ) {
-                    WzSegmented(
-                        options = AppLanguage.entries.toList(),
-                        selected = language,
-                        onSelect = shellViewModel::setLanguage,
-                        labelOf = { it.nativeLabel },
-                        testTag = "language-seg",
-                    )
-                }
-                SettingsRow(
-                    title = SettingsCopy.PNL_LABEL,
-                    description = SettingsCopy.PNL_SUB,
-                ) {
-                    WzSelect(
-                        options = PnlColorScheme.entries.toList(),
-                        selected = pnlScheme,
-                        onSelect = shellViewModel::setPnlScheme,
-                        labelOf = { pnlLabel(it) },
-                        testTag = "pnl-select",
-                    )
-                }
-                SettingsRow(
-                    title = SettingsCopy.PRECISION_LABEL,
-                    description = SettingsCopy.PRECISION_SUB,
-                ) {
-                    WzSelect(
-                        options = PrecisionPreset.entries.toList(),
-                        selected = generalState.view.precision,
-                        onSelect = generalVm::setPrecision,
-                        labelOf = { it.label },
-                        testTag = "precision-select",
-                    )
-                }
-                SettingsRow(
-                    title = SettingsCopy.USERNAME_ENUM_LABEL,
-                    description = SettingsCopy.USERNAME_ENUM_SUB,
-                ) {
-                    WzSwitch(
-                        on = generalState.view.usernameEnumOn,
-                        onToggle = { generalVm.setUsernameEnum(!generalState.view.usernameEnumOn) },
-                        testTag = "username-enum-switch",
-                    )
-                }
-                SettingsRow(
-                    title = SettingsCopy.CASH_LABEL,
-                    description = SettingsCopy.CASH_SUB,
-                ) {
-                    Column(horizontalAlignment = Alignment.End) {
-                        generalState.view.cashCoinIds.forEach { cgId ->
-                            val isDefault = cgId !in generalState.view.cashCoinExtra
+                // ---- 通用 ----
+                SettingsGroup(title = SettingsCopy.GROUP_GENERAL, testTag = "group-general") {
+                    SettingsRow(
+                        title = SettingsCopy.FIAT_LABEL,
+                        description = SettingsCopy.FIAT_SUB,
+                    ) {
+                        WzSelect(
+                            options = BASE_FIAT_OPTIONS,
+                            selected = generalState.view.baseFiat,
+                            onSelect = generalVm::setBaseFiat,
+                            labelOf = { it },
+                            testTag = "fiat-select",
+                        )
+                    }
+                    SettingsRow(
+                        title = SettingsCopy.THEME_LABEL,
+                        description = SettingsCopy.THEME_SUB,
+                    ) {
+                        WzSegmented(
+                            options = listOf(ThemeMode.LIGHT, ThemeMode.DARK),
+                            selected = themeMode,
+                            onSelect = shellViewModel::setTheme,
+                            labelOf = {
+                                if (it == ThemeMode.LIGHT) SettingsCopy.THEME_LIGHT else SettingsCopy.THEME_DARK
+                            },
+                            testTag = "theme-seg",
+                        )
+                    }
+                    // M12 T12.4：界面语言（PRD §6 I18N；与顶栏/主壳文案同源，切换即时生效并持久化）
+                    SettingsRow(
+                        title = SettingsCopy.LANGUAGE_LABEL,
+                        description = SettingsCopy.LANGUAGE_SUB,
+                        testTag = "language-row",
+                    ) {
+                        WzSegmented(
+                            options = AppLanguage.entries.toList(),
+                            selected = language,
+                            onSelect = shellViewModel::setLanguage,
+                            labelOf = { it.nativeLabel },
+                            testTag = "language-seg",
+                        )
+                    }
+                    SettingsRow(
+                        title = SettingsCopy.PNL_LABEL,
+                        description = SettingsCopy.PNL_SUB,
+                    ) {
+                        WzSelect(
+                            options = PnlColorScheme.entries.toList(),
+                            selected = pnlScheme,
+                            onSelect = shellViewModel::setPnlScheme,
+                            labelOf = { pnlLabel(it) },
+                            testTag = "pnl-select",
+                        )
+                    }
+                    SettingsRow(
+                        title = SettingsCopy.PRECISION_LABEL,
+                        description = SettingsCopy.PRECISION_SUB,
+                    ) {
+                        WzSelect(
+                            options = PrecisionPreset.entries.toList(),
+                            selected = generalState.view.precision,
+                            onSelect = generalVm::setPrecision,
+                            labelOf = { it.label },
+                            testTag = "precision-select",
+                        )
+                    }
+                    SettingsRow(
+                        title = SettingsCopy.USERNAME_ENUM_LABEL,
+                        description = SettingsCopy.USERNAME_ENUM_SUB,
+                    ) {
+                        WzSwitch(
+                            on = generalState.view.usernameEnumOn,
+                            onToggle = { generalVm.setUsernameEnum(!generalState.view.usernameEnumOn) },
+                            testTag = "username-enum-switch",
+                        )
+                    }
+                    SettingsRow(
+                        title = SettingsCopy.CASH_LABEL,
+                        description = SettingsCopy.CASH_SUB,
+                    ) {
+                        Column(horizontalAlignment = Alignment.End) {
+                            generalState.view.cashCoinIds.forEach { cgId ->
+                                val isDefault = cgId !in generalState.view.cashCoinExtra
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier.padding(vertical = 2.dp).testTag("cash-coin-" + cgId),
+                                ) {
+                                    Text(
+                                        text = cgId + if (isDefault) "（" + SettingsCopy.CASH_DEFAULT_MARK + "）" else "",
+                                        color = if (isDefault) colors.ink3 else colors.ink,
+                                        style = WzTheme.typography.caption,
+                                    )
+                                    if (!isDefault) {
+                                        WzButton(
+                                            text = SettingsCopy.CASH_REMOVE,
+                                            onClick = { generalVm.removeCashCoin(cgId) },
+                                            variant = WzButtonVariant.Secondary,
+                                            testTag = "cash-remove-" + cgId,
+                                        )
+                                    }
+                                }
+                            }
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                modifier = Modifier.padding(vertical = 2.dp).testTag("cash-coin-" + cgId),
+                                modifier = Modifier.padding(top = 6.dp),
                             ) {
-                                Text(
-                                    text = cgId + if (isDefault) "（" + SettingsCopy.CASH_DEFAULT_MARK + "）" else "",
-                                    color = if (isDefault) colors.ink3 else colors.ink,
-                                    style = WzTheme.typography.caption,
+                                WzTextField(
+                                    value = generalState.cashInput,
+                                    onValueChange = generalVm::onCashInput,
+                                    label = SettingsCopy.CASH_INPUT_LABEL,
+                                    placeholder = "usd-coin",
+                                    modifier = Modifier.width(240.dp),
+                                    testTag = "cash-input",
                                 )
-                                if (!isDefault) {
-                                    WzButton(
-                                        text = SettingsCopy.CASH_REMOVE,
-                                        onClick = { generalVm.removeCashCoin(cgId) },
-                                        variant = WzButtonVariant.Secondary,
-                                        testTag = "cash-remove-" + cgId,
-                                    )
-                                }
+                                WzButton(
+                                    text = SettingsCopy.CASH_ADD_BUTTON,
+                                    onClick = generalVm::addCashCoin,
+                                    variant = WzButtonVariant.Secondary,
+                                    testTag = "cash-add",
+                                )
                             }
                         }
+                    }
+                    SettingsRow(
+                        title = SettingsCopy.THRESHOLD_LABEL,
+                        description = SettingsCopy.THRESHOLD_SUB,
+                    ) {
+                        // M10 走查反馈修复轮：预设档 → 自由数值输入（用户规模差异大，0 = 不启用）
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier.padding(top = 6.dp),
                         ) {
                             WzTextField(
-                                value = generalState.cashInput,
-                                onValueChange = generalVm::onCashInput,
-                                label = SettingsCopy.CASH_INPUT_LABEL,
-                                placeholder = "usd-coin",
-                                modifier = Modifier.width(240.dp),
-                                testTag = "cash-input",
+                                value = generalState.thresholdInput,
+                                onValueChange = generalVm::onThresholdInput,
+                                label = SettingsCopy.THRESHOLD_INPUT_LABEL,
+                                placeholder = "0",
+                                modifier = Modifier.width(160.dp),
+                                testTag = "threshold-input",
                             )
                             WzButton(
-                                text = SettingsCopy.CASH_ADD_BUTTON,
-                                onClick = generalVm::addCashCoin,
+                                text = settingsSaveLabel,
+                                onClick = generalVm::saveSmallAmountThreshold,
                                 variant = WzButtonVariant.Secondary,
-                                testTag = "cash-add",
+                                testTag = "threshold-save",
                             )
                         }
                     }
                 }
-                SettingsRow(
-                    title = SettingsCopy.THRESHOLD_LABEL,
-                    description = SettingsCopy.THRESHOLD_SUB,
-                ) {
-                    // M10 走查反馈修复轮：预设档 → 自由数值输入（用户规模差异大，0 = 不启用）
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+
+                // ---- 网络 ----
+                SettingsGroup(title = SettingsCopy.GROUP_NETWORK, testTag = "group-network") {
+                    SettingsRow(
+                        title = SettingsCopy.PROXY_LABEL,
+                        description = SettingsCopy.PROXY_SUB,
                     ) {
-                        WzTextField(
-                            value = generalState.thresholdInput,
-                            onValueChange = generalVm::onThresholdInput,
-                            label = SettingsCopy.THRESHOLD_INPUT_LABEL,
-                            placeholder = "0",
-                            modifier = Modifier.width(160.dp),
-                            testTag = "threshold-input",
+                        WzSwitch(
+                            on = generalState.view.proxyEnabled,
+                            onToggle = { generalVm.setProxyEnabled(!generalState.view.proxyEnabled) },
+                            testTag = "proxy-switch",
                         )
+                    }
+                }
+
+                // ---- 托盘与后台（M11 · T11.1/T11.2；PRD 6.1） ----
+                if (desktopVm != null) {
+                    SettingsGroup(title = SettingsCopy.GROUP_TRAY, testTag = "group-tray") {
+                        SettingsRow(
+                            title = SettingsCopy.MINIMIZE_LABEL,
+                            description = if (trayAvailable) {
+                                SettingsCopy.MINIMIZE_SUB
+                            } else {
+                                SettingsCopy.MINIMIZE_UNAVAILABLE
+                            },
+                            testTag = "tray-minimize",
+                        ) {
+                            WzSwitch(
+                                on = desktopState.view.minimizeOnClose && trayAvailable,
+                                enabled = trayAvailable,
+                                onToggle = { desktopVm.setMinimizeOnClose(!desktopState.view.minimizeOnClose) },
+                                testTag = "tray-minimize-switch",
+                            )
+                        }
+                        SettingsRow(
+                            title = SettingsCopy.AUTOSTART_LABEL,
+                            description = if (desktopState.autostart.supported) {
+                                SettingsCopy.AUTOSTART_SUB
+                            } else {
+                                desktopState.autostart.unsupportedReason ?: SettingsCopy.AUTOSTART_UNAVAILABLE
+                            },
+                            testTag = "tray-autostart",
+                        ) {
+                            WzSwitch(
+                                on = desktopState.autostart.enabled,
+                                enabled = desktopState.autostart.supported && !desktopState.busy,
+                                onToggle = { desktopVm.setAutostart(!desktopState.autostart.enabled) },
+                                testTag = "tray-autostart-switch",
+                            )
+                        }
+                        SettingsRow(
+                            title = SettingsCopy.SYNC_NOTIFY_LABEL,
+                            description = SettingsCopy.SYNC_NOTIFY_SUB,
+                            testTag = "tray-sync-notify",
+                        ) {
+                            WzSwitch(
+                                on = desktopState.view.syncNotification,
+                                onToggle = { desktopVm.setSyncNotification(!desktopState.view.syncNotification) },
+                                testTag = "tray-sync-notify-switch",
+                            )
+                        }
+                        SettingsRow(
+                            title = SettingsCopy.BACKUP_REMINDER_LABEL,
+                            description = SettingsCopy.BACKUP_REMINDER_SUB,
+                            testTag = "tray-backup-reminder",
+                        ) {
+                            WzSwitch(
+                                on = desktopState.view.backupReminder,
+                                onToggle = { desktopVm.setBackupReminder(!desktopState.view.backupReminder) },
+                                testTag = "tray-backup-reminder-switch",
+                            )
+                        }
+                    }
+                }
+
+                // ---- 行情与同步 ----
+                SettingsGroup(title = SettingsCopy.GROUP_MARKET_SYNC, testTag = "group-market-sync") {
+                    MarketSettingsSection(
+                        settingsService = marketSettingsService,
+                        refreshService = marketRefreshService,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    SettingsRow(
+                        title = SettingsCopy.SYNC_INTERVAL_LABEL,
+                        description = SettingsCopy.SYNC_INTERVAL_SUB,
+                        testTag = "api-sync-interval",
+                    ) {
+                        WzSelect(
+                            options = listOf(15, 30, 60),
+                            selected = intervalMinutes,
+                            onSelect = intervalVm::select,
+                            labelOf = SettingsCopy::intervalLabel,
+                            testTag = "interval-select",
+                        )
+                    }
+                }
+
+                // ---- 日志与诊断 ----
+                SettingsGroup(title = SettingsCopy.GROUP_LOGS, testTag = "group-logs") {
+                    SettingsRow(
+                        title = SettingsCopy.LOGS_VIEW_LABEL,
+                        description = SettingsCopy.LOGS_VIEW_SUB,
+                    ) {
                         WzButton(
-                            text = settingsSaveLabel,
-                            onClick = generalVm::saveSmallAmountThreshold,
+                            text = SettingsCopy.LOGS_VIEW_BUTTON,
+                            onClick = logsVm::openLogs,
                             variant = WzButtonVariant.Secondary,
-                            testTag = "threshold-save",
-                        )
-                    }
-                }
-            }
-
-            // ---- 网络 ----
-            SettingsGroup(title = SettingsCopy.GROUP_NETWORK, testTag = "group-network") {
-                SettingsRow(
-                    title = SettingsCopy.PROXY_LABEL,
-                    description = SettingsCopy.PROXY_SUB,
-                ) {
-                    WzSwitch(
-                        on = generalState.view.proxyEnabled,
-                        onToggle = { generalVm.setProxyEnabled(!generalState.view.proxyEnabled) },
-                        testTag = "proxy-switch",
-                    )
-                }
-            }
-
-            // ---- 托盘与后台（M11 · T11.1/T11.2；PRD 6.1） ----
-            if (desktopVm != null) {
-                SettingsGroup(title = SettingsCopy.GROUP_TRAY, testTag = "group-tray") {
-                    SettingsRow(
-                        title = SettingsCopy.MINIMIZE_LABEL,
-                        description = if (trayAvailable) {
-                            SettingsCopy.MINIMIZE_SUB
-                        } else {
-                            SettingsCopy.MINIMIZE_UNAVAILABLE
-                        },
-                        testTag = "tray-minimize",
-                    ) {
-                        WzSwitch(
-                            on = desktopState.view.minimizeOnClose && trayAvailable,
-                            enabled = trayAvailable,
-                            onToggle = { desktopVm.setMinimizeOnClose(!desktopState.view.minimizeOnClose) },
-                            testTag = "tray-minimize-switch",
+                            testTag = "logs-view",
                         )
                     }
                     SettingsRow(
-                        title = SettingsCopy.AUTOSTART_LABEL,
-                        description = if (desktopState.autostart.supported) {
-                            SettingsCopy.AUTOSTART_SUB
-                        } else {
-                            desktopState.autostart.unsupportedReason ?: SettingsCopy.AUTOSTART_UNAVAILABLE
-                        },
-                        testTag = "tray-autostart",
+                        title = SettingsCopy.LOGS_EXPORT_LABEL,
+                        description = SettingsCopy.LOGS_EXPORT_SUB,
                     ) {
-                        WzSwitch(
-                            on = desktopState.autostart.enabled,
-                            enabled = desktopState.autostart.supported && !desktopState.busy,
-                            onToggle = { desktopVm.setAutostart(!desktopState.autostart.enabled) },
-                            testTag = "tray-autostart-switch",
+                        WzButton(
+                            text = SettingsCopy.LOGS_EXPORT_BUTTON,
+                            onClick = logsVm::openExportConfirm,
+                            variant = WzButtonVariant.Secondary,
+                            testTag = "logs-export",
                         )
                     }
                     SettingsRow(
-                        title = SettingsCopy.SYNC_NOTIFY_LABEL,
-                        description = SettingsCopy.SYNC_NOTIFY_SUB,
-                        testTag = "tray-sync-notify",
+                        title = SettingsCopy.DIAG_LABEL,
+                        description = SettingsCopy.DIAG_SUB,
                     ) {
-                        WzSwitch(
-                            on = desktopState.view.syncNotification,
-                            onToggle = { desktopVm.setSyncNotification(!desktopState.view.syncNotification) },
-                            testTag = "tray-sync-notify-switch",
-                        )
-                    }
-                    SettingsRow(
-                        title = SettingsCopy.BACKUP_REMINDER_LABEL,
-                        description = SettingsCopy.BACKUP_REMINDER_SUB,
-                        testTag = "tray-backup-reminder",
-                    ) {
-                        WzSwitch(
-                            on = desktopState.view.backupReminder,
-                            onToggle = { desktopVm.setBackupReminder(!desktopState.view.backupReminder) },
-                            testTag = "tray-backup-reminder-switch",
+                        WzButton(
+                            text = SettingsCopy.DIAG_BUTTON,
+                            onClick = logsVm::generateReport,
+                            variant = WzButtonVariant.Secondary,
+                            enabled = !logsState.busy,
+                            testTag = "diag-generate",
                         )
                     }
                 }
-            }
 
-            // ---- 行情与同步 ----
-            SettingsGroup(title = SettingsCopy.GROUP_MARKET_SYNC, testTag = "group-market-sync") {
-                MarketSettingsSection(
-                    settingsService = marketSettingsService,
-                    refreshService = marketRefreshService,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                SettingsRow(
-                    title = SettingsCopy.SYNC_INTERVAL_LABEL,
-                    description = SettingsCopy.SYNC_INTERVAL_SUB,
-                    testTag = "api-sync-interval",
-                ) {
-                    WzSelect(
-                        options = listOf(15, 30, 60),
-                        selected = intervalMinutes,
-                        onSelect = intervalVm::select,
-                        labelOf = SettingsCopy::intervalLabel,
-                        testTag = "interval-select",
+                // ---- 手续费 ----
+                SettingsGroup(title = SettingsCopy.GROUP_FEE, testTag = "group-fee") {
+                    FeeRuleSettingsSection(service = feeRuleService, modifier = Modifier.fillMaxWidth())
+                }
+
+                // ---- API 管理 ----
+                SettingsGroup(title = SettingsCopy.GROUP_API, testTag = "group-api") {
+                    ApiManagementSection(service = syncService, modifier = Modifier.fillMaxWidth())
+                }
+
+                // ---- 数据管理 ----
+                SettingsGroup(title = SettingsCopy.GROUP_DATA, testTag = "group-data") {
+                    DataManagementSection(
+                        service = backupService,
+                        pickCproSave = pickers.pickCproSave,
+                        pickCproLoad = pickers.pickCproLoad,
+                        pickCsvSave = pickers.pickCsvSave,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
-            }
 
-            // ---- 日志与诊断 ----
-            SettingsGroup(title = SettingsCopy.GROUP_LOGS, testTag = "group-logs") {
-                SettingsRow(
-                    title = SettingsCopy.LOGS_VIEW_LABEL,
-                    description = SettingsCopy.LOGS_VIEW_SUB,
-                ) {
-                    WzButton(
-                        text = SettingsCopy.LOGS_VIEW_BUTTON,
-                        onClick = logsVm::openLogs,
-                        variant = WzButtonVariant.Secondary,
-                        testTag = "logs-view",
+                // ---- 关于 ----
+                SettingsGroup(title = SettingsCopy.GROUP_ABOUT, testTag = "group-about") {
+                    AboutLine(SettingsCopy.ABOUT_VERSION_LABEL, appVersion + " · AGPL-3.0", "about-version")
+                    AboutLine(SettingsCopy.ABOUT_DEV_LABEL, SettingsCopy.ABOUT_DEV_VALUE, "about-dev")
+                    AboutLine(SettingsCopy.ABOUT_PRIVACY_LABEL, SettingsCopy.ABOUT_PRIVACY_VALUE, "about-privacy")
+                    AboutLine(SettingsCopy.ABOUT_SOURCE_LABEL, SettingsCopy.ABOUT_SOURCE_VALUE, "about-source")
+                    AboutLine(
+                        SettingsCopy.ABOUT_NOTELEMETRY_LABEL,
+                        SettingsCopy.ABOUT_NOTELEMETRY_VALUE,
+                        "about-notelemetry",
                     )
                 }
-                SettingsRow(
-                    title = SettingsCopy.LOGS_EXPORT_LABEL,
-                    description = SettingsCopy.LOGS_EXPORT_SUB,
-                ) {
-                    WzButton(
-                        text = SettingsCopy.LOGS_EXPORT_BUTTON,
-                        onClick = logsVm::openExportConfirm,
-                        variant = WzButtonVariant.Secondary,
-                        testTag = "logs-export",
-                    )
-                }
-                SettingsRow(
-                    title = SettingsCopy.DIAG_LABEL,
-                    description = SettingsCopy.DIAG_SUB,
-                ) {
-                    WzButton(
-                        text = SettingsCopy.DIAG_BUTTON,
-                        onClick = logsVm::generateReport,
-                        variant = WzButtonVariant.Secondary,
-                        enabled = !logsState.busy,
-                        testTag = "diag-generate",
-                    )
-                }
-            }
-
-            // ---- 手续费 ----
-            SettingsGroup(title = SettingsCopy.GROUP_FEE, testTag = "group-fee") {
-                FeeRuleSettingsSection(service = feeRuleService, modifier = Modifier.fillMaxWidth())
-            }
-
-            // ---- API 管理 ----
-            SettingsGroup(title = SettingsCopy.GROUP_API, testTag = "group-api") {
-                ApiManagementSection(service = syncService, modifier = Modifier.fillMaxWidth())
-            }
-
-            // ---- 数据管理 ----
-            SettingsGroup(title = SettingsCopy.GROUP_DATA, testTag = "group-data") {
-                DataManagementSection(
-                    service = backupService,
-                    pickCproSave = pickers.pickCproSave,
-                    pickCproLoad = pickers.pickCproLoad,
-                    pickCsvSave = pickers.pickCsvSave,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-
-            // ---- 关于 ----
-            SettingsGroup(title = SettingsCopy.GROUP_ABOUT, testTag = "group-about") {
-                AboutLine(SettingsCopy.ABOUT_VERSION_LABEL, appVersion + " · AGPL-3.0", "about-version")
-                AboutLine(SettingsCopy.ABOUT_DEV_LABEL, SettingsCopy.ABOUT_DEV_VALUE, "about-dev")
-                AboutLine(SettingsCopy.ABOUT_PRIVACY_LABEL, SettingsCopy.ABOUT_PRIVACY_VALUE, "about-privacy")
-                AboutLine(SettingsCopy.ABOUT_SOURCE_LABEL, SettingsCopy.ABOUT_SOURCE_VALUE, "about-source")
-                AboutLine(
-                    SettingsCopy.ABOUT_NOTELEMETRY_LABEL,
-                    SettingsCopy.ABOUT_NOTELEMETRY_VALUE,
-                    "about-notelemetry",
-                )
             }
         }
 
@@ -518,11 +525,12 @@ private fun SettingsGroup(title: String, testTag: String, content: @Composable (
             .padding(16.dp)
             .testTag(testTag),
     ) {
+        // 分组一级标题：设置页统一层级（DEF-24）——15/600、ink（原先用 caption 11sp，比二级标签还小）
         Text(
             text = title,
-            color = colors.ink3,
-            style = WzTheme.typography.caption,
-            modifier = Modifier.padding(bottom = 4.dp),
+            color = colors.ink,
+            style = WzTheme.typography.sectionTitle,
+            modifier = Modifier.padding(bottom = 6.dp).testTag("group-title"),
         )
         content()
     }

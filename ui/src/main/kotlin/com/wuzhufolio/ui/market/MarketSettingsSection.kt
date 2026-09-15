@@ -28,6 +28,7 @@ import com.wuzhufolio.domain.market.MarketSettingsService
 import com.wuzhufolio.domain.market.PriceSource
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
+import com.wuzhufolio.ui.components.PageOverlay
 import com.wuzhufolio.ui.components.WzModal
 import com.wuzhufolio.ui.components.WzSelect
 import com.wuzhufolio.ui.components.WzTextField
@@ -93,38 +94,49 @@ fun MarketSettingsSection(
         WzToastHost(toast = state.toast, onDismiss = vm::dismissToast)
     }
 
-    when (state.dialog) {
-        MarketKeyDialog.NONE -> Unit
-        MarketKeyDialog.CG -> KeyModal(
-            title = MarketCopy.CG_MODAL_TITLE,
-            configured = state.keyStatus.cgConfigured,
-            hint = if (state.keyStatus.cgConfigured) MarketCopy.CG_MODAL_CONFIGURED else MarketCopy.CG_MODAL_KEYLESS,
-            registerHint = MarketCopy.CG_REGISTER_HINT,
-            registerUrl = MarketCopy.CG_REGISTER_URL,
-            input = input,
-            onInput = { input = it },
-            error = state.dialogError,
-            busy = state.dialogBusy,
-            saveLabel = MarketCopy.BTN_SAVE_CG,
-            onSave = { vm.saveCgKey(input) },
-            onRemove = vm::removeCgKey,
-            onClose = { vm.closeDialog(); input = "" },
-        )
-        MarketKeyDialog.CMC -> KeyModal(
-            title = MarketCopy.CMC_MODAL_TITLE,
-            configured = state.keyStatus.cmcConfigured,
-            hint = if (state.keyStatus.cmcConfigured) MarketCopy.CMC_MODAL_CONFIGURED else MarketCopy.CMC_MODAL_KEYLESS,
-            registerHint = MarketCopy.CMC_REGISTER_HINT,
-            registerUrl = MarketCopy.CMC_REGISTER_URL,
-            input = input,
-            onInput = { input = it },
-            error = state.dialogError,
-            busy = state.dialogBusy,
-            saveLabel = MarketCopy.BTN_SAVE_CMC,
-            onSave = { vm.saveCmcKey(input) },
-            onRemove = vm::removeCmcKey,
-            onClose = { vm.closeDialog(); input = "" },
-        )
+    // 弹层提交到页面根（DEF-22：滚动容器内会撑开页面/挤占内容）；无宿主时就地渲染（单测/独立预览）
+    PageOverlay {
+        when (state.dialog) {
+            MarketKeyDialog.NONE -> Unit
+            MarketKeyDialog.CG -> KeyModal(
+                title = MarketCopy.CG_MODAL_TITLE,
+                configured = state.keyStatus.cgConfigured,
+                hint = if (state.keyStatus.cgConfigured) {
+                    MarketCopy.CG_MODAL_CONFIGURED
+                } else {
+                    MarketCopy.CG_MODAL_KEYLESS
+                },
+                registerHint = MarketCopy.CG_REGISTER_HINT,
+                registerUrl = MarketCopy.CG_REGISTER_URL,
+                input = input,
+                onInput = { input = it },
+                error = state.dialogError,
+                busy = state.dialogBusy,
+                saveLabel = MarketCopy.BTN_SAVE_CG,
+                onSave = { vm.saveCgKey(input) },
+                onRemove = vm::removeCgKey,
+                onClose = { vm.closeDialog(); input = "" },
+            )
+            MarketKeyDialog.CMC -> KeyModal(
+                title = MarketCopy.CMC_MODAL_TITLE,
+                configured = state.keyStatus.cmcConfigured,
+                hint = if (state.keyStatus.cmcConfigured) {
+                    MarketCopy.CMC_MODAL_CONFIGURED
+                } else {
+                    MarketCopy.CMC_MODAL_KEYLESS
+                },
+                registerHint = MarketCopy.CMC_REGISTER_HINT,
+                registerUrl = MarketCopy.CMC_REGISTER_URL,
+                input = input,
+                onInput = { input = it },
+                error = state.dialogError,
+                busy = state.dialogBusy,
+                saveLabel = MarketCopy.BTN_SAVE_CMC,
+                onSave = { vm.saveCmcKey(input) },
+                onRemove = vm::removeCmcKey,
+                onClose = { vm.closeDialog(); input = "" },
+            )
+        }
     }
 }
 
@@ -137,7 +149,8 @@ private fun MarketGroup(title: String, testTag: String, content: @Composable () 
             .padding(vertical = 8.dp)
             .testTag(testTag),
     ) {
-        Text(text = title, color = colors.ink2, style = WzTheme.typography.body)
+        // 二级标题统一：14/600 + ink（DEF-24 层级标准）
+        Text(text = title, color = colors.ink, style = WzTheme.typography.bodyStrong)
         Column(modifier = Modifier.padding(top = 4.dp)) { content() }
     }
 }

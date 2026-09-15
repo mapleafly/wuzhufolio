@@ -65,6 +65,16 @@ object ApiCopy {
     val TEST_BUTTON: String get() = exchangeStrings.testButton
     val TEST_PASSED: String get() = exchangeStrings.testPassed
     val SAVE_BUTTON: String get() = commonStrings.save
+
+    /** 保存中按钮文案（首次同步可能耗时数十秒；DEF-25）。 */
+    val SAVING_BUSY: String get() = exchangeStrings.savingBusy
+
+    /** 保存处理中说明（忙碌态显示）。 */
+    val SAVING_BUSY_HINT: String get() = exchangeStrings.savingBusyHint
+
+    /** 已保存但首次同步失败（DEF-25：绝不能让用户以为「没保存」而重复提交）。 */
+    fun savedButSyncFailed(reason: String): String = exchangeStrings.savedButSyncFailed(reason)
+
     val SAVE_AND_SYNC_TOAST: String get() = exchangeStrings.saveAndSyncToast
 
     /** 首次同步完成 toast（`%d` 模板；参数化入口见 `exchangeStrings.firstSyncDone`）。 */

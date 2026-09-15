@@ -86,6 +86,18 @@ interface ExchangeStrings {
     /** 保存并首次同步完成的完整 toast（前段 [saveAndSyncToast] + 结果摘要合并，单条 toast）。 */
     fun saveAndSyncWithResult(message: String): String
 
+    /**
+     * 密钥**已保存**但首次同步失败（P6 DEF-25）：必须让用户明确「保存成功、只是同步没成」，
+     * 而不是以为保存失败再点一次（再点会撞「别名已存在」）。[reason] = 失败原因文案。
+     */
+    fun savedButSyncFailed(reason: String): String
+
+    /** 保存按钮忙碌文案（首次同步可能耗时数十秒，按钮需自解释）。 */
+    val savingBusy: String
+
+    /** 保存处理中的补充说明（仅忙碌态显示）。 */
+    val savingBusyHint: String
+
     /** 「首次同步完成 · 新增 %d」模板（保留供 ApiCopy 既有成员读取）。 */
     val firstSyncDoneTemplate: String
 
@@ -178,6 +190,13 @@ object ExchangeStringsZh : ExchangeStrings {
     override val testPassed = "测试请求通过 · 已用该密钥获取账户信息（只读）"
     override val saveAndSyncToast = "密钥已加密保存 · 请清理系统剪贴板 · 立即执行首次同步（增量去重）…"
     override fun saveAndSyncWithResult(message: String) = saveAndSyncToast + " 结果：" + message
+
+    override fun savedButSyncFailed(reason: String) =
+        "密钥已保存；首次同步未成功（" + reason + "）。可点「立即同步」重试"
+
+    override val savingBusy: String = "保存中…"
+
+    override val savingBusyHint: String = "正在执行首次同步，账户交易较多时可能需要数十秒，请勿关闭窗口。"
     override val firstSyncDoneTemplate = "首次同步完成 · 新增 %d"
     override val removedToast = "已移除 API 密钥"
     override val keyUpdatedToast = "已更新 · 密钥已重新加密保存"
@@ -248,6 +267,14 @@ object ExchangeStringsEn : ExchangeStrings {
         "Key saved with encryption · please clear the system clipboard · running the first sync now " +
             "(incremental dedup)…"
     override fun saveAndSyncWithResult(message: String) = saveAndSyncToast + " Result: " + message
+
+    override fun savedButSyncFailed(reason: String) =
+        "API key saved, but the first sync did not succeed (" + reason + "). Use Sync now to retry."
+
+    override val savingBusy: String = "Saving…"
+
+    override val savingBusyHint: String =
+        "Running the first sync. This can take a while for large accounts — keep this window open."
     override val firstSyncDoneTemplate = "First sync complete · %d new"
     override val removedToast = "API key removed"
     override val keyUpdatedToast = "Updated · key re-saved with encryption"

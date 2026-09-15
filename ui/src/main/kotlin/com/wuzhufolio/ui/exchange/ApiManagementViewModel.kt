@@ -122,6 +122,8 @@ class ApiManagementViewModel(private val service: ExchangeSyncService) : ViewMod
         scope.launch {
             try {
                 if (editing == null) {
+                    // 新增：落库 + 首次同步。DEF-25——首次同步失败**不**改变「已保存」事实，
+                    // 数据层已把它收敛为失败结果（不再抛异常），这里照常关弹窗 + 刷新列表。
                     val result = service.addAndSync(input)
                     closeDialog()
                     onSaveResult(result)
@@ -138,7 +140,15 @@ class ApiManagementViewModel(private val service: ExchangeSyncService) : ViewMod
             } catch (e: IllegalArgumentException) {
                 _state.update { it.copy(dialogBusy = false, dialogError = e.message ?: ApiCopy.ERR_GENERIC) }
             } catch (t: Throwable) {
-                _state.update { it.copy(dialogBusy = false, dialogError = t.message ?: ApiCopy.ERR_GENERIC) }
+                // 未知异常：新增路径上可能「已落库、后续步骤才失败」——此时**不得**把弹窗留着不关，
+                // 否则用户重填再保存只会撞「别名已存在」（DEF-25 实测症状）。按「已保存、同步未成功」提示。
+                if (editing == null) {
+                    closeDialog()
+                    load()
+                    toast(WzToastKind.Failure, ApiCopy.savedButSyncFailed(t.message ?: ApiCopy.ERR_GENERIC))
+                } else {
+                    _state.update { it.copy(dialogBusy = false, dialogError = t.message ?: ApiCopy.ERR_GENERIC) }
+                }
             }
         }
     }
@@ -208,7 +218,8 @@ class ApiManagementViewModel(private val service: ExchangeSyncService) : ViewMod
     private fun onSaveResult(result: ApiKeySyncResult) {
         val error = result.error
         if (error != null) {
-            toast(WzToastKind.Failure, ApiCopy.errorText(error))
+            // 密钥已保存，仅首次同步未成功（DEF-25）——文案必须体现「已保存」，并指明可重试
+            toast(WzToastKind.Failure, ApiCopy.savedButSyncFailed(ApiCopy.errorText(error)))
             return
         }
         toast(WzToastKind.Success, exchangeStrings.saveAndSyncWithResult(result.message))

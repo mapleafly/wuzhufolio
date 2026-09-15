@@ -30,6 +30,7 @@ import com.wuzhufolio.domain.backup.CsvExportKind
 import com.wuzhufolio.domain.backup.RestoreMode
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
+import com.wuzhufolio.ui.components.PageOverlay
 import com.wuzhufolio.ui.components.WzModal
 import com.wuzhufolio.ui.components.WzTextField
 import com.wuzhufolio.ui.components.WzToastHost
@@ -115,26 +116,29 @@ fun DataManagementSection(
             }
         }
 
-        state.export?.let { export ->
-            BackupExportModal(
-                state = export,
-                onPasswordChange = vm::onExportPasswordChange,
-                onConfirmChange = vm::onExportConfirmChange,
-                onConfirm = vm::exportBackup,
-                onDismiss = vm::closeExport,
-            )
-        }
-        state.restore?.let { restore ->
-            RestoreWizardModal(
-                state = restore,
-                onPickFile = vm::pickRestoreFile,
-                onPasswordChange = vm::onRestorePasswordChange,
-                onUnlock = vm::unlockRestore,
-                onModeChange = vm::setMode,
-                onOverwriteConfirmChange = vm::setOverwriteConfirmed,
-                onExecute = vm::executeRestore,
-                onDismiss = vm::closeRestore,
-            )
+        // 弹层提交到页面根（DEF-22 同根因：滚动容器内 fillMaxSize 失效 → 恢复/备份弹窗挤占页面）
+        PageOverlay {
+            state.export?.let { export ->
+                BackupExportModal(
+                    state = export,
+                    onPasswordChange = vm::onExportPasswordChange,
+                    onConfirmChange = vm::onExportConfirmChange,
+                    onConfirm = vm::exportBackup,
+                    onDismiss = vm::closeExport,
+                )
+            }
+            state.restore?.let { restore ->
+                RestoreWizardModal(
+                    state = restore,
+                    onPickFile = vm::pickRestoreFile,
+                    onPasswordChange = vm::onRestorePasswordChange,
+                    onUnlock = vm::unlockRestore,
+                    onModeChange = vm::setMode,
+                    onOverwriteConfirmChange = vm::setOverwriteConfirmed,
+                    onExecute = vm::executeRestore,
+                    onDismiss = vm::closeRestore,
+                )
+            }
         }
         WzToastHost(toast = state.toast, onDismiss = vm::dismissToast)
     }
@@ -158,7 +162,14 @@ private fun SectionCard(
             .padding(16.dp)
             .testTag(testTag),
     ) {
-        Text(text = title, color = colors.ink, style = WzTheme.typography.pageTitle)
+        // 卡内二级标题统一：14/600 + ink（DEF-24 层级标准）
+        // 此前用 pageTitle（20/600）→ 比其它分组的标题明显偏大；与手续费卡片标题（bodyStrong）对齐
+        Text(
+            text = title,
+            color = colors.ink,
+            style = WzTheme.typography.bodyStrong,
+            modifier = Modifier.testTag("card-title"),
+        )
         content()
     }
 }

@@ -227,7 +227,13 @@ fun FeeRuleSettingsSection(service: FeeRuleService, modifier: Modifier = Modifie
     Box(modifier = modifier.testTag("fee-rule-settings")) {
         Column(modifier = Modifier.fillMaxWidth()) {
             // 全局默认
-            Text(text = ledgerStrings.feeGlobalTitle, color = colors.ink, style = WzTheme.typography.bodyStrong)
+            // 卡内二级标题（DEF-24 层级标准：14/600 + ink；与数据管理卡片标题同层）
+            Text(
+                text = ledgerStrings.feeGlobalTitle,
+                color = colors.ink,
+                style = WzTheme.typography.bodyStrong,
+                modifier = Modifier.testTag("card-title"),
+            )
             Row(
                 modifier = Modifier.padding(top = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -261,7 +267,7 @@ fun FeeRuleSettingsSection(service: FeeRuleService, modifier: Modifier = Modifie
                 text = ledgerStrings.feeExchangeTitle,
                 color = colors.ink,
                 style = WzTheme.typography.bodyStrong,
-                modifier = Modifier.padding(top = 20.dp),
+                modifier = Modifier.padding(top = 20.dp).testTag("card-title"),
             )
             if (state.rules.none { it.exchange != null }) {
                 Text(

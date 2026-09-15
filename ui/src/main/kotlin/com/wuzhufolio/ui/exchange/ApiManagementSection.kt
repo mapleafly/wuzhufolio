@@ -26,6 +26,7 @@ import com.wuzhufolio.domain.exchange.SyncLogRow
 import com.wuzhufolio.domain.exchange.SyncStatus
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
+import com.wuzhufolio.ui.components.PageOverlay
 import com.wuzhufolio.ui.components.WzModal
 import com.wuzhufolio.ui.components.WzTextField
 import com.wuzhufolio.ui.components.WzToastHost
@@ -51,7 +52,8 @@ fun ApiManagementSection(
 
     Box(modifier = modifier.testTag("api-management")) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            Text(text = exchangeStrings.savedKeysTitle, color = colors.ink2, style = WzTheme.typography.body,
+            // 二级标题统一：14/600 + ink（DEF-24 层级标准；分组一级标题由 SettingsPage 的 sectionTitle 提供）
+            Text(text = exchangeStrings.savedKeysTitle, color = colors.ink, style = WzTheme.typography.bodyStrong,
                 modifier = Modifier.padding(bottom = 4.dp))
             if (state.keys.isEmpty()) {
                 Text(
@@ -98,29 +100,32 @@ fun ApiManagementSection(
         WzToastHost(toast = state.toast, onDismiss = vm::dismissToast)
     }
 
-    when (state.dialog) {
-        ApiDialog.NONE -> Unit
-        ApiDialog.ADD -> ApiKeyModal(
-            title = ApiCopy.ADD_TITLE,
-            busy = state.dialogBusy,
-            error = state.dialogError,
-            onSave = vm::save,
-            onTest = vm::test,
-            onClose = vm::closeDialog,
-        )
-        ApiDialog.EDIT -> {
-            val key = state.editingKey
-            if (key != null) {
-                ApiKeyModal(
-                    title = ApiCopy.EDIT_TITLE,
-                    initialName = key.name,
-                    editing = true,
-                    busy = state.dialogBusy,
-                    error = state.dialogError,
-                    onSave = vm::save,
-                    onTest = vm::test,
-                    onClose = vm::closeDialog,
-                )
+    // 弹层提交到页面根（DEF-22：滚动容器内会撑开页面/挤占内容）；无宿主时就地渲染（单测/独立预览）
+    PageOverlay {
+        when (state.dialog) {
+            ApiDialog.NONE -> Unit
+            ApiDialog.ADD -> ApiKeyModal(
+                title = ApiCopy.ADD_TITLE,
+                busy = state.dialogBusy,
+                error = state.dialogError,
+                onSave = vm::save,
+                onTest = vm::test,
+                onClose = vm::closeDialog,
+            )
+            ApiDialog.EDIT -> {
+                val key = state.editingKey
+                if (key != null) {
+                    ApiKeyModal(
+                        title = ApiCopy.EDIT_TITLE,
+                        initialName = key.name,
+                        editing = true,
+                        busy = state.dialogBusy,
+                        error = state.dialogError,
+                        onSave = vm::save,
+                        onTest = vm::test,
+                        onClose = vm::closeDialog,
+                    )
+                }
             }
         }
     }
@@ -173,7 +178,7 @@ private fun ApiKeyRow(
 private fun SyncLogSection(logs: List<SyncLogRow>) {
     val colors = WzTheme.colors
     Column(modifier = Modifier.fillMaxWidth().padding(top = 20.dp).testTag("api-sync-logs")) {
-        Text(text = exchangeStrings.recentLogsTitle, color = colors.ink2, style = WzTheme.typography.body)
+        Text(text = exchangeStrings.recentLogsTitle, color = colors.ink, style = WzTheme.typography.bodyStrong)
         if (logs.isEmpty()) {
             Text(text = exchangeStrings.noLogs, color = colors.ink3, style = WzTheme.typography.caption,
                 modifier = Modifier.padding(top = 6.dp))
@@ -251,6 +256,15 @@ private fun ApiKeyModal(
                 Text(text = error, color = colors.loss, style = WzTheme.typography.caption,
                     modifier = Modifier.padding(top = 6.dp).testTag("api-dialog-error"))
             }
+            // DEF-25：首次同步可能耗时数十秒——忙碌态给出说明，避免用户以为「点了没反应」而重复提交
+            if (busy) {
+                Text(
+                    text = ApiCopy.SAVING_BUSY_HINT,
+                    color = colors.ink3,
+                    style = WzTheme.typography.caption,
+                    modifier = Modifier.padding(top = 6.dp).testTag("api-dialog-busy-hint"),
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
                 horizontalArrangement = Arrangement.End,
@@ -258,8 +272,12 @@ private fun ApiKeyModal(
                 WzButton(text = ApiCopy.TEST_BUTTON, onClick = { onTest(inputOf(name, apiKey, secret)) },
                     enabled = !busy, variant = WzButtonVariant.Secondary,
                     modifier = Modifier.padding(end = 8.dp), testTag = "api-test")
-                WzButton(text = ApiCopy.SAVE_BUTTON, onClick = { onSave(inputOf(name, apiKey, secret)) },
-                    enabled = !busy, testTag = "api-save")
+                WzButton(
+                    text = if (busy) ApiCopy.SAVING_BUSY else ApiCopy.SAVE_BUTTON,
+                    onClick = { onSave(inputOf(name, apiKey, secret)) },
+                    enabled = !busy,
+                    testTag = "api-save",
+                )
             }
         }
     }
