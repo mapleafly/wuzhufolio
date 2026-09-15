@@ -563,3 +563,18 @@ msiexec /i .\wzf-windows\msi\WuZhuFolio-0.1.0.msi
 | 1024×768 | ① 表格横向滚动但行高规整、删除按钮完整可点；② 卡片数字不换行；③ 交易/增资弹窗无需滚动即可保存；④ 截断单元格悬停可见全值；⑤ 列表单元线可见 |
 
 > 复验前先核对日志首行 `build=0.1.0+<本轮短 sha>`。
+
+**本轮产物（CI run [34980698283](https://github.com/mapleafly/wuzhufolio/actions/runs/34980698283) 六 job 全绿，commit `31d5d1f`）**：
+
+| 产物 | SHA256 |
+|------|--------|
+| `msi\WuZhuFolio-0.1.0.msi` | `b6373ef019e8eafa700f3d0ea6aebf63333861aac32f68c460756916f06394c0` |
+| `exe\WuZhuFolio-0.1.0.exe` | `4bd59aaa2ac2d02bd8973f797b578134b112a3e04a117d4358d9aa9783a3ab2a` |
+
+```powershell
+gh run download 34980698283 --repo mapleafly/wuzhufolio -n wuzhufolio-windows-latest-native -D .\wzf-windows
+Get-FileHash .\wzf-windows\msi\WuZhuFolio-0.1.0.msi -Algorithm SHA256   # 应等于上表
+msiexec /i .\wzf-windows\msi\WuZhuFolio-0.1.0.msi
+```
+
+> 复验前核对日志首行 `build=0.1.0+31d5d1f`。
