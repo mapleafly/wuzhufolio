@@ -46,7 +46,8 @@
 | ④ | DEF-05 interaction「列表滚动加载」口径 | **按 C0 文档澄清** | ✅ **已回写**：`interaction.md §2.1` 增「列表装载口径」注 + §3-2 措辞订正（本地库单次装载 + `LazyColumn` 虚拟化，不适用分页）；大数据量装载耗时登记 P8 观察项 |
 | ⑤ | DEF-01 / DEF-02 / DEF-06 定级 | **维持 C0** | ✅ 已确认（三项均为实现偏差/失败模式补全，未改产品语义、未改数据模型与格式；回写见各自条目） |
 | ⑥ | **第四轮人工门两项焦点问题定级**（2026-09-15） | **按建议变更分级**（原话）→ **DEF-20 = C0**、**DEF-21 = C1** | ✅ **DEF-20**：C0 勘误（`M7.md`/`M8.md` §勘误 + `interaction.md §3-9` 回写，不建档不进台账）；**DEF-21**：C1 完整落盘 —— 决策档 **D31** + 台账 D31 行 + 决策索引 + `task-breakdown **T12.6**` + `ia.md §1.1` + `interaction.md §3-9` + `M12.md §1.7`（验收 A1–A6 见 D31 §6） |
-| ⑦ | **第五轮人工门（真实只读 Key 冒烟）四项定级**（2026-09-15） | **拍板，按建议变更分级**（原话）→ **DEF-22/23 = C0**、**DEF-25 = C0**、**DEF-24 = C1** | ✅ **C0 三项**：`M6/M9/M10` §勘误 + `api-contracts.md §3`（`addAndSync` 落库后失败不得上抛 + 去重口径）+ `design-tokens.md §4.2`（弹层承载位置）+ `AGENTS.md §7.3-5/6`；**C1 一项（D32）**：决策档 + 台账 D32 行 + 索引 + `task-breakdown **T10.5**` + `design-tokens.md §3` 层级标准（验收 B1–B5）；**DEF-26** 为核实非缺陷（同步不覆盖手写交易，已加回归） | ✅ **DEF-20**：C0 勘误（模块记录 `M7.md`/`M8.md` §勘误 + 交互文档回写，不建档不进台账）；**DEF-21**：C1 完整落盘 —— 决策档 **D31** + 台账 D31 行（有效需求串 `Δ{…, D30, D31}`）+ 决策索引 + `task-breakdown **T12.6**` + `ia.md §1.1` + `interaction.md §3-9` + `M12.md §1.7`；验收标准 A1–A6 见 D31 §6 |
+| ⑦ | **第五轮人工门（真实只读 Key 冒烟）四项定级**（2026-09-15） | **拍板，按建议变更分级**（原话）→ **DEF-22/23 = C0**、**DEF-25 = C0**、**DEF-24 = C1** | ✅ **C0 三项**：`M6/M9/M10` §勘误 + `api-contracts.md §3`（`addAndSync` 落库后失败不得上抛 + 去重口径）+ `design-tokens.md §4.2`（弹层承载位置）+ `AGENTS.md §7.3-5/6`；**C1 一项（D32）**：决策档 + 台账 D32 行 + 索引 + `task-breakdown **T10.5**` + `design-tokens.md §3` 层级标准（验收 B1–B5）；**DEF-26** 为核实非缺陷（同步不覆盖手写交易，已加回归）
+| ⑧ | **第六轮人工门（GUI 全流程 × 三档分辨率）四项定级**（2026-09-15） | **按建议**（原话）→ **DEF-27 / DEF-28 / DEF-29 / DEF-30 全部 C0** | ✅ 四项均按 C0 勘误登记：`M5.md`（候选浮层收起 + 入口焦点声明）、`M7.md`（窄窗表格/按钮 + 入口焦点）、`M12.md`（入口焦点契约 + 资产表窄窗）§勘误；技术/设计回写 `design-tokens.md §4.3-1`（窄窗适配口径）、`interaction.md §2.7/§3-9/§3-13`、`ia.md §1.1`；均**不建档、不进台账**（`AGENTS.md §8.1`）。同轮 TC-MAN-06 / TC-MAN-07 / TC-MAN-10 **人工判定通过** ✅ | ✅ 四项均按 C0 勘误登记：`M5.md`（候选浮层收起 + 入口焦点声明）、`M7.md`（窄窗表格/按钮 + 入口焦点）、`M12.md`（入口焦点契约 + 资产表窄窗）§勘误；技术/设计回写 `design-tokens.md §4.3-1`（窄窗适配口径）、`interaction.md §2.7/§3-9/§3-13`、`ia.md §1.1`；均**不建档、不进台账**（`AGENTS.md §8.1`）。同轮 TC-MAN-06 / TC-MAN-07 / TC-MAN-10 **人工判定通过** ✅ |
 
 ---
 
@@ -233,7 +234,7 @@
 | **修复** | 新增**页面入口焦点契约** `ui/shell/PageEntryFocus.kt`：主壳通过 `LocalPageEntryFocus` 提供 `PageEntryFocusState`；页面在**首个可聚焦控件**上写 `Modifier.pageEntryFocus()` 声明入口焦点；主壳切页时**优先请求声明目标**，未声明（或页面已销毁）时回落容器遍历。已声明：设置（基础法币）、交易（搜索框）、资金（搜索框）、行情（搜索框，替换页面自行抢焦点）、资产（首列排序按钮）、币种详情（返回链接） |
 | **回归** | `SettingsPageUiTest::page entry focus lands on the first settings control`（走**真实主壳路径**：Enter 进设置 → 断言 `fiat-select` 聚焦 + 断言 `fee-global-buy` **未**聚焦）；`ShellFocusFlowUiTest`（5 例）继续覆盖未声明页面的回落路径 |
 | **影响面扫描** | 代码：新增 `ui/shell/PageEntryFocus.kt`；`ui/shell/MainShell.kt`（提供宿主 + 优先请求声明）、`ui/settings/SettingsPage.kt`、`ui/ledger/TransactionsPage.kt`、`ui/ledger/FundsPage.kt`、`ui/market/MarketWatchPage.kt`、`ui/portfolio/AssetsPage.kt`、`ui/portfolio/CoinDetailPage.kt`；**不涉数据/接口/schema**（纯焦点编排） |
-| **分级建议** | **C0**（实现偏差纠正：DEF-21 的落地方式未达「焦点顺序合理」要求；不改产品语义） |
+| **分级（人工拍板 2026-09-15）** | ✅ **C0**（实现偏差纠正：DEF-21 的落地方式未达「焦点顺序合理」要求；不改产品语义）。回写：`M12.md` §1.7 + `ia.md §1.1` + `interaction.md §3-9`；不建档、不进台账 |
 
 ### DEF-28 ✅ 已修复（**P2** · 人工门第六轮实测 · 建议 C0）· 窄窗（1280×800 / 1024×768）表格列被压窄 → 标签竖排、数字换行、行高参差
 
@@ -244,7 +245,7 @@
 | **修复** | 新增 **`ui/components/AdaptiveTable.kt`**（`AdaptiveTable` + `TableColumn` + `tableCell` + `TableWidths`）：每列声明**最小宽度**+宽窗权重；可用宽度 ≥ 各列最小宽之和 → 按权重铺满（1280×800 及以上与原观感一致）；否则**整表横向滚动**（列取最小宽、底部横向滚动条），行高一致、**不做省略号截断**（财务数据截断比滚动更糟）。两张表接入；所有单元格 `maxLines = 1 / softWrap = false`；`Badge` 一律单行；「估算中」由**另起一行改为与交易对内联** |
 | **回归** | `TransactionsPageUiTest`（既有 17 例，其中 2 例改为 `performScrollTo()` 后点击——1024×768 下操作列在横向滚动区右侧）；`PortfolioPagesUiTest` / `AssetsPageUiTest` 全绿；人工按三档分辨率复验（`manual-test-guide.md §13`） |
 | **影响面扫描** | 代码：新增 `ui/components/AdaptiveTable.kt`；`ui/portfolio/AssetsPage.kt`、`ui/ledger/TransactionsPage.kt`、`ui/portfolio/PortfolioParts.kt`（Badge 单行）。**不涉数据/接口/schema**；宽窗布局不变 |
-| **分级建议** | **C0**（实现偏差纠正：窄窗可读性属 PRD §6「一致性/无障碍」实现要求）；若人工认为「1024 下允许横向滚动」属交互口径变化，可改判 **C1** |
+| **分级（人工拍板 2026-09-15）** | ✅ **C0**（实现偏差纠正：窄窗可读性属 PRD §6「一致性/无障碍」实现要求；人工确认「1024 下表格横向滚动」为修复手段而非交互口径变化）。回写：`design-tokens.md §4.3-1` + `interaction.md §3-13` + `M7.md`/`M12.md` §勘误；不建档、不进台账 |
 
 ### DEF-29 ✅ 已修复（**P2** · 人工门第六轮实测 · 建议 C0）· 窄窗过滤按钮与表格操作列被压成竖排
 
@@ -255,7 +256,7 @@
 | **修复** | ① 操作列为自适应表的一等列（最小宽 120dp，两枚按钮成对显示）；② 过滤按钮行改 **`FlowRow`**（窄窗自动换行，按钮保持自然宽度）；③ `WzButton` 文案统一 `maxLines = 1 / softWrap = false`（任何按钮都不再竖排） |
 | **回归** | 同 DEF-28（两张表的 UI 用例 + 人工三档分辨率复验） |
 | **影响面扫描** | 代码：`ui/components/WzButton.kt`（单行文案）、`ui/ledger/FundsPage.kt`、`ui/ledger/TransactionsPage.kt`（过滤行 FlowRow）；**不涉数据/接口** |
-| **分级建议** | **C0**（同 DEF-28） |
+| **分级（人工拍板 2026-09-15）** | ✅ **C0**（同 DEF-28）。回写：`design-tokens.md §4.3-1`（按钮单行 + 过滤行换行）+ `M7.md` §勘误 |
 
 ### DEF-30 ✅ 已修复（**P2** · 人工门第六轮实测 · 建议 C0）· 行情页搜索候选浮层不会自行收起（只有点「添加」才消失）
 
@@ -266,7 +267,7 @@
 | **修复** | ① ViewModel 持有 `searchJob`：**每次输入变化/清空/添加成功都取消在途搜索**；结果落地前**复核输入仍是发起时的关键词**（不一致就丢弃）；② 搜索失败不再静默（toast 提示 + 复位忙碌态，且不吞 `CancellationException`）；③ 搜索框加 **Esc = 取消搜索**（清空输入 + 收起候选），`clearSearch` 同时复位忙碌态 |
 | **回归** | `MarketWatchPageUiTest::candidate panel closes on cleared input, escape and focus loss`（清空输入 → 浮层消失；重新输入 → Esc → 浮层消失且输入清空）+ 既有 5 例（含「候选可添加」「候选浮层不挤占列表」） |
 | **影响面扫描** | 代码：`ui/market/MarketWatchViewModel.kt`（取消 + 结果复核 + 失败提示）、`ui/market/MarketWatchPage.kt`（Esc 取消）；**不涉数据/接口/schema**（搜索服务签名不变） |
-| **分级建议** | **C0**（实现偏差纠正：`interaction.md §2.7` 候选浮层的既有语义未正确落地） |
+| **分级（人工拍板 2026-09-15）** | ✅ **C0**（实现偏差纠正：`interaction.md §2.7` 候选浮层的既有语义未正确落地）。回写：`interaction.md §2.7`（候选浮层收起行）+ `M5.md` §勘误；不建档、不进台账 |
 
 ### DEF-16 ➖ 非缺陷（口径确认）· 断网后状态栏不是「立即」变为网络断开
 
