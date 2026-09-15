@@ -206,6 +206,7 @@
 | **回归** | `data/DefaultExchangeSyncServiceTest::add and sync keeps the saved key and reports failure when the first sync cannot complete`（不抛异常 + status=FAILED + **密钥确实已落库** + 一笔交易未入账 + 修好后 `syncNow` 可正常补同步）<br>`ApiManagementSectionUiTest::save closes the dialog and reports saved when the first sync fails`（弹窗消失 + 「密钥已保存」提示）<br>`ApiManagementSectionUiTest::save closes the dialog when the service throws after persisting the key`（落库后抛异常的极端路径同样关弹窗 + 刷新列表） |
 | **影响面扫描** | 代码：`data/exchange/DefaultExchangeSyncService.kt`（+`savedButSyncFailed`）、`ui/exchange/ApiManagementViewModel.kt`、`ui/exchange/ApiManagementSection.kt`（忙碌文案/提示行）、`ui/i18n/ExchangeStrings.kt`（zh/en 各 +3 词条）、`ui/exchange/ApiCopy.kt`；**接口签名不变**（`addAndSync` 仍返回 `ApiKeySyncResult`），无 schema/加密/格式变更 |
 | **分级建议** | **C0**（失败模式补全 + 实现偏差纠正，先例 = DEF-01：导出失败模式类型化；不改产品语义）；请人工在 P6 门确认 |
+| **残留体验项（登记 P8 可选增强）** | 首次同步仍**内联执行**（PRD 流程图 3「保存后立即首次同步」；预算 ≤120 次 `myTrades` 调用，大账户可能数十秒），期间弹窗保持打开并显示「保存中…」+「首次同步可能需要数十秒，请勿关闭窗口」。若人工复验后认为等待仍偏长，可选增强 = **保存与首次同步解耦**（落库即关窗 + 后台同步 + 完成 toast）——需在 `ExchangeSyncService` 增加「仅落库不首次同步」的入口，属接口新增（**C1**），登记 P8 |
 
 ### DEF-26 ➖ 非缺陷（核实结论 + 回归）· 同步交易数据不会覆盖手写录入的交易
 

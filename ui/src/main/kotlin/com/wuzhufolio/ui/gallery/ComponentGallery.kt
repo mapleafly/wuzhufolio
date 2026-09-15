@@ -25,6 +25,8 @@ import com.wuzhufolio.domain.settings.PnlColorScheme
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
 import com.wuzhufolio.ui.components.WzColumn
+import com.wuzhufolio.ui.components.PageOverlay
+import com.wuzhufolio.ui.components.PageOverlayHost
 import com.wuzhufolio.ui.components.WzModal
 import com.wuzhufolio.ui.components.WzTable
 import com.wuzhufolio.ui.components.WzTextField
@@ -39,21 +41,26 @@ import com.wuzhufolio.ui.theme.WzTheme
  */
 @Composable
 fun ComponentGallery(viewModel: ShellViewModel, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp)
-            .testTag("component-gallery"),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
-    ) {
-        TypographySection()
-        ButtonsSection()
-        TextFieldsSection()
-        TableSection()
-        ModalSection()
-        ToastSection(viewModel)
-        SemanticColorsSection(viewModel)
+    // 页面级叠加宿主（DEF-22 同口径）：弹层由页面根承载，避免落在滚动列内被撑成流内块
+    androidx.compose.foundation.layout.Box(modifier = modifier.fillMaxSize()) {
+        PageOverlayHost(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp)
+                    .testTag("component-gallery"),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
+            ) {
+                TypographySection()
+                ButtonsSection()
+                TextFieldsSection()
+                TableSection()
+                ModalSection()
+                ToastSection(viewModel)
+                SemanticColorsSection(viewModel)
+            }
+        }
     }
 }
 
@@ -171,14 +178,16 @@ private fun ModalSection() {
     val strings = galleryStrings
     GallerySection(strings.modalSection) {
         WzButton(text = strings.openModal, onClick = { open = true }, testTag = "gallery-open-modal")
-        if (open) {
-            WzModal(title = strings.modalTitle, onDismiss = { open = false }, testTag = "gallery-modal") {
-                WzTextField(
-                    value = field,
-                    onValueChange = { field = it },
-                    label = strings.fieldLabel,
-                    placeholder = strings.fieldPlaceholder,
-                )
+        PageOverlay {
+            if (open) {
+                WzModal(title = strings.modalTitle, onDismiss = { open = false }, testTag = "gallery-modal") {
+                    WzTextField(
+                        value = field,
+                        onValueChange = { field = it },
+                        label = strings.fieldLabel,
+                        placeholder = strings.fieldPlaceholder,
+                    )
+                }
             }
         }
     }
