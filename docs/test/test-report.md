@@ -2,7 +2,7 @@
 
 > **阶段**：P6 系统测试与质量（`AGENTS.md §4 P6`）· 启动指令：人工「执行P6」（2026-09-14）
 > **测试对象**：P5 集成版（P0–P5 全部关闭）+ P6 修复项
-> **有效需求基线**：**PRD V2.0 + Δ{D21, D24, D25, D26, D27, D28, D29}**（`docs/dev/增量台账.md`）
+> **有效需求基线**：**PRD V2.0 + Δ{D21, D24, D25, D26, D27, D28, D29, D30, D31}**（`docs/dev/增量台账.md`）
 > **输入**：`docs/prd/桌面端prd.md`（V2.0）· `docs/design/interaction.md`（异常态清单）·
 > `docs/test/security-checklist.md`（M13 T13.1 清单）· `docs/test/integration-report.md`（P5 交接开放项）
 > **产物**：本报告 + `test-plan.md` + `test-cases.md` + `security-checklist.md`（P6 复跑版）+ `defects.md`

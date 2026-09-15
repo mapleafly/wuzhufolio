@@ -1,7 +1,7 @@
 # WuZhuFolio P6 缺陷与问题清单（docs/test/defects.md）
 
 > **阶段**：P6 系统测试与质量 · 启动指令：人工「执行P6」（2026-09-14）
-> **有效需求基线**：PRD V2.0 + Δ{D21, D24, D25, D26, D27, D28, D29, D30}
+> **有效需求基线**：PRD V2.0 + Δ{D21, D24, D25, D26, D27, D28, D29, D30, D31}
 > **级别口径**：P0 数据/密钥/启动/主流程阻断 · P1 主要功能错误或验收标准未满足 · P2 次要偏差/体验/可诊断性 · P3 文案细节
 > **变更控制**：凡触及已通过模块的行为/数据/接口，均给出 `AGENTS.md §8.1` 分级建议 + 影响面扫描，
 > **由人工在 P6 门拍板**（Agent 不自行定级 C1/C2；纯实现偏差按 C0 处理并留痕）。
@@ -35,6 +35,7 @@
 | ③ | DEF-04 CMC 兜底计入 CG 额度账本 | **登记 P8** | ✅ 已登记（P8 立项输入：账本增 provider 维度 + 旧载荷兼容；影响面见 §2 DEF-04） |
 | ④ | DEF-05 interaction「列表滚动加载」口径 | **按 C0 文档澄清** | ✅ **已回写**：`interaction.md §2.1` 增「列表装载口径」注 + §3-2 措辞订正（本地库单次装载 + `LazyColumn` 虚拟化，不适用分页）；大数据量装载耗时登记 P8 观察项 |
 | ⑤ | DEF-01 / DEF-02 / DEF-06 定级 | **维持 C0** | ✅ 已确认（三项均为实现偏差/失败模式补全，未改产品语义、未改数据模型与格式；回写见各自条目） |
+| ⑥ | **第四轮人工门两项焦点问题定级**（2026-09-15） | **按建议变更分级**（原话）→ **DEF-20 = C0**、**DEF-21 = C1** | ✅ **DEF-20**：C0 勘误（模块记录 `M7.md`/`M8.md` §勘误 + 交互文档回写，不建档不进台账）；**DEF-21**：C1 完整落盘 —— 决策档 **D31** + 台账 D31 行（有效需求串 `Δ{…, D30, D31}`）+ 决策索引 + `task-breakdown **T12.6**` + `ia.md §1.1` + `interaction.md §3-9` + `M12.md §1.7`；验收标准 A1–A6 见 D31 §6 |
 
 ---
 
@@ -145,9 +146,9 @@
 | **修复** | ① `FundFormModal`：币种候选选中 → 焦点交「数量」（`qtyFocus`）；② `TransactionFormModal`：基础币候选 → 「计价币」（`quoteFocus`）、计价币候选 → 「价格」（`priceFocus`）、自定义手续费币种 → 原字段（`feeFocus`）；③ `WzSelect`：下拉候选选中 → 焦点收回触发框（`triggerFocus`），避免同类「浮层选项消失」路径再次掉焦点；④ 交易候选行补 `tx-suggestion-<id>` 标签（与资金页 `fund-suggestion-<id>` 同口径），供自动化与人工走查定位 |
 | **回归** | `FundsPageUiTest::coinPickHandsFocusToQuantityFieldInsideModal`（选中 → 数量聚焦 → 继续 Tab 到「日期时间」仍在弹窗内）<br>`TransactionsPageUiTest::pickingBaseCandidateHandsFocusToQuoteField`（基础币 → 计价币 → Tab 到价格）<br>`TransactionsPageUiTest::pickingQuoteCandidateHandsFocusToPriceField`（计价币 → 价格） |
 | **影响面扫描** | 代码：`ui/ledger/FundFormModal.kt`、`ui/ledger/TransactionFormModal.kt`、`ui/components/WzSelect.kt`；测试：上述 3 例 + 新增候选行标签。**不涉数据模型/schema/加密/接口/持久化格式**（纯焦点编排） |
-| **分级建议** | **C0**（实现偏差纠正：`AGENTS.md §7.3` 要求弹窗键盘可用，候选消失导致焦点链断裂属实现未达约束；不改产品语义、不新增需求）；请人工在 P6 门确认 |
+| **分级（人工拍板 2026-09-15）** | ✅ **C0**（实现偏差纠正：`AGENTS.md §7.3` 要求弹窗键盘可用，候选消失导致焦点链断裂属实现未达约束；不改产品语义、不新增需求）。模块勘误：`M7.md`/`M8.md` §勘误；不建决策档、不进台账（`AGENTS.md §8.1`） |
 
-### DEF-21 ✅ 已实施（**P2** · 走查提案 A 落地 · 建议 **C1**，**分级待人工拍板**）· 焦点流：回车进页面内容 + 外壳退出键
+### DEF-21 ✅ 已实施（**P2** · 走查提案 A 落地 · 人工拍板 2026-09-15 **C1**）· 焦点流：回车进页面内容 + 外壳退出键
 
 | 项 | 内容 |
 |----|------|
@@ -157,7 +158,7 @@
 | **三条护栏** | ① **弹层打开时不接管**：`WzModal` 新增 `WzOverlayRegistry.openModalCount` 计数登记，弹层存续期主壳让出 Esc/方向键（否则焦点会跑到弹层背后，弹层开着而键盘已无法操作）；② **组合键不接管**（Ctrl/Alt/Meta 留给 P8 全局快捷键，提案 B）；③ 无页面内容可聚焦时（如仪表盘只读卡/环形图）请求自然失败，焦点留在侧边栏，不产生报错 |
 | **回归** | `ShellFocusFlowUiTest`（5 例）：回车进页面 / Esc 与 ↑ 退回侧边栏 / 侧边栏 ↑↓ 移动 / **弹层打开时退出键不接管**（含 `openModalCount` 打开=1、关闭=0）/ 页面进入不引入隐形焦点停靠点；`KeyboardA11yUiTest` 改为断言**外壳 10 步固定顺序**（侧边栏 7 + 顶栏 3）+ 回车进页面后 Tab 到页面第二个控件 |
 | **影响面扫描** | 代码：`ui/shell/MainShell.kt`（焦点编排 + 侧边栏项 `focusRequester`/`onFocusChanged`；helper 拆到新文件以满足 detekt 文件函数上限）、新增 `ui/shell/ShellFocusNavigation.kt`、`ui/components/WzModal.kt`（弹层计数）；文档：`keyboard-walkthrough.md`（键位语义/焦点顺序/走查脚本/判定表/提案状态）、`manual-test-guide.md` TC-MAN-06、`docs/dev/modules/M12.md` §勘误；**不涉数据模型/schema/加密/接口/持久化格式**，不改变页面内容与业务行为（纯焦点编排） |
-| **分级建议（待拍板）** | **C1**：新增焦点行为、不改数据/格式/加密边界、不返工已通过模块的接口（`AGENTS.md §8.1` 红线 1–5 均未命中）。人工拍板 C1 后由 Agent 补齐 C1 最小落盘清单：决策档 `docs/dev/decisions/D31-键盘焦点流.md` + `增量台账.md` 登记行 + 下游回写（`ia.md` 导航条款 / `interaction.md` 键盘交互 / `task-breakdown.md` 任务条目）+ `M12.md` 模块记录 + STATUS 「已决策事项」；若拍板 C0，则改为「模块记录 §勘误 + 回写交互文档」，不建决策档 |
+| **分级（人工拍板 2026-09-15）** | ✅ **C1**：新增焦点行为、不改数据/格式/加密边界、不返工已通过模块的接口（§8.1 红线 1–5 均未命中）。**C1 最小落盘清单已补齐**：决策档 `docs/dev/decisions/D31-键盘焦点流.md`（背景/结论/需求回溯/影响面扫描/验收标准 A1–A6/关联文档）+ `增量台账.md` D31 行与有效需求串 + `决策索引.md` + `task-breakdown **T12.6**` + `ia.md §1.1` + `interaction.md §3-9` + `M12.md §1.7` + STATUS 已决策事项 28 |
 
 ### DEF-16 ➖ 非缺陷（口径确认）· 断网后状态栏不是「立即」变为网络断开
 

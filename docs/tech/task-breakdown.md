@@ -172,6 +172,16 @@ flowchart LR
 - **T12.4 i18n**：en/zh、UTC 存本地显、多法币、精度。验收：语言/法币切换正确；**设置 → 通用提供「界面语言」入口（D25），切换即时生效并持久化；全部 UI 文案双档覆盖，源码内联中文（`ui/i18n` 目录外）由守护测试拦红（D25 人工拍板「全量 zh/en」）**。回溯：PRD §6、共享规范 §4、决策档 D25。
 - **T12.5 币种详情时间筛选（D30，P6 DEF-03 实现补齐）**：币种详情交易记录补「时间」档位筛选（复用资金页 `FundDateRange` 四档：全部时间/近 30 天/30–90 天/90 天以上），与交易所/类型/搜索三维叠加。验收：切换档位即时过滤；无匹配显示空态；zh/en 双档文案；`PortfolioPagesUiTest::coin detail filters transactions by time range` 绿（**去掉过滤实现该用例必红**）。回溯：PRD 故事 3.4-4、ia.md §2.6、决策档 D30。
 
+- **T12.6 键盘焦点流（D31，P6 人工门第四轮）**：① 回车选中侧边栏项（或对当前项再次回车）→ 焦点**进入页面内容**
+  （页面槽 `focusRequester` 挂非可聚焦容器 = 焦点落到子树内第一个可聚焦控件；容器不加 `focusable()`，避免隐形 Tab 停靠点）；
+  ② 页面内**未被控件消费**的 Esc/↑/↓ → 焦点**回侧边栏当前项**（冒泡阶段；弹层打开时不接管；Ctrl/Alt/Meta 不接管）；
+  ③ 侧边栏内 ↑/↓ 在导航项间移动。随行 **C0**：候选选中后焦点交接回表单（资金 币种→数量；交易 基础币→计价币、
+  计价币→价格、自定义手续费→原字段；`WzSelect` 候选→触发框）。验收：回车进页面（`ShellFocusFlowUiTest::enter on a sidebar item…`）；
+  Esc/↑ 回侧边栏（`::escape and arrow keys…`）；侧边栏 ↑↓（`::arrow keys move focus between sidebar items`）；
+  弹层打开时外壳不接管（`::page exit keys stay out of the way while a modal is open`，含 `openModalCount` 1→0）；
+  无隐形焦点停靠点（`::page entry adds no invisible focus stop…` + `KeyboardA11yUiTest` 外壳 10 步固定顺序）；
+  DEF-20 交接 3 例（`FundsPageUiTest`/`TransactionsPageUiTest`）。回溯：PRD §6 无障碍基线、`AGENTS.md §7.3`、
+  ia.md §1.1、interaction.md §3-9、决策档 D31。
 ### M13 发布准备
 - **T13.1 安全自查**：§1.1 硬约束逐条核验。验收：security-checklist 全通过。回溯：PRD §1.1。
   > **M13 落地（2026-09-12）**：主产物 `docs/test/security-checklist.md`（五条硬约束逐条取证 + 13 项发现处置 +
