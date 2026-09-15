@@ -205,6 +205,20 @@ flowchart LR
   > Secrets 门控（未配置 = 跳过 + 未签名产物，ADR-006 §2 口径），证书采购与**签名合规实证留 P7**（ADR-006 §2.1）；
   > Linux 三产物本地实测 + SHA256，CI `package` job 三平台产物归档（`workflow_dispatch` 可手动触发）。
 
+- **T12.7 响应式与组件体系统一（D33，P6 人工门第七轮）**：确立「断点 → 组件 → 页面」三层——
+  ① 断点唯一来源 `ui/theme/Breakpoints.kt`（`WzWindowClass` COMPACT <1200dp ≤ MEDIUM <1760dp ≤ WIDE，
+  按**内容区有效宽度**判定，由 `MainShell` 的 `ProvideWzWindowClass` 下发，页面不得自行判断）；
+  ② 统一表格 `ui/components/AdaptiveTable.kt`（列 `TableColumn(minWidth, flex=minWidth)`，可用宽 ≥ Σ最小宽时
+  **按最小宽比例**分配 → 每列 ≥ 自身最小宽；否则整表横向滚动；单元格 `SingleLineText` 单行 + 截断悬停全值；
+  徽标单行内联；`divider` 单元线；列表右侧 12dp 滚动条槽）；
+  ③ 统一卡片 `ui/components/WzCard.kt`（`WzCard`/`WzCardLabel`/`WzMetric` 单行自动缩字号下限 0.68×/`SingleLineText`/
+  `rowDivider`/`HoverTooltip`）；④ 弹窗尺寸策略 `modalContentMaxHeight()` = 窗口高 × 0.66（下限 320dp）。
+  验收：资产表徽标完整 + 数值单行（`PortfolioPagesUiTest::assets table keeps badges and numeric cells intact at
+  narrow width`）；手续费单行 + 滚到最右删除按钮完整、表单弹窗紧凑窗口无需滚动（`TransactionsPageUiTest` 两例）；
+  三档分辨率 + 高 DPI 人工复验（`manual-test-guide.md §14`）。回溯：PRD §6、`responsive-components.md`、
+  `design-tokens.md §4.3-1`、`interaction.md §3-13`、决策档 D33。
+
+
 ## 4. 里程碑验收门槛
 
 | 里程碑 | 门槛（DoD 前置） |
