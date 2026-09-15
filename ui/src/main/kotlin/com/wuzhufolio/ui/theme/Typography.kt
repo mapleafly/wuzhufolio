@@ -17,6 +17,14 @@ import androidx.compose.ui.unit.sp
 @Immutable
 data class WzTypography(
     val display: TextStyle,
+    /**
+     * 卡片一级指标数字（原型 `.card .big` = 27px/600 衬线 + tnum；DEF-39 归一）。
+     * 与 [metricSecondary] 构成**卡片指标两级**：一级/次级 = 27/21（≈1.29×），
+     * 此前实现误映射为 display 32sp / bodyStrong 14sp（2.3×），人工反馈「第一行卡片文字明显偏大」。
+     */
+    val metricPrimary: TextStyle,
+    /** 卡片次级指标数字（原型 `.card .big.sm` = 21px/600 衬线 + tnum）。 */
+    val metricSecondary: TextStyle,
     val pageTitle: TextStyle,
     val sectionTitle: TextStyle,
     val body: TextStyle,
@@ -31,6 +39,18 @@ fun wzTypography(): WzTypography = WzTypography(
         fontFamily = WzFontFamilyDisplay,
         fontWeight = FontWeight.Medium,
         fontSize = 32.sp,
+        fontFeatureSettings = "tnum",
+    ),
+    metricPrimary = TextStyle(
+        fontFamily = WzFontFamilyDisplay,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 27.sp,
+        fontFeatureSettings = "tnum",
+    ),
+    metricSecondary = TextStyle(
+        fontFamily = WzFontFamilyDisplay,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 21.sp,
         fontFeatureSettings = "tnum",
     ),
     pageTitle = TextStyle(fontFamily = WzFontFamilyBody, fontWeight = FontWeight.SemiBold, fontSize = 20.sp),

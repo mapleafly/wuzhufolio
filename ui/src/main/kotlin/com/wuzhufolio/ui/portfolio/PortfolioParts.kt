@@ -77,7 +77,9 @@ fun StatCard(
         WzCardLabel(text = label)
         WzMetric(
             text = value,
-            style = if (small) WzTheme.typography.bodyStrong else WzTheme.typography.display,
+            // DEF-39：卡片指标数字两级（一级 27sp / 次级 21sp，对齐原型 .big / .big.sm）——
+            // 此前误用 display 32sp vs bodyStrong 14sp，两级差 2.3× 导致「第一行明显偏大」
+            style = if (small) WzTheme.typography.metricSecondary else WzTheme.typography.metricPrimary,
             testTag = if (testTag.isNotEmpty()) testTag + "-value" else "",
             modifier = Modifier.padding(top = 2.dp),
         )

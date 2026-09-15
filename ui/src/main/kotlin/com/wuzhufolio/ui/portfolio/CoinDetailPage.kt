@@ -43,6 +43,11 @@ import com.wuzhufolio.ui.components.WzTextField
 import com.wuzhufolio.ui.components.WzToastHost
 import com.wuzhufolio.ui.i18n.WzFormat
 import com.wuzhufolio.ui.i18n.portfolioStrings
+import com.wuzhufolio.ui.components.AdaptiveTable
+import com.wuzhufolio.ui.components.SingleLineText
+import com.wuzhufolio.ui.components.TableColumn
+import com.wuzhufolio.ui.components.TableWidths
+import com.wuzhufolio.ui.components.tableCell
 import com.wuzhufolio.ui.shell.pageEntryFocus
 import com.wuzhufolio.ui.theme.WzTheme
 
@@ -289,16 +294,17 @@ private fun CoinTransactionTable(rows: List<TransactionRow>) {
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .testTag("coin-tx-table"),
     ) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            PlainHeader(portfolioStrings.colPair, Modifier.weight(1.3f))
-            PlainHeader(portfolioStrings.colSide, Modifier.weight(0.8f))
-            PlainHeader(portfolioStrings.colPrice, Modifier.weight(1.1f))
-            PlainHeader(portfolioStrings.colQuantity, Modifier.weight(1f))
-            PlainHeader(portfolioStrings.colFee, Modifier.weight(1.1f))
-            PlainHeader(portfolioStrings.colExchange, Modifier.weight(1f))
-            PlainHeader(portfolioStrings.colTime, Modifier.weight(1.2f))
-            PlainHeader(portfolioStrings.colRealizedPnl, Modifier.weight(1.1f))
-        }
+        AdaptiveTable(columns = COIN_TX_COLUMNS) { table ->
+            Row(modifier = table.headerRow(), verticalAlignment = Alignment.CenterVertically) {
+                PlainHeader(portfolioStrings.colPair, tableCell(table, 0))
+                PlainHeader(portfolioStrings.colSide, tableCell(table, 1))
+                PlainHeader(portfolioStrings.colPrice, tableCell(table, 2))
+                PlainHeader(portfolioStrings.colQuantity, tableCell(table, 3))
+                PlainHeader(portfolioStrings.colFee, tableCell(table, 4))
+                PlainHeader(portfolioStrings.colExchange, tableCell(table, 5))
+                PlainHeader(portfolioStrings.colTime, tableCell(table, 6))
+                PlainHeader(portfolioStrings.colRealizedPnl, tableCell(table, 7))
+            }
         if (rows.isEmpty()) {
             Text(
                 text = portfolioStrings.txEmpty,
@@ -309,56 +315,87 @@ private fun CoinTransactionTable(rows: List<TransactionRow>) {
         }
         rows.forEach { row ->
             Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).testTag("coin-tx-" + row.id),
+                modifier = table.dataRow().padding(vertical = 6.dp).testTag("coin-tx-" + row.id),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(row.pair, color = colors.ink, style = WzTheme.typography.body, modifier = Modifier.weight(1.3f))
+                SingleLineText(
+                    text = row.pair,
+                    style = WzTheme.typography.body,
+                    modifier = tableCell(table, 0),
+                )
                 Text(
                     text = if (row.side == Side.BUY) portfolioStrings.buyLabel else portfolioStrings.sellLabel,
                     color = if (row.side == Side.BUY) colors.gain else colors.loss,
                     style = WzTheme.typography.caption,
-                    modifier = Modifier.weight(0.8f),
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = tableCell(table, 1),
                 )
                 Text(
                     text = WzFormat.price(row.price),
                     color = colors.ink,
                     style = WzTheme.typography.body,
-                    modifier = Modifier.weight(1.1f),
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = tableCell(table, 2),
                 )
                 Text(
                     text = WzFormat.quantity(row.quantity),
                     color = colors.ink,
                     style = WzTheme.typography.body,
-                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = tableCell(table, 3),
                 )
                 Text(
                     text = WzFormat.quantity(row.fee) + " " + (row.feeCurrency ?: ""),
                     color = colors.ink2,
                     style = WzTheme.typography.caption,
-                    modifier = Modifier.weight(1.1f),
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = tableCell(table, 4),
                 )
                 Text(
                     text = row.exchange,
                     color = colors.ink2,
                     style = WzTheme.typography.caption,
-                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = tableCell(table, 5),
                 )
                 Text(
                     text = WzFormat.dateTime(row.time),
                     color = colors.ink3,
                     style = WzTheme.typography.caption,
-                    modifier = Modifier.weight(1.2f),
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = tableCell(table, 6),
                 )
                 Text(
                     text = WzFormat.signedAmount(row.realizedPnlFiat),
                     color = pnlColor(row.realizedPnlFiat),
                     style = WzTheme.typography.body,
-                    modifier = Modifier.weight(1.1f).testTag("coin-tx-realized-" + row.id),
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = tableCell(table, 7).testTag("coin-tx-realized-" + row.id),
                 )
             }
         }
+        }
     }
 }
+
+/** 币种详情成交表列（DEF-41：接入统一表格组件，得到横/纵单元线与窄窗横向滚动）。 */
+private val COIN_TX_COLUMNS: List<TableColumn> = listOf(
+    TableColumn(110.dp, 1.3f),                      // 交易对
+    TableColumn(TableWidths.TAG, 0.8f),             // 类型
+    TableColumn(TableWidths.NUMBER, 1.1f),          // 价格
+    TableColumn(TableWidths.NUMBER, 1f),            // 数量
+    TableColumn(TableWidths.NUMBER, 1.1f),          // 手续费
+    TableColumn(TableWidths.EXCHANGE, 1f),          // 交易所
+    TableColumn(TableWidths.TIME, 1.2f),            // 时间
+    TableColumn(TableWidths.AMOUNT, 1.1f),          // 已实现盈亏
+)
 
 @Composable
 private fun CalibrationHistory(records: List<CalibrationRecord>) {

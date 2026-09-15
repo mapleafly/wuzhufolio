@@ -188,7 +188,7 @@ private fun HoldingTable(
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .testTag("assets-table"),
     ) { table ->
-        Row(modifier = table.row(), verticalAlignment = Alignment.CenterVertically) {
+        Row(modifier = table.headerRow(), verticalAlignment = Alignment.CenterVertically) {
             SortableHeader(
                 label = portfolioStrings.colCoin,
                 active = sortKey == AssetSortKey.COIN,

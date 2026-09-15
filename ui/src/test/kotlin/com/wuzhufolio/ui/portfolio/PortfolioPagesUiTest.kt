@@ -392,6 +392,35 @@ class PortfolioPagesUiTest {
     }
 
     /**
+     * DEF-39（P6 人工门第八轮 · 人工反馈 1）：仪表盘卡片指标数字**两级口径必须一致且差异受控**——
+     * 原型为 27px（一级）/ 21px（次级）≈1.29×；此前实现误用 display 32sp vs bodyStrong 14sp（2.3×），
+     * 观感即「第一行卡片文字明显偏大、与下面卡片不一致」。
+     */
+    @Test
+    fun `dashboard card metric tiers stay within one scale`() = runComposeUiTest {
+        setContent {
+            WuzhuTheme(themeMode = ThemeMode.LIGHT) {
+                DashboardPage(
+                    portfolioService = FakePortfolio(threeRows()),
+                    refreshService = FakeRefresh(),
+                    generalSettings = FakeGeneralSettings(),
+                    accountName = "tester",
+                )
+            }
+        }
+        onNodeWithTag("dashboard-cards").assertIsDisplayed()
+        val primary = onNodeWithTag("card-net-value-value", useUnmergedTree = true)
+            .getUnclippedBoundsInRoot().height.value
+        val secondary = onNodeWithTag("card-cash-value", useUnmergedTree = true)
+            .getUnclippedBoundsInRoot().height.value
+        assertTrue(primary > secondary, "一级指标应大于次级（$primary vs $secondary）")
+        assertTrue(
+            primary / secondary <= 1.6f,
+            "两级指标字号差必须受控（原型 27/21≈1.29；实测 $primary/$secondary）——人工反馈「第一行偏大」",
+        )
+    }
+
+    /**
      * DEF-31/35（P6 人工门第七轮 · 人工反馈 1/5）：资产表窄窗下
      * ① 币种列的三枚徽标（持仓异常/估算中/成本不可靠）必须**完整显示**、不被裁掉；
      * ② 8 位小数等长数字必须**单行**（不得换行撑高行）。
@@ -471,6 +500,32 @@ class PortfolioPagesUiTest {
     }
 
     /** DEF-03 · D30：PRD 故事 3.4-4 要求的「时间」筛选维度（与资金页同四档口径）。 */
+    /**
+     * DEF-41（人工门第八轮 · 人工反馈 3）：币种详情的成交表必须与其它表**同一组件**（有横/纵单元线、
+     * 单元格单行）——此前是另一套手写 `Row + weight` 表，故「没有单元格线」。
+     */
+    @Test
+    fun `coin detail transaction table uses the shared table component`() = runComposeUiTest {
+        val ledger = FakeLedger(listOf(txRow(1L, "BTC/USDT", Side.SELL, BigDecimal("4915"))))
+        setContent {
+            WuzhuTheme(themeMode = ThemeMode.LIGHT) {
+                CoinDetailPage(
+                    cgId = "bitcoin",
+                    portfolioService = FakePortfolio(threeRows()),
+                    ledgerService = ledger,
+                    calibrationUseCase = FakeCalibration(preparation()),
+                    catalog = FakeCatalog(mapOf("bitcoin" to catalogCoin("bitcoin", "BTC", 1L))),
+                    onBack = {},
+                )
+            }
+        }
+        onNodeWithTag("coin-tx-table").assertIsDisplayed()
+        val cell = onNodeWithTag("coin-tx-realized-1", useUnmergedTree = true).getUnclippedBoundsInRoot()
+        assertTrue(cell.height <= 26.dp, "成交表单元格应单行（实际 ${cell.height}）")
+        val rowBounds = onNodeWithTag("coin-tx-1").getUnclippedBoundsInRoot()
+        assertTrue(rowBounds.height <= 40.dp, "成交表数据行高度应稳定（实际 ${rowBounds.height}）")
+    }
+
     @Test
     fun `coin detail filters transactions by time range`() = runComposeUiTest {
         val recent = txRow(1L, "BTC/USDT", Side.BUY, null)

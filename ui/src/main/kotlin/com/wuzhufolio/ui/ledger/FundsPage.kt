@@ -309,7 +309,7 @@ private val FUND_COLUMNS: List<TableColumn> = listOf(
 private fun FundTableHeader(table: AdaptiveTableScope) {
     val colors = WzTheme.colors
     Row(
-        modifier = table.row()
+        modifier = table.headerRow()
             .padding(top = 12.dp, bottom = 6.dp)
             .testTag("fund-table-header"),
         verticalAlignment = Alignment.CenterVertically,

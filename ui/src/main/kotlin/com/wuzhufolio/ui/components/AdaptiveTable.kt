@@ -63,24 +63,28 @@ class AdaptiveTableScope internal constructor(
     val tableWidth: Dp,
     private val columns: List<TableColumn>,
     private val divider: Boolean,
+    private val verticalDivider: Boolean,
 ) {
+    /** 各列右边界（x，dp）——纵向单元线画在这些位置（最后一列右边界不画）。 */
+    internal val columnBoundaries: List<Dp> = columnBoundariesOf(tableWidth, columns, scrollable)
     /** 行容器修饰符（表头行与数据行都要用）。数据行请用 [dataRow] 以带上单元线。 */
     fun row(): Modifier = if (scrollable) Modifier.width(tableWidth) else Modifier.fillMaxWidth()
 
-    /** 数据行修饰符：行宽 + 底部单元线（DEF-38）。 */
+    /** 数据行修饰符：行宽 + 底部横向单元线（DEF-38）+ 列间纵向单元线（DEF-40）。 */
     @Composable
     fun dataRow(): Modifier {
         val colors = com.wuzhufolio.ui.theme.WzTheme.colors
         return row().drawBehind {
-            if (divider) {
-                val stroke = 1.dp.toPx()
-                drawLine(
-                    color = colors.line,
-                    start = androidx.compose.ui.geometry.Offset(0f, size.height - stroke / 2f),
-                    end = androidx.compose.ui.geometry.Offset(size.width, size.height - stroke / 2f),
-                    strokeWidth = stroke,
-                )
-            }
+            drawTableGrid(colors.line, divider, verticalDivider, columnBoundaries, bottomLine = true)
+        }
+    }
+
+    /** 表头行修饰符：行宽 + 列间纵向单元线（表头不画底部线，交由表头自身下边距处理）。 */
+    @Composable
+    fun headerRow(): Modifier {
+        val colors = com.wuzhufolio.ui.theme.WzTheme.colors
+        return row().drawBehind {
+            drawTableGrid(colors.line, divider = false, verticalDivider, columnBoundaries, bottomLine = false)
         }
     }
 
@@ -99,8 +103,10 @@ class AdaptiveTableScope internal constructor(
 fun AdaptiveTable(
     columns: List<TableColumn>,
     modifier: Modifier = Modifier,
-    /** 是否给每行加单元线（DEF-38：列表可读性；默认开）。 */
+    /** 是否给每行加**横向**单元线（DEF-38：列表可读性；默认开）。 */
     divider: Boolean = true,
+    /** 是否给列之间加**纵向**单元线（DEF-40：表格网格；默认开）。 */
+    verticalDivider: Boolean = true,
     content: @Composable ColumnScope.(AdaptiveTableScope) -> Unit,
 ) {
     val hScroll = rememberScrollState()
@@ -112,6 +118,7 @@ fun AdaptiveTable(
             tableWidth = if (scrollable) minTotal else maxWidth,
             columns = columns,
             divider = divider,
+            verticalDivider = verticalDivider,
         )
         Column(
             modifier = if (scrollable) {
@@ -130,6 +137,55 @@ fun AdaptiveTable(
             HorizontalScrollbar(
                 adapter = rememberScrollbarAdapter(hScroll),
                 modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth(),
+            )
+        }
+    }
+}
+
+/**
+ * 各列右边界（dp）：宽窗按 `flex` 比例、窄窗按最小宽累加；最后一项 = 表格宽度（不画线）。
+ * 抽成纯函数以便单测（DEF-40）。
+ */
+internal fun columnBoundariesOf(tableWidth: Dp, columns: List<TableColumn>, scrollable: Boolean): List<Dp> {
+    if (columns.isEmpty()) return listOf(tableWidth)
+    val widths = if (scrollable) {
+        columns.map { it.minWidth }
+    } else {
+        val totalFlex = columns.sumOf { it.flex.toDouble() }.takeIf { it > 0.0 } ?: 1.0
+        columns.map { tableWidth * (it.flex / totalFlex).toFloat() }
+    }
+    var acc = 0.dp
+    return widths.map { width ->
+        acc += width
+        acc
+    }
+}
+
+/** 画表格网格线：横向（行底）+ 纵向（列边界，跳过最后一列右边界）。 */
+private fun DrawScope.drawTableGrid(
+    color: androidx.compose.ui.graphics.Color,
+    divider: Boolean,
+    verticalDivider: Boolean,
+    boundaries: List<Dp>,
+    bottomLine: Boolean,
+) {
+    val stroke = 1.dp.toPx()
+    if (divider && bottomLine) {
+        drawLine(
+            color = color,
+            start = androidx.compose.ui.geometry.Offset(0f, size.height - stroke / 2f),
+            end = androidx.compose.ui.geometry.Offset(size.width, size.height - stroke / 2f),
+            strokeWidth = stroke,
+        )
+    }
+    if (verticalDivider && boundaries.size > 1) {
+        boundaries.dropLast(1).forEach { boundary ->
+            val x = boundary.toPx() - stroke / 2f
+            drawLine(
+                color = color,
+                start = androidx.compose.ui.geometry.Offset(x, 0f),
+                end = androidx.compose.ui.geometry.Offset(x, size.height),
+                strokeWidth = stroke,
             )
         }
     }

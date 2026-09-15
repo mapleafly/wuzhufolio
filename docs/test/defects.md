@@ -22,16 +22,19 @@
 | **P2（第五轮）** | 1 | **已修复**：**DEF-24**（设置页层级字号/字重不统一）；另 **DEF-26** 为**核实结论（非缺陷）**：同步只追加交易所成交、不覆盖手写交易（已加回归） |
 | **P1（第六轮 · GUI 全流程 × 三档分辨率）** | 1 | **已修复**：**DEF-27**（切页后焦点被子树遍历随机落到页面中部字段 → 设置页一打开就滚到「手续费→买入费率」） |
 | **P2（第六轮）** | 3 | **均已修复**：**DEF-28**（窄窗表格列被压到内容宽度以下 → 标签竖排/数字换行/行高参差）、**DEF-29**（窄窗过滤按钮与操作列被压成竖排）、**DEF-30**（行情页搜索候选浮层不随清空/Esc 收起——在途搜索结果把浮层顶回来） |
+| **P2（第八轮 · GUI 全流程复验）** | 3 | **均已修复**：**DEF-39**（仪表盘卡片指标两级口径与原型不符 → 第一行明显偏大）、**DEF-40**（表格只有横线，补**纵向**列线）、**DEF-41**（币种详情成交表未接入统一表格 → 无单元线） |
 | **P2（第七轮 · 真实桌面 GUI 全流程 × 三档分辨率）** | 8 | **均按统一方案修复**：**DEF-31**（高 DPI 下币种列第三枚徽标被裁）、**DEF-32**（卡片大数字换行变形）、**DEF-33**（表格滚动条压住操作列 / 长数字换行）、**DEF-34**（环形图图例币种名换行）、**DEF-35**（截断数据无悬停全值）、**DEF-36**（表单弹窗多一条「不到一行」的滚动条）、**DEF-37**（列宽分配不保证最小宽）、**DEF-38**（列表缺单元线）—— 总体方案见 `docs/design/responsive-components.md` |
 | 测试缺陷（CI 暴露） | 1 | **DEF-12** 已修复（见 §3） |
 | **P3 / 观察项** | 6 | 登记（DEF-07…DEF-12），详见 §3 |
-| 合计 | 38 | P0 曾出现 1 项（DEF-17）· P1 曾出现 6 项（DEF-13/15/20/22/25/27）——**均已修复闭环**（人工门实测暴露）；P2 全部有明确结论 ✅ |
+| 合计 | 41 | P0 曾出现 1 项（DEF-17）· P1 曾出现 6 项（DEF-13/15/20/22/25/27）——**均已修复闭环**（人工门实测暴露）；P2 全部有明确结论 ✅ |
 
 > 结论：**P0 = 0**；**P1 三项（DEF-13/DEF-15/DEF-20）由人工门实测暴露并已修复闭环**（修复即回归，见 §1.5/§1.7），
 > 当前无未修复 P1；P2 各项在人工 P6 门全部裁决完毕或已登记（见 §0.1），**无遗留未决项**。
 > 2026-09-15 第四轮 Windows 人工门新增 **DEF-20（P1，已修复）** 与 **DEF-21（P2，焦点流改进，C1 已建档 D31）**。
 > 2026-09-15 **第五轮（真实只读 Key 冒烟）**新增 **DEF-22/23（P1，弹层撑开页面/错位，已修复）**、**DEF-24（P2，设置页层级统一，已修复）**、
 > **DEF-25（P1，添加密钥保存后弹窗不关，已修复）**、**DEF-26（核实非缺陷：同步不覆盖手写交易，已加回归）**。
+> 2026-09-15 **第八轮（GUI 全流程复验）**新增 **DEF-39/40/41（P2，卡片指标口径 / 表格纵线 / 币种详情表接入统一组件）**；
+> 同轮 **TC-MAN-05 断网态 ✅** 人工判定通过。
 > 2026-09-15 **第七轮（真实桌面 GUI 全流程 × 三档分辨率，含 2560×1600 高 DPI）**新增 **DEF-31…DEF-38（P2，八条同源问题，按 `docs/design/responsive-components.md` 统一方案修复）**；
 > 同轮 **TC-MAN-03 读屏（NVDA）✅ / TC-MAN-04 目标机性能 ✅** 人工判定通过。
 > 2026-09-15 **第六轮（真实桌面 GUI 全流程 × 1280×800 / 1024×768）**新增 **DEF-27（P1，切页入口焦点不可靠，已修复）**、
@@ -353,6 +356,38 @@
 | **回归** | 视觉项，按 `manual-test-guide.md §14` 人工复验（双主题） |
 | **分级（人工拍板 2026-09-15）** | ✅ **C1**：并入决策档 **D33** + `task-breakdown **T12.7**` + 台账 D33 行；单元线口径写入 `responsive-components.md §5` 与 `design-tokens.md §4.3-1` |
 
+### DEF-39 ✅ 已修复（**P2** · 人工门第八轮 · 建议 C0）· 仪表盘卡片指标两级口径与原型不符（第一行文字明显偏大）
+
+| 项 | 内容 |
+|----|------|
+| **现象** | 仪表盘第一行四个卡片的数字**明显大于**下面几行卡片，人工问「为何不一致」 |
+| **根因** | `StatCard` 的两级实现**误映射**：`small=false` → `display`（**32sp**）、`small=true` → `bodyStrong`（**14sp**），两级相差 **2.3×**；而 P1 视觉基准（原型 `wuzhufolio-light.html`）为 `.card .big` = **27px** / `.big.sm` = **21px**（≈1.29×）。即：既偏离原型，又让两级差异过大看起来像「同一行不同字号」 |
+| **修复** | 排版令牌新增**指标两级** `metricPrimary`（27sp/600 衬线 + tnum）与 `metricSecondary`（21sp/600 + tnum），逐项对齐原型；`StatCard` 改用它；`WzMetric` 的自动缩字号继续在其上生效 |
+| **回归** | `PortfolioPagesUiTest::dashboard card metric tiers stay within one scale`（一级 > 次级，且比值 ≤ 1.6——原型 1.29；旧实现 2.3 必红） |
+| **影响面扫描** | 代码：`ui/theme/Typography.kt`（+2 令牌）、`ui/portfolio/PortfolioParts.kt`（`StatCard` 映射）。15 处 `StatCard` 调用点零改动；`display` 仍用于品牌字/组件走查页示例（非卡片指标） |
+| **分级建议** | **C0**（实现偏差纠正：与原型视觉基准不一致） |
+
+### DEF-40 ✅ 已修复（**P2** · 人工门第八轮 · 建议 C0）· 表格只有横线，需补纵向列线
+
+| 项 | 内容 |
+|----|------|
+| **人工诉求** | 「表格只增加了横线，再增加竖线」 |
+| **实现** | `AdaptiveTable` 新增 `verticalDivider`（默认开）：在**列边界**画 1px `line` 色纵线，贯穿表头与数据行；列边界由纯函数 `columnBoundariesOf(tableWidth, columns, scrollable)` 计算（宽窗按 `flex` 比例、窄窗按最小宽累加），**最后一列右边界不画**（避免与表格右边框重复成双线） |
+| **口径** | 网格线一律 `line` 色、1px、不加圆角/阴影；表头行只画纵线（横线由表头下边距承担），数据行横纵都画 → 形成「一列一格的表格网格」而不喧宾夺主 |
+| **回归** | `ui/components/AdaptiveTableGridTest`（3 例：窄窗按最小宽累加、宽窗按 flex 比例且每段 ≥ 最小宽、空列退化）；三张表既有用例全绿 |
+| **分级建议** | **C0**（实现偏差：D33 已确立「统一表格组件」应提供网格线；属视觉口径补齐） |
+
+### DEF-41 ✅ 已修复（**P2** · 人工门第八轮 · 建议 C0）· 币种详情成交表无单元格线
+
+| 项 | 内容 |
+|----|------|
+| **现象** | 资产列表 → 点行进币种资产详情页，该页成交表**没有单元格线** |
+| **根因** | 该表是**另一套手写实现**（`coin-tx-table`：`Row + PlainHeader + Modifier.weight(...)`），未接入 D33 的统一表格组件，因此既没有横/纵单元线，也没有单行约束、截断悬停全值、窄窗横向滚动等统一行为 |
+| **修复** | 迁移到 `AdaptiveTable`（列规格 `COIN_TX_COLUMNS`：交易对/类型/价格/数量/手续费/交易所/时间/已实现盈亏，均含最小宽）→ 自动获得横线 + 纵线 + 单行 + 悬停全值 + 窄窗滚动 |
+| **回归** | `PortfolioPagesUiTest::coin detail transaction table uses the shared table component`（表格存在、单元格单行 ≤ 26dp、行高 ≤ 40dp）+ 既有币种详情用例（筛选/校准入口/时间档位）全绿 |
+| **影响面扫描** | 代码：`ui/portfolio/CoinDetailPage.kt`（成交表迁移）。**不涉数据/接口**；表头/列序与文案不变（测试与读屏标签不变） |
+| **分级建议** | **C0**（实现偏差：D33 已要求「新增/既有数据表一律用统一组件」） |
+
 ### DEF-16 ➖ 非缺陷（口径确认）· 断网后状态栏不是「立即」变为网络断开
 
 | 项 | 内容 |
@@ -446,6 +481,10 @@ export JAVA_HOME=$(mise where java)
 # DEF-25/26（同步契约：失败不上抛 / 不覆盖手写交易）
 ./gradlew :data:test --tests "com.wuzhufolio.data.exchange.DefaultExchangeSyncServiceTest"
 
+# DEF-39…DEF-41（第八轮：卡片指标两级 / 表格纵线 / 币种详情表接入）
+./gradlew :ui:test --tests "com.wuzhufolio.ui.components.AdaptiveTableGridTest" \
+                   --tests "com.wuzhufolio.ui.portfolio.PortfolioPagesUiTest"
+
 # DEF-31…DEF-38（第七轮：响应式与组件统一）
 ./gradlew :ui:test --tests "com.wuzhufolio.ui.portfolio.PortfolioPagesUiTest" \
                    --tests "com.wuzhufolio.ui.ledger.TransactionsPageUiTest" \
@@ -495,3 +534,5 @@ export JAVA_HOME=$(mise where java)
 | DEF-33 / DEF-36 | `interaction.md §3-13`（窄窗表格口径）、`responsive-components.md §4`（弹窗尺寸策略）；PRD 故事 4.x 表单可用性 |
 | DEF-35 | PRD §6（数值可核对：截断必须可查看全值）、`responsive-components.md §2/§3`（`SingleLineText`） |
 | DEF-38 | `design-tokens.md §4.1`（边框克制使用）、`responsive-components.md §5`（列表可读性） |
+| DEF-39 | 原型 `wuzhufolio-light.html` `.card .big` / `.big.sm`（P1 视觉基准）；`design-tokens.md §3` 指标两级 |
+| DEF-40 / DEF-41 | `responsive-components.md §2`（统一表格组件应含网格线）、D33（既有数据表一律接入统一组件） |

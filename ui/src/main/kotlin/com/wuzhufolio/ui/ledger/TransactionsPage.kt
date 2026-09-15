@@ -259,7 +259,7 @@ private val TX_COLUMNS: List<TableColumn> = listOf(
 private fun TxTableHeader(table: AdaptiveTableScope) {
     val colors = WzTheme.colors
     Row(
-        modifier = table.row()
+        modifier = table.headerRow()
             .padding(top = 12.dp, bottom = 6.dp)
             .testTag("tx-table-header"),
         verticalAlignment = Alignment.CenterVertically,
