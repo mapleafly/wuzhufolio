@@ -460,7 +460,20 @@ backupBenchmark -Xmx512m: light 88.4 / typical 139.0 / heavy 434.0 MiB 峰值；
 ## 12. 第五轮人工走查反馈与复验指引（Windows 11 · 2026-09-15 · 真实只读 Key 冒烟）
 
 > 人工用**真实币安只读 Key** 完成冒烟，报出 7 条观察。修复与核实结论见 `defects.md` DEF-22…DEF-26。
-> **复验前先确认版本**：日志首行 `bootstrap ok | build=0.1.0+<短 sha> | db=…` 应与本轮修复提交一致。
+> **复验前先确认版本**：日志首行 `bootstrap ok | build=0.1.0+b5c9db5 | db=…`。
+
+**本轮产物（CI run [34931651692](https://github.com/mapleafly/wuzhufolio/actions/runs/34931651692) 六 job 全绿，commit `b5c9db5`）**：
+
+| 产物 | SHA256 |
+|------|--------|
+| `msi\WuZhuFolio-0.1.0.msi` | `b8f5034333493545bdc8229fb0e80fb1e3bcab6efa46e535aa148ade17de367f` |
+| `exe\WuZhuFolio-0.1.0.exe` | `570d0bc02f2e979a138cb7ead9b63a25f86e500cde99cd6e2726be217e1e0b06` |
+
+```powershell
+gh run download 34931651692 --repo mapleafly/wuzhufolio -n wuzhufolio-windows-latest-native -D .\wzf-windows
+Get-FileHash .\wzf-windows\msi\WuZhuFolio-0.1.0.msi -Algorithm SHA256   # 应等于上表
+msiexec /i .\wzf-windows\msi\WuZhuFolio-0.1.0.msi
+```
 
 | # | 人工观察 | 核实结论 | 复验指引 |
 |---|----------|----------|----------|
