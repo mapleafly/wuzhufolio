@@ -41,6 +41,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.wuzhufolio.ui.components.WzOverlayRegistry
 import com.wuzhufolio.ui.theme.WzTheme
 
 /** 登录链路卡片容器（品牌块 + 页面内容；原型 gcard）。 */
@@ -223,6 +224,12 @@ fun InPlaceModal(
     val colors = WzTheme.colors
     val focusRequester = remember { FocusRequester() }
     androidx.compose.runtime.LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    // 弹层存续期登记（DEF-21）：主壳据 openModalCount 决定是否接管页面内的 Esc/方向键。
+    // 就地叠加层没有独立窗口，主壳无法从布局感知；此处与 WzModal 同口径，凡弹层都要登记。
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        WzOverlayRegistry.onModalOpened()
+        onDispose { WzOverlayRegistry.onModalClosed() }
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()
