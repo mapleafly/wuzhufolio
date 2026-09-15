@@ -1228,6 +1228,16 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
 4. **留痕提交复跑 run [34839631004](https://github.com/mapleafly/wuzhufolio/actions/runs/34839631004)（`9e88b4e`，docs-only）：六 job 全绿** ——
    本条 CI 留痕本身经三平台 build + package 复核通过，**当前 `origin/main` HEAD 为绿**。
 
+**CI 留痕（2026-09-15，第四轮修复三轮）**：
+
+1. **run [34920374417](https://github.com/mapleafly/wuzhufolio/actions/runs/34920374417)（`45e88fc`）：六 job 全绿** ——
+   DEF-20/21 修复 + 回归（`ShellFocusFlowUiTest` 5 例 + DEF-20 回归 3 例 + `KeyboardA11yUiTest` 重写）；
+   windows 侧 700 用例 0 失败（8 跳过 = live smoke/钥匙串门控）。
+2. **run [34920902335](https://github.com/mapleafly/wuzhufolio/actions/runs/34920902335)（`9c0b98c`）：六 job 全绿** ——
+   `InPlaceModal` 同口径登记弹层计数；Windows 原生产物留痕：`msi` SHA256 `4585a849…`、`exe` `433c4710…`。
+3. **run [34921450997](https://github.com/mapleafly/wuzhufolio/actions/runs/34921450997)（`cd03ae7`，docs-only）：六 job 全绿** ——
+   第四轮复验指引 + 产物 SHA256 留痕；Windows 原生产物：`msi` `ca3d01f5…`、`exe` `dce15e05…`（代码与 `9c0b98c` 相同）。
+
 **建议的下一步**（已执行：P6 完成并停人工门）：人工按上节验收 + 裁决 5 项 → 通过后 **P7 发布**解锁
 （`docs/release/`：release-plan / rollback / CHANGELOG / user-guide / 签名公证；**产品宣传动画为 P7 必做项**，AGENTS.md §7.2-3）。
 

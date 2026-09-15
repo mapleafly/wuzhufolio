@@ -166,25 +166,25 @@
 
 ## 7. 取最新构建（复测用）
 
-本轮修复（DEF-20/DEF-21）随 commit `9c0b98c` 推送，CI run
-[34920902335](https://github.com/mapleafly/wuzhufolio/actions/runs/34920902335) **六 job 全绿**
-（ubuntu / windows / macos × build+package），Windows 原生产物：
+本轮修复（DEF-20/DEF-21）随 commit `9c0b98c` 推送（其后 `cd03ae7` 为 docs-only），CI 六 job 全绿：
 
-| 产物 | SHA256 |
-|------|--------|
-| `msi\WuZhuFolio-0.1.0.msi` | `4585a849ca8633df277580b18d9e87e749df6684942341958bdaa851d789f771` |
-| `exe\WuZhuFolio-0.1.0.exe` | `433c4710b1f9d9f9ae4ea9ceba0ae90e6f84c494b04a6b7ff80ac07d1f330d8c` |
+| run | commit | Windows 原生产物 SHA256 |
+|-----|--------|--------------------------|
+| [34921450997](https://github.com/mapleafly/wuzhufolio/actions/runs/34921450997)（最新，含复验指引文档） | `cd03ae7` | `msi` `ca3d01f5b13e9d20a2151886c080d18102be3cd734323ac05db7d11ef5ff3da0` · `exe` `dce15e05c169ea214a23b140740f500224bcc3553fcc6c75ec6056ad28a11055` |
+| [34920902335](https://github.com/mapleafly/wuzhufolio/actions/runs/34920902335)（代码提交） | `9c0b98c` | `msi` `4585a849ca8633df277580b18d9e87e749df6684942341958bdaa851d789f771` · `exe` `433c4710b1f9d9f9ae4ea9ceba0ae90e6f84c494b04a6b7ff80ac07d1f330d8c` |
+
+> 两次 run 的**代码完全相同**（`cd03ae7` 只改文档），jpackage 产物因打包时间戳不同故 SHA256 不同；**任选一个**即可。
 
 ```powershell
 # 任选**仓库外**目录执行（下载目录不在 .gitignore 内，别放进仓库）
-gh run download 34920902335 --repo mapleafly/wuzhufolio -n wuzhufolio-windows-latest-native -D .\wzf-windows
-Get-FileHash .\wzf-windows\msi\WuZhuFolio-0.1.0.msi -Algorithm SHA256   # 应等于上表
+gh run download 34921450997 --repo mapleafly/wuzhufolio -n wuzhufolio-windows-latest-native -D .\wzf-windows
+Get-FileHash .\wzf-windows\msi\WuZhuFolio-0.1.0.msi -Algorithm SHA256   # 应等于上表对应行
 msiexec /i .\wzf-windows\msi\WuZhuFolio-0.1.0.msi
 ```
 
-> 启动后**先核对日志首行** `bootstrap ok | build=0.1.0+9c0b98c | db=…`（Windows 路径：
-> `%USERPROFILE%\.wuzhufolio\logs\wuzhufolio.log`）——`build=` 与本轮提交一致才继续走查，
-> 可避免「拿旧包装新问题」的来回。
+> 启动后**先核对日志首行**（Windows 路径 `%USERPROFILE%\.wuzhufolio\logs\wuzhufolio.log`）：
+> `bootstrap ok | build=0.1.0+cd03ae7 | db=…` —— 若下载的是上表 `9c0b98c` 那一行，则显示 `build=0.1.0+9c0b98c`。
+> `build=` 与本轮提交一致才继续走查，可避免「拿旧包装新问题」的来回。
 
 ## 8. 需求回溯
 
