@@ -1,5 +1,10 @@
 package com.wuzhufolio.ui.ledger
 
+import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.isFocused
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
@@ -159,6 +164,40 @@ class FundsPageUiTest {
 
     private fun androidx.compose.ui.test.ComposeUiTest.textCount(text: String, substring: Boolean = true): Int =
         onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().size
+
+    /**
+     * P6 人工门 DEF-13 追加验证（真实页面版）：**资金页内的命令区按钮必须能纯键盘到达并触发**。
+     * 与 `KeyboardA11yUiTest`（主壳 + 槽位）互补——本用例用**真实 FundsPage**，排除「页面内控件不可聚焦」。
+     */
+    @Test
+    fun commandAreaIsReachableByKeyboardOnly() = runComposeUiTest {
+        val svc = FakeFundService()
+        setContent { FundsPage(svc, FakeCalibration()) }
+
+        fun focusedTag(): String? = onAllNodes(isFocused()).fetchSemanticsNodes().firstOrNull()
+            ?.let { runCatching { it.config[androidx.compose.ui.semantics.SemanticsProperties.TestTag] }.getOrNull() }
+            ?.toString()
+
+        // Tab 直到「记录增资」获得焦点（上限 20 步，覆盖总览卡/命令区/列表等前置节点）
+        var hops = 0
+        while (hops < 20 && focusedTag() != "fund-add-deposit") {
+            onRoot().performKeyInput { pressKey(Key.Tab) }
+            waitForIdle()
+            hops++
+        }
+        assertEquals("fund-add-deposit", focusedTag(), "「记录增资」应可由 Tab 到达（实际 $hops 步）")
+
+        // 回车触发（键盘激活）→ 弹窗打开且首输入框自动聚焦
+        onRoot().performKeyInput { pressKey(Key.Enter) }
+        waitForIdle()
+        waitUntil(timeoutMillis = 2_000) {
+            runCatching { onNodeWithTag("fund-modal", useUnmergedTree = true).assertIsDisplayed() }.isSuccess
+        }
+        // 弹窗打开即聚焦首输入框（共性约束 7.3-②），键盘可直接继续录入
+        waitUntil(timeoutMillis = 2_000) {
+            runCatching { onNodeWithTag("fund-coin-input").assertIsFocused() }.isSuccess
+        }
+    }
 
     @Test
     fun emptyStateShowsCommandAreaAndOverview() = runComposeUiTest {
