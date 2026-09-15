@@ -31,6 +31,13 @@ import com.wuzhufolio.ui.components.WzButtonVariant
 import com.wuzhufolio.ui.components.WzToastHost
 import com.wuzhufolio.ui.i18n.WzFormat
 import com.wuzhufolio.ui.i18n.portfolioStrings
+import androidx.compose.ui.text.style.TextOverflow
+import com.wuzhufolio.ui.components.AdaptiveTable
+import com.wuzhufolio.ui.components.AdaptiveTableScope
+import com.wuzhufolio.ui.components.TableColumn
+import com.wuzhufolio.ui.components.TableWidths
+import com.wuzhufolio.ui.components.tableCell
+import com.wuzhufolio.ui.shell.pageEntryFocus
 import com.wuzhufolio.ui.theme.WzTheme
 
 /**
@@ -149,6 +156,17 @@ fun AssetsPage(
     }
 }
 
+/** 资产表列（DEF-28）：最小宽度保底，窄窗整表横向滚动；宽窗按权重铺满。 */
+private val ASSET_COLUMNS: List<TableColumn> = listOf(
+    TableColumn(TableWidths.COIN, 1.6f),           // 币种 + 标签（持仓异常/估算中/成本不可靠）
+    TableColumn(TableWidths.NUMBER, 1f),           // 持有数量
+    TableColumn(TableWidths.NUMBER, 1f),           // 平均成本
+    TableColumn(TableWidths.NUMBER, 1f),           // 当前价格
+    TableColumn(TableWidths.AMOUNT, 1.1f),         // 市值
+    TableColumn(TableWidths.AMOUNT, 1.3f),         // 浮动盈亏
+    TableColumn(TableWidths.AMOUNT, 1.1f),         // 已实现盈亏
+)  // 合计最小宽 ≈ 240 + 96×3 + 104×3 = 840dp：1280×800 铺满，1024×768 横向滚动（DEF-28）
+
 @Composable
 private fun HoldingTable(
     rows: List<PortfolioRow>,
@@ -159,21 +177,24 @@ private fun HoldingTable(
     modifier: Modifier = Modifier,
 ) {
     val colors = WzTheme.colors
-    Column(
+    // DEF-28：窄窗（1280×800 / 1024×768）下整表横向滚动，列取最小宽度——避免「成本不可靠」标签竖排、
+    // 8 位小数被挤成多行导致行高参差（原实现各列 weight 分配，窗口一窄就压到内容宽度以下）
+    AdaptiveTable(
+        columns = ASSET_COLUMNS,
         modifier = modifier
-            .fillMaxWidth()
             .background(colors.surface, RoundedCornerShape(12.dp))
             .border(1.dp, colors.line, RoundedCornerShape(12.dp))
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .testTag("assets-table"),
-    ) {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    ) { table ->
+        Row(modifier = table.row(), verticalAlignment = Alignment.CenterVertically) {
             SortableHeader(
                 label = portfolioStrings.colCoin,
                 active = sortKey == AssetSortKey.COIN,
                 ascending = ascending,
                 onClick = { onSort(AssetSortKey.COIN) },
-                modifier = Modifier.weight(1.6f),
+                // DEF-27：本页入口焦点 = 表格首列排序按钮（页面首个可聚焦控件）
+                modifier = tableCell(table, 0).pageEntryFocus(),
                 testTag = "sort-coin",
             )
             SortableHeader(
@@ -181,7 +202,7 @@ private fun HoldingTable(
                 active = sortKey == AssetSortKey.QUANTITY,
                 ascending = ascending,
                 onClick = { onSort(AssetSortKey.QUANTITY) },
-                modifier = Modifier.weight(1f),
+                modifier = tableCell(table, 1),
                 testTag = "sort-quantity",
             )
             SortableHeader(
@@ -189,7 +210,7 @@ private fun HoldingTable(
                 active = sortKey == AssetSortKey.AVG_COST,
                 ascending = ascending,
                 onClick = { onSort(AssetSortKey.AVG_COST) },
-                modifier = Modifier.weight(1f),
+                modifier = tableCell(table, 2),
                 testTag = "sort-avg-cost",
             )
             SortableHeader(
@@ -197,7 +218,7 @@ private fun HoldingTable(
                 active = sortKey == AssetSortKey.PRICE,
                 ascending = ascending,
                 onClick = { onSort(AssetSortKey.PRICE) },
-                modifier = Modifier.weight(1f),
+                modifier = tableCell(table, 3),
                 testTag = "sort-price",
             )
             SortableHeader(
@@ -205,7 +226,7 @@ private fun HoldingTable(
                 active = sortKey == AssetSortKey.MARKET_VALUE,
                 ascending = ascending,
                 onClick = { onSort(AssetSortKey.MARKET_VALUE) },
-                modifier = Modifier.weight(1.1f),
+                modifier = tableCell(table, 4),
                 testTag = "sort-market-value",
             )
             SortableHeader(
@@ -213,7 +234,7 @@ private fun HoldingTable(
                 active = sortKey == AssetSortKey.FLOAT_PNL,
                 ascending = ascending,
                 onClick = { onSort(AssetSortKey.FLOAT_PNL) },
-                modifier = Modifier.weight(1.3f),
+                modifier = tableCell(table, 5),
                 testTag = "sort-float-pnl",
             )
             SortableHeader(
@@ -221,72 +242,88 @@ private fun HoldingTable(
                 active = sortKey == AssetSortKey.REALIZED_PNL,
                 ascending = ascending,
                 onClick = { onSort(AssetSortKey.REALIZED_PNL) },
-                modifier = Modifier.weight(1.1f),
+                modifier = tableCell(table, 6),
                 testTag = "sort-realized-pnl",
             )
         }
-        rows.forEach { row -> HoldingRowLine(row = row, onOpen = onOpen) }
+        rows.forEach { row -> HoldingRowLine(row = row, onOpen = onOpen, table = table) }
     }
 }
 
 @Composable
-private fun HoldingRowLine(row: PortfolioRow, onOpen: (String) -> Unit) {
+private fun HoldingRowLine(row: PortfolioRow, onOpen: (String) -> Unit, table: AdaptiveTableScope) {
     val colors = WzTheme.colors
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = table.row()
             .wzTextClickable(label = row.symbol + " · " + row.name) { onOpen(row.cgId) }
             .padding(vertical = 8.dp)
             .testTag("holding-row-" + row.cgId),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(modifier = Modifier.weight(1.6f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = row.symbol, color = colors.ink, style = WzTheme.typography.bodyStrong)
-                if (row.anomalous) {
-                    Badge(
-                        text = portfolioStrings.anomalyBadge,
-                        color = colors.loss,
-                        modifier = Modifier.padding(start = 6.dp),
-                        testTag = "anomaly-" + row.cgId,
-                    )
-                }
-                if (row.estimated) {
-                    Badge(
-                        text = portfolioStrings.estimatedBadge,
-                        color = colors.warn,
-                        modifier = Modifier.padding(start = 6.dp),
-                        testTag = "estimated-" + row.cgId,
-                    )
-                }
-                if (!row.costReliable) {
-                    Badge(
-                        text = portfolioStrings.costUnreliableBadge,
-                        color = colors.loss,
-                        modifier = Modifier.padding(start = 6.dp),
-                        testTag = "cost-unreliable-" + row.cgId,
-                    )
-                }
+        // 币种 + 标签（持仓异常/估算中/成本不可靠）：**不换行**——列宽已按「三枚标签 + 代码」保底，
+        // 标签被压窄时会竖排（DEF-28 人工症状）
+        Row(
+            modifier = tableCell(table, 0),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = row.symbol,
+                color = colors.ink,
+                style = WzTheme.typography.bodyStrong,
+                maxLines = 1,
+                softWrap = false,
+            )
+            if (row.anomalous) {
+                Badge(
+                    text = portfolioStrings.anomalyBadge,
+                    color = colors.loss,
+                    modifier = Modifier.padding(start = 6.dp),
+                    testTag = "anomaly-" + row.cgId,
+                )
             }
-            Text(text = row.name, color = colors.ink3, style = WzTheme.typography.caption)
+            if (row.estimated) {
+                Badge(
+                    text = portfolioStrings.estimatedBadge,
+                    color = colors.warn,
+                    modifier = Modifier.padding(start = 6.dp),
+                    testTag = "estimated-" + row.cgId,
+                )
+            }
+            if (!row.costReliable) {
+                Badge(
+                    text = portfolioStrings.costUnreliableBadge,
+                    color = colors.loss,
+                    modifier = Modifier.padding(start = 6.dp),
+                    testTag = "cost-unreliable-" + row.cgId,
+                )
+            }
         }
         Text(
             text = WzFormat.quantity(row.quantity),
             color = colors.ink,
             style = WzTheme.typography.body,
-            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+            modifier = tableCell(table, 1),
         )
         Text(
             text = WzFormat.price(row.avgCostFiat),
             color = colors.ink,
             style = WzTheme.typography.body,
-            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+            modifier = tableCell(table, 2),
         )
-        Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = tableCell(table, 3)) {
             Text(
                 text = WzFormat.price(row.priceFiat),
                 color = if (row.priced) colors.ink else colors.ink3,
                 style = WzTheme.typography.body,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.testTag("price-" + row.cgId),
             )
             if (!row.priced) {
@@ -294,6 +331,8 @@ private fun HoldingRowLine(row: PortfolioRow, onOpen: (String) -> Unit) {
                     text = portfolioStrings.noMarketData,
                     color = colors.ink3,
                     style = WzTheme.typography.caption,
+                    maxLines = 1,
+                    softWrap = false,
                     modifier = Modifier.testTag("noprice-" + row.cgId),
                 )
             }
@@ -302,26 +341,38 @@ private fun HoldingRowLine(row: PortfolioRow, onOpen: (String) -> Unit) {
             text = WzFormat.amount(row.marketValueFiat),
             color = colors.ink,
             style = WzTheme.typography.body,
-            modifier = Modifier.weight(1.1f),
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+            modifier = tableCell(table, 4),
         )
-        Column(modifier = Modifier.weight(1.3f)) {
+        Column(modifier = tableCell(table, 5)) {
             Text(
                 text = WzFormat.signedAmount(row.floatPnlFiat),
                 color = pnlColor(row.floatPnlFiat),
                 style = WzTheme.typography.body,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.testTag("float-pnl-" + row.cgId),
             )
             Text(
                 text = WzFormat.signedPercent(row.floatPnlPercent),
                 color = pnlColor(row.floatPnlFiat),
                 style = WzTheme.typography.caption,
+                maxLines = 1,
+                softWrap = false,
             )
         }
         Text(
             text = WzFormat.signedAmount(row.realizedPnlFiat),
             color = pnlColor(row.realizedPnlFiat),
             style = WzTheme.typography.body,
-            modifier = Modifier.weight(1.1f),
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+            modifier = tableCell(table, 6),
         )
     }
 }
+

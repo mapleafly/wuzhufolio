@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -50,6 +51,9 @@ class MarketWatchViewModel(
 ) : ViewModel() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    /** 在途搜索（DEF-30：输入变化/清空时取消，避免旧结果把候选浮层顶回来）。 */
+    private var searchJob: Job? = null
     private val _state = MutableStateFlow(WatchUiState())
     val state: StateFlow<WatchUiState> = _state.asStateFlow()
 
@@ -82,20 +86,38 @@ class MarketWatchViewModel(
     fun onQueryChange(query: String) {
         _state.update { it.copy(query = query) }
         val q = query.trim()
+        // DEF-30：每次输入都取消上一轮搜索——否则「清空输入后，先前在途的搜索结果回来又把候选浮层顶出来」
+        // （人工症状：候选只有点「添加」才会消失，删光字母也不消失）
+        searchJob?.cancel()
+        searchJob = null
         if (q.isEmpty()) {
             _state.update { it.copy(candidates = emptyList(), searchBusy = false) }
             return
         }
-        if (_state.value.searchBusy) return
         _state.update { it.copy(searchBusy = true) }
-        scope.launch {
-            val found = watchService.searchCandidates(q, CANDIDATE_LIMIT)
-            _state.update { it.copy(candidates = found, searchBusy = false) }
+        searchJob = scope.launch {
+            try {
+                val found = watchService.searchCandidates(q, CANDIDATE_LIMIT)
+                // 结果落地前复核输入仍是发起时的关键词（改词/清空后旧结果不得把候选浮层顶回来）
+                if (_state.value.query.trim() == q) {
+                    _state.update { it.copy(candidates = found, searchBusy = false) }
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e // 取消失控不吞（结构化并发）
+            } catch (t: Throwable) {
+                // 搜索失败：不打断输入（候选留空），仅复位忙碌态；原因经 toast 提示
+                if (_state.value.query.trim() == q) {
+                    _state.update { it.copy(candidates = emptyList(), searchBusy = false) }
+                }
+                onSearchFailure(t)
+            }
         }
     }
 
     fun clearSearch() {
-        _state.update { it.copy(query = "", candidates = emptyList()) }
+        searchJob?.cancel()
+        searchJob = null
+        _state.update { it.copy(query = "", candidates = emptyList(), searchBusy = false) }
     }
 
     fun addCoin(cgId: String) {
@@ -108,6 +130,11 @@ class MarketWatchViewModel(
                     toast(WzToastKind.Failure, addFailureText(error))
                 }
         }
+    }
+
+    /** 搜索失败提示（interaction.md §1.1：请求失败即提示，不静默）。 */
+    private fun onSearchFailure(error: Throwable) {
+        toast(WzToastKind.Failure, error.message ?: MarketCopy.WATCH_NO_RESULT)
     }
 
     /** 添加失败文案：自选已满 → 上限提示；其余 → 异常文本或通用兜底。 */

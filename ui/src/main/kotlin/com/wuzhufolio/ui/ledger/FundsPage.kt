@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -36,6 +38,7 @@ import com.wuzhufolio.domain.ledger.FundService
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
 import com.wuzhufolio.ui.components.WzModal
+import com.wuzhufolio.ui.shell.pageEntryFocus
 import com.wuzhufolio.ui.components.WzTextField
 import com.wuzhufolio.ui.components.WzToastHost
 import com.wuzhufolio.ui.theme.WzTheme
@@ -230,13 +233,15 @@ private fun Toolbar(state: FundsUiState, vm: FundsViewModel) {
                 onValueChange = vm::onQueryChange,
                 label = "",
                 placeholder = FundsCopy.SEARCH_PLACEHOLDER,
-                modifier = Modifier.width(220.dp),
+                // DEF-27：本页入口焦点（切页后焦点落到搜索框）
+                modifier = Modifier.width(220.dp).pageEntryFocus(),
                 testTag = "fund-search",
             )
         }
-        Row(
+        // DEF-29：窄窗（1024×768）下过滤按钮自动换行——原单行 Row 会把「近90天」等按钮压成竖排文字
+        FlowRow(
             modifier = Modifier.padding(top = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(text = FundsCopy.FILTER_TYPE_LABEL, color = colors.ink3, style = WzTheme.typography.caption)

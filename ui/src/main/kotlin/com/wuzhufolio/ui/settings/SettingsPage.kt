@@ -44,6 +44,7 @@ import com.wuzhufolio.ui.backup.DataManagementSection
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
 import com.wuzhufolio.ui.components.PageOverlayHost
+import com.wuzhufolio.ui.shell.pageEntryFocus
 import com.wuzhufolio.ui.components.WzModal
 import com.wuzhufolio.ui.components.WzSelect
 import com.wuzhufolio.ui.components.WzSegmented
@@ -169,6 +170,9 @@ fun SettingsPage(
                             selected = generalState.view.baseFiat,
                             onSelect = generalVm::setBaseFiat,
                             labelOf = { it },
+                            // DEF-27：设置页入口焦点 = 页面首个可聚焦控件（基础法币）。
+                            // 无此声明时主壳的子树遍历会落到中部的「手续费 → 买入费率」输入框并把长页滚到中部。
+                            modifier = Modifier.pageEntryFocus(),
                             testTag = "fiat-select",
                         )
                     }

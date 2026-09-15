@@ -7,7 +7,11 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.wuzhufolio.domain.catalog.CatalogCoin
 import com.wuzhufolio.domain.market.MarketKeyStatus
@@ -124,6 +128,42 @@ class MarketWatchPageUiTest {
         onNodeWithTag("watch-add-bitcoin").performClick()
         waitUntil(timeoutMillis = 2_000) { watch.stored?.contains("bitcoin") == true }
         onNodeWithTag("watch-row-bitcoin").assertIsDisplayed()
+    }
+
+    /**
+     * DEF-30（P6 人工门第六轮 · 人工反馈 7）：候选浮层必须能**自行消失**——
+     * ① 清空搜索框（删光字母）即收起；② Esc 即收起；③ 输入框失焦即收起。
+     * 原实现只有点候选行的「添加」才会关（因清空后旧搜索结果回来又把浮层顶出来）。
+     */
+    @Test
+    fun `candidate panel closes on cleared input, escape and focus loss`() = runComposeUiTest {
+        val watch = FakeWatch().apply {
+            searchHits = listOf(catalogCoin("bitcoin", "BTC", "Bitcoin"))
+        }
+        setContent { MarketWatchPage(watch, FakeQuotes(), FakeRefresh(), FakeSettings()) }
+        waitUntil(timeoutMillis = 2_000) { textCount("USDT") >= 1 }
+
+        onNodeWithTag("watch-search-input").performTextInput("btc")
+        waitUntil(timeoutMillis = 2_000) { onAllNodesWithTag("watch-candidates").fetchSemanticsNodes().isNotEmpty() }
+
+        // ① 清空输入 → 浮层收起（不得因在途搜索结果返回而复现）
+        onNodeWithTag("watch-search-input").performTextClearance()
+        waitForIdle()
+        assertTrue(
+            onAllNodesWithTag("watch-candidates").fetchSemanticsNodes().isEmpty(),
+            "清空搜索框后候选浮层必须收起（DEF-30）",
+        )
+
+        // ② 重新输入 → Esc 收起并清空输入
+        onNodeWithTag("watch-search-input").performTextInput("btc")
+        waitUntil(timeoutMillis = 2_000) { onAllNodesWithTag("watch-candidates").fetchSemanticsNodes().isNotEmpty() }
+        onNodeWithTag("watch-search-input").performKeyInput { pressKey(Key.Escape) }
+        waitForIdle()
+        assertTrue(
+            onAllNodesWithTag("watch-candidates").fetchSemanticsNodes().isEmpty(),
+            "Esc 应取消搜索并收起候选浮层（DEF-30）",
+        )
+        onNodeWithTag("watch-search-input").assert(hasText("", substring = true))
     }
 
     @Test

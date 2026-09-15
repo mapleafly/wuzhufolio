@@ -392,6 +392,9 @@ fun Badge(text: String, color: Color, modifier: Modifier = Modifier, testTag: St
         text = text,
         color = color,
         style = WzTheme.typography.caption,
+        // 徽标一律单行（DEF-28：窄窗下被压窄会把标签文字竖排、撑高整行）
+        maxLines = 1,
+        softWrap = false,
         modifier = modifier
             .background(color.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
             .padding(horizontal = 6.dp, vertical = 2.dp)

@@ -1,6 +1,12 @@
 package com.wuzhufolio.ui.settings
 
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ComposeUiTest
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
@@ -17,6 +23,8 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.height
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.wuzhufolio.domain.backup.BackupService
 import com.wuzhufolio.domain.backup.CsvExportKind
@@ -43,6 +51,7 @@ import com.wuzhufolio.domain.settings.LogAccess
 import com.wuzhufolio.domain.settings.PnlColorScheme
 import com.wuzhufolio.domain.settings.PrecisionPreset
 import com.wuzhufolio.domain.settings.ThemeMode
+import com.wuzhufolio.ui.shell.MainShell
 import com.wuzhufolio.ui.i18n.WzFormat
 import com.wuzhufolio.ui.shell.ShellViewModel
 import com.wuzhufolio.ui.theme.WuzhuTheme
@@ -315,6 +324,47 @@ class SettingsPageUiTest {
      * 手续费卡片标题加粗而其它分组标题不加粗。
      * 现统一为：分组一级标题 = 数据管理卡片标题 = `sectionTitle`（15sp/600），故同级标题**高度必须一致**。
      */
+    /**
+     * DEF-27（P6 人工门第六轮 · 人工反馈 1）：从侧边栏进入设置页时，焦点必须落在**页面首个可聚焦控件**
+     * （通用 → 基础法币），而不是被 Compose 子树遍历随机挑中的页面中部字段（实测 = 手续费 → 买入费率，
+     * 连带把长页滚到中部）。本用例走**真实主壳路径**（MainShell 提供 PageEntryFocusState + 页面声明入口焦点）。
+     */
+    @Test
+    fun `page entry focus lands on the first settings control`() = runComposeUiTest {
+        val shell = ShellViewModel(ThemeMode.LIGHT, PnlColorScheme.GREEN_UP)
+        setContent {
+            WuzhuTheme(themeMode = ThemeMode.LIGHT) {
+                MainShell(
+                    viewModel = shell,
+                    settingsPageContent = { vm ->
+                        SettingsPage(
+                            shellViewModel = vm,
+                            generalSettings = FakeGeneralSettings(),
+                            marketSettingsService = FakeMarketSettings(),
+                            marketRefreshService = FakeMarketRefresh(),
+                            syncService = FakeSync(),
+                            feeRuleService = FakeFeeRules(),
+                            diagnosticsService = FakeDiagnostics(),
+                            logAccess = FakeLogAccess(),
+                            backupService = FakeBackup(),
+                            appVersion = "0.1.0-test",
+                            pickers = recordingPickers(),
+                        )
+                    },
+                )
+            }
+        }
+        onNodeWithTag("nav-SETTINGS").performSemanticsAction(SemanticsActions.RequestFocus)
+        onNodeWithTag("nav-SETTINGS").performKeyInput { pressKey(Key.Enter) }
+        waitForIdle()
+        onNodeWithTag("fiat-select").assertIsFocused()
+        // 复核：不得是页面中部的字段（DEF-27 的原始症状）
+        assertTrue(
+            runCatching { onNodeWithTag("fee-global-buy").assertIsFocused() }.isFailure,
+            "入口焦点不得落在页面中部的手续费输入框",
+        )
+    }
+
     @Test
     fun `all settings first level titles share one typography level`() = runComposeUiTest {
         install(desktop = FakeDesktopSettings())

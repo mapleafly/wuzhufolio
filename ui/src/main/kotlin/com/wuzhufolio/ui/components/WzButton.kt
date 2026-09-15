@@ -76,6 +76,8 @@ fun WzButton(
     ) {
         Text(
             text = text,
+            maxLines = 1,
+            softWrap = false,
             color = if (enabled) contentColor else colors.ink3,
             style = WzTheme.typography.bodyStrong,
         )

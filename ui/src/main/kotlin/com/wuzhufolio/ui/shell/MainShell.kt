@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -115,6 +116,9 @@ fun MainShell(
     // ② 页面内未被控件消费的 Esc / ↑ / ↓ 把焦点交回侧边栏当前项，回到「侧边栏→顶栏→页面」外壳循环；
     // ③ 侧边栏内 ↑ / ↓ 在导航项之间移动。
     val pageEntryFocus = remember { FocusRequester() }
+    // 页面自管入口焦点（DEF-27）：页面把 requester 附在首个可聚焦控件上，主壳优先请求它，
+    // 避免依赖 Compose 子树遍历的「猜第一个可聚焦控件」（实测会落到页面中部的输入框）
+    val pageEntryState = remember { PageEntryFocusState() }
     val navFocusRequesters = remember { NAV_FOCUS_ORDER.associateWith { FocusRequester() } }
     var lastEntryKey by remember { mutableStateOf<String?>(null) }
     var reentryNonce by remember { mutableStateOf(0) }
@@ -122,7 +126,11 @@ fun MainShell(
     // 首次组合不抢焦点（启动时焦点仍在侧边栏，与键盘走查记录一致）；此后每次切页/进入详情子页、
     // 或对当前项再次回车（reentryNonce）都把焦点交给页面内容。
     LaunchedEffect(entryKey, reentryNonce) {
-        if (lastEntryKey != null) runCatching { pageEntryFocus.requestFocus() }
+        if (lastEntryKey != null) {
+            val claimed = pageEntryState.hasClaim() &&
+                runCatching { pageEntryState.requester.requestFocus() }.getOrDefault(false)
+            if (!claimed) runCatching { pageEntryFocus.requestFocus() }
+        }
         lastEntryKey = entryKey
     }
 
@@ -155,12 +163,13 @@ fun MainShell(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                // 页面进入焦点目标：requestFocus 会落到子树内第一个可聚焦控件（Compose 语义），
+                                // 页面进入焦点目标：优先用页面声明的入口控件（DEF-27），
                                 // 容器自身**不加** focusable，避免多出一个无焦点环的 Tab 停靠点（DEF-13 教训）。
                                 .focusRequester(pageEntryFocus)
                                 // 冒泡阶段：页面内控件已消费的键（输入框方向键、弹层 Esc）不受影响
                                 .onKeyEvent { event -> handlePageExitKey(event, page, navFocusRequesters) },
                         ) {
+                            CompositionLocalProvider(LocalPageEntryFocus provides pageEntryState) {
                             PageHost(
                                 page = page,
                                 coinDetailId = coinDetailId,
@@ -174,6 +183,7 @@ fun MainShell(
                                 transactionsPageContent = transactionsPageContent,
                                 fundsPageContent = fundsPageContent,
                             )
+                            }
                         }
                     }
                 }

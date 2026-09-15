@@ -20,15 +20,21 @@
 | **P2（人工门新增）** | 4 | **均已修复**：**DEF-14**（登录页回车不提交）、**DEF-18**（托盘菜单不随界面语言）、**DEF-19**（托盘菜单不随语言**即时**切换，需重启）、**DEF-21**（走查提案 A：焦点入页面 + 外壳退出键）；另 **DEF-16** 为口径确认（非缺陷） |
 | **P1（第五轮 · 真实只读 Key 冒烟）** | 2 | **均已修复**：**DEF-22**（设置页弹层落在滚动容器内 → 撑开页面/挤占内容）、**DEF-25**（添加 API 密钥首次同步失败 → 弹窗不关但密钥已保存）；**DEF-23** 为同根因的恢复弹窗错位（已修复） |
 | **P2（第五轮）** | 1 | **已修复**：**DEF-24**（设置页层级字号/字重不统一）；另 **DEF-26** 为**核实结论（非缺陷）**：同步只追加交易所成交、不覆盖手写交易（已加回归） |
+| **P1（第六轮 · GUI 全流程 × 三档分辨率）** | 1 | **已修复**：**DEF-27**（切页后焦点被子树遍历随机落到页面中部字段 → 设置页一打开就滚到「手续费→买入费率」） |
+| **P2（第六轮）** | 3 | **均已修复**：**DEF-28**（窄窗表格列被压到内容宽度以下 → 标签竖排/数字换行/行高参差）、**DEF-29**（窄窗过滤按钮与操作列被压成竖排）、**DEF-30**（行情页搜索候选浮层不随清空/Esc 收起——在途搜索结果把浮层顶回来） |
 | 测试缺陷（CI 暴露） | 1 | **DEF-12** 已修复（见 §3） |
 | **P3 / 观察项** | 6 | 登记（DEF-07…DEF-12），详见 §3 |
-| 合计 | 26 | P0 曾出现 1 项（DEF-17）· P1 曾出现 5 项（DEF-13/15/20/22/25）——**均已修复闭环**（人工门实测暴露）；P2 全部有明确结论 ✅ |
+| 合计 | 30 | P0 曾出现 1 项（DEF-17）· P1 曾出现 6 项（DEF-13/15/20/22/25/27）——**均已修复闭环**（人工门实测暴露）；P2 全部有明确结论 ✅ |
 
 > 结论：**P0 = 0**；**P1 三项（DEF-13/DEF-15/DEF-20）由人工门实测暴露并已修复闭环**（修复即回归，见 §1.5/§1.7），
 > 当前无未修复 P1；P2 各项在人工 P6 门全部裁决完毕或已登记（见 §0.1），**无遗留未决项**。
 > 2026-09-15 第四轮 Windows 人工门新增 **DEF-20（P1，已修复）** 与 **DEF-21（P2，焦点流改进，C1 已建档 D31）**。
 > 2026-09-15 **第五轮（真实只读 Key 冒烟）**新增 **DEF-22/23（P1，弹层撑开页面/错位，已修复）**、**DEF-24（P2，设置页层级统一，已修复）**、
 > **DEF-25（P1，添加密钥保存后弹窗不关，已修复）**、**DEF-26（核实非缺陷：同步不覆盖手写交易，已加回归）**。
+> 2026-09-15 **第六轮（真实桌面 GUI 全流程 × 1280×800 / 1024×768）**新增 **DEF-27（P1，切页入口焦点不可靠，已修复）**、
+> **DEF-28（P2，窄窗表格换行/竖排，已修复）**、**DEF-29（P2，窄窗过滤按钮/操作列竖排，已修复）**、
+> **DEF-30（P2，行情搜索候选浮层不收起，已修复）**；该轮 TC-MAN-06（纯键盘全流程）、TC-MAN-07（真实只读 Key 冒烟）、
+> TC-MAN-10（外链与关于页）**人工判定通过** ✅。
 
 ### 0.1 人工裁决记录（2026-09-14 · 原话「裁决：5项都按建议来处理」）
 
@@ -218,6 +224,50 @@
 | **回归（新增）** | `data/DefaultExchangeSyncServiceTest::sync appends exchange trades without touching manually entered rows`：手写一笔与交易所成交**同 pair/同时间/同价量**的交易（最易被误判重复的场景）→ 断言 ① 交易所成交仍作为新行导入（`newTrades=1`，不被手写行吞掉）；② 手写行内容**逐字段不变**（`findById` 前后相等）；③ 库内两行并存（1 Manual + 1 BINANCE 带订单号）；④ 再同步一轮仍为两行且手写行不变（幂等） |
 | **口径提示（写入手册）** | 若用户**先手写、后开启只读 Key 同步**，同一笔真实交易会**各存一行 → 重复计入持仓/盈亏**；这是「手动录入 + 交易所同步并存」的固有语义（PRD 未要求自动合并），处理办法 = 删除手写那一行后重新同步，或先同步再补录差异。已记入 `manual-test-guide.md §12` 与 P8 观察项（可选的「手动/同步疑似重复提示」增强） |
 
+### DEF-27 ✅ 已修复（**P1** · 人工门第六轮实测 · 建议 C0）· 切页后焦点落到页面中部字段（设置页一打开就滚到「手续费 → 买入费率」）
+
+| 项 | 内容 |
+|----|------|
+| **现象** | 从侧边栏进入设置页时，**焦点定位在页面中部的「手续费 → 全局默认费率 → 买入费率」输入框**，长页被连带滚到中部；人工要求「初始打开在页面开始部分」 |
+| **根因** | DEF-21 的「进入页面把焦点送进页面内容」由**页面容器上的 `FocusRequester` + Compose 子树遍历**实现，该遍历**不保证按 Tab 序**：实测设置页 Tab 序首项是 `fiat-select`（基础法币），而遍历落到第 22 个停靠点 `fee-global-buy`；`bringIntoView` 随即把滚动容器滚到该字段（= 人工看到的「定位在中间」）。另：行情页自身 `LaunchedEffect` 抢焦点会被主壳兜底请求覆盖，两处互相打架 |
+| **修复** | 新增**页面入口焦点契约** `ui/shell/PageEntryFocus.kt`：主壳通过 `LocalPageEntryFocus` 提供 `PageEntryFocusState`；页面在**首个可聚焦控件**上写 `Modifier.pageEntryFocus()` 声明入口焦点；主壳切页时**优先请求声明目标**，未声明（或页面已销毁）时回落容器遍历。已声明：设置（基础法币）、交易（搜索框）、资金（搜索框）、行情（搜索框，替换页面自行抢焦点）、资产（首列排序按钮）、币种详情（返回链接） |
+| **回归** | `SettingsPageUiTest::page entry focus lands on the first settings control`（走**真实主壳路径**：Enter 进设置 → 断言 `fiat-select` 聚焦 + 断言 `fee-global-buy` **未**聚焦）；`ShellFocusFlowUiTest`（5 例）继续覆盖未声明页面的回落路径 |
+| **影响面扫描** | 代码：新增 `ui/shell/PageEntryFocus.kt`；`ui/shell/MainShell.kt`（提供宿主 + 优先请求声明）、`ui/settings/SettingsPage.kt`、`ui/ledger/TransactionsPage.kt`、`ui/ledger/FundsPage.kt`、`ui/market/MarketWatchPage.kt`、`ui/portfolio/AssetsPage.kt`、`ui/portfolio/CoinDetailPage.kt`；**不涉数据/接口/schema**（纯焦点编排） |
+| **分级建议** | **C0**（实现偏差纠正：DEF-21 的落地方式未达「焦点顺序合理」要求；不改产品语义） |
+
+### DEF-28 ✅ 已修复（**P2** · 人工门第六轮实测 · 建议 C0）· 窄窗（1280×800 / 1024×768）表格列被压窄 → 标签竖排、数字换行、行高参差
+
+| 项 | 内容 |
+|----|------|
+| **现象** | ① 资产列表：币种列出现三枚标签（持仓异常/估算中/成本不可靠）时放不下，**最后一枚标签文字竖排**并把整行撑高；8 位小数的持有数量/当前价格/平均成本互相挤占，排列不齐；② 交易管理：手续费「0.00022336BNB」**断成两行**、「交易对 + 估算中」占两行 → 行高不齐；1024×768 下更严重，更多列换行 |
+| **根因** | 两张表都用 `Modifier.weight(...)` 分配列宽：窗口变窄时每列被等比压到**低于内容宽度**，`Text` 默认换行 → 文字折行/逐字竖排，行高随内容变化。标签（`Badge`）同样无单行约束 |
+| **修复** | 新增 **`ui/components/AdaptiveTable.kt`**（`AdaptiveTable` + `TableColumn` + `tableCell` + `TableWidths`）：每列声明**最小宽度**+宽窗权重；可用宽度 ≥ 各列最小宽之和 → 按权重铺满（1280×800 及以上与原观感一致）；否则**整表横向滚动**（列取最小宽、底部横向滚动条），行高一致、**不做省略号截断**（财务数据截断比滚动更糟）。两张表接入；所有单元格 `maxLines = 1 / softWrap = false`；`Badge` 一律单行；「估算中」由**另起一行改为与交易对内联** |
+| **回归** | `TransactionsPageUiTest`（既有 17 例，其中 2 例改为 `performScrollTo()` 后点击——1024×768 下操作列在横向滚动区右侧）；`PortfolioPagesUiTest` / `AssetsPageUiTest` 全绿；人工按三档分辨率复验（`manual-test-guide.md §13`） |
+| **影响面扫描** | 代码：新增 `ui/components/AdaptiveTable.kt`；`ui/portfolio/AssetsPage.kt`、`ui/ledger/TransactionsPage.kt`、`ui/portfolio/PortfolioParts.kt`（Badge 单行）。**不涉数据/接口/schema**；宽窗布局不变 |
+| **分级建议** | **C0**（实现偏差纠正：窄窗可读性属 PRD §6「一致性/无障碍」实现要求）；若人工认为「1024 下允许横向滚动」属交互口径变化，可改判 **C1** |
+
+### DEF-29 ✅ 已修复（**P2** · 人工门第六轮实测 · 建议 C0）· 窄窗过滤按钮与表格操作列被压成竖排
+
+| 项 | 内容 |
+|----|------|
+| **现象** | ① 1024×768 下交易管理表格右侧「删除」按钮显示不全、按钮变成竖条、「删除」二字竖排；② 资金管理的「近90天」等过滤按钮变成竖条（文字竖排） |
+| **根因** | 同 DEF-28 的列宽压缩（操作列被压到 ~100dp → 两个按钮各自被压到文字宽以下）；资金/交易的**过滤按钮行是单行 `Row`**，窄窗下按钮被等比压窄 |
+| **修复** | ① 操作列为自适应表的一等列（最小宽 120dp，两枚按钮成对显示）；② 过滤按钮行改 **`FlowRow`**（窄窗自动换行，按钮保持自然宽度）；③ `WzButton` 文案统一 `maxLines = 1 / softWrap = false`（任何按钮都不再竖排） |
+| **回归** | 同 DEF-28（两张表的 UI 用例 + 人工三档分辨率复验） |
+| **影响面扫描** | 代码：`ui/components/WzButton.kt`（单行文案）、`ui/ledger/FundsPage.kt`、`ui/ledger/TransactionsPage.kt`（过滤行 FlowRow）；**不涉数据/接口** |
+| **分级建议** | **C0**（同 DEF-28） |
+
+### DEF-30 ✅ 已修复（**P2** · 人工门第六轮实测 · 建议 C0）· 行情页搜索候选浮层不会自行收起（只有点「添加」才消失）
+
+| 项 | 内容 |
+|----|------|
+| **现象** | 行情页搜索框输入字母后出现候选浮层；**不点候选行的「添加」就一直留着**，**把输入字母全部删掉也不收起**（人工原话） |
+| **根因** | ① `onQueryChange` 里有 `if (searchBusy) return` —— 输入被清空时**没有取消在途搜索**，该请求返回后又把 `candidates` 写回，浮层被顶回来（`showCandidates` 含 `candidates.isNotEmpty()`）；② 没有 Esc/失焦等主动收起路径 |
+| **修复** | ① ViewModel 持有 `searchJob`：**每次输入变化/清空/添加成功都取消在途搜索**；结果落地前**复核输入仍是发起时的关键词**（不一致就丢弃）；② 搜索失败不再静默（toast 提示 + 复位忙碌态，且不吞 `CancellationException`）；③ 搜索框加 **Esc = 取消搜索**（清空输入 + 收起候选），`clearSearch` 同时复位忙碌态 |
+| **回归** | `MarketWatchPageUiTest::candidate panel closes on cleared input, escape and focus loss`（清空输入 → 浮层消失；重新输入 → Esc → 浮层消失且输入清空）+ 既有 5 例（含「候选可添加」「候选浮层不挤占列表」） |
+| **影响面扫描** | 代码：`ui/market/MarketWatchViewModel.kt`（取消 + 结果复核 + 失败提示）、`ui/market/MarketWatchPage.kt`（Esc 取消）；**不涉数据/接口/schema**（搜索服务签名不变） |
+| **分级建议** | **C0**（实现偏差纠正：`interaction.md §2.7` 候选浮层的既有语义未正确落地） |
+
 ### DEF-16 ➖ 非缺陷（口径确认）· 断网后状态栏不是「立即」变为网络断开
 
 | 项 | 内容 |
@@ -311,6 +361,13 @@ export JAVA_HOME=$(mise where java)
 # DEF-25/26（同步契约：失败不上抛 / 不覆盖手写交易）
 ./gradlew :data:test --tests "com.wuzhufolio.data.exchange.DefaultExchangeSyncServiceTest"
 
+# DEF-27…DEF-30（第六轮：入口焦点 / 窄窗表格 / 过滤按钮 / 行情候选浮层）
+./gradlew :ui:test --tests "com.wuzhufolio.ui.settings.SettingsPageUiTest" \
+                   --tests "com.wuzhufolio.ui.ledger.TransactionsPageUiTest" \
+                   --tests "com.wuzhufolio.ui.ledger.FundsPageUiTest" \
+                   --tests "com.wuzhufolio.ui.market.MarketWatchPageUiTest" \
+                   --tests "com.wuzhufolio.ui.portfolio.*"
+
 # DEF-20（候选选中后焦点交接）· DEF-21（焦点流：进页面 / 回到外壳）
 ./gradlew :ui:test --tests "com.wuzhufolio.ui.ledger.FundsPageUiTest" \
                    --tests "com.wuzhufolio.ui.ledger.TransactionsPageUiTest" \
@@ -340,3 +397,6 @@ export JAVA_HOME=$(mise where java)
 | DEF-24 | `design-tokens.md §3` 字体层级（P6 补「设置页层级标准」）；PRD §6 一致性要求 |
 | DEF-25 | PRD 流程图 3（保存后立即首次同步）、故事 4.1/4.3、`interaction.md` 异常态；`api-contracts.md §3`（M6 调用面） |
 | DEF-26 | PRD 故事 4.2（增量去重「不覆盖」语义）、`data-model.md §2.5`（transactions 去重键与 source）、M7 §5-9 手动/CSV 写入口径 |
+| DEF-27 | PRD §6 无障碍基线（焦点顺序合理）；`docs/design/ia.md §1.1` 主壳、`interaction.md §3-9` 键盘导航；`keyboard-walkthrough.md` |
+| DEF-28 / DEF-29 | PRD §6（界面一致性）与「核心操作可达」；`design-tokens.md §3`（字号/不换行）、§4.1 布局间距；`interaction.md §3-2`（列表虚拟化） |
+| DEF-30 | `interaction.md §2.7`（行情页候选浮层语义）、PRD 故事 3.2（搜索添加自选） |

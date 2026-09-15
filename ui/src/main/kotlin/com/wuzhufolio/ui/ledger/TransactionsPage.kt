@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,7 +33,15 @@ import com.wuzhufolio.domain.ledger.TransactionLedgerService
 import com.wuzhufolio.domain.ledger.TransactionRow
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
+import androidx.compose.ui.text.style.TextOverflow
+import com.wuzhufolio.ui.components.AdaptiveTable
+import com.wuzhufolio.ui.components.AdaptiveTableScope
+import com.wuzhufolio.ui.components.TableColumn
+import com.wuzhufolio.ui.components.TableWidths
 import com.wuzhufolio.ui.components.WzModal
+import com.wuzhufolio.ui.portfolio.Badge
+import com.wuzhufolio.ui.components.tableCell
+import com.wuzhufolio.ui.shell.pageEntryFocus
 import com.wuzhufolio.ui.components.WzTextField
 import com.wuzhufolio.ui.components.WzToastHost
 import com.wuzhufolio.ui.i18n.WzFormat
@@ -101,24 +111,29 @@ fun TransactionsPage(
                     )
                 }
             } else {
-                TxTableHeader()
                 val listScroll = rememberScrollState()
+                // DEF-28/29：表头与数据行同处一个 AdaptiveTable（窄窗整表横向滚动，列宽保底不换行）；
+                // 垂直滚动仍由内层列表负责，纵向滚动条贴在页面右缘（不随横向滚动漂走）
                 Box(modifier = Modifier.weight(1f)) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(listScroll)
-                            .padding(end = 12.dp)
-                            .testTag("tx-list"),
-                    ) {
-                        state.rows.forEach { row ->
-                            TxRow(
-                                row = row,
-                                selected = row.id in state.selected,
-                                onToggleSelect = { vm.toggleSelect(row.id) },
-                                onEdit = { vm.openEdit(row.id) },
-                                onDelete = { vm.requestDeleteRow(row.id) },
-                            )
+                    AdaptiveTable(columns = TX_COLUMNS, modifier = Modifier.fillMaxSize()) { table ->
+                        TxTableHeader(table)
+                        Column(
+                            modifier = table.row()
+                                .weight(1f)
+                                .verticalScroll(listScroll)
+                                .padding(end = 12.dp)
+                                .testTag("tx-list"),
+                        ) {
+                            state.rows.forEach { row ->
+                                TxRow(
+                                    row = row,
+                                    table = table,
+                                    selected = row.id in state.selected,
+                                    onToggleSelect = { vm.toggleSelect(row.id) },
+                                    onEdit = { vm.openEdit(row.id) },
+                                    onDelete = { vm.requestDeleteRow(row.id) },
+                                )
+                            }
                         }
                     }
                     VerticalScrollbar(
@@ -143,6 +158,7 @@ fun TransactionsPage(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Toolbar(
     query: String,
@@ -186,13 +202,15 @@ private fun Toolbar(
                 onValueChange = onQueryChange,
                 label = "",
                 placeholder = TransactionCopy.SEARCH_PLACEHOLDER,
-                modifier = Modifier.width(220.dp),
+                // DEF-27：本页入口焦点（切页后焦点落到搜索框，而不是被子树遍历随机挑中）
+                modifier = Modifier.width(220.dp).pageEntryFocus(),
                 testTag = "tx-search",
             )
         }
-        Row(
+        // DEF-29：窄窗下过滤按钮自动换行（不再把按钮压成竖排文字）
+        FlowRow(
             modifier = Modifier.padding(top = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(text = TransactionCopy.FILTER_TYPE_LABEL, color = colors.ink3, style = WzTheme.typography.caption)
@@ -217,44 +235,65 @@ private fun FilterButton(text: String, selected: Boolean, testTag: String, onCli
     )
 }
 
+/**
+ * 交易表列（DEF-28/29）：最小宽度保底 —— 窄窗（1280×800 / 1024×768）整表横向滚动，
+ * 不再把「手续费 0.00022336BNB」「删除」等挤压成两行/竖排（原实现列宽用 weight 分配，窄窗压到内容宽度以下）。
+ */
+private val TX_COLUMNS: List<TableColumn> = listOf(
+    TableColumn(30.dp, 0.2f),                      // 选择框（批量修改/删除）
+    TableColumn(156.dp, 1.5f),                     // 交易对（「BTC/USDT」+「估算中」标签内联）
+    TableColumn(TableWidths.TAG, 0.6f),            // 方向
+    TableColumn(TableWidths.NUMBER, 1f),           // 价格
+    TableColumn(TableWidths.NUMBER, 0.95f),        // 数量
+    TableColumn(TableWidths.NUMBER, 1f),           // 手续费
+    TableColumn(TableWidths.AMOUNT, 1.05f),        // 总额
+    TableColumn(TableWidths.EXCHANGE, 0.9f),       // 交易所
+    TableColumn(TableWidths.TIME, 1.05f),          // 时间
+    TableColumn(TableWidths.AMOUNT, 1.05f),        // 已实现盈亏
+    TableColumn(TableWidths.ACTIONS, 1.3f),        // 操作（编辑/删除按钮成对）
+)  // 合计最小宽 ≈ 970dp：1280×800 铺满不滚动，1024×768 横向滚动（DE​F-28）
+
 @Composable
-private fun TxTableHeader() {
+private fun TxTableHeader(table: AdaptiveTableScope) {
     val colors = WzTheme.colors
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = table.row()
             .padding(top = 12.dp, bottom = 6.dp)
             .testTag("tx-table-header"),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(modifier = Modifier.width(32.dp))
-        HeaderCell(TransactionCopy.COL_PAIR, 1.6f)
-        HeaderCell(TransactionCopy.COL_SIDE, 0.7f)
-        HeaderCell(TransactionCopy.COL_PRICE, 1.1f)
-        HeaderCell(TransactionCopy.COL_QTY, 1.1f)
-        HeaderCell(TransactionCopy.COL_FEE, 1.1f)
-        HeaderCell(TransactionCopy.COL_TOTAL, 1.2f)
-        HeaderCell(TransactionCopy.COL_EXCHANGE, 1.0f)
-        HeaderCell(TransactionCopy.COL_TIME, 1.2f)
-        HeaderCell(TransactionCopy.COL_REALIZED, 1.2f)
-        HeaderCell(TransactionCopy.COL_ACTIONS, 1.4f)
+        Box(modifier = tableCell(table, 0))
+        HeaderCell(TransactionCopy.COL_PAIR, tableCell(table, 1))
+        HeaderCell(TransactionCopy.COL_SIDE, tableCell(table, 2))
+        HeaderCell(TransactionCopy.COL_PRICE, tableCell(table, 3))
+        HeaderCell(TransactionCopy.COL_QTY, tableCell(table, 4))
+        HeaderCell(TransactionCopy.COL_FEE, tableCell(table, 5))
+        HeaderCell(TransactionCopy.COL_TOTAL, tableCell(table, 6))
+        HeaderCell(TransactionCopy.COL_EXCHANGE, tableCell(table, 7))
+        HeaderCell(TransactionCopy.COL_TIME, tableCell(table, 8))
+        HeaderCell(TransactionCopy.COL_REALIZED, tableCell(table, 9))
+        HeaderCell(TransactionCopy.COL_ACTIONS, tableCell(table, 10))
     }
 }
 
 @Composable
-private fun RowScope.HeaderCell(text: String, weight: Float) {
+private fun HeaderCell(text: String, modifier: Modifier) {
     val colors = WzTheme.colors
     Text(
         text = text,
         color = colors.ink2,
         style = WzTheme.typography.caption,
-        modifier = Modifier.weight(weight),
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier,
     )
 }
 
 @Composable
 private fun TxRow(
     row: TransactionRow,
+    table: AdaptiveTableScope,
     selected: Boolean,
     onToggleSelect: () -> Unit,
     onEdit: () -> Unit,
@@ -262,8 +301,7 @@ private fun TxRow(
 ) {
     val colors = WzTheme.colors
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = table.row()
             .padding(vertical = 6.dp)
             .background(if (selected) colors.surface2 else colors.surface)
             .testTag("tx-row-" + row.id),
@@ -274,25 +312,30 @@ private fun TxRow(
             text = if (selected) "☑" else "☐",
             color = colors.accent,
             style = WzTheme.typography.body,
-            modifier = Modifier
-                .width(32.dp)
+            modifier = tableCell(table, 0)
                 .clickable(onClick = onToggleSelect)
                 .testTag("tx-check-" + row.id),
         )
-        // 交易对（估算中标注）
-        Column(modifier = Modifier.weight(1.6f)) {
+        // 交易对（估算中标注**内联同行**，DEF-29：原先另起一行会把行高撑高）
+        Row(
+            modifier = tableCell(table, 1),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Text(
                 text = row.pair,
                 color = colors.ink,
                 style = WzTheme.typography.body,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.testTag("tx-pair-" + row.id),
             )
             if (row.estimated) {
-                Text(
+                Badge(
                     text = TransactionCopy.ESTIMATING,
                     color = colors.warn,
-                    style = WzTheme.typography.caption,
-                    modifier = Modifier.testTag("tx-est-" + row.id),
+                    modifier = Modifier.padding(start = 6.dp),
+                    testTag = "tx-est-" + row.id,
                 )
             }
         }
@@ -300,19 +343,19 @@ private fun TxRow(
             text = if (row.side == Side.BUY) TransactionCopy.FILTER_BUY else TransactionCopy.FILTER_SELL,
             color = if (row.side == Side.BUY) colors.gain else colors.loss,
             style = WzTheme.typography.body,
-            modifier = Modifier.weight(0.7f),
+            modifier = tableCell(table, 2),
         )
         Text(
             text = WzFormat.price(row.price),
             color = colors.ink,
             style = WzTheme.typography.body,
-            modifier = Modifier.weight(1.1f),
+            modifier = tableCell(table, 3),
         )
         Text(
             text = WzFormat.quantity(row.quantity),
             color = colors.ink,
             style = WzTheme.typography.body,
-            modifier = Modifier.weight(1.1f),
+            modifier = tableCell(table, 4),
         )
         Text(
             if (row.fee.signum() == 0) {
@@ -322,25 +365,25 @@ private fun TxRow(
             },
             color = colors.ink,
             style = WzTheme.typography.body,
-            modifier = Modifier.weight(1.1f),
+            modifier = tableCell(table, 5),
         )
         Text(
             text = WzFormat.amount(row.total),
             color = colors.ink,
             style = WzTheme.typography.body,
-            modifier = Modifier.weight(1.2f),
+            modifier = tableCell(table, 6),
         )
         Text(
             row.exchange,
             color = colors.ink2,
             style = WzTheme.typography.body,
-            modifier = Modifier.weight(1.0f),
+            modifier = tableCell(table, 7),
         )
         Text(
             timeText(row.time),
             color = colors.ink3,
             style = WzTheme.typography.caption,
-            modifier = Modifier.weight(1.2f),
+            modifier = tableCell(table, 8),
         )
         // 已实现盈亏（卖出记录行显示；异常区段/非卖出行 "--"）
         val realized = row.realizedPnlFiat
@@ -351,13 +394,20 @@ private fun TxRow(
                     WzFormat.signedAmount(realized),
                 color = if (positive) colors.gain else colors.loss,
                 style = WzTheme.typography.body,
-                modifier = Modifier.weight(1.2f),
+                modifier = tableCell(table, 9),
             )
         } else {
-            Text(text = "--", color = colors.ink3, style = WzTheme.typography.body, modifier = Modifier.weight(1.2f))
+            Text(
+                text = "--",
+                color = colors.ink3,
+                style = WzTheme.typography.body,
+                maxLines = 1,
+                softWrap = false,
+                modifier = tableCell(table, 9),
+            )
         }
         Row(
-            modifier = Modifier.weight(1.4f),
+            modifier = tableCell(table, 10),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             WzButton(

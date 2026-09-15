@@ -26,6 +26,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.Offset
@@ -46,6 +51,7 @@ import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
 import com.wuzhufolio.ui.components.WzTextField
 import com.wuzhufolio.ui.components.WzToastHost
+import com.wuzhufolio.ui.shell.pageEntryFocus
 import com.wuzhufolio.ui.theme.WzTheme
 import androidx.compose.ui.zIndex
 import com.wuzhufolio.ui.i18n.WzFormat
@@ -80,8 +86,11 @@ fun MarketWatchPage(
         cgConfigured = runCatching { settingsService.keyStatus().cgConfigured }.getOrNull()
     }
     val searchFocus = remember { FocusRequester() }
-    // 输入聚焦（interaction.md §2.7）：页面打开即聚焦搜索框，键盘可直接录入
-    LaunchedEffect(Unit) { runCatching { searchFocus.requestFocus() } }
+    // 输入聚焦（interaction.md §2.7）：页面打开即聚焦搜索框，键盘可直接录入。
+    // DEF-27：改为声明「本页入口焦点」，由主壳在切页时统一请求——此前页面自己抢焦点会被主壳兜底请求覆盖。
+    val entryFocusModifier = Modifier.pageEntryFocus()
+    // DEF-30：候选浮层随输入显示；**清空输入 / Esc 立即收起**（人工反馈 7 的根因是在途搜索结果回来又把浮层顶出，
+    // 已在 ViewModel 用「取消在途搜索 + 结果落地复核关键词」修掉；此处不做焦点门控——焦点观察在重组中不可靠）
     val showCandidates = state.searchBusy || state.candidates.isNotEmpty() || state.query.isNotBlank()
 
     // 版式（2026-09-11 走查修复轮二）：**页头 + 搜索区固定，只有报价列表滚动**。
@@ -129,6 +138,8 @@ fun MarketWatchPage(
                 query = state.query,
                 onQueryChange = vm::onQueryChange,
                 focusRequester = searchFocus,
+                entryFocusModifier = entryFocusModifier,
+                onEscape = vm::clearSearch,
             )
 
             // 列表区：报价表滚动；候选浮层叠加在其顶部（紧贴搜索框，不挤占列表）
@@ -171,14 +182,29 @@ private fun WatchSearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
     focusRequester: FocusRequester,
+    entryFocusModifier: Modifier,
+    onEscape: () -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth().testTag("watch-search")) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            // Esc 取消搜索（清空输入 + 收起候选，DEF-30）：输入框未消费 Esc，冒泡到此处
+            .onKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown && event.key == Key.Escape && query.isNotBlank()) {
+                    onEscape()
+                    true
+                } else {
+                    false
+                }
+            }
+            .testTag("watch-search"),
+    ) {
         WzTextField(
             value = query,
             onValueChange = onQueryChange,
             label = MarketCopy.WATCH_SEARCH_LABEL,
             placeholder = MarketCopy.WATCH_SEARCH_PLACEHOLDER,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().then(entryFocusModifier),
             testTag = "watch-search-input",
             fieldFocusRequester = focusRequester,
         )

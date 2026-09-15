@@ -198,7 +198,8 @@ class TransactionsPageUiTest {
         }
         setContent { TransactionsPage(svc, { null }, { null }) }
         waitUntil(timeoutMillis = 2_000) { textCount("BTC/USDT") >= 1 }
-        onNodeWithTag("tx-edit-7").performClick()
+        // DEF-28：1024×768 下表格横向滚动，操作列在右侧 → 先滚入可视区再点击
+        onNodeWithTag("tx-edit-7").performScrollTo().performClick()
         waitUntil(timeoutMillis = 2_000) {
             runCatching { onNodeWithTag("tx-modal", useUnmergedTree = true).assertIsDisplayed() }.isSuccess
         }
@@ -299,7 +300,8 @@ class TransactionsPageUiTest {
         val svc = FakeLedgerService().apply { rows.add(row(7L, pair = "BTC/USDT")) }
         setContent { TransactionsPage(svc, { null }, { null }) }
         waitUntil(timeoutMillis = 2_000) { textCount("BTC/USDT") >= 1 }
-        onNodeWithTag("tx-edit-7").performClick()
+        // DEF-28：1024×768 下表格横向滚动，操作列在右侧 → 先滚入可视区再点击
+        onNodeWithTag("tx-edit-7").performScrollTo().performClick()
         waitUntil(timeoutMillis = 2_000) {
             runCatching { onNodeWithTag("tx-modal", useUnmergedTree = true).assertIsDisplayed() }.isSuccess
         }

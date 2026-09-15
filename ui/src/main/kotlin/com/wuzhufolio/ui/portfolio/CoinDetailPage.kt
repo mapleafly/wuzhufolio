@@ -43,6 +43,7 @@ import com.wuzhufolio.ui.components.WzTextField
 import com.wuzhufolio.ui.components.WzToastHost
 import com.wuzhufolio.ui.i18n.WzFormat
 import com.wuzhufolio.ui.i18n.portfolioStrings
+import com.wuzhufolio.ui.shell.pageEntryFocus
 import com.wuzhufolio.ui.theme.WzTheme
 
 /**
@@ -88,6 +89,8 @@ fun CoinDetailPage(
                 color = colors.ink2,
                 style = WzTheme.typography.caption,
                 modifier = Modifier
+                    // DEF-27：本页入口焦点 = 顶部「返回」链接（页面首个可聚焦控件）
+                    .pageEntryFocus()
                     .wzTextClickable(label = portfolioStrings.coinDetailBack, onClick = onBack)
                     .padding(bottom = 8.dp)
                     .testTag("coin-detail-back"),
