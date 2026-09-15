@@ -34,6 +34,8 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -58,6 +60,20 @@ internal object WzOverlayRegistry {
     fun onModalClosed() {
         openModalCount = (openModalCount - 1).coerceAtLeast(0)
     }
+}
+
+/**
+ * 弹窗**内容区**高度上限（DEF-36，2026-09-15 人工门第七轮）：窗口高 × 0.66，下限 320dp。
+ *
+ * 口径：弹窗内容尽量在一屏内放下（人工实测 1024×768 下交易/增资表单「滚动范围不到一行」，
+ * 属内容比窗口只高一点点——把上限从写死的 470/420dp 改为按窗口高度计算即可基本消除滚动条）；
+ * 窗口确实过小时仍保留内部滚动，避免内容被裁切。
+ */
+@Composable
+fun modalContentMaxHeight(): Dp {
+    val containerHeight = LocalWindowInfo.current.containerSize.height
+    val windowHeight = with(LocalDensity.current) { containerHeight.toDp() }
+    return (windowHeight * 0.66f).coerceAtLeast(320.dp)
 }
 
 /**

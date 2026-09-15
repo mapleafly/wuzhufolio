@@ -4,6 +4,10 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.unit.width
+import androidx.compose.ui.unit.height
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -50,6 +54,8 @@ class TransactionsPageUiTest {
         price: String = "50000",
         qty: String = "0.1",
         realized: BigDecimal? = null,
+        fee: String = "0.1",
+        feeCurrency: String = "USDT",
     ): TransactionRow = TransactionRow(
         id = id,
         exchange = "BINANCE",
@@ -60,8 +66,8 @@ class TransactionsPageUiTest {
         side = side,
         price = BigDecimal(price),
         quantity = BigDecimal(qty),
-        fee = BigDecimal("0.1"),
-        feeCurrency = "USDT",
+        fee = BigDecimal(fee),
+        feeCurrency = feeCurrency,
         total = BigDecimal(price).multiply(BigDecimal(qty)),
         time = Instant.parse("2026-08-30T08:00:00Z"),
         notes = null,
@@ -155,6 +161,48 @@ class TransactionsPageUiTest {
         assertEquals("BTC", svc.savedInput!!.baseSymbol)
         assertEquals("USDT", svc.savedInput!!.quoteSymbol)
         waitUntil(timeoutMillis = 2_000) { textCount(TransactionCopy.SAVE_SUCCESS) >= 1 }
+    }
+
+    /**
+     * DEF-33/36（P6 人工门第七轮 · 人工反馈 2/6）：交易表窄窗下
+     * ① 手续费等长数字单行（不换行撑高行）；② 横向滚到最右后「删除」按钮**完整可见**（不被纵向滚动条压住）。
+     */
+    @Test
+    fun transactionTableKeepsFeeSingleLineAndActionsFullyVisible() = runComposeUiTest {
+        val svc = FakeLedgerService().apply {
+            rows.add(row(9L, pair = "BTC/USDT", fee = "0.00022336", feeCurrency = "BNB"))
+        }
+        setContent { TransactionsPage(svc, { null }, { null }) }
+        waitUntil(timeoutMillis = 2_000) { textCount("BTC/USDT") >= 1 }
+
+        // ① 手续费单行
+        val feeCell = onNodeWithTag("tx-fee-9", useUnmergedTree = true).getUnclippedBoundsInRoot()
+        assertTrue(feeCell.height <= 26.dp, "手续费应单行显示（实际 ${feeCell.height}），不得换行撑高行")
+
+        // ② 操作按钮完整可见（横向滚到最右 + 右侧预留滚动条槽）
+        val table = onNodeWithTag("tx-table-header").getUnclippedBoundsInRoot()
+        onNodeWithTag("tx-delete-9").performScrollTo()
+        waitForIdle()
+        val del = onNodeWithTag("tx-delete-9").getUnclippedBoundsInRoot()
+        assertTrue(
+            del.right <= table.right + 1.dp,
+            "删除按钮必须完整落在表格内（del=$del）——此前被纵向滚动条压掉一半",
+        )
+        assertTrue(del.width >= 36.dp, "删除按钮宽度须容纳两字（实际 ${del.width}）")
+    }
+
+    /**
+     * DEF-36（人工反馈 2/3/6/7）：交易表单弹窗在窄窗（1024×768）下**不应出现滚动条**——
+     * 判据 = 保存按钮与时间字段无需滚动即处于可视区（内容高度上限随窗口高度计算 + 内边距收紧）。
+     */
+    @Test
+    fun transactionModalFitsWithoutScrolling() = runComposeUiTest {
+        val svc = FakeLedgerService()
+        setContent { TransactionsPage(svc, { null }, { null }) }
+        onNodeWithTag("tx-add").performClick()
+        onNodeWithTag("tx-modal", useUnmergedTree = true).assertIsDisplayed()
+        onNodeWithTag("tx-save", useUnmergedTree = true).assertIsDisplayed()
+        onNodeWithTag("tx-time-input").assertIsDisplayed()
     }
 
     @Test

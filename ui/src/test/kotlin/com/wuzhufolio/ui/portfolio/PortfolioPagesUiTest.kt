@@ -3,11 +3,15 @@ package com.wuzhufolio.ui.portfolio
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.height
+import androidx.compose.ui.unit.width
 import com.wuzhufolio.domain.catalog.CatalogCoin
 import com.wuzhufolio.domain.catalog.CoinCatalog
 import com.wuzhufolio.domain.catalog.CoinDirectoryEntry
@@ -205,6 +209,8 @@ class PortfolioPagesUiTest {
         price: String?,
         realized: String = "0",
         anomalous: Boolean = false,
+        estimated: Boolean = false,
+        costReliable: Boolean = true,
         sources: Set<RecordSource> = setOf(RecordSource.Exchange("BINANCE")),
     ): PortfolioRow {
         val qty = BigDecimal(quantity)
@@ -229,7 +235,8 @@ class PortfolioPagesUiTest {
             sharePercent = null,
             priced = px != null,
             anomalous = anomalous,
-            estimated = false,
+            estimated = estimated,
+            costReliable = costReliable,
             sources = sources,
             sourceClassification = com.wuzhufolio.domain.engine.ReconciliationService()
                 .classifySources(sources),
@@ -382,6 +389,50 @@ class PortfolioPagesUiTest {
         onNodeWithTag("sort-market-value").performClick()
         onNodeWithTag("holding-row-bitcoin").performClick()
         assertEquals("bitcoin", opened)
+    }
+
+    /**
+     * DEF-31/35（P6 人工门第七轮 · 人工反馈 1/5）：资产表窄窗下
+     * ① 币种列的三枚徽标（持仓异常/估算中/成本不可靠）必须**完整显示**、不被裁掉；
+     * ② 8 位小数等长数字必须**单行**（不得换行撑高行）。
+     */
+    @Test
+    fun `assets table keeps badges and numeric cells intact at narrow width`() = runComposeUiTest {
+        setContent {
+            WuzhuTheme(themeMode = ThemeMode.LIGHT) {
+                AssetsPage(
+                    portfolioService = FakePortfolio(
+                        listOf(
+                            row(
+                                "bitcoin", "BTC", "Bitcoin", "0.12345678", "40000.12345678", "50000",
+                                anomalous = true, estimated = true, costReliable = false,
+                            ),
+                        ),
+                    ),
+                    refreshService = FakeRefresh(),
+                    generalSettings = FakeGeneralSettings(),
+                    onOpenCoin = {},
+                )
+            }
+        }
+        onNodeWithTag("page-ASSETS").assertIsDisplayed()
+        val table = onNodeWithTag("assets-table").getUnclippedBoundsInRoot()
+        // ① 三枚徽标都完整落在表格内（此前第三枚被裁掉/竖排）
+        listOf("anomaly-bitcoin", "estimated-bitcoin", "cost-unreliable-bitcoin").forEach { tag ->
+            val badge = onNodeWithTag(tag, useUnmergedTree = true).getUnclippedBoundsInRoot()
+            assertTrue(
+                badge.right <= table.right && badge.width > 20.dp,
+                "徽标 $tag 必须完整显示在表格内（badge=$badge table=$table）",
+            )
+        }
+        // ② 数值单元格必须单行（8 位小数不得换行；换行会把整行撑高、破坏表格节奏）
+        listOf("qty-bitcoin", "avg-cost-bitcoin").forEach { tag ->
+            val cell = onNodeWithTag(tag, useUnmergedTree = true).getUnclippedBoundsInRoot()
+            assertTrue(cell.height <= 26.dp, "$tag 应为单行（实际 ${cell.height}）")
+        }
+        // 行高保持稳定（不得因徽标/数字换行而暴涨；价格/盈亏列本就各带一行次要文本）
+        val rowBounds = onNodeWithTag("holding-row-bitcoin").getUnclippedBoundsInRoot()
+        assertTrue(rowBounds.height <= 56.dp, "数据行高度应稳定（实际 ${rowBounds.height}）")
     }
 
     @Test

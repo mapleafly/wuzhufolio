@@ -27,6 +27,7 @@ import com.wuzhufolio.domain.engine.Side
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
 import com.wuzhufolio.ui.components.WzModal
+import com.wuzhufolio.ui.components.modalContentMaxHeight
 import com.wuzhufolio.ui.components.WzTextField
 import com.wuzhufolio.ui.theme.WzTheme
 
@@ -62,7 +63,8 @@ fun TransactionFormModal(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = 470.dp),
+                // DEF-36：内容上限随窗口高度（不再写死 470dp；1024×768 下不出现滚动条）
+                .heightIn(max = modalContentMaxHeight()),
         ) {
             Column(
                 modifier = Modifier
@@ -113,7 +115,7 @@ fun TransactionFormModal(
 
                 // 交易对（基础币 + 计价币均支持目录自动补全）
                 Row(
-                    modifier = Modifier.padding(top = 10.dp),
+                    modifier = Modifier.padding(top = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
@@ -156,7 +158,7 @@ fun TransactionFormModal(
 
                 // 价格 / 数量
                 Row(
-                    modifier = Modifier.padding(top = 10.dp),
+                    modifier = Modifier.padding(top = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     WzTextField(
@@ -182,7 +184,7 @@ fun TransactionFormModal(
 
                 // 手续费 + 手续费币种三态
                 Row(
-                    modifier = Modifier.padding(top = 10.dp),
+                    modifier = Modifier.padding(top = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     WzTextField(
@@ -237,7 +239,7 @@ fun TransactionFormModal(
                         label = TransactionCopy.LABEL_FEE_CUSTOM,
                         placeholder = "BNB",
                         error = state.errors[TxField.FEE_CUSTOM.key],
-                        modifier = Modifier.padding(top = 10.dp),
+                        modifier = Modifier.padding(top = 8.dp),
                         testTag = "tx-fee-custom-input",
                         fieldFocusRequester = feeFocus,
                     )
@@ -255,7 +257,7 @@ fun TransactionFormModal(
 
                 // 自动计算 + 实时总价（同一行，压缩纵向空间）
                 Row(
-                    modifier = Modifier.padding(top = 10.dp),
+                    modifier = Modifier.padding(top = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
@@ -289,7 +291,7 @@ fun TransactionFormModal(
 
                 // 交易时间（本地输入，保存转 UTC）/ 备注
                 Row(
-                    modifier = Modifier.padding(top = 10.dp),
+                    modifier = Modifier.padding(top = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     WzTextField(
@@ -317,7 +319,7 @@ fun TransactionFormModal(
                         text = state.formError,
                         color = colors.loss,
                         style = WzTheme.typography.body,
-                        modifier = Modifier.padding(top = 10.dp).testTag("tx-form-error"),
+                        modifier = Modifier.padding(top = 8.dp).testTag("tx-form-error"),
                     )
                 }
             }

@@ -27,6 +27,7 @@ import com.wuzhufolio.domain.engine.FlowKind
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
 import com.wuzhufolio.ui.components.WzModal
+import com.wuzhufolio.ui.components.modalContentMaxHeight
 import com.wuzhufolio.ui.components.WzTextField
 import com.wuzhufolio.ui.theme.WzTheme
 
@@ -56,7 +57,8 @@ fun FundFormModal(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = 420.dp),
+                // DEF-36：内容上限随窗口高度（不再写死 420dp）
+                .heightIn(max = modalContentMaxHeight()),
         ) {
             Column(
                 modifier = Modifier
@@ -96,7 +98,7 @@ fun FundFormModal(
 
                 // 数量 + 日期时间
                 Row(
-                    modifier = Modifier.padding(top = 10.dp),
+                    modifier = Modifier.padding(top = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     WzTextField(
@@ -126,7 +128,7 @@ fun FundFormModal(
                     onValueChange = { vm.onFieldChange(FundField.SOURCE_DEST, it) },
                     label = if (state.kind == FlowKind.DEPOSIT) FundsCopy.LABEL_SOURCE else FundsCopy.LABEL_DEST,
                     placeholder = FundsCopy.PLACEHOLDER_OPTIONAL,
-                    modifier = Modifier.padding(top = 10.dp),
+                    modifier = Modifier.padding(top = 8.dp),
                     testTag = "fund-source-input",
                 )
                 WzTextField(
@@ -134,7 +136,7 @@ fun FundFormModal(
                     onValueChange = { vm.onFieldChange(FundField.NOTES, it) },
                     label = FundsCopy.LABEL_NOTES,
                     placeholder = FundsCopy.PLACEHOLDER_OPTIONAL,
-                    modifier = Modifier.padding(top = 10.dp),
+                    modifier = Modifier.padding(top = 8.dp),
                     testTag = "fund-notes-input",
                 )
 
@@ -167,7 +169,7 @@ fun FundFormModal(
                         text = state.formError,
                         color = colors.loss,
                         style = WzTheme.typography.body,
-                        modifier = Modifier.padding(top = 10.dp).testTag("fund-form-error"),
+                        modifier = Modifier.padding(top = 8.dp).testTag("fund-form-error"),
                     )
                 }
             }

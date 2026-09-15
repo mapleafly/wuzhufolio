@@ -43,6 +43,10 @@ import androidx.compose.ui.unit.dp
 import com.wuzhufolio.domain.settings.ThemeMode
 import com.wuzhufolio.ui.i18n.WzFormat
 import com.wuzhufolio.ui.i18n.portfolioStrings
+import com.wuzhufolio.ui.components.SingleLineText
+import com.wuzhufolio.ui.components.WzCard
+import com.wuzhufolio.ui.components.WzCardLabel
+import com.wuzhufolio.ui.components.WzMetric
 import com.wuzhufolio.ui.theme.WzTheme
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -68,26 +72,24 @@ fun StatCard(
     testTag: String = "",
 ) {
     val colors = WzTheme.colors
-    Column(
-        modifier = modifier
-            .background(colors.surface, RoundedCornerShape(12.dp))
-            .border(1.dp, colors.line, RoundedCornerShape(12.dp))
-            .padding(horizontal = 16.dp, vertical = 14.dp)
-            .testTag(testTag),
-    ) {
-        Text(text = label, color = colors.ink2, style = WzTheme.typography.caption)
-        Text(
+    // DEF-34：卡片统一走 WzCard + 指标数字单行自适应（窄窗自动缩字号，绝不换行变形）
+    WzCard(modifier = modifier, testTag = testTag) {
+        WzCardLabel(text = label)
+        WzMetric(
             text = value,
-            color = colors.ink,
             style = if (small) WzTheme.typography.bodyStrong else WzTheme.typography.display,
-            modifier = Modifier.padding(top = 6.dp),
+            testTag = if (testTag.isNotEmpty()) testTag + "-value" else "",
+            modifier = Modifier.padding(top = 2.dp),
         )
         if (delta != null) {
             Text(
                 text = delta,
                 color = deltaColor ?: colors.ink3,
                 style = WzTheme.typography.caption,
-                modifier = Modifier.padding(top = 4.dp),
+                maxLines = 1,
+                softWrap = false,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 2.dp),
             )
         }
     }
@@ -282,10 +284,10 @@ private fun DonutLegendRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(modifier = Modifier.size(10.dp).background(color.copy(alpha = alpha), RoundedCornerShape(3.dp)))
-        Text(
+        SingleLineText(
             text = slice.label,
-            color = colors.ink.copy(alpha = alpha),
             style = WzTheme.typography.body,
+            color = colors.ink.copy(alpha = alpha),
             modifier = Modifier.padding(start = 8.dp).weight(1f),
         )
         Text(

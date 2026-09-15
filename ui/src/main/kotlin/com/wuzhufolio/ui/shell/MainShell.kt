@@ -44,6 +44,7 @@ import com.wuzhufolio.ui.components.WzToast
 import com.wuzhufolio.ui.components.WzToastHost
 import com.wuzhufolio.ui.gallery.ComponentGallery
 import com.wuzhufolio.ui.i18n.shellStrings
+import com.wuzhufolio.ui.theme.ProvideWzWindowClass
 import com.wuzhufolio.ui.theme.WuzhuTheme
 import com.wuzhufolio.ui.theme.WzTheme
 
@@ -170,6 +171,8 @@ fun MainShell(
                                 .onKeyEvent { event -> handlePageExitKey(event, page, navFocusRequesters) },
                         ) {
                             CompositionLocalProvider(LocalPageEntryFocus provides pageEntryState) {
+                            // 窗口档（DEF-31）：布局按断点决定列宽/字号/弹窗策略，单一来源
+                            ProvideWzWindowClass(modifier = Modifier.fillMaxSize()) {
                             PageHost(
                                 page = page,
                                 coinDetailId = coinDetailId,
@@ -183,6 +186,7 @@ fun MainShell(
                                 transactionsPageContent = transactionsPageContent,
                                 fundsPageContent = fundsPageContent,
                             )
+                            }
                             }
                         }
                     }

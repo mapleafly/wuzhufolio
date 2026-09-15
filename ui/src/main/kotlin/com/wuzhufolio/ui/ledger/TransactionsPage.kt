@@ -36,6 +36,7 @@ import com.wuzhufolio.ui.components.WzButtonVariant
 import androidx.compose.ui.text.style.TextOverflow
 import com.wuzhufolio.ui.components.AdaptiveTable
 import com.wuzhufolio.ui.components.AdaptiveTableScope
+import com.wuzhufolio.ui.components.SingleLineText
 import com.wuzhufolio.ui.components.TableColumn
 import com.wuzhufolio.ui.components.TableWidths
 import com.wuzhufolio.ui.components.WzModal
@@ -114,14 +115,15 @@ fun TransactionsPage(
                 val listScroll = rememberScrollState()
                 // DEF-28/29：表头与数据行同处一个 AdaptiveTable（窄窗整表横向滚动，列宽保底不换行）；
                 // 垂直滚动仍由内层列表负责，纵向滚动条贴在页面右缘（不随横向滚动漂走）
-                Box(modifier = Modifier.weight(1f)) {
+                // 右侧留出 12dp 给纵向滚动条（DEF-33：此前滚动条压在表格最右列上，
+                // 横向滚到最右也看不清「删除」按钮）
+                Box(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                     AdaptiveTable(columns = TX_COLUMNS, modifier = Modifier.fillMaxSize()) { table ->
                         TxTableHeader(table)
                         Column(
                             modifier = table.row()
                                 .weight(1f)
                                 .verticalScroll(listScroll)
-                                .padding(end = 12.dp)
                                 .testTag("tx-list"),
                         ) {
                             state.rows.forEach { row ->
@@ -301,7 +303,7 @@ private fun TxRow(
 ) {
     val colors = WzTheme.colors
     Row(
-        modifier = table.row()
+        modifier = table.dataRow()
             .padding(vertical = 6.dp)
             .background(if (selected) colors.surface2 else colors.surface)
             .testTag("tx-row-" + row.id),
@@ -321,14 +323,10 @@ private fun TxRow(
             modifier = tableCell(table, 1),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
+            SingleLineText(
                 text = row.pair,
-                color = colors.ink,
                 style = WzTheme.typography.body,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.testTag("tx-pair-" + row.id),
+                testTag = "tx-pair-" + row.id,
             )
             if (row.estimated) {
                 Badge(
@@ -345,44 +343,45 @@ private fun TxRow(
             style = WzTheme.typography.body,
             modifier = tableCell(table, 2),
         )
-        Text(
+        SingleLineText(
             text = WzFormat.price(row.price),
-            color = colors.ink,
             style = WzTheme.typography.body,
             modifier = tableCell(table, 3),
+            testTag = "tx-price-" + row.id,
         )
-        Text(
+        SingleLineText(
             text = WzFormat.quantity(row.quantity),
-            color = colors.ink,
             style = WzTheme.typography.body,
             modifier = tableCell(table, 4),
+            testTag = "tx-qty-" + row.id,
         )
-        Text(
-            if (row.fee.signum() == 0) {
+        // DEF-33：手续费（如「0.00022336 BNB」）必须单行 + 悬停看全值——此前换行会撑高整行
+        SingleLineText(
+            text = if (row.fee.signum() == 0) {
                 WzFormat.DASH
             } else {
                 WzFormat.quantity(row.fee) + (row.feeCurrency?.let { " " + it } ?: "")
             },
-            color = colors.ink,
             style = WzTheme.typography.body,
             modifier = tableCell(table, 5),
+            testTag = "tx-fee-" + row.id,
         )
-        Text(
+        SingleLineText(
             text = WzFormat.amount(row.total),
-            color = colors.ink,
             style = WzTheme.typography.body,
             modifier = tableCell(table, 6),
+            testTag = "tx-total-" + row.id,
         )
-        Text(
-            row.exchange,
-            color = colors.ink2,
+        SingleLineText(
+            text = row.exchange,
             style = WzTheme.typography.body,
+            color = colors.ink2,
             modifier = tableCell(table, 7),
         )
-        Text(
-            timeText(row.time),
-            color = colors.ink3,
+        SingleLineText(
+            text = timeText(row.time),
             style = WzTheme.typography.caption,
+            color = colors.ink3,
             modifier = tableCell(table, 8),
         )
         // 已实现盈亏（卖出记录行显示；异常区段/非卖出行 "--"）

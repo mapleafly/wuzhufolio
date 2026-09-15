@@ -34,6 +34,7 @@ import com.wuzhufolio.ui.i18n.portfolioStrings
 import androidx.compose.ui.text.style.TextOverflow
 import com.wuzhufolio.ui.components.AdaptiveTable
 import com.wuzhufolio.ui.components.AdaptiveTableScope
+import com.wuzhufolio.ui.components.SingleLineText
 import com.wuzhufolio.ui.components.TableColumn
 import com.wuzhufolio.ui.components.TableWidths
 import com.wuzhufolio.ui.components.tableCell
@@ -254,7 +255,7 @@ private fun HoldingTable(
 private fun HoldingRowLine(row: PortfolioRow, onOpen: (String) -> Unit, table: AdaptiveTableScope) {
     val colors = WzTheme.colors
     Row(
-        modifier = table.row()
+        modifier = table.dataRow()
             .wzTextClickable(label = row.symbol + " · " + row.name) { onOpen(row.cgId) }
             .padding(vertical = 8.dp)
             .testTag("holding-row-" + row.cgId),
@@ -298,33 +299,24 @@ private fun HoldingRowLine(row: PortfolioRow, onOpen: (String) -> Unit, table: A
                 )
             }
         }
-        Text(
+        SingleLineText(
             text = WzFormat.quantity(row.quantity),
-            color = colors.ink,
             style = WzTheme.typography.body,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Ellipsis,
             modifier = tableCell(table, 1),
+            testTag = "qty-" + row.cgId,
         )
-        Text(
+        SingleLineText(
             text = WzFormat.price(row.avgCostFiat),
-            color = colors.ink,
             style = WzTheme.typography.body,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Ellipsis,
             modifier = tableCell(table, 2),
+            testTag = "avg-cost-" + row.cgId,
         )
         Column(modifier = tableCell(table, 3)) {
-            Text(
+            SingleLineText(
                 text = WzFormat.price(row.priceFiat),
-                color = if (row.priced) colors.ink else colors.ink3,
                 style = WzTheme.typography.body,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.testTag("price-" + row.cgId),
+                color = if (row.priced) colors.ink else colors.ink3,
+                testTag = "price-" + row.cgId,
             )
             if (!row.priced) {
                 Text(
@@ -337,24 +329,17 @@ private fun HoldingRowLine(row: PortfolioRow, onOpen: (String) -> Unit, table: A
                 )
             }
         }
-        Text(
+        SingleLineText(
             text = WzFormat.amount(row.marketValueFiat),
-            color = colors.ink,
             style = WzTheme.typography.body,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Ellipsis,
             modifier = tableCell(table, 4),
         )
         Column(modifier = tableCell(table, 5)) {
-            Text(
+            SingleLineText(
                 text = WzFormat.signedAmount(row.floatPnlFiat),
-                color = pnlColor(row.floatPnlFiat),
                 style = WzTheme.typography.body,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.testTag("float-pnl-" + row.cgId),
+                color = pnlColor(row.floatPnlFiat),
+                testTag = "float-pnl-" + row.cgId,
             )
             Text(
                 text = WzFormat.signedPercent(row.floatPnlPercent),
@@ -364,13 +349,10 @@ private fun HoldingRowLine(row: PortfolioRow, onOpen: (String) -> Unit, table: A
                 softWrap = false,
             )
         }
-        Text(
+        SingleLineText(
             text = WzFormat.signedAmount(row.realizedPnlFiat),
-            color = pnlColor(row.realizedPnlFiat),
             style = WzTheme.typography.body,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Ellipsis,
+            color = pnlColor(row.realizedPnlFiat),
             modifier = tableCell(table, 6),
         )
     }

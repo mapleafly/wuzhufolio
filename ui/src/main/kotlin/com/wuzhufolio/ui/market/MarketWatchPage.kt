@@ -51,6 +51,7 @@ import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
 import com.wuzhufolio.ui.components.WzTextField
 import com.wuzhufolio.ui.components.WzToastHost
+import com.wuzhufolio.ui.components.rowDivider
 import com.wuzhufolio.ui.shell.pageEntryFocus
 import com.wuzhufolio.ui.theme.WzTheme
 import androidx.compose.ui.zIndex
@@ -154,7 +155,8 @@ fun MarketWatchPage(
                         )
                     } else {
                         WatchQuoteHeader(fiat = state.fiat)
-                        state.rows.forEach { row ->
+                        state.rows.forEachIndexed { index, row ->
+                            if (index > 0) rowDivider()
                             WatchQuoteRowLine(row = row, onRemove = { vm.removeCoin(row.cgId) })
                         }
                     }

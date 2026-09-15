@@ -1,6 +1,8 @@
 package com.wuzhufolio.ui.components
 
 import androidx.compose.foundation.HorizontalScrollbar
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -45,8 +47,13 @@ import androidx.compose.ui.unit.dp
 data class TableColumn(
     /** 该列最小宽度（窄窗滚动模式下即列宽）。 */
     val minWidth: Dp,
-    /** 宽窗模式下的相对权重。 */
-    val weight: Float = 1f,
+    /**
+     * 宽窗模式下的相对弹性。**默认 = 最小宽的比例**（`minWidth.value`）——
+     * 这样「可用宽度 ≥ 各列最小宽之和」时，每列分到的宽度比例 ≥ 其最小宽占比，
+     * 即**每列都必然不小于自己的最小宽**（此前固定 weight 会让窄列抢走宽列空间，
+     * 高 DPI 下币种列的第三枚徽标因此被裁掉，DEF-31）。
+     */
+    val flex: Float = minWidth.value,
 )
 
 /** 表格作用域：给出行与单元格的尺寸修饰符（窄窗滚动 / 宽窗铺满两态）。 */
@@ -55,9 +62,27 @@ class AdaptiveTableScope internal constructor(
     private val scrollable: Boolean,
     val tableWidth: Dp,
     private val columns: List<TableColumn>,
+    private val divider: Boolean,
 ) {
-    /** 行容器修饰符（表头行与数据行都要用）。 */
+    /** 行容器修饰符（表头行与数据行都要用）。数据行请用 [dataRow] 以带上单元线。 */
     fun row(): Modifier = if (scrollable) Modifier.width(tableWidth) else Modifier.fillMaxWidth()
+
+    /** 数据行修饰符：行宽 + 底部单元线（DEF-38）。 */
+    @Composable
+    fun dataRow(): Modifier {
+        val colors = com.wuzhufolio.ui.theme.WzTheme.colors
+        return row().drawBehind {
+            if (divider) {
+                val stroke = 1.dp.toPx()
+                drawLine(
+                    color = colors.line,
+                    start = androidx.compose.ui.geometry.Offset(0f, size.height - stroke / 2f),
+                    end = androidx.compose.ui.geometry.Offset(size.width, size.height - stroke / 2f),
+                    strokeWidth = stroke,
+                )
+            }
+        }
+    }
 
     /**
      * 第 [index] 个单元格的修饰符计算（宽窗模式用 `weight` 分配剩余宽度，需要 [row] 作用域）。
@@ -66,7 +91,7 @@ class AdaptiveTableScope internal constructor(
     fun cellModifier(row: RowScope, index: Int): Modifier = if (scrollable) {
         Modifier.width(columns[index].minWidth)
     } else {
-        with(row) { Modifier.weight(columns[index].weight) }
+        with(row) { Modifier.weight(columns[index].flex) }
     }
 }
 
@@ -74,6 +99,8 @@ class AdaptiveTableScope internal constructor(
 fun AdaptiveTable(
     columns: List<TableColumn>,
     modifier: Modifier = Modifier,
+    /** 是否给每行加单元线（DEF-38：列表可读性；默认开）。 */
+    divider: Boolean = true,
     content: @Composable ColumnScope.(AdaptiveTableScope) -> Unit,
 ) {
     val hScroll = rememberScrollState()
@@ -84,6 +111,7 @@ fun AdaptiveTable(
             scrollable = scrollable,
             tableWidth = if (scrollable) minTotal else maxWidth,
             columns = columns,
+            divider = divider,
         )
         Column(
             modifier = if (scrollable) {
@@ -113,7 +141,7 @@ fun RowScope.tableCell(table: AdaptiveTableScope, index: Int): Modifier = table.
 /** 常用最小宽度（各表共享，改口径只改这里）。 */
 object TableWidths {
     /** 交易对/币种 + 徽标（如「BTC/USDT」+「估算中」或「BTC」+ 持仓异常/估算中/成本不可靠 三枚标签）。 */
-    val COIN: Dp = 240.dp
+    val COIN: Dp = 260.dp
 
     /** 数量/价格/成本/手续费/已实现等数字列（8 位小数 + 千分位不换行；12.5sp 等宽字下实测 ~90dp）。 */
     val NUMBER: Dp = 96.dp

@@ -37,7 +37,14 @@ import com.wuzhufolio.domain.ledger.FundEntryType
 import com.wuzhufolio.domain.ledger.FundService
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
+import androidx.compose.ui.text.style.TextOverflow
+import com.wuzhufolio.ui.components.AdaptiveTable
+import com.wuzhufolio.ui.components.AdaptiveTableScope
+import com.wuzhufolio.ui.components.SingleLineText
+import com.wuzhufolio.ui.components.TableColumn
+import com.wuzhufolio.ui.components.TableWidths
 import com.wuzhufolio.ui.components.WzModal
+import com.wuzhufolio.ui.components.tableCell
 import com.wuzhufolio.ui.shell.pageEntryFocus
 import com.wuzhufolio.ui.components.WzTextField
 import com.wuzhufolio.ui.components.WzToastHost
@@ -98,24 +105,26 @@ fun FundsPage(
                     )
                 }
             } else {
-                FundTableHeader()
                 val listScroll = rememberScrollState()
-                Box(modifier = Modifier.weight(1f)) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(listScroll)
-                            .padding(end = 12.dp)
-                            .testTag("fund-list"),
-                    ) {
-                        state.rows.forEach { row ->
-                            FundRow(
-                                row = row,
-                                selected = row.uuid in state.selected,
-                                onToggleSelect = { vm.toggleSelect(row.uuid) },
-                                onEdit = { vm.openEdit(row.uuid) },
-                                onDelete = { vm.requestDeleteRow(row.uuid) },
-                            )
+                Box(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                    AdaptiveTable(columns = FUND_COLUMNS, modifier = Modifier.fillMaxSize()) { table ->
+                        FundTableHeader(table)
+                        Column(
+                            modifier = table.row()
+                                .weight(1f)
+                                .verticalScroll(listScroll)
+                                .testTag("fund-list"),
+                        ) {
+                            state.rows.forEach { row ->
+                                FundRow(
+                                    row = row,
+                                    table = table,
+                                    selected = row.uuid in state.selected,
+                                    onToggleSelect = { vm.toggleSelect(row.uuid) },
+                                    onEdit = { vm.openEdit(row.uuid) },
+                                    onDelete = { vm.requestDeleteRow(row.uuid) },
+                                )
+                            }
                         }
                     }
                     VerticalScrollbar(
@@ -283,42 +292,58 @@ private fun TypeButton(text: String, selected: Boolean, testTag: String, onClick
     )
 }
 
+/** 资金表列（DEF-28 同口径：最小宽保底 + 窄窗横向滚动）。 */
+private val FUND_COLUMNS: List<TableColumn> = listOf(
+    TableColumn(30.dp, 0.2f),                     // 选择框
+    TableColumn(TableWidths.TAG, 0.7f),           // 类型
+    TableColumn(120.dp, 0.9f),                    // 币种
+    TableColumn(TableWidths.NUMBER, 1f),          // 数量
+    TableColumn(TableWidths.AMOUNT, 1.05f),       // 法币估值
+    TableColumn(TableWidths.TIME, 1.05f),         // 时间
+    TableColumn(150.dp, 1f),                      // 来源/去向
+    TableColumn(140.dp, 0.95f),                   // 备注
+    TableColumn(TableWidths.ACTIONS, 1.3f),       // 操作
+)
+
 @Composable
-private fun FundTableHeader() {
+private fun FundTableHeader(table: AdaptiveTableScope) {
     val colors = WzTheme.colors
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = table.row()
             .padding(top = 12.dp, bottom = 6.dp)
             .testTag("fund-table-header"),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(modifier = Modifier.width(32.dp))
-        HeaderCell(FundsCopy.COL_TYPE, 0.8f)
-        HeaderCell(FundsCopy.COL_COIN, 0.8f)
-        HeaderCell(FundsCopy.COL_QTY, 0.9f)
-        HeaderCell(FundsCopy.COL_FIAT, 1.0f)
-        HeaderCell(FundsCopy.COL_TIME, 1.0f)
-        HeaderCell(FundsCopy.COL_SOURCE, 0.9f)
-        HeaderCell(FundsCopy.COL_NOTES, 0.9f)
-        HeaderCell(FundsCopy.COL_ACTIONS, 1.4f)
+        Box(modifier = tableCell(table, 0))
+        HeaderCell(FundsCopy.COL_TYPE, tableCell(table, 1))
+        HeaderCell(FundsCopy.COL_COIN, tableCell(table, 2))
+        HeaderCell(FundsCopy.COL_QTY, tableCell(table, 3))
+        HeaderCell(FundsCopy.COL_FIAT, tableCell(table, 4))
+        HeaderCell(FundsCopy.COL_TIME, tableCell(table, 5))
+        HeaderCell(FundsCopy.COL_SOURCE, tableCell(table, 6))
+        HeaderCell(FundsCopy.COL_NOTES, tableCell(table, 7))
+        HeaderCell(FundsCopy.COL_ACTIONS, tableCell(table, 8))
     }
 }
 
 @Composable
-private fun RowScope.HeaderCell(text: String, weight: Float) {
+private fun HeaderCell(text: String, modifier: Modifier) {
     val colors = WzTheme.colors
     Text(
         text = text,
         color = colors.ink2,
         style = WzTheme.typography.caption,
-        modifier = Modifier.weight(weight),
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier,
     )
 }
 
 @Composable
 private fun FundRow(
     row: FundEntryRow,
+    table: AdaptiveTableScope,
     selected: Boolean,
     onToggleSelect: () -> Unit,
     onEdit: () -> Unit,
@@ -352,10 +377,10 @@ private fun FundRow(
                 FundEntryType.RECONCILIATION -> colors.accent
             },
             style = WzTheme.typography.body,
-            modifier = Modifier.weight(0.8f).testTag("fund-type-" + row.uuid.takeLast(6)),
+            modifier = tableCell(table, 1).testTag("fund-type-" + row.uuid.takeLast(6)),
         )
         // 币种（估算中标注）
-        Column(modifier = Modifier.weight(0.8f)) {
+        Column(modifier = tableCell(table, 2)) {
             Text(text = row.coinSymbol, color = colors.ink, style = WzTheme.typography.bodyStrong)
             if (row.estimated) {
                 Text(
@@ -369,31 +394,31 @@ private fun FundRow(
             text = fundQty(row.quantity),
             color = colors.ink,
             style = WzTheme.typography.body,
-            modifier = Modifier.weight(0.9f),
+            modifier = tableCell(table, 3),
         )
         Text(
             text = fiatMoney(row.baseAmount),
             color = colors.ink,
             style = WzTheme.typography.body,
-            modifier = Modifier.weight(1.0f),
+            modifier = tableCell(table, 4),
         )
         Text(
             text = fundsTimeText(row.time),
             color = colors.ink3,
             style = WzTheme.typography.caption,
-            modifier = Modifier.weight(1.0f),
+            modifier = tableCell(table, 5),
         )
         Text(
             text = row.sourceDest ?: "--",
             color = colors.ink2,
             style = WzTheme.typography.body,
-            modifier = Modifier.weight(0.9f),
+            modifier = tableCell(table, 6),
         )
         Text(
             text = row.notes ?: "",
             color = colors.ink3,
             style = WzTheme.typography.caption,
-            modifier = Modifier.weight(0.9f),
+            modifier = tableCell(table, 7),
         )
         Row(
             modifier = Modifier.weight(1.4f),
