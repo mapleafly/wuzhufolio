@@ -698,5 +698,6 @@ cfg 引用的 jar 是否齐全 / 应用日志 `bootstrap ok` / 安全软件拦�
   断言应用日志出现 `bootstrap ok`。当前形态：**Windows 侧 + 产物上传之后 + 非阻断**（`PACKAGED_LAUNCH_SMOKE=PASS/FAIL` 可 grep），
   稳定数轮后可按人工拍板改为阻断式并扩展到 macOS/Linux（Linux 需 xvfb）。
   **本轮缺陷正是「产物从未被启动过就交付到人工门」的后果。**
-- **C1（建议，决策档编号顺延 D34）**：① Windows 安装策略调整（`perUserInstall = false` 装到 `C:\Program Files\...`，
-  或安装向导显式提示英文目录）；② 增「便携版 zip」产物（解压即用，绕开安装器与用户目录路径）。
+- **C1（建议，决策档编号顺延 D34）**：① Windows 安装策略调整——`perUserInstall = false`（装到 `C:\Program Files\...`，
+  需管理员确认）**或**保留 per-user、免管理员地显式指定 ASCII 安装目录（Compose DSL `installationPath` 已查证可用，
+  映射 jpackage `--install-dir`，如 `C:\WuZhuFolio`）；② 增「便携版 zip」产物（解压即用，绕开安装器与用户目录路径）。

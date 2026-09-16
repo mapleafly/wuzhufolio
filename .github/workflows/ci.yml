@@ -264,15 +264,25 @@ jobs:
           if ($okAscii) { Write-Host 'PACKAGED_LAUNCH_SMOKE=PASS' }
           else { Write-Host 'PACKAGED_LAUNCH_SMOKE=FAIL（观察期非阻断，但请核验打包版可启动性）' }
 
-          # 变体 2：整目录复制到含中文的路径再跑（等价「中文用户名 + per-user 默认安装目录」场景）
-          $cjkRoot = Join-Path $env:RUNNER_TEMP 'wzf-非ASCII路径'
-          New-Item -ItemType Directory -Path $cjkRoot -Force | Out-Null
-          $cjkApp = Join-Path $cjkRoot 'WuZhuFolio'
-          if (Test-Path -LiteralPath $cjkApp) { Remove-Item -LiteralPath $cjkApp -Recurse -Force }
-          Copy-Item -LiteralPath $appImage -Destination $cjkApp -Recurse -Force
-          $okCjk = Invoke-LaunchProbe -Label 'cjk' -ExePath (Join-Path $cjkApp 'WuZhuFolio.exe')
-          if ($okCjk) { Write-Host 'PACKAGED_LAUNCH_SMOKE_CJK=PASS（Windows 启动器可处理非 ASCII 安装路径）' }
-          else { Write-Host 'PACKAGED_LAUNCH_SMOKE_CJK=FAIL（Windows 启动器对非 ASCII 安装路径敏感 → 实证候选根因 ①）' }
+          # 变体 2/3：整目录复制到含非 ASCII 的路径再跑，用于区分两类假设：
+          #   latin1 = 该字符在系统 ANSI 代码页（CI runner = CP1252）**可表示**（é）
+          #   cjk    = 该字符在系统 ANSI 代码页**不可表示**（中文）
+          # 若 latin1 PASS 而 cjk FAIL → 机制是「路径经 ANSI 代码页转换」；若两者皆 FAIL → 任何非 ASCII 都挂。
+          $variants = @(
+            @{ Label = 'latin1'; Dir = 'wzf-café-path' },
+            @{ Label = 'cjk';    Dir = 'wzf-非ASCII路径' }
+          )
+          foreach ($v in $variants) {
+            $root = Join-Path $env:RUNNER_TEMP $v.Dir
+            New-Item -ItemType Directory -Path $root -Force | Out-Null
+            $dest = Join-Path $root 'WuZhuFolio'
+            if (Test-Path -LiteralPath $dest) { Remove-Item -LiteralPath $dest -Recurse -Force }
+            Copy-Item -LiteralPath $appImage -Destination $dest -Recurse -Force
+            $probeOk = Invoke-LaunchProbe -Label $v.Label -ExePath (Join-Path $dest 'WuZhuFolio.exe')
+            $verdict = 'FAIL'
+            if ($probeOk) { $verdict = 'PASS' }
+            Write-Host "PACKAGED_LAUNCH_SMOKE_$($v.Label.ToUpper())=$verdict（路径含非 ASCII：$($v.Dir)）"
+          }
 
           if (-not $okAscii) {
             Write-Host '::warning::打包版启动冒烟失败：Windows app-image 在常规路径下未能写出 bootstrap ok（DEF-42 预防项）'
