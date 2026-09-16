@@ -150,6 +150,31 @@ jobs:
           ./gradlew :app:createDistributable --console=plain
           ./scripts/package-appimage.sh
 
+      # Windows 的 packageDistributionForCurrentOS **不保留** app-image（CI 实测：便携版步骤取不到 exe），
+      # 而便携版打包与启动冒烟都要用它。故在**签名之前**统一确保 app-image 存在：
+      # 这样签名步骤（递归签 msi/exe）也能覆盖 app-image 内的启动器 exe，便携包内即为已签名二进制。
+      - name: 确保 app-image 存在（签名前 · 便携版与启动冒烟共用）
+        shell: bash
+        run: |
+          set -uo pipefail
+          case "$RUNNER_OS" in
+            Windows) probe="app/build/compose/binaries/main/app/WuZhuFolio/WuZhuFolio.exe" ;;
+            Linux)   probe="app/build/compose/binaries/main/app/WuZhuFolio/bin/WuZhuFolio" ;;
+            macOS)   probe="app/build/compose/binaries/main/app/WuZhuFolio.app/Contents/MacOS/WuZhuFolio" ;;
+            *)       probe="" ;;
+          esac
+          if [ -n "$probe" ] && [ -e "$probe" ]; then
+            echo "app-image 已存在：$probe"
+            exit 0
+          fi
+          echo "app-image 缺失，执行 :app:createDistributable"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            ./gradlew.bat :app:createDistributable --console=plain
+          else
+            ./gradlew :app:createDistributable --console=plain
+          fi
+          if [ -n "$probe" ] && [ -e "$probe" ]; then echo "OK：$probe"; else echo "::warning::app-image 仍未产出（$probe）"; fi
+
       - name: 代码签名（Windows，仅配置证书时）
         if: runner.os == 'Windows' && env.WIN_CERT_P12 != ''
         shell: pwsh
