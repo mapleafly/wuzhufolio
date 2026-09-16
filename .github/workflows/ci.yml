@@ -203,52 +203,78 @@ jobs:
 
       # DEF-42 预防项（建议 C0：质量工程补强，不改产品语义/产物口径）：
       # 「产物从未被启动过就交付到人工门」是 DEF-42（Windows 安装版 Failed to launch JVM）的直接成因。
-      # 本步骤在**产物上传之后**实跑打包产物本身（jpackage app-image，含捆绑私有运行时），
-      # 以独立数据目录断言应用日志出现 `bootstrap ok`。
-      # 观察期口径：continue-on-error（不阻断作业与产物上传），日志里以 PACKAGED_LAUNCH_SMOKE=PASS/FAIL 判定；
+      # 本步骤在**产物上传之后**实跑打包产物本身（jpackage app-image，含捆绑私有运行时）：
+      #   变体 1 = 常规路径（默认 TEMP）；变体 2 = **非 ASCII 路径**（复现「中文用户名/中文安装目录」场景，
+      #            用以实证 Windows 启动器的路径编码敏感性）。
+      # 观察期口径：continue-on-error（不阻断作业与产物上传），日志串 PACKAGED_LAUNCH_SMOKE[_CJK]=PASS/FAIL；
       # 连续数轮稳定后可按人工拍板改为阻断式。
-      - name: 打包版启动冒烟（Windows app-image 实跑 · 观察期非阻断）
+      - name: 打包版启动冒烟（Windows app-image 实跑 + 非 ASCII 路径变体 · 观察期非阻断）
         if: runner.os == 'Windows' && always()
         continue-on-error: true
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Continue'
-          $exe = 'app/build/compose/binaries/main/app/WuZhuFolio/WuZhuFolio.exe'
-          if (-not (Test-Path $exe)) {
+          $appImage = 'app/build/compose/binaries/main/app/WuZhuFolio'
+          if (-not (Test-Path "$appImage/WuZhuFolio.exe")) {
             Write-Host 'app-image 缺失，先构建（createDistributable 不需要 WiX）'
             & .\gradlew.bat :app:createDistributable --console=plain
           }
-          if (-not (Test-Path $exe)) {
+          if (-not (Test-Path "$appImage/WuZhuFolio.exe")) {
             Write-Host '::warning::PACKAGED_LAUNCH_SMOKE=SKIP  app-image 未产出'
             exit 0
           }
-          $smoke = Join-Path $env:RUNNER_TEMP ('wzf-smoke-' + [guid]::NewGuid().ToString('N'))
-          New-Item -ItemType Directory -Path $smoke -Force | Out-Null
-          $env:WUZHUFOLIO_DATA_DIR = $smoke
           $env:JAVA_TOOL_OPTIONS = '-Dskiko.renderApi=SOFTWARE_FAST'
-          $full = (Resolve-Path $exe).Path
-          Write-Host "启动：$full（数据目录 $smoke）"
-          $proc = Start-Process -FilePath $full -WorkingDirectory (Split-Path -Parent $full) -PassThru
-          $ok = $false
-          $log = $null
-          for ($i = 0; $i -lt 45; $i++) {
-            Start-Sleep -Seconds 2
-            $log = Get-ChildItem (Join-Path $smoke 'logs') -Filter '*.log' -ErrorAction SilentlyContinue |
+
+          function Invoke-LaunchProbe {
+            param([string]$Label, [string]$ExePath, [int]$TimeoutSeconds = 90)
+            $dataDir = Join-Path $env:RUNNER_TEMP ('wzf-smoke-' + $Label + '-' + [guid]::NewGuid().ToString('N'))
+            New-Item -ItemType Directory -Path $dataDir -Force | Out-Null
+            $env:WUZHUFOLIO_DATA_DIR = $dataDir
+            $full = (Resolve-Path -LiteralPath $ExePath).Path
+            Write-Host "== [$Label] 启动：$full"
+            Write-Host "== [$Label] 数据目录：$dataDir"
+            $proc = Start-Process -FilePath $full -WorkingDirectory (Split-Path -Parent $full) -PassThru
+            $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+            while ((Get-Date) -lt $deadline) {
+              Start-Sleep -Seconds 2
+              $log = Get-ChildItem (Join-Path $dataDir 'logs') -Filter '*.log' -ErrorAction SilentlyContinue |
+                Sort-Object LastWriteTime -Descending | Select-Object -First 1
+              if ($log -and (Select-String -LiteralPath $log.FullName -Pattern 'bootstrap ok' -Quiet)) {
+                Write-Host "== [$Label] bootstrap ok："
+                Select-String -LiteralPath $log.FullName -Pattern 'bootstrap ok' | Select-Object -Last 1 |
+                  ForEach-Object { Write-Host ('   ' + $_.Line) }
+                if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
+                return $true
+              }
+              if ($proc.HasExited) {
+                Write-Host "== [$Label] 进程已退出（exitCode=$($proc.ExitCode)），未写出 bootstrap ok"
+                break
+              }
+            }
+            if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
+            $log = Get-ChildItem (Join-Path $dataDir 'logs') -Filter '*.log' -ErrorAction SilentlyContinue |
               Sort-Object LastWriteTime -Descending | Select-Object -First 1
-            if ($log -and (Select-String -LiteralPath $log.FullName -Pattern 'bootstrap ok' -Quiet)) { $ok = $true; break }
-            if ($proc.HasExited) { Write-Host "进程已退出（exitCode=$($proc.ExitCode)）"; break }
-          }
-          if ($ok) {
-            Write-Host 'PACKAGED_LAUNCH_SMOKE=PASS'
-            Select-String -LiteralPath $log.FullName -Pattern 'bootstrap ok' | Select-Object -Last 1 | ForEach-Object { Write-Host $_.Line }
-          } else {
-            Write-Host 'PACKAGED_LAUNCH_SMOKE=FAIL（观察期非阻断，但请核验打包版可启动性）'
-            Write-Host "进程存活=$(-not $proc.HasExited)"
-            if ($log) { Write-Host '--- 应用日志尾部 ---'; Get-Content -LiteralPath $log.FullName -Tail 40 }
-            Write-Host '--- 安装目录内容 ---'
+            if ($log) { Write-Host "== [$Label] 应用日志尾部："; Get-Content -LiteralPath $log.FullName -Tail 30 }
+            Write-Host "== [$Label] 目录内容："
             Get-ChildItem (Split-Path -Parent $full) | Select-Object -First 20 | Format-Table -AutoSize | Out-String | Write-Host
-            Write-Host '::warning::打包版启动冒烟失败：Windows app-image 未能写出 bootstrap ok（DEF-42 预防项）'
+            return $false
+          }
+
+          $okAscii = Invoke-LaunchProbe -Label 'ascii' -ExePath "$appImage/WuZhuFolio.exe"
+          if ($okAscii) { Write-Host 'PACKAGED_LAUNCH_SMOKE=PASS' }
+          else { Write-Host 'PACKAGED_LAUNCH_SMOKE=FAIL（观察期非阻断，但请核验打包版可启动性）' }
+
+          # 变体 2：整目录复制到含中文的路径再跑（等价「中文用户名 + per-user 默认安装目录」场景）
+          $cjkRoot = Join-Path $env:RUNNER_TEMP 'wzf-非ASCII路径'
+          New-Item -ItemType Directory -Path $cjkRoot -Force | Out-Null
+          $cjkApp = Join-Path $cjkRoot 'WuZhuFolio'
+          if (Test-Path -LiteralPath $cjkApp) { Remove-Item -LiteralPath $cjkApp -Recurse -Force }
+          Copy-Item -LiteralPath $appImage -Destination $cjkApp -Recurse -Force
+          $okCjk = Invoke-LaunchProbe -Label 'cjk' -ExePath (Join-Path $cjkApp 'WuZhuFolio.exe')
+          if ($okCjk) { Write-Host 'PACKAGED_LAUNCH_SMOKE_CJK=PASS（Windows 启动器可处理非 ASCII 安装路径）' }
+          else { Write-Host 'PACKAGED_LAUNCH_SMOKE_CJK=FAIL（Windows 启动器对非 ASCII 安装路径敏感 → 实证候选根因 ①）' }
+
+          if (-not $okAscii) {
+            Write-Host '::warning::打包版启动冒烟失败：Windows app-image 在常规路径下未能写出 bootstrap ok（DEF-42 预防项）'
             exit 3
           }
-          if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
-

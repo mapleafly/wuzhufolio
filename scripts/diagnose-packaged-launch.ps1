@@ -158,12 +158,11 @@ foreach ($dir in $candidates) {
 # ------------------------------------------------------------- 4. shortcuts
 Write-Section '4. Shortcuts (.lnk) pointing at WuZhuFolio'
 $shell = New-Object -ComObject WScript.Shell
-$lnkRoots = @(
-    (Join-Path $env:USERPROFILE 'Desktop'),
-    (Join-Path $env:PUBLIC 'Desktop'),
-    (Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'),
-    (Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs')
-)
+$lnkRoots = New-Object System.Collections.ArrayList
+if ($env:USERPROFILE) { [void]$lnkRoots.Add((Join-Path $env:USERPROFILE 'Desktop')) }
+if ($env:PUBLIC) { [void]$lnkRoots.Add((Join-Path $env:PUBLIC 'Desktop')) }
+if ($env:APPDATA) { [void]$lnkRoots.Add((Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs')) }
+if ($env:ProgramData) { [void]$lnkRoots.Add((Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs')) }
 $lnkCount = 0
 foreach ($root in $lnkRoots) {
     if (-not (Test-Path -LiteralPath $root)) { continue }
