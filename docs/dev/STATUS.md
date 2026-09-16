@@ -1332,7 +1332,10 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
     打包版只显示无细节的 `Failed to launch JVM`、日志为空（**这解释了此前「ASCII 路径 + 文件齐全 + 空日志」的全部现象**）。
     **本机复现 → 修复 → 复验**：模块集补 `jdk.accessibility`；新增 `AssistiveTech` 兜底校验（配置了运行时没有的辅助技术类时
     清空属性 + 告警，避免「完全无法启动」）；探针加 `-AssistiveTech` 开关，CI 增 `PACKAGED_LAUNCH_SMOKE_AT` 与
-    `INSTALLED_LAUNCH_SMOKE_AT` 两个变体；本地修复后同探针 `bootstrap ok | build=0.1.0+6e3dbbe`。**分级建议 C0**（实现/打包偏差）。
+    `INSTALLED_LAUNCH_SMOKE_AT` 两个变体；本地修复后同探针 `bootstrap ok | build=0.1.0+6e3dbbe`。
+    **CI 已验收（run [35115439554](https://github.com/mapleafly/wuzhufolio/actions/runs/35115439554)，commit `6f2c77b`，六 job 全绿）**：`PACKAGED_LAUNCH_SMOKE_AT=PASS`、**`INSTALLED_LAUNCH_SMOKE_AT=True`**（安装版 + 开启辅助技术 = 人工机真实组合）；
+    产物：msi `5d2ec32274d55314…`、exe `a5694a8ba6055545…`、portable `67699d48e01e226f…`（完整值见 `manual-test-guide.md §18.1`）。
+    **分级建议 C0**（实现/打包偏差）——**待人工拍板 + 装新版复验**（无需关闭 Access Bridge）。
 
 **建议的下一步**：① 人工按 `manual-test-guide.md §16.6` 取真实错误（或 §18 复验）（先卸载旧 per-user 版 → 装新版 → TC-MAN-02 步骤 3–5 → TC-MAN-11）；
 ② 对上述 A/B 两项分级拍板；③ 定位修复后复验 TC-MAN-02 步骤 3–5（开关 → `reg query` → 注销重登驻留 → 关闭后消失），

@@ -957,3 +957,23 @@ $d = "C:\Program Files\WuZhuFolio"
 ```
 - **能起来** ⇒ 运行时与应用都没问题，问题在启动器/环境（此时控制台调试包给出启动器视角的原因）；
 - **报错退出** ⇒ 直接把 Java 抛出的异常贴回即可定位。
+
+### 18.1 第十轮续产物（DEF-43 修复版 · 2026-09-16）
+
+> 本轮修复 **DEF-43**：开启辅助技术（Java Access Bridge）时打包版启动失败 → 运行时模块集补 `jdk.accessibility`
+> + `AssistiveTech` 兜底校验。**装上这一版后无需关闭辅助技术。**
+
+| 产物 | SHA256 |
+|------|--------|
+| `msi\WuZhuFolio-0.1.0.msi` | `5d2ec32274d553146843662e04d4432f876520fd331f7a6237d6c91835f494f5` |
+| `exe\WuZhuFolio-0.1.0.exe` | `a5694a8ba6055545b211596ed1312eafd8a2f1e101c917faa015f1fa88b937a5` |
+| `portable\WuZhuFolio-portable-windows-x64.zip` | `67699d48e01e226fe4b468ec58db64c79de65e5a8dda8516453b798d7e0520da` |
+
+```powershell
+gh run download 35115439554 --repo mapleafly/wuzhufolio -n wuzhufolio-windows-latest-native -D .\wzf-windows
+Get-FileHash .\wzf-windows\msi\WuZhuFolio-0.1.0.msi -Algorithm SHA256   # 应等于上表
+# 安装（先卸载旧版）→ 启动后日志首行应为 build=0.1.0+6f2c77b
+```
+
+CI 验收留痕（run 35115439554）：`PACKAGED_LAUNCH_SMOKE_AT=PASS`、`INSTALLED_LAUNCH_SMOKE_AT=True`
+（安装版 + 开启辅助技术 = 本机真实组合）。
