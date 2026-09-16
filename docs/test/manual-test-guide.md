@@ -26,12 +26,12 @@
 | TC-MAN-09 | 出站抓包 + 权限实证 | **必做** | **必做** | 路径 A | 权限判据按平台不同（见 §6 TC-MAN-09） |
 | TC-MAN-10 | 外链与关于页走查 | **必做** | **必做** | 路径 A | 需系统浏览器 |
 
-### 1.1-1 人工门执行进展（截至 2026-09-15 · 第九轮）
+### 1.1-1 人工门执行进展（截至 2026-09-15 · 第十轮）
 
 | 用例 | 平台 | 结果 | 判定轮次/日期 | 证据指向 |
 |------|------|------|---------------|----------|
 | TC-MAN-01 真实桌面托盘走查 | Windows 11 | ⏳ **待明确判定** | — | 首轮报出菜单乱码（**DEF-15**）与语言不跟随（**DEF-18/19**）均已修复并在第二～四轮复验中未再复现；**尚缺一次正式的「三项菜单动作 + 关窗驻留 + 后台通知」判定** |
-| TC-MAN-02 开机自启 | Windows 11 | ⬜ 未执行 | — | 步骤见 `manual-test-guide.md §6 TC-MAN-02`（打包版；开发态置灰属预期） |
+| TC-MAN-02 开机自启 | Windows 11 | ⏳ **阻塞（打包版启动失败）** | 第十轮 · 2026-09-15 | 步骤 1–2 正常；**步骤 3 双击安装版图标弹「Failed to launch JVM」→ DEF-42（P1，定性中）**；排查与绕行见 **§16**，取证脚本 `scripts/diagnose-packaged-launch.ps1` |
 | TC-MAN-03 读屏 NVDA/JAWS | Windows 11 | ✅ **通过** | 第七轮 · 2026-09-15 | `manual-test-guide.md §14`；缺陷 DEF-13（隐形焦点目标）已修 |
 | TC-MAN-04 目标机性能 | Windows 11 | ✅ **通过** | 第七轮 · 2026-09-15 | `manual-test-guide.md §14`（含受限环境等效模拟数据：KDF 172.6 ms ≪2 s） |
 | TC-MAN-05 断网/代理异常 | Windows 11 | ✅ **通过** | 第八轮 · 2026-09-15 | 口径见 DEF-16（拔网不即时改状态属设计行为） |
@@ -41,8 +41,9 @@
 | TC-MAN-09 出站抓包 + 权限实证 | Ubuntu（建议） | ⬜ 未执行 | — | 工具 `scripts/outbound-capture-proxy.py`；判据 `security-checklist.md §8-4` |
 | TC-MAN-10 外链与关于页 | Windows 11 | ✅ **通过** | 第六轮 · 2026-09-15 | 系统浏览器打开 4 个入口（交易所密钥页/隐私政策/源码/GitHub） |
 
-> **剩余 3 项**：TC-MAN-01（待明确判定）、TC-MAN-02（未执行）、TC-MAN-09（未执行）。
-> 其余 7 项已由人工判定通过（记录日期与轮次见上表；每轮反馈与修复见 `defects.md` DEF-01…DEF-41）。
+> **剩余 3 项**：TC-MAN-01（待明确判定）、TC-MAN-02（**阻塞：打包版启动失败 DEF-42**，见 §16）、TC-MAN-09（未执行）。
+> 其余 7 项已由人工判定通过（记录日期与轮次见上表；每轮反馈与修复见 `defects.md` DEF-01…DEF-42）。
+> **2026-09-15 第十轮**：**TC-MAN-08 真实桌面 GUI 全流程人工判定通过 ✅**；TC-MAN-02 在步骤 3 被 **DEF-42** 阻断。
 
 > **Ubuntu 与 Windows 的分工建议**：托盘/自启/读屏在 Windows 最完整（Credential Manager + SystemTray 原生可用）；
 > Ubuntu 覆盖 deb/rpm/AppImage 三种分发形态与 Linux 钥匙串/托盘宿主行为。两平台都做的项见上表「必做」。
@@ -287,6 +288,8 @@ cat ~/.config/autostart/*.desktop
 
   然后**注销并重新登录**，确认应用自动驻留托盘；关闭开关后复查注册项已消失（命令同上，应无输出）。
 - **常见假失败**：路径含空格时的引号处理；重装/移动安装目录 → 依赖「启动自愈」重建注册项。
+- ⚠️ **若双击图标弹「Failed to launch JVM」（DEF-42）**：见 **§16 排查附录**（含 4 步快速判定与绕行办法），
+  该弹窗是 **jpackage 原生启动器**报的（表示随包私有运行时没被拉起来），**与机器上装不装 Java、装哪个版本无关**。
 
 ### TC-MAN-03 读屏（Windows + NVDA）
 
@@ -633,3 +636,67 @@ msiexec /i .\wzf-windows\msi\WuZhuFolio-0.1.0.msi
 ```
 
 > 复验前核对日志首行 `build=0.1.0+d365e27`。
+
+---
+
+## 16. 排查附录：安装版启动报「Failed to launch JVM」（DEF-42）
+
+> **先记住一句**：这个弹窗是 **jpackage 生成的 Windows 原生启动器**（安装目录里的 `WuZhuFolio.exe`）弹的，
+> **不是 Java 异常、也不是应用代码的错**。它的含义是「启动器没能把**随包捆绑的私有运行时**拉起来」。
+> 按 ADR-006 §1.1，安装版**自带 jlink 裁剪的私有 JRE**——**机器上装不装 Java、装的是 17 还是 21 都与此无关**。
+
+### 16.1 四步快速判定（复制到 PowerShell 直接跑，约 1 分钟）
+
+```powershell
+# 安装目录（默认 per-user 安装落在用户目录下；若向导里改过，请替换为实际目录）
+$d = "$env:LOCALAPPDATA\WuZhuFolio"; $d
+# ① 路径是否含非 ASCII 字符（True = 命中「中文用户名」这一最常见原因）
+[bool]($d.ToCharArray() | Where-Object { [int]$_ -gt 127 })
+# ② 捆绑运行时是否完好（应打印 17.0.x；报错 = 运行时被安全软件删改/安装不完整）
+& "$d\runtime\bin\java.exe" -version
+# ③ 绕过快捷方式，直接跑主程序（看是否仍报错）
+& "$d\WuZhuFolio.exe"
+# ④ 复制到 ASCII 短路径再跑（这一条能跑通 = 确认是安装路径/启动器路径问题）
+Copy-Item $d C:\WZF -Recurse -Force; & C:\WZF\WuZhuFolio.exe
+# ⑤ 顺带看一眼应用日志：若出现新的 `bootstrap ok`，说明 JVM 其实起来了，问题在别处
+Get-ChildItem "$env:USERPROFILE\.wuzhufolio\logs" | Sort-Object LastWriteTime -Descending |
+  Select-Object -First 1 | Get-Content -Tail 20
+```
+
+### 16.2 一次跑完的取证脚本（推荐，输出直接贴回 Agent）
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\diagnose-packaged-launch.ps1
+# 只要排查、不要启动探针：追加 -SkipLaunch
+# 安装目录非默认：追加 -InstallDir "D:\WuZhuFolio"
+```
+
+脚本按候选根因逐项打印判定行与 `[findings]` 汇总：环境与代码页 / 安装记录（是否并存多份）/ 目录体检
+（`app\*.cfg`、`runtime\bin\server\jvm.dll`、jar 数、MOTW）/ 快捷方式 target 是否存在 / 捆绑运行时自检 /
+cfg 引用的 jar 是否齐全 / 应用日志 `bootstrap ok` / 安全软件拦截记录 / **启动探针**（临时数据目录实跑一次）。
+
+### 16.3 判定表
+
+| 观察 | 结论 | 处置 |
+|------|------|------|
+| ① 为 `True`，且 ④ 能跑通 | **安装路径含非 ASCII**（中文用户名 + per-user 安装默认路径） | 重装时在向导里把目录改成 `C:\WuZhuFolio`（`dirChooser` 已开启）；或直接用 ④ 的拷贝目录运行 |
+| ② 报错（`java -version` 失败） | **捆绑运行时被破坏**（安全软件隔离/安装不完整） | 安装目录加白名单后重装；必要时核对安装包 SHA256 |
+| ③ 报错但 ④ 能跑通 | 与路径相关（同上 ①） | 同 ① |
+| ③④ 都报错，且 ⑤ 无新 `bootstrap ok` | 启动器确实拉不起 JVM | 跑 §16.2 脚本取全文，贴回 Agent |
+| ⑤ 有**新的** `bootstrap ok`（且时间接近刚才） | **JVM 其实起来了**，问题不在启动器（可能是窗口/渲染） | 保留日志 + 报错弹窗全文，贴回 Agent |
+| 安装记录里出现**多条** WuZhuFolio，或快捷方式 target `exists=False` | **陈旧/并存安装** | 控制面板卸载全部 WuZhuFolio → 重新安装最新产物 |
+
+### 16.4 与「开机自启」的关系
+
+自启注册的是**可执行文件的绝对路径**（`HKCU\...\Run` 下 `WuZhuFolio`），与安装目录位置无关。
+因此用 §16.1 的 ④ 或重装到英文目录**只要能启动，TC-MAN-02 的步骤 3–5 就可以继续走完**
+（开关 → `reg query` 有项 → 注销重登驻留 → 关开关后注册项消失）。
+
+### 16.5 预防（已提级建议，待人工拍板）
+
+- **C0（建议 · 已先行落地观察期）**：CI 增「打包版启动冒烟」——直接运行产出的 app-image（独立数据目录），
+  断言应用日志出现 `bootstrap ok`。当前形态：**Windows 侧 + 产物上传之后 + 非阻断**（`PACKAGED_LAUNCH_SMOKE=PASS/FAIL` 可 grep），
+  稳定数轮后可按人工拍板改为阻断式并扩展到 macOS/Linux（Linux 需 xvfb）。
+  **本轮缺陷正是「产物从未被启动过就交付到人工门」的后果。**
+- **C1（建议，决策档编号顺延 D34）**：① Windows 安装策略调整（`perUserInstall = false` 装到 `C:\Program Files\...`，
+  或安装向导显式提示英文目录）；② 增「便携版 zip」产物（解压即用，绕开安装器与用户目录路径）。

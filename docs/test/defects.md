@@ -23,13 +23,18 @@
 | **P1（第六轮 · GUI 全流程 × 三档分辨率）** | 1 | **已修复**：**DEF-27**（切页后焦点被子树遍历随机落到页面中部字段 → 设置页一打开就滚到「手续费→买入费率」） |
 | **P2（第六轮）** | 3 | **均已修复**：**DEF-28**（窄窗表格列被压到内容宽度以下 → 标签竖排/数字换行/行高参差）、**DEF-29**（窄窗过滤按钮与操作列被压成竖排）、**DEF-30**（行情页搜索候选浮层不随清空/Esc 收起——在途搜索结果把浮层顶回来） |
 | **P2（第八轮 · GUI 全流程复验）** | 3 | **均已修复**：**DEF-39**（仪表盘卡片指标两级口径与原型不符 → 第一行明显偏大）、**DEF-40**（表格只有横线，补**纵向**列线）、**DEF-41**（币种详情成交表未接入统一表格 → 无单元线） |
+| **P1（第十轮 · 打包版启动）** | **1** | 🟡 **定性中（未闭环）**：**DEF-42**（Windows 安装版双击启动 → 弹窗「Failed to launch JVM」→ **TC-MAN-02 步骤 3 阻断**）；已产出**现场取证脚本** + **同源配置本地对照证据**，根因待人工现场取证（见下文 DEF-42 条目） |
 | **P2（第七轮 · 真实桌面 GUI 全流程 × 三档分辨率）** | 8 | **均按统一方案修复**：**DEF-31**（高 DPI 下币种列第三枚徽标被裁）、**DEF-32**（卡片大数字换行变形）、**DEF-33**（表格滚动条压住操作列 / 长数字换行）、**DEF-34**（环形图图例币种名换行）、**DEF-35**（截断数据无悬停全值）、**DEF-36**（表单弹窗多一条「不到一行」的滚动条）、**DEF-37**（列宽分配不保证最小宽）、**DEF-38**（列表缺单元线）—— 总体方案见 `docs/design/responsive-components.md` |
 | 测试缺陷（CI 暴露） | 1 | **DEF-12** 已修复（见 §3） |
 | **P3 / 观察项** | 6 | 登记（DEF-07…DEF-12），详见 §3 |
-| 合计 | 41 | P0 曾出现 1 项（DEF-17）· P1 曾出现 6 项（DEF-13/15/20/22/25/27）——**均已修复闭环**（人工门实测暴露）；P2 全部有明确结论 ✅ |
+| 合计 | 42 | P0 曾出现 1 项（DEF-17）· P1 曾出现 6 项（DEF-13/15/20/22/25/27）——**均已修复闭环**（人工门实测暴露）；**P1 现存 1 项未闭环：DEF-42**（打包版启动器报错，定性中）；P2 全部有明确结论 ✅ |
 
 > 结论：**P0 = 0**；**P1 三项（DEF-13/DEF-15/DEF-20）由人工门实测暴露并已修复闭环**（修复即回归，见 §1.5/§1.7），
 > 当前无未修复 P1；P2 各项在人工 P6 门全部裁决完毕或已登记（见 §0.1），**无遗留未决项**。
+> ⚠️ **2026-09-15 第十轮更新**：**P1 现存 1 项未闭环 = DEF-42**（Windows 安装版启动器弹「Failed to launch JVM」，
+> TC-MAN-02 步骤 3 被阻断）。**P6 DoD「P0/P1 清零」暂不满足**，须待取证定位 → 修复 → 复验后方可关闭 P6 门。
+> 2026-09-15 **第十轮（TC-MAN-08 通过 + TC-MAN-02 打包版启动失败）**：**TC-MAN-08 真实桌面 GUI 全流程人工判定通过 ✅**；
+> TC-MAN-02 步骤 1–2 正常，步骤 3 双击安装版图标报错 → 新增 **DEF-42（P1，定性中）**。
 > 2026-09-15 第四轮 Windows 人工门新增 **DEF-20（P1，已修复）** 与 **DEF-21（P2，焦点流改进，C1 已建档 D31）**。
 > 2026-09-15 **第五轮（真实只读 Key 冒烟）**新增 **DEF-22/23（P1，弹层撑开页面/错位，已修复）**、**DEF-24（P2，设置页层级统一，已修复）**、
 > **DEF-25（P1，添加密钥保存后弹窗不关，已修复）**、**DEF-26（核实非缺陷：同步不覆盖手写交易，已加回归）**。
@@ -389,6 +394,40 @@
 | **影响面扫描** | 代码：`ui/portfolio/CoinDetailPage.kt`（成交表迁移）。**不涉数据/接口**；表头/列序与文案不变（测试与读屏标签不变） |
 | **分级（人工拍板 2026-09-15）** | ✅ **C0**（D33 已要求「既有数据表一律用统一组件」）。回写：`M12.md` §1.7 + `responsive-components.md §2`；不建档、不进台账 |
 
+### DEF-42 🟡 定性中（**P1** · 人工门第十轮实测 · 分级建议待拍板）· Windows 安装版双击启动 → 弹窗「Failed to launch JVM」（TC-MAN-02 步骤 3 阻断）
+
+| 项 | 内容 |
+|----|------|
+| **来源** | P6 人工门第十轮（2026-09-15，Windows 11）TC-MAN-02 开机自启：步骤 1–2（打包版安装、设置页开关可见）正常；**步骤 3「双击桌面 wuzhufolio 启动图标」→ 弹出报错窗口，提示 `Failed to launch JVM`**。人工补充环境信息：机器上已装 **Temurin 21.0.8+9** |
+| **现象定位（先澄清一个常见误解）** | 该弹窗由 **jpackage 生成的 Windows 原生启动器**（安装目录下的 `WuZhuFolio.exe`）弹出，**不是 Java 异常、也不是本应用代码抛的错**。它的语义是：**启动器没能把随包捆绑的私有运行时拉起来**（`runtime\bin\server\jvm.dll` 加载/启动失败）。按 ADR-006 §1.1，打包版**自带 jlink 裁剪的私有 JRE，不依赖机器上的 Java** —— 因此**机器上的 Temurin 21 与本缺陷无关**（既不需要它，装它也不会修好；反之机器完全不装 Java 也应能跑） |
+| **Agent 侧对照证据（2026-09-16，本机）** | 用**同一套** `app/build.gradle.kts` jpackage 配置产出 app-image 并直接运行：`app/build/compose/binaries/main/app/WuZhuFolio/bin/WuZhuFolio` **启动成功**（进程持续运行 45s 未退出；应用日志 `bootstrap ok \| build=0.1.0+8ccdee7 \| db=… \| schema=12`；并完成一次行情刷新）→ 说明**打包配置（模块集、启动器 cfg、classpath）本身可启动**。查证：`runtime/release` 的 `MODULES` 含 `java.base … jdk.unsupported` 共 20 个模块（`java.sql`/`jdk.crypto.ec`/`jdk.localedata`/`jdk.charsets` 均在）；`app/WuZhuFolio.cfg` **不含 `--add-modules`**（故不存在「模块清单与 jlink 镜像不一致导致 boot layer 初始化失败」这一类原因）；classpath 全部指向存在的 jar。**结论：问题落在 Windows 启动器 × 本机安装环境侧，而非打包配置** |
+| **候选根因（按可能性排序，均给出可判定证据）** | ① **安装路径含非 ASCII 字符**（`perUserInstall = true` → 默认装到 `C:\Users\<用户名>\AppData\Local\WuZhuFolio`；若用户名为中文/其他非 ASCII，启动器的路径编码环节可能加载不到 `jvm.dll`）→ 证据：取证脚本 §1/§3 的 `NON-ASCII` findings；② **安全软件拦截/隔离了 `runtime` 内的 `jvm.dll` 或安装不完整** → 证据：§3 的 `MISS` 行 + §5 `runtime\bin\java.exe -version` 失败；③ **陈旧/并存安装**（第七、八轮曾下载安装过旧 MSI；快捷方式指向已变更或被升级移除的目录）→ 证据：§2 出现**多条** Uninstall 记录、§4 快捷方式 target `exists=False`；④ **安装时应用仍在运行/文件被锁**，部分文件未更新 → 证据：§3 的 `app\*.jar` 计数异常、§6 cfg 引用的 jar 缺失；⑤ 系统开启了「Beta: 使用 Unicode UTF-8」或 ANSI 代码页异常（ACP=65001）→ 证据：§1 的 `System ANSI CP` |
+| **现场取证（人工执行一次，约 1 分钟）** | 跑取证脚本 `scripts/diagnose-packaged-launch.ps1`（只读取证 + 末尾可选启动探针），把输出全文与**报错弹窗全文**贴回 Agent；脚本按 ①–⑤ 逐项打判定行与 `[findings]` 汇总。不跑脚本的**手工等价快速版**见本表下方代码块（A–E 五步） |
+| **立即绕行（人工可先做完 TC-MAN-02，不必等修复版）** | **W1** 步骤 D（复制整目录到 `C:\WZF` 直接运行 exe）——装好的目录本身就是完整 app-image，拷到 ASCII 短路径即可脱离启动器路径问题；**W2** 用 MSI 重装并在安装向导把目录改为 `C:\WuZhuFolio`（`dirChooser = true` 已开启，可自选）；**W3** 若 B 步 `java -version` 失败：把安装目录加入安全软件白名单后重装。以上任一跑通后，**TC-MAN-02 的自启注册与注销验证即可继续**（自启注册的是 exe 路径，与安装目录位置无关） |
+| **根治建议（待人工定级）** | **A. C0（建议）**：CI 增「**打包版启动冒烟**」——三平台打完包后，直接运行产出的 app-image（Windows：`app\WuZhuFolio\WuZhuFolio.exe`；Linux：`bin/wuzhufolio` + xvfb），以独立数据目录断言应用日志出现 `bootstrap ok`，失败即阻断产物上传。**本缺陷正是「产物从未被启动过就被交付到人工门」的直接后果**，冒烟可把这一类问题挡在 CI。<br>**B. C1（建议，决策档编号顺延 D34）**：① Windows 安装策略调整——`perUserInstall = false`（装到 `C:\Program Files\WuZhuFolio`，规避非 ASCII 用户名的 per-user 路径；代价：安装需管理员确认）**或**保留 per-user 但把「安装目录」在向导中显式提示为英文路径；② 增「**便携版 zip**」产物（app-image 压缩包，解压即用，绕开安装器与用户目录路径）。影响面：ADR-006 §1 产物清单（+1）、`manual-test-guide.md` §1 路径 B、`.github/workflows/ci.yml` 上传清单、`M13.md` §勘误。红线检查：不触 §1.1 硬约束、不改数据模型、不改已通过模块行为（属分发口径）→ 建议 **C1**，但仍需人工拍板。<br>**A 项已先行落地（2026-09-15）**：`.github/workflows/ci.yml` package job 末尾新增「打包版启动冒烟（Windows app-image 实跑）」——置于**产物上传之后**、`continue-on-error: true` 的**观察期非阻断**形态（日志判定串 `PACKAGED_LAUNCH_SMOKE=PASS/FAIL`），故不改变任何产物口径、不阻断产物下载；**请人工追认（维持 C0）或否决**，稳定数轮后再按拍板改为阻断式。**B 项（C1）仍待拍板后方可实施** |
+| **回归与验收（修复后）** | ① CI 冒烟在 Windows/macOS/Linux 三平台绿；② 人工在**非 ASCII 用户名**或**含空格/中文路径**场景安装并能启动（或按 W2 选中英文目录后启动）；③ TC-MAN-02 步骤 3–5 走通（开关 → `reg query` 有项 → 注销重登驻留 → 关闭后注册项消失） |
+| **影响面扫描** | 无代码/数据/接口影响（打包与分发口径）；文档：`defects.md`（本条）、`manual-test-guide.md §16`（新增排查附录）、`test-cases.md §7.0`/`manual-test-guide.md §1.1-1`（TC-MAN-02 进展改「阻塞」）、`STATUS.md`（P6 阻塞点）。若采纳根治建议 B 则改 ADR-006 §1/§1.1 + `ci.yml` + `M13.md` |
+| **需求回溯** | PRD §12（分发与安装，用户侧「安装即用」）、ADR-006 §1.1（捆绑私有 JRE、目标机无需预装 Java）、TC-MAN-02（开机自启需打包版真实注册） |
+
+**DEF-42 手工等价快速版**（不跑脚本也能定性，PowerShell 直接粘贴）：
+
+```powershell
+# 安装目录（默认 per-user 安装；向导里改过请替换为实际目录）
+$d = "$env:LOCALAPPDATA\WuZhuFolio"; $d
+# A. 路径是否含非 ASCII 字符（True = 命中「中文用户名」这一最常见原因）
+[bool]($d.ToCharArray() | Where-Object { [int]$_ -gt 127 })
+# B. 捆绑运行时是否完好（应打印 17.0.x；报错 = 运行时被安全软件删改/安装不完整）
+& "$d\runtime\bin\java.exe" -version
+# C. 绕过快捷方式，直接跑主程序
+& "$d\WuZhuFolio.exe"
+# D. 复制到 ASCII 短路径再跑（能跑通 = 根因 ①：安装路径/启动器路径问题）
+Copy-Item $d C:\WZF -Recurse -Force; & C:\WZF\WuZhuFolio.exe
+# E. 应用日志：若出现新的 bootstrap ok，说明 JVM 其实起来了，问题不在启动器
+Get-ChildItem "$env:USERPROFILE\.wuzhufolio\logs" | Sort-Object LastWriteTime -Descending |
+  Select-Object -First 1 | Get-Content -Tail 20
+```
+
+
 ### DEF-16 ➖ 非缺陷（口径确认）· 断网后状态栏不是「立即」变为网络断开
 
 | 项 | 内容 |
@@ -537,3 +576,4 @@ export JAVA_HOME=$(mise where java)
 | DEF-38 | `design-tokens.md §4.1`（边框克制使用）、`responsive-components.md §5`（列表可读性） |
 | DEF-39 | 原型 `wuzhufolio-light.html` `.card .big` / `.big.sm`（P1 视觉基准）；`design-tokens.md §3` 指标两级 |
 | DEF-40 / DEF-41 | `responsive-components.md §2`（统一表格组件应含网格线）、D33（既有数据表一律接入统一组件） |
+| DEF-42 | PRD §12（分发与安装：安装即用、三平台原生包）、ADR-006 §1.1（jpackage 捆绑私有 JRE、目标机无需 Java）、TC-MAN-02（自启需打包版） |
