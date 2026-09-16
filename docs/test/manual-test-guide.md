@@ -802,6 +802,129 @@ cd .\wzf-console
 # 控制台会打印 JVM 初始化失败的真实原因（模块/参数/原生库/安全策略等）→ 把输出贴回
 ```
 
+**注意（实测）**：jpackage 的随包运行时**不含 `java.exe`**（`--strip-native-commands` 裁剪，Windows/Linux 皆然），
+所以 `runtime\bin\java.exe` 不存在，不能用它做探针。
+
+**替代手段 A：用**系统 JDK**跑应用本体**（绕开 jpackage 启动器，验证「应用 + jar + skiko 原生库」本身是否正常；
+用的是系统 JDK 而非随包运行时）：
+
+```powershell
+& "C:\Program Files\Eclipse Adoptium\jdk-21\bin\java.exe" -Dskiko.library.path="C:\Program Files\WuZhuFolio\app" -Dcompose.application.resources.dir="C:\Program Files\WuZhuFolio\app\resources" -cp "C:\Program Files\WuZhuFolio\app\*" com.wuzhufolio.app.MainKt
+```
+
+**替代手段 B：抓启动器退出码**（`2` = 启动器未能初始化 JVM，与弹窗同义）：
+
+```powershell
+Start-Process -FilePath "C:\Program Files\WuZhuFolio\WuZhuFolio.exe" -Wait -PassThru | Select-Object ExitCode
+```
+
+- A 能进登录页 ⇒ 应用与依赖都好，问题在启动器/环境（用 §16.6 的控制台版包拿启动器视角的真实原因）；
+- A 报错 ⇒ 把异常全文贴回即可定位；B 的退出码可佐证是否启动器级失败。
+
+### 16.4 与「开机自启」的关系
+
+自启注册的是**可执行文件的绝对路径**（`HKCU\...\Run` 下 `WuZhuFolio`），与安装目录位置无关。
+因此用 §16.1 的 ④ 或重装到英文目录**只要能启动，TC-MAN-02 的步骤 3–5 就可以继续走完**
+（开关 → `reg query` 有项 → 注销重登驻留 → 关开关后注册项消失）。
+
+### 16.5 预防（已提级建议，待人工拍板）
+
+- **A（C0 · 人工已追认 · 已落地观察期）**：CI「打包版启动冒烟」——实跑 app-image 并断言 `bootstrap ok`；
+  当前形态：**产物上传之后 + 非阻断**（grep `PACKAGED_LAUNCH_SMOKE*`），另含**安装版实跑冒烟**
+  （MSI 静默安装 → 断言落在 `C:\Program Files\WuZhuFolio` → 实跑 → 卸载，grep `INSTALLED_LAUNCH_SMOKE`）。
+  稳定数轮后可改阻断式并扩展到 Linux（需 xvfb）。**本轮缺陷正是「产物从未被启动过就交付到人工门」的后果。**
+- **已排除的选项**：升级打包 JDK（CI 实验：Temurin 21 打包后同样 `ascii=PASS / cjk=FAIL`）——该崩溃与 JDK 版本无关，别在工具链上找解法。
+- **B（C1 · 决策档 `D34` · 已实施）**：① `perUserInstall = false` + `dirChooser = false` → 默认装到
+  `C:\Program Files\WuZhuFolio`（任何区域设置下均为纯 ASCII）；② 三平台新增**便携版**产物
+  （`portable/WuZhuFolio-portable-*.zip|.tar.gz`，解压即用）。**注**：曾考虑用 Compose DSL 的 `installationPath`（映射 jpackage `--install-dir`）在 per-user 下指定绝对 ASCII 路径，
+  但 `man jpackage` 明确 **Windows 的 `--install-dir` 只接受「安装根下的相对子路径」**，故该路不通，改为 per-machine。
+
+---
+
+## 17. TC-MAN-11 便携版解压即用走查（D34 新增产物）
+
+> **目的**：验证「免安装形态」可用且不污染系统——覆盖无管理员权限、需要自定义安装位置、以及**用户名非 ASCII** 的场景。
+
+- **前置**：拿到 CI artifact `wuzhufolio-<os>-native`（内含 `portable/`）。
+
+**Windows**
+
+```powershell
+# 1) 解压到纯 ASCII 路径（务必英文目录）
+Expand-Archive .\ci-native\portable\WuZhuFolio-portable-windows-x64.zip -DestinationPath D:\
+# 2) 运行
+& D:\WuZhuFolio\WuZhuFolio.exe
+# 3) 取证：不写注册表、不改系统
+reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v WuZhuFolio   # 期望：无此项（未开启自启时）
+Get-ChildItem D:\WuZhuFolio | Select-Object -First 5                                 # 目录内无用户数据
+Get-ChildItem "$env:USERPROFILE\.wuzhufolio" | Select-Object -Last 3                # 数据仍在此（时间戳为刚才）
+# 4) 卸载 = 删除目录
+# （可选）核对便携版与安装版日志首行 build= 一致
+```
+
+**Linux**
+
+```bash
+tar -xzf ./ci-native/portable/WuZhuFolio-portable-linux-x64.tar.gz -C ~/apps
+~/apps/WuZhuFolio/bin/WuZhuFolio &
+ls -la ~/.wuzhufolio | head        # 数据仍在此
+```
+
+- **判定**：应用可启动并进入登录页；数据写入 `~/.wuzhufolio`；解压目录内不产生用户数据；删除目录后无残留（无注册表项/无 `~/.local/share/applications` 入口）。
+- **常见假失败**：解压到**中文/含空格以外的非 ASCII** 路径 → 见 §16（Windows 启动器限制）；Linux 缺 FUSE 与便携版无关（那是 AppImage 的形态）。
+
+---
+
+## 18. 第十轮产物（D34）与复验指引（Windows 11 · 2026-09-15）
+
+> **本轮修复**：**DEF-42**（安装版双击弹 `Failed to launch JVM`）→ 决策档 **D34**：安装形态改 **per-machine**
+> （默认 `C:\Program Files\WuZhuFolio`，纯 ASCII）+ 关闭目录选择页 + 新增**便携版**产物 + CI 双启动冒烟。
+
+**产物（CI run [35091303719](https://github.com/mapleafly/wuzhufolio/actions/runs/35091303719)，commit `6e04f08`，六 job 全绿 · 未签名）**
+
+| 产物 | SHA256 |
+|------|--------|
+| `msi\WuZhuFolio-0.1.0.msi` | `adc6d34dc25bec4bcbd9eafcef2f81c40fce18ca2fc61f746672e0abe22b18cf` |
+| `exe\WuZhuFolio-0.1.0.exe` | `a58079bfb91631ea129af18b611071cf51b5520bb3b88127196a946fcdfd7e63` |
+| `portable\WuZhuFolio-portable-windows-x64.zip` | `1254367620eacd3403ce081b7a6ea6bad51c8052c0a0be904a38bf772cba987b` |
+
+```powershell
+gh run download 35091303719 --repo mapleafly/wuzhufolio -n wuzhufolio-windows-latest-native -D .\wzf-windows
+Get-FileHash .\wzf-windows\msi\WuZhuFolio-0.1.0.msi -Algorithm SHA256   # 应等于上表
+```
+
+**复验步骤（对应 D34 A1–A6 与 TC-MAN-02 / TC-MAN-11）**
+
+1. **先卸载旧的 per-user 版本**：设置 → 应用 → WuZhuFolio → 卸载（旧版路径为 `%LOCALAPPDATA%\WuZhuFolio`；
+   跨安装范围不属同一升级路径）。
+2. **装新版**：双击 `exe` 或 `msiexec /i` 装 MSI → 会请求管理员确认 → **安装向导不再有目录选择页** →
+   安装目录应为 `C:\Program Files\WuZhuFolio`。
+3. **启动**：双击桌面图标 → 应正常进入登录页（不再弹 `Failed to launch JVM`）；
+   日志 `%USERPROFILE%\.wuzhufolio\logs` 首行应为 `build=0.1.0+6e04f08`。
+4. **TC-MAN-02 步骤 3–5**：设置 → 开机自启开 →
+   `reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v WuZhuFolio` 有项 →
+   注销重登观察驻留 → 关开关复查注册项消失。
+5. **TC-MAN-11（便携版）**：解压 `portable\WuZhuFolio-portable-windows-x64.zip` 到 `D:\WuZhuFolio`（**纯英文路径**）→
+   双击 `WuZhuFolio.exe` → 查 `HKCU\...\Run` 无该项、解压目录内无用户数据、数据仍在 `%USERPROFILE%\.wuzhufolio` →
+   删除目录即完成卸载。详见 **§17**。
+6. **若仍有异常**：跑 `scripts/diagnose-packaged-launch.ps1`（或 **§16.1** 四步快速版）并把输出全文贴回。
+
+### 16.6 最后一招：控制台版调试包（把启动器的真实错误打出来）
+
+GUI 启动器只弹一句 `Failed to launch JVM`（无细节）。CI 提供**按需产出**的控制台版调试包：
+
+```bash
+# 维护者：在提交信息里带 [probe-console] 推送，CI 会产出 wuzhufolio-windows-console-debug
+gh run download <run-id> --repo mapleafly/wuzhufolio -n wuzhufolio-windows-console-debug -D .\wzf-console
+```
+
+```powershell
+# 走查者：解压后**在 PowerShell/CMD 里**运行（不要双击，双击会看不到输出）
+cd .\wzf-console
+.\WuZhuFolio\WuZhuFolio.exe 2>&1 | Tee-Object "$env:TEMP\wzf-console.txt"
+# 控制台会打印 JVM 初始化失败的真实原因（模块/参数/原生库/安全策略等）→ 把输出贴回
+```
+
 **更快的等价手段（无需等 CI 产物）**：直接用随包运行时绕开启动器跑应用本体 ——
 
 ```powershell
