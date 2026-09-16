@@ -213,7 +213,6 @@ jobs:
         continue-on-error: true
         shell: pwsh
         run: |
-          $ErrorActionPreference = 'Continue'
           $appImage = 'app/build/compose/binaries/main/app/WuZhuFolio'
           if (-not (Test-Path "$appImage/WuZhuFolio.exe")) {
             Write-Host 'app-image 缺失，先构建（createDistributable 不需要 WiX）'
@@ -223,51 +222,15 @@ jobs:
             Write-Host '::warning::PACKAGED_LAUNCH_SMOKE=SKIP  app-image 未产出'
             exit 0
           }
-          $env:JAVA_TOOL_OPTIONS = '-Dskiko.renderApi=SOFTWARE_FAST'
-
-          function Invoke-LaunchProbe {
-            param([string]$Label, [string]$ExePath, [int]$TimeoutSeconds = 90)
-            $dataDir = Join-Path $env:RUNNER_TEMP ('wzf-smoke-' + $Label + '-' + [guid]::NewGuid().ToString('N'))
-            New-Item -ItemType Directory -Path $dataDir -Force | Out-Null
-            $env:WUZHUFOLIO_DATA_DIR = $dataDir
-            $full = (Resolve-Path -LiteralPath $ExePath).Path
-            Write-Host "== [$Label] 启动：$full"
-            Write-Host "== [$Label] 数据目录：$dataDir"
-            $proc = Start-Process -FilePath $full -WorkingDirectory (Split-Path -Parent $full) -PassThru
-            $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
-            while ((Get-Date) -lt $deadline) {
-              Start-Sleep -Seconds 2
-              $log = Get-ChildItem (Join-Path $dataDir 'logs') -Filter '*.log' -ErrorAction SilentlyContinue |
-                Sort-Object LastWriteTime -Descending | Select-Object -First 1
-              if ($log -and (Select-String -LiteralPath $log.FullName -Pattern 'bootstrap ok' -Quiet)) {
-                Write-Host "== [$Label] bootstrap ok："
-                Select-String -LiteralPath $log.FullName -Pattern 'bootstrap ok' | Select-Object -Last 1 |
-                  ForEach-Object { Write-Host ('   ' + $_.Line) }
-                if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
-                return $true
-              }
-              if ($proc.HasExited) {
-                Write-Host "== [$Label] 进程已退出（exitCode=$($proc.ExitCode)），未写出 bootstrap ok"
-                break
-              }
-            }
-            if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
-            $log = Get-ChildItem (Join-Path $dataDir 'logs') -Filter '*.log' -ErrorAction SilentlyContinue |
-              Sort-Object LastWriteTime -Descending | Select-Object -First 1
-            if ($log) { Write-Host "== [$Label] 应用日志尾部："; Get-Content -LiteralPath $log.FullName -Tail 30 }
-            Write-Host "== [$Label] 目录内容："
-            Get-ChildItem (Split-Path -Parent $full) | Select-Object -First 20 | Format-Table -AutoSize | Out-String | Write-Host
-            return $false
-          }
-
-          $okAscii = Invoke-LaunchProbe -Label 'ascii' -ExePath "$appImage/WuZhuFolio.exe"
-          if ($okAscii) { Write-Host 'PACKAGED_LAUNCH_SMOKE=PASS' }
-          else { Write-Host 'PACKAGED_LAUNCH_SMOKE=FAIL（观察期非阻断，但请核验打包版可启动性）' }
+          # 探针实现见 scripts/probe-packaged-launch.ps1（同一脚本可供人工在本机复跑）
+          & pwsh -File scripts/probe-packaged-launch.ps1 -Label 'ascii' -ExePath "$appImage/WuZhuFolio.exe"
+          $asciiOk = ($LASTEXITCODE -eq 0)
+          if ($asciiOk) { Write-Host 'PACKAGED_LAUNCH_SMOKE=PASS' } else { Write-Host 'PACKAGED_LAUNCH_SMOKE=FAIL（观察期非阻断，但请核验打包版可启动性）' }
 
           # 变体 2/3：整目录复制到含非 ASCII 的路径再跑，用于区分两类假设：
-          #   latin1 = 该字符在系统 ANSI 代码页（CI runner = CP1252）**可表示**（é）
-          #   cjk    = 该字符在系统 ANSI 代码页**不可表示**（中文）
-          # 若 latin1 PASS 而 cjk FAIL → 机制是「路径经 ANSI 代码页转换」；若两者皆 FAIL → 任何非 ASCII 都挂。
+          #   latin1 = 该字符在系统 ANSI 代码页（CI runner = CP1252）**可表示**（é）→ 实测 PASS
+          #   cjk    = 该字符在系统 ANSI 代码页**不可表示**（中文）→ 实测 FAIL（exitCode=2、无日志）
+          # 即：启动器只在「路径字符无法用系统 ANSI 代码页表示」时崩溃（DEF-42 根因已实证）。
           $variants = @(
             @{ Label = 'latin1'; Dir = 'wzf-café-path' },
             @{ Label = 'cjk';    Dir = 'wzf-非ASCII路径' }
@@ -278,13 +241,50 @@ jobs:
             $dest = Join-Path $root 'WuZhuFolio'
             if (Test-Path -LiteralPath $dest) { Remove-Item -LiteralPath $dest -Recurse -Force }
             Copy-Item -LiteralPath $appImage -Destination $dest -Recurse -Force
-            $probeOk = Invoke-LaunchProbe -Label $v.Label -ExePath (Join-Path $dest 'WuZhuFolio.exe')
+            & pwsh -File scripts/probe-packaged-launch.ps1 -Label $v.Label -ExePath (Join-Path $dest 'WuZhuFolio.exe')
             $verdict = 'FAIL'
-            if ($probeOk) { $verdict = 'PASS' }
+            if ($LASTEXITCODE -eq 0) { $verdict = 'PASS' }
             Write-Host "PACKAGED_LAUNCH_SMOKE_$($v.Label.ToUpper())=$verdict（路径含非 ASCII：$($v.Dir)）"
           }
-
-          if (-not $okAscii) {
+          if (-not $asciiOk) {
             Write-Host '::warning::打包版启动冒烟失败：Windows app-image 在常规路径下未能写出 bootstrap ok（DEF-42 预防项）'
             exit 3
           }
+
+  # DEF-42 实验（按需触发）：用 **JDK 21** 打包，检验 jpackage 启动器是否修掉「非 ASCII 安装路径」崩溃。
+  # 仅在提交信息含 [probe-jdk21] 时运行（避免常态消耗 CI 时间）；结论用于决定是否提升打包 JDK。
+  probe-jdk21-nonascii:
+    name: probe-jdk21-nonascii
+    if: contains(github.event.head_commit.message, '[probe-jdk21]')
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK (Temurin 21)
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: 用 JDK 21 产出 app-image 并在非 ASCII 路径实跑
+        shell: pwsh
+        run: |
+          java -version
+          & .\gradlew.bat :app:createDistributable --console=plain --stacktrace
+          $appImage = 'app/build/compose/binaries/main/app/WuZhuFolio'
+          if (-not (Test-Path "$appImage/WuZhuFolio.exe")) { Write-Host '::error::JDK21 app-image 未产出'; exit 4 }
+          & pwsh -File scripts/probe-packaged-launch.ps1 -Label 'jdk21-ascii' -ExePath "$appImage/WuZhuFolio.exe"
+          $asciiOk = ($LASTEXITCODE -eq 0)
+          $root = Join-Path $env:RUNNER_TEMP 'wzf-jdk21-非ASCII路径'
+          New-Item -ItemType Directory -Path $root -Force | Out-Null
+          $dest = Join-Path $root 'WuZhuFolio'
+          if (Test-Path -LiteralPath $dest) { Remove-Item -LiteralPath $dest -Recurse -Force }
+          Copy-Item -LiteralPath $appImage -Destination $dest -Recurse -Force
+          & pwsh -File scripts/probe-packaged-launch.ps1 -Label 'jdk21-cjk' -ExePath (Join-Path $dest 'WuZhuFolio.exe')
+          $cjkOk = ($LASTEXITCODE -eq 0)
+          Write-Host "JDK21_PROBE ascii=$asciiOk cjk=$cjkOk"
+          Write-Host '（ascii=True 且 cjk=True ⇒ 升级打包 JDK 可修掉非 ASCII 路径崩溃；cjk=False ⇒ 仍需 ASCII 路径/便携版）'
