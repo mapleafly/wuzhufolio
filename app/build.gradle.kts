@@ -182,6 +182,11 @@ compose.desktop {
                 // 关闭安装目录选择页：避免用户选到非 ASCII 目录再次触发同一崩溃。
                 // 需要自定义安装位置（或无管理员权限）的用户改用 **便携版 zip**（CI 产物 `portable/*-portable-*.zip`）。
                 dirChooser = false
+                // 诊断开关（默认关闭，仅 CI 出「控制台版」调试产物用）：
+                //   ./gradlew :app:createDistributable -Pwuzhufolio.windowsConsole=true
+                // 打开后启动器为 console 子系统——`Failed to launch JVM` 这类启动器级错误会直接打印真实原因
+                // （JVM 初始化失败的具体信息），而 GUI 启动器只弹一个无细节的对话框。
+                console = (findProperty("wuzhufolio.windowsConsole") == "true")
                 // 固定 upgradeUuid：同 product 的后续 MSI 走升级而非并存安装（P7 起沿用，不可再改）。
                 // 注意：per-user → per-machine 的安装范围变更不属同一升级路径，旧 per-user 版需先卸载（D34 §4）。
                 upgradeUuid = "6f2a1c9e-8b74-4d3a-9c1f-2e5b7a0d4c88"

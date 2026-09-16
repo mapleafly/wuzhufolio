@@ -785,3 +785,30 @@ Get-FileHash .\wzf-windows\msi\WuZhuFolio-0.1.0.msi -Algorithm SHA256   # 应等
    双击 `WuZhuFolio.exe` → 查 `HKCU\...\Run` 无该项、解压目录内无用户数据、数据仍在 `%USERPROFILE%\.wuzhufolio` →
    删除目录即完成卸载。详见 **§17**。
 6. **若仍有异常**：跑 `scripts/diagnose-packaged-launch.ps1`（或 **§16.1** 四步快速版）并把输出全文贴回。
+
+### 16.6 最后一招：控制台版调试包（把启动器的真实错误打出来）
+
+GUI 启动器只弹一句 `Failed to launch JVM`（无细节）。CI 提供**按需产出**的控制台版调试包：
+
+```bash
+# 维护者：在提交信息里带 [probe-console] 推送，CI 会产出 wuzhufolio-windows-console-debug
+gh run download <run-id> --repo mapleafly/wuzhufolio -n wuzhufolio-windows-console-debug -D .\wzf-console
+```
+
+```powershell
+# 走查者：解压后**在 PowerShell/CMD 里**运行（不要双击，双击会看不到输出）
+cd .\wzf-console
+.\WuZhuFolio\WuZhuFolio.exe 2>&1 | Tee-Object "$env:TEMP\wzf-console.txt"
+# 控制台会打印 JVM 初始化失败的真实原因（模块/参数/原生库/安全策略等）→ 把输出贴回
+```
+
+**更快的等价手段（无需等 CI 产物）**：直接用随包运行时绕开启动器跑应用本体 ——
+
+```powershell
+$d = "C:\Program Files\WuZhuFolio"
+& "$d\runtime\bin\java.exe" -Dskiko.library.path="$d\app" `
+  -Dcompose.application.resources.dir="$d\app\resources" -cp "$d\app\*" com.wuzhufolio.app.MainKt 2>&1 |
+  Tee-Object "$env:TEMP\wzf-java-run.txt"
+```
+- **能起来** ⇒ 运行时与应用都没问题，问题在启动器/环境（此时控制台调试包给出启动器视角的原因）；
+- **报错退出** ⇒ 直接把 Java 抛出的异常贴回即可定位。

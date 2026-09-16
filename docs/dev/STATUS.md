@@ -1324,7 +1324,9 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
    `msiexec /x exitCode=0`；三平台便携包齐备（win 133.1MB / linux 144MB / macos 145MB）。
    Windows 产物 SHA256：msi `adc6d34dc25bec4b…`、exe `a58079bfb91631ea…`、portable `1254367620eacd34…`（完整值见 `manual-test-guide.md §18`）。
 
-**建议的下一步**：① 人工按 `manual-test-guide.md §18` 复验（先卸载旧 per-user 版 → 装新版 → TC-MAN-02 步骤 3–5 → TC-MAN-11）；
+**第二轮取证（2026-09-16 · 人工实测）**：D34 新版**安装成功且目录已是纯 ASCII**（`C:\Program Files\WuZhuFolio`，文件清单完整：cfg/97 jar/skiko 原生库/`runtime\bin\server\jvm.dll`/`modules`），**但启动仍弹 `Failed to launch JVM`**，`wuzhufolio.log` 为空 ⇒ **本机上「非 ASCII 路径」不是根因**（与 CI 推论一致：ACP=936 可表示中文路径）。新增取证手段：诊断脚本增「环境变量 / 捆绑 `java.exe` 直跑应用 / 事件日志崩溃」三节；CI 新增按需 job `console-debug-windows`（`[probe-console]` 触发）产出控制台版调试包（启动器真实错误可打印）；`manual-test-guide.md §16.6` 给出两种拿真实错误的方法。
+
+**建议的下一步**：① 人工按 `manual-test-guide.md §16.6` 取真实错误（或 §18 复验）（先卸载旧 per-user 版 → 装新版 → TC-MAN-02 步骤 3–5 → TC-MAN-11）；
 ② 对上述 A/B 两项分级拍板；③ 定位修复后复验 TC-MAN-02 步骤 3–5（开关 → `reg query` → 注销重登驻留 → 关闭后消失），
 随后 P6 归零 P1 并进入发布标准拍板（**P7 发布**解锁：`docs/release/`：release-plan / rollback / CHANGELOG /
 user-guide / 签名公证；**产品宣传动画为 P7 必做项**，AGENTS.md §7.2-3）。

@@ -79,6 +79,17 @@ try {
         Write-Finding 'USERPROFILE is pure ASCII.'
     }
     if ("$acp" -eq '65001') { Write-Finding 'System ANSI code page is 65001 (UTF-8 beta).' }
+    foreach ($v in @('JAVA_TOOL_OPTIONS', '_JAVA_OPTIONS', 'JDK_JAVA_OPTIONS', 'JAVA_HOME', 'CLASSPATH')) {
+        $val = [Environment]::GetEnvironmentVariable($v, 'Process')
+        $usr = [Environment]::GetEnvironmentVariable($v, 'User')
+        $mach = [Environment]::GetEnvironmentVariable($v, 'Machine')
+        Write-Output ("env $v" + "`n    process=" + $val + "`n    user=" + $usr + "`n    machine=" + $mach)
+        if ($val -or $usr -or $mach) {
+            if ($v -like '*JAVA*OPTIONS*' -or $v -eq 'CLASSPATH') {
+                Write-Finding ("environment variable " + $v + " is set -> the bundled JVM picks it up at startup; an invalid value would abort JVM init (the launcher then reports exactly 'Failed to launch JVM').")
+            }
+        }
+    }
 } catch {
     Write-Output ('environment probe failed: ' + $_.Exception.Message)
 }
@@ -223,6 +234,43 @@ foreach ($dir in $appDirs) {
     }
 }
 
+# ------------------------------------------- 6b. run the app via the bundled JVM
+Write-Section '6b. Run the app through the bundled runtime (bypasses the launcher)'
+foreach ($dir in $appDirs) {
+    $javaExe = Join-Path $dir 'runtime\bin\java.exe'
+    if (-not (Test-Path -LiteralPath $javaExe)) { continue }
+    $appDir = Join-Path $dir 'app'
+    $outFile = Join-Path $env:TEMP ('wzf-java-run-' + [guid]::NewGuid().ToString('N') + '.txt')
+    Write-Output ('--- ' + $javaExe + ' -cp app\* com.wuzhufolio.app.MainKt')
+    $args = @(
+        ('-Dskiko.library.path=' + $appDir),
+        ('-Dcompose.application.resources.dir=' + (Join-Path $appDir 'resources')),
+        '-cp', (Join-Path $appDir '*'),
+        'com.wuzhufolio.app.MainKt'
+    )
+    try {
+        $proc = Start-Process -FilePath $javaExe -ArgumentList $args -PassThru -RedirectStandardOutput $outFile -RedirectStandardError ($outFile + '.err')
+        if (-not $proc.WaitForExit(15000)) {
+            Write-Output 'still running after 15s -> the app STARTED fine through the bundled JVM (launcher-specific problem)'
+            Write-Finding 'app runs through the bundled java.exe (launcher is the only broken piece).'
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+        } else {
+            Write-Output ('process exited early: exitCode=' + $proc.ExitCode)
+        }
+    } catch {
+        Write-Output ('probe failed: ' + $_.Exception.Message)
+    }
+    foreach ($f in @($outFile, ($outFile + '.err'))) {
+        if (Test-Path -LiteralPath $f) {
+            $txt = (Get-Content -LiteralPath $f -Raw -ErrorAction SilentlyContinue)
+            if ($txt -and $txt.Trim().Length -gt 0) {
+                Write-Output ('--- output (' + (Split-Path -Leaf $f) + ') ---')
+                Write-Output ($txt.Trim())
+            }
+        }
+    }
+}
+
 # ------------------------------------------------------------- 7. app own log
 Write-Section '7. Application log (bootstrap marker)'
 $dataDirs = @((Join-Path $env:USERPROFILE '.wuzhufolio'))
@@ -266,6 +314,19 @@ try {
     Get-CimInstance -Namespace 'root\SecurityCenter2' -ClassName AntiVirusProduct -ErrorAction Stop |
         ForEach-Object { Write-Output ('AV product: ' + $_.displayName + '  state=' + $_.productState) }
 } catch { Write-Output 'SecurityCenter2 AV list unavailable.' }
+
+# ----------------------------------------------- 8b. Windows event log (crashes)
+Write-Section '8b. Recent application-error events mentioning WuZhuFolio / jvm'
+try {
+    $since = (Get-Date).AddDays(-2)
+    Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = $since } -ErrorAction Stop |
+        Where-Object { $_.Message -match 'WuZhuFolio|jvm\.dll|skiko' } |
+        Select-Object -First 10 |
+        ForEach-Object {
+            Write-Output ('--- ' + $_.TimeCreated + ' [' + $_.ProviderName + '] id=' + $_.Id)
+            Write-Output ($_.Message.Substring(0, [Math]::Min(700, $_.Message.Length)))
+        }
+} catch { Write-Output 'no matching event-log entries (or access denied).' }
 
 # --------------------------------------------------------- 9. launch probe
 Write-Section '9. Launch probe (fresh data dir under %TEMP%)'

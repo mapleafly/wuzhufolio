@@ -409,3 +409,51 @@ jobs:
             Write-Host '::warning::JDK21 实验结论：升级打包 JDK 不能修掉「非 ASCII 安装路径」崩溃（仍需路径/产物结构方案）'
           }
           exit 0
+  # DEF-42 第二轮取证（按需触发）：产出「控制台版」调试产物 —— GUI 启动器只弹无细节的
+  # `Failed to launch JVM`，控制台版启动器会把 JVM 初始化失败的真实原因打到控制台。
+  # 仅在提交信息含 [probe-console] 时运行。
+  console-debug-windows:
+    name: console-debug-windows
+    if: contains(github.event.head_commit.message, '[probe-console]')
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK (Temurin 17)
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: 产出控制台版 app-image 并打包
+        shell: pwsh
+        run: |
+          & .\gradlew.bat :app:createDistributable -Pwuzhufolio.windowsConsole=true --console=plain --stacktrace
+          $src = 'app/build/compose/binaries/main/app/WuZhuFolio'
+          if (-not (Test-Path "$src/WuZhuFolio.exe")) { Write-Host '::error::控制台版 app-image 未产出'; exit 4 }
+          $out = 'app/build/compose/binaries/main/portable'
+          New-Item -ItemType Directory -Path $out -Force | Out-Null
+          $zip = Join-Path $out 'WuZhuFolio-console-debug-windows-x64.zip'
+          if (Test-Path $zip) { Remove-Item $zip -Force }
+          Copy-Item -LiteralPath 'LICENSE' -Destination "$src/LICENSE.txt" -Force
+          Compress-Archive -Path $src -DestinationPath $zip -Force
+          Get-Item $zip | ForEach-Object { Write-Host ('控制台调试产物：{0}（{1:N1} MB）' -f $_.Name, ($_.Length / 1MB)) }
+
+      - name: 自检（控制台版能否启动）
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          & pwsh -File scripts/probe-packaged-launch.ps1 -Label 'console-debug' -ExePath 'app/build/compose/binaries/main/app/WuZhuFolio/WuZhuFolio.exe'
+
+      - name: 上传控制台调试产物（14 天）
+        uses: actions/upload-artifact@v6
+        with:
+          name: wuzhufolio-windows-console-debug
+          path: app/build/compose/binaries/main/portable/WuZhuFolio-console-debug-windows-x64.zip
+          retention-days: 14
+          if-no-files-found: warn
