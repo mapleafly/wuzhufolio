@@ -24,10 +24,11 @@
 | **P2（第六轮）** | 3 | **均已修复**：**DEF-28**（窄窗表格列被压到内容宽度以下 → 标签竖排/数字换行/行高参差）、**DEF-29**（窄窗过滤按钮与操作列被压成竖排）、**DEF-30**（行情页搜索候选浮层不随清空/Esc 收起——在途搜索结果把浮层顶回来） |
 | **P2（第八轮 · GUI 全流程复验）** | 3 | **均已修复**：**DEF-39**（仪表盘卡片指标两级口径与原型不符 → 第一行明显偏大）、**DEF-40**（表格只有横线，补**纵向**列线）、**DEF-41**（币种详情成交表未接入统一表格 → 无单元线） |
 | **P1（第十轮 · 打包版启动）** | **1** | 🟢 **根因已实证 + 修复已实施（待人工 Windows 复验）**：**DEF-42**（Windows 安装版双击启动 → 弹窗「Failed to launch JVM」→ TC-MAN-02 步骤 3 阻断）→ 根因 = **jpackage Windows 启动器无法处理「系统 ANSI 代码页不可表示的安装路径」**；修复 = **D34**（per-machine 装到 `C:\Program Files\WuZhuFolio` + 关闭目录选择页 + 三平台便携版 + CI 启动冒烟） |
+| **P1（第十轮续 · 打包版启动／无障碍）** | **1** | 🟢 **根因已实证 + 修复已实施（待 CI/人工复验）**：**DEF-43**（开启 Java Access Bridge / 辅助技术时，打包版在 AWT 初始化抛 `AWTError` → 启动器只显示无细节的 `Failed to launch JVM`）→ 根因 = 裁剪运行时的模块集**缺 `jdk.accessibility`**；修复 = 模块集补齐（正向）+ `AssistiveTech` 兜底校验（防御），CI 增「开启辅助技术」冒烟变体 |
 | **P2（第七轮 · 真实桌面 GUI 全流程 × 三档分辨率）** | 8 | **均按统一方案修复**：**DEF-31**（高 DPI 下币种列第三枚徽标被裁）、**DEF-32**（卡片大数字换行变形）、**DEF-33**（表格滚动条压住操作列 / 长数字换行）、**DEF-34**（环形图图例币种名换行）、**DEF-35**（截断数据无悬停全值）、**DEF-36**（表单弹窗多一条「不到一行」的滚动条）、**DEF-37**（列宽分配不保证最小宽）、**DEF-38**（列表缺单元线）—— 总体方案见 `docs/design/responsive-components.md` |
 | 测试缺陷（CI 暴露） | 1 | **DEF-12** 已修复（见 §3） |
 | **P3 / 观察项** | 6 | 登记（DEF-07…DEF-12），详见 §3 |
-| 合计 | 42 | P0 曾出现 1 项（DEF-17）· P1 曾出现 6 项（DEF-13/15/20/22/25/27）——**均已修复闭环**（人工门实测暴露）；**P1 现存 1 项（DEF-42，根因已实证、修复已实施，待人工 Windows 复验）**；P2 全部有明确结论 ✅ |
+| 合计 | 43 | P0 曾出现 1 项（DEF-17）· P1 曾出现 6 项（DEF-13/15/20/22/25/27）——**均已修复闭环**（人工门实测暴露）；**P1 现存 2 项（DEF-42 打包版启动／DEF-43 辅助技术开启时的启动失败；根因均已实证、修复已实施，待复验）**；P2 全部有明确结论 ✅ |
 
 > 结论：**P0 = 0**；**P1 三项（DEF-13/DEF-15/DEF-20）由人工门实测暴露并已修复闭环**（修复即回归，见 §1.5/§1.7），
 > P2 各项在人工 P6 门全部裁决完毕或已登记（见 §0.1），**无遗留未决项**；P1 的 DEF-42 已修复待复验（见下）。
@@ -36,6 +37,7 @@
 > （per-machine `C:\Program Files\WuZhuFolio` + 关闭目录选择页 + 三平台便携版 + CI 启动冒烟）。
 > **P6 DoD「P0/P1 清零」的判定口径**：修复已落地并通过 CI 冒烟，**尚欠人工在 Windows 复验 A2（非 ASCII 用户名机器可启动）与 TC-MAN-02 步骤 3–5**；
 > 复验通过即闭环，届时方可关闭 P6 门。
+> **第十轮续（同一台人工机的第二次定位）**：控制台调试包给出真实错误 —— 该机开启了 **Java Access Bridge**，而打包运行时缺 **`jdk.accessibility`** 模块 → AWT 初始化抛 `AWTError: Assistive Technology not found` → 新增 **DEF-43（P1）**；修复已实施并在本机复现/验证（见 DEF-43 条目）。
 > 2026-09-15 **第十轮（TC-MAN-08 通过 + TC-MAN-02 打包版启动失败）**：**TC-MAN-08 真实桌面 GUI 全流程人工判定通过 ✅**；
 > TC-MAN-02 步骤 1–2 正常，步骤 3 双击安装版图标报错 → 新增 **DEF-42（P1）**；同轮根因实证并实施 **D34** 修复。
 > 2026-09-15 第四轮 Windows 人工门新增 **DEF-20（P1，已修复）** 与 **DEF-21（P2，焦点流改进，C1 已建档 D31）**。
@@ -433,6 +435,23 @@ Copy-Item $d C:\WZF -Recurse -Force; & C:\WZF\WuZhuFolio.exe
 Get-ChildItem "$env:USERPROFILE\.wuzhufolio\logs" | Sort-Object LastWriteTime -Descending |
   Select-Object -First 1 | Get-Content -Tail 20
 ```
+
+
+### DEF-43 🟢 已实施修复（**P1** · 人工门第十轮续实测 · 分级建议 **C0**）· 开启辅助技术（Java Access Bridge）时打包版启动失败
+
+| 项 | 内容 |
+|----|------|
+| **来源** | P6 人工门第十轮续（2026-09-16）：D34 新版安装成功（目录 `C:\Program Files\WuZhuFolio`，文件清单完整）后**仍弹 `Failed to launch JVM`**，`wuzhufolio.log` 为空。用 CI 产出的**控制台版调试包**（`console-debug-windows`）运行，拿到启动器背后的真实错误 |
+| **真实错误（人工机控制台输出）** | `Exception in thread "main" java.awt.AWTError: Assistive Technology not found: com.sun.java.accessibility.AccessBridge`；栈：`java.awt.Toolkit.loadAssistiveTechnologies` → `javax.swing.UIManager.<clinit>` → `org.jetbrains.skiko.Setup.init` → `MainKt.main(Main.kt:73)`；`Caused by: java.lang.ClassNotFoundException: com.sun.java.accessibility.AccessBridge`；末行 `Failed to launch JVM` |
+| **根因** | AWT 首次 `Toolkit.getDefaultToolkit()` 会按系统属性 `javax.accessibility.assistive_technologies` **反射加载辅助技术类**（Windows 上常见于 `%USERPROFILE%\.accessibility.properties`，由 `jabswitch -enable` 或读屏软件写入）。**打包运行时是 jlink 裁剪集，未包含 `jdk.accessibility`** → 反射失败 → AWT 初始化抛 `AWTError`。该异常发生在 `application { }` 内部，**晚于日志文件创建、早于任何业务日志**，故表现为「弹窗 + 空日志」。（人工机开启该属性，与同机 TC-MAN-03 读屏走查一致） |
+| **本地复现（Agent 侧，修复前）** | `JAVA_TOOL_OPTIONS="-Djavax.accessibility.assistive_technologies=com.sun.java.accessibility.AccessBridge"` 跑打包 app-image → `RC=1`、输出同型 `AWTError`；`runtime/release` 的 `MODULES` 中 `jdk.accessibility` **缺失**（计数 0） |
+| **修复** | ① **正向**：`app/build.gradle.kts` 运行时模块集补 **`jdk.accessibility`**（含 Windows 原生 Access Bridge DLL，随 jlink 入镜像）——读屏属 PRD §6 无障碍基线，**不能靠「让用户关掉辅助技术」绕过**；② **兜底（防御）**：新增 `app/.../AssistiveTech.kt`，在 AWT 初始化**之前**校验属性中的类可加载性（`Class.forName(..., initialize=false)`），不可用则清空属性并 `warn`——宁可「辅助技术降级 + 明确日志」，也不要「应用完全无法启动」；可用时不动属性 |
+| **本地验证（修复后）** | 同一 AT 探针 → **`bootstrap ok \| build=0.1.0+6e3dbbe \| schema=12`**，进程持续运行（`RC=124`）；`MODULES` 含 `jdk.accessibility` |
+| **回归（自动化）** | ① `app/.../AssistiveTechTest`（4 例）；② 探针脚本新增 `-AssistiveTech` 开关；③ CI `package` job 冒烟新增**「开启辅助技术」变体**：app-image 侧 `PACKAGED_LAUNCH_SMOKE_AT`、**安装版侧 `INSTALLED_LAUNCH_SMOKE_AT`**（人工机真实组合；Windows 原生 DLL 也在此实证） |
+| **验收** | CI 两处 `*_AT=PASS`（Windows）；人工装新版后（**无需关闭 Access Bridge**）正常启动；TC-MAN-03 读屏用例增加自动化守护证据 |
+| **影响面扫描** | 代码：`app/build.gradle.kts`（模块集 +1）、`AssistiveTech.kt`（新增）、`Main.kt`（启动序列插入校验）、新增测试 1 文件；分发口径：`ADR-006 §1.1`（体积代价 = 模块及其原生库，可忽略）；**不触**数据/schema/加密/接口/UI；`AGENTS.md §1.1` 五条硬约束**不触及** |
+| **分级建议** | **C0（实现偏差纠正）**：PRD §6 已要求无障碍基线（读屏可用），打包漏装 `jdk.accessibility` 属实现/打包偏差 → 模块勘误 + 技术文档回写（`M13.md §7`、`ADR-006 §1.1`），不建档、不进台账。**若人工认为应走 C1，我再补决策档与台账行** |
+| **需求回溯** | PRD §6（无障碍基线：读屏 / 全键盘导航）、PRD §12（安装即用）；TC-MAN-03（读屏 NVDA 走查） |
 
 
 ### DEF-16 ➖ 非缺陷（口径确认）· 断网后状态栏不是「立即」变为网络断开

@@ -305,6 +305,10 @@ cat ~/.config/autostart/*.desktop
 
 ### TC-MAN-03 读屏（Windows + NVDA）
 
+> **自动化守护（DEF-43 起）**：`app/.../AssistiveTechTest`（属性可用性校验 4 例）+ CI 冒烟变体
+> `PACKAGED_LAUNCH_SMOKE_AT` / `INSTALLED_LAUNCH_SMOKE_AT`（开启辅助技术属性后仍必须能启动）。
+
+
 - **起法**：安装 NVDA（免费）→ 启动 NVDA → 启动应用 → 全程 `Tab`/方向键。
 - **取证**：录屏（30–60 秒/场景）或逐条文字记录「朗读内容」；重点 5 处：登录页控件名、仪表盘六卡与环形图分区、
   资产列表行、弹窗字段与按钮、toast 自动朗读。
@@ -686,6 +690,24 @@ powershell -ExecutionPolicy Bypass -File .\scripts\diagnose-packaged-launch.ps1
 脚本按候选根因逐项打印判定行与 `[findings]` 汇总：环境与代码页 / 安装记录（是否并存多份）/ 目录体检
 （`app\*.cfg`、`runtime\bin\server\jvm.dll`、jar 数、MOTW）/ 快捷方式 target 是否存在 / 捆绑运行时自检 /
 cfg 引用的 jar 是否齐全 / 应用日志 `bootstrap ok` / 安全软件拦截记录 / **启动探针**（临时数据目录实跑一次）。
+
+### 16.2-1 已知成因：开启了辅助技术（Java Access Bridge）—— DEF-43
+
+若 `%USERPROFILE%\.accessibility.properties` 存在（`jabswitch -enable`、读屏软件或无障碍调试会写入），
+AWT 初始化会反射加载 `com.sun.java.accessibility.AccessBridge`；**旧版打包运行时缺 `jdk.accessibility` 模块时必然抛
+`AWTError: Assistive Technology not found`** → 应用在写任何业务日志前终止 → 启动器只显示无细节的 `Failed to launch JVM`、
+日志为空。**D34 之后的新版已补该模块，无需关闭辅助技术。**
+
+```powershell
+Get-Content "$env:USERPROFILE\.accessibility.properties" -ErrorAction SilentlyContinue   # 有输出 = 本机开启了辅助技术
+```
+
+```cmd
+jabswitch -query
+```
+
+> 排查旧版本时的**临时绕行**：`jabswitch -disable`（或重命名该属性文件）后可启动——但这是绕过而非修复，
+> 读屏用户不应被要求这么做（PRD §6 无障碍基线）。
 
 ### 16.3 判定表
 

@@ -118,6 +118,13 @@ compose.desktop {
                 "jdk.crypto.ec", "jdk.net", "jdk.security.auth", "jdk.unsupported",
                 // 中文/本地化日期与字符集支持（i18n 与 CSV 导入）
                 "jdk.localedata", "jdk.charsets",
+                // DEF-43：辅助技术（Java Access Bridge）——AWT 首次获取 Toolkit 时按系统属性
+                // `javax.accessibility.assistive_technologies` 反射加载该类（属性可能来自用户目录
+                // `~/.accessibility.properties`，例如运行过 `jabswitch -enable` 或装了读屏软件）。
+                // 缺本模块时该反射抛 `AWTError: Assistive Technology not found` → 应用在业务日志前终止，
+                // 打包版只表现为无细节的 `Failed to launch JVM`（CI + 人工机实测复现）。读屏是 PRD §6
+                // 无障碍基线的一部分，故不能靠"关掉辅助技术"绕过。
+                "jdk.accessibility",
             )
             includeAllModules = false
             packageName = "WuZhuFolio"

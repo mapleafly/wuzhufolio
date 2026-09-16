@@ -16,7 +16,11 @@
 param(
     [Parameter(Mandatory = $true)][string]$ExePath,
     [string]$Label = 'probe',
-    [int]$TimeoutSeconds = 90
+    [int]$TimeoutSeconds = 90,
+    # 模拟「系统开启了 Java Access Bridge / 辅助技术」（DEF-43）：Windows 上通常来自
+    # %USERPROFILE%\.accessibility.properties（jabswitch -enable / 读屏软件写入）。
+    # 开启后仍必须能启动 —— 曾因运行时缺 jdk.accessibility 而在 AWT 初始化抛 AWTError。
+    [switch]$AssistiveTech
 )
 
 $ErrorActionPreference = 'Continue'
@@ -29,7 +33,12 @@ $full = (Resolve-Path -LiteralPath $ExePath).Path
 $dataDir = Join-Path ([System.IO.Path]::GetTempPath()) ('wzf-probe-' + $Label + '-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $dataDir -Force | Out-Null
 $env:WUZHUFOLIO_DATA_DIR = $dataDir
-if (-not $env:JAVA_TOOL_OPTIONS) { $env:JAVA_TOOL_OPTIONS = '-Dskiko.renderApi=SOFTWARE_FAST' }
+$baseOptions = '-Dskiko.renderApi=SOFTWARE_FAST'
+if ($AssistiveTech) {
+    $baseOptions = $baseOptions + ' -Djavax.accessibility.assistive_technologies=com.sun.java.accessibility.AccessBridge'
+    Write-Host "== [$Label] assistive technology ON (javax.accessibility.assistive_technologies=AccessBridge)"
+}
+if (-not $env:JAVA_TOOL_OPTIONS) { $env:JAVA_TOOL_OPTIONS = $baseOptions } else { $env:JAVA_TOOL_OPTIONS = $env:JAVA_TOOL_OPTIONS + ' ' + $baseOptions }
 
 Write-Host "== [$Label] exe        : $full"
 Write-Host "== [$Label] data dir   : $dataDir"

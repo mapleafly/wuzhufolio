@@ -69,6 +69,10 @@ fun main() {
     AppDirs.ensureDataDirs()
     System.setProperty("wuzhufolio.logdir", AppDirs.logDir().toString())
     val logger = LoggerFactory.getLogger("wuzhufolio.bootstrap")
+    // DEF-43：AWT 初始化（Skiko → UIManager）会按 `javax.accessibility.assistive_technologies` 反射加载
+    // 辅助技术类；裁剪运行时缺该类时会抛 AWTError，使应用在业务日志之前终止（打包版表现为无细节的
+    // `Failed to launch JVM`）。这里在 AWT 初始化**之前**做一次可用性校验，不可用则清空属性并告警。
+    AssistiveTech.sanitizeFromSystemProperty(logger)
 
     application {
         val outcome: Outcome = remember {

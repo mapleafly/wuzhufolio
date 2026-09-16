@@ -331,6 +331,13 @@ jobs:
             if ($LASTEXITCODE -eq 0) { $verdict = 'PASS' }
             Write-Host "PACKAGED_LAUNCH_SMOKE_$($v.Label.ToUpper())=$verdict（路径含非 ASCII：$($v.Dir)）"
           }
+          # DEF-43 回归：开启辅助技术（Java Access Bridge）时必须仍能启动 —— 曾因运行时缺
+          # jdk.accessibility 而在 AWT 初始化抛 AWTError（GUI 启动器只表现无细节的 Failed to launch JVM）。
+          & pwsh -File scripts/probe-packaged-launch.ps1 -Label 'at' -ExePath "$appImage/WuZhuFolio.exe" -AssistiveTech
+          $atVerdict = 'FAIL'
+          if ($LASTEXITCODE -eq 0) { $atVerdict = 'PASS' }
+          Write-Host "PACKAGED_LAUNCH_SMOKE_AT=$atVerdict（开启辅助技术属性）"
+          if ($atVerdict -eq 'FAIL') { Write-Host '::warning::开启辅助技术时打包版未能启动（DEF-43 回归）' }
           if (-not $asciiOk) {
             Write-Host '::warning::打包版启动冒烟失败：Windows app-image 在常规路径下未能写出 bootstrap ok（DEF-42 预防项）'
             exit 3
@@ -355,6 +362,10 @@ jobs:
             & pwsh -File scripts/probe-packaged-launch.ps1 -Label 'installed' -ExePath $target
             $ok = ($LASTEXITCODE -eq 0)
             Write-Host "INSTALLED_LAUNCH_SMOKE=$ok"
+            # DEF-43 回归：安装版 + 辅助技术开启（人工机的真实组合）
+            & pwsh -File scripts/probe-packaged-launch.ps1 -Label 'installed-at' -ExePath $target -AssistiveTech
+            $atOk = ($LASTEXITCODE -eq 0)
+            Write-Host "INSTALLED_LAUNCH_SMOKE_AT=$atOk"
           } else {
             Write-Host "::warning::未在 $target 找到已安装的 exe，列出候选目录："
             Get-ChildItem 'C:\Program Files' -Directory -ErrorAction SilentlyContinue |
