@@ -31,7 +31,7 @@
 | 用例 | 平台 | 结果 | 判定轮次/日期 | 证据指向 |
 |------|------|------|---------------|----------|
 | TC-MAN-01 真实桌面托盘走查 | Windows 11 | ⏳ **待明确判定** | — | 首轮报出菜单乱码（**DEF-15**）与语言不跟随（**DEF-18/19**）均已修复并在第二～四轮复验中未再复现；**尚缺一次正式的「三项菜单动作 + 关窗驻留 + 后台通知」判定** |
-| TC-MAN-02 开机自启 | Windows 11 | ⏳ **阻塞（打包版启动失败）** | 第十轮 · 2026-09-15 | 步骤 1–2 正常；**步骤 3 双击安装版图标弹「Failed to launch JVM」→ DEF-42（P1，定性中）**；排查与绕行见 **§16**，取证脚本 `scripts/diagnose-packaged-launch.ps1` |
+| TC-MAN-02 开机自启 | Windows 11 | ⏳ **待复验（DEF-42 已修复）** | 第十轮 · 2026-09-15 | 步骤 3 曾弹「Failed to launch JVM」→ 根因实证 + **D34 修复**（per-machine 装到 `C:\Program Files\WuZhuFolio`；旧 per-user 版需先卸载）；复验见 **§6 TC-MAN-02** 与 **§16** |
 | TC-MAN-03 读屏 NVDA/JAWS | Windows 11 | ✅ **通过** | 第七轮 · 2026-09-15 | `manual-test-guide.md §14`；缺陷 DEF-13（隐形焦点目标）已修 |
 | TC-MAN-04 目标机性能 | Windows 11 | ✅ **通过** | 第七轮 · 2026-09-15 | `manual-test-guide.md §14`（含受限环境等效模拟数据：KDF 172.6 ms ≪2 s） |
 | TC-MAN-05 断网/代理异常 | Windows 11 | ✅ **通过** | 第八轮 · 2026-09-15 | 口径见 DEF-16（拔网不即时改状态属设计行为） |
@@ -40,8 +40,9 @@
 | TC-MAN-08 真实桌面 GUI 全流程 | Windows 11 · 三档分辨率 | ✅ **通过** | 第九轮 · 2026-09-15 | 六～八轮累计修复 DEF-27…DEF-41（入口焦点/窄窗表格/卡片层级/网格线/弹窗尺寸）后复验通过 |
 | TC-MAN-09 出站抓包 + 权限实证 | Ubuntu（建议） | ⬜ 未执行 | — | 工具 `scripts/outbound-capture-proxy.py`；判据 `security-checklist.md §8-4` |
 | TC-MAN-10 外链与关于页 | Windows 11 | ✅ **通过** | 第六轮 · 2026-09-15 | 系统浏览器打开 4 个入口（交易所密钥页/隐私政策/源码/GitHub） |
+| TC-MAN-11 便携版解压即用 | Windows 11 / Ubuntu | ⬜ 未执行 | — | D34 新增产物；步骤见 **§17** |
 
-> **剩余 3 项**：TC-MAN-01（待明确判定）、TC-MAN-02（**阻塞：打包版启动失败 DEF-42**，见 §16）、TC-MAN-09（未执行）。
+> **剩余 4 项**：TC-MAN-01（待明确判定）、TC-MAN-02（**待复验：DEF-42 已按 D34 修复**，见 §16）、TC-MAN-09（未执行）、TC-MAN-11（便携版，见 §17）。
 > 其余 7 项已由人工判定通过（记录日期与轮次见上表；每轮反馈与修复见 `defects.md` DEF-01…DEF-42）。
 > **2026-09-15 第十轮**：**TC-MAN-08 真实桌面 GUI 全流程人工判定通过 ✅**；TC-MAN-02 在步骤 3 被 **DEF-42** 阻断。
 
@@ -230,14 +231,25 @@ sudo apt install -y fakeroot rpm
 
 ### 5.3 安装 / 运行 / 卸载
 
-**Windows**
+**Windows（D34 起：per-machine 安装 + 便携版两种形态）**
 
 ```powershell
+# ① 安装版（per-machine，默认装到 C:\Program Files\WuZhuFolio，安装需管理员确认；安装向导无目录选择页）
+#    注意：若装过 D34 之前的 per-user 版本（%LOCALAPPDATA%\WuZhuFolio），请先卸载旧版再装新版
 msiexec /i .\ci-native\msi\WuZhuFolio-0.1.0.msi          # 或双击 .exe
 # 启动：开始菜单「WuZhuFolio」，或
-& "$env:LOCALAPPDATA\WuZhuFolio\WuZhuFolio.exe"          # 路径以安装器实际落点为准
+& "C:\Program Files\WuZhuFolio\WuZhuFolio.exe"
 # 卸载：设置 → 应用 → WuZhuFolio → 卸载（或 msiexec /x {ProductCode}）
+
+# ② 便携版（免安装、免管理员；解压即用）
+Expand-Archive .\ci-native\portable\WuZhuFolio-portable-windows-x64.zip -DestinationPath D:\        # 解压到**纯 ASCII 路径**
+& D:\WuZhuFolio\WuZhuFolio.exe
+# 卸载 = 直接删除该目录；数据仍在 %USERPROFILE%\.wuzhufolio（不写入解压目录）
 ```
+
+> **为什么要「纯 ASCII 路径」**：jpackage 的 Windows 原生启动器在安装路径含「系统 ANSI 代码页无法表示的字符」时
+> 无法加载随包 JVM，表现为启动即弹 `Failed to launch JVM`（**DEF-42**，CI 已实证）。安装版默认目录已是纯 ASCII；
+> **便携版由你自己选目录，务必用英文路径**。详见 **§16** 排查附录。
 
 **Ubuntu**
 
@@ -694,11 +706,46 @@ cfg 引用的 jar 是否齐全 / 应用日志 `bootstrap ok` / 安全软件拦�
 
 ### 16.5 预防（已提级建议，待人工拍板）
 
-- **C0（建议 · 已先行落地观察期）**：CI 增「打包版启动冒烟」——直接运行产出的 app-image（独立数据目录），
-  断言应用日志出现 `bootstrap ok`。当前形态：**Windows 侧 + 产物上传之后 + 非阻断**（`PACKAGED_LAUNCH_SMOKE=PASS/FAIL` 可 grep），
-  稳定数轮后可按人工拍板改为阻断式并扩展到 macOS/Linux（Linux 需 xvfb）。
-  **本轮缺陷正是「产物从未被启动过就交付到人工门」的后果。**
+- **A（C0 · 人工已追认 · 已落地观察期）**：CI「打包版启动冒烟」——实跑 app-image 并断言 `bootstrap ok`；
+  当前形态：**产物上传之后 + 非阻断**（grep `PACKAGED_LAUNCH_SMOKE*`），另含**安装版实跑冒烟**
+  （MSI 静默安装 → 断言落在 `C:\Program Files\WuZhuFolio` → 实跑 → 卸载，grep `INSTALLED_LAUNCH_SMOKE`）。
+  稳定数轮后可改阻断式并扩展到 Linux（需 xvfb）。**本轮缺陷正是「产物从未被启动过就交付到人工门」的后果。**
 - **已排除的选项**：升级打包 JDK（CI 实验：Temurin 21 打包后同样 `ascii=PASS / cjk=FAIL`）——该崩溃与 JDK 版本无关，别在工具链上找解法。
-- **C1（建议，决策档编号顺延 D34）**：① Windows 安装策略调整——`perUserInstall = false`（装到 `C:\Program Files\...`，
-  需管理员确认）**或**保留 per-user、免管理员地显式指定 ASCII 安装目录（Compose DSL `installationPath` 已查证可用，
-  映射 jpackage `--install-dir`，如 `C:\WuZhuFolio`）；② 增「便携版 zip」产物（解压即用，绕开安装器与用户目录路径）。
+- **B（C1 · 决策档 `D34` · 已实施）**：① `perUserInstall = false` + `dirChooser = false` → 默认装到
+  `C:\Program Files\WuZhuFolio`（任何区域设置下均为纯 ASCII）；② 三平台新增**便携版**产物
+  （`portable/WuZhuFolio-portable-*.zip|.tar.gz`，解压即用）。**注**：曾考虑用 Compose DSL 的 `installationPath`（映射 jpackage `--install-dir`）在 per-user 下指定绝对 ASCII 路径，
+  但 `man jpackage` 明确 **Windows 的 `--install-dir` 只接受「安装根下的相对子路径」**，故该路不通，改为 per-machine。
+
+---
+
+## 17. TC-MAN-11 便携版解压即用走查（D34 新增产物）
+
+> **目的**：验证「免安装形态」可用且不污染系统——覆盖无管理员权限、需要自定义安装位置、以及**用户名非 ASCII** 的场景。
+
+- **前置**：拿到 CI artifact `wuzhufolio-<os>-native`（内含 `portable/`）。
+
+**Windows**
+
+```powershell
+# 1) 解压到纯 ASCII 路径（务必英文目录）
+Expand-Archive .\ci-native\portable\WuZhuFolio-portable-windows-x64.zip -DestinationPath D:\
+# 2) 运行
+& D:\WuZhuFolio\WuZhuFolio.exe
+# 3) 取证：不写注册表、不改系统
+reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v WuZhuFolio   # 期望：无此项（未开启自启时）
+Get-ChildItem D:\WuZhuFolio | Select-Object -First 5                                 # 目录内无用户数据
+Get-ChildItem "$env:USERPROFILE\.wuzhufolio" | Select-Object -Last 3                # 数据仍在此（时间戳为刚才）
+# 4) 卸载 = 删除目录
+# （可选）核对便携版与安装版日志首行 build= 一致
+```
+
+**Linux**
+
+```bash
+tar -xzf ./ci-native/portable/WuZhuFolio-portable-linux-x64.tar.gz -C ~/apps
+~/apps/WuZhuFolio/bin/WuZhuFolio &
+ls -la ~/.wuzhufolio | head        # 数据仍在此
+```
+
+- **判定**：应用可启动并进入登录页；数据写入 `~/.wuzhufolio`；解压目录内不产生用户数据；删除目录后无残留（无注册表项/无 `~/.local/share/applications` 入口）。
+- **常见假失败**：解压到**中文/含空格以外的非 ASCII** 路径 → 见 §16（Windows 启动器限制）；Linux 缺 FUSE 与便携版无关（那是 AppImage 的形态）。

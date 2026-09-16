@@ -218,6 +218,19 @@ flowchart LR
   三档分辨率 + 高 DPI 人工复验（`manual-test-guide.md §14`）。回溯：PRD §6、`responsive-components.md`、
   `design-tokens.md §4.3-1`、`interaction.md §3-13`、决策档 D33。
 
+- **T12.8 Windows 安装形态调整 + 便携版产物（D34，P6 人工门第十轮）**：解决 **DEF-42**（安装版双击报
+  `Failed to launch JVM`，TC-MAN-02 步骤 3 阻断）。① `app/build.gradle.kts` → `windows { perUserInstall = false;
+  dirChooser = false }`：默认安装目录 = `C:\Program Files\WuZhuFolio`（任何区域设置下均为纯 ASCII）；
+  ② 三平台便携版产物（app-image → `portable/WuZhuFolio-portable-<os>-<arch>.zip|.tar.gz`，解压即用、
+  不写注册表、数据仍在 `~/.wuzhufolio`）；③ CI 增「打包版启动冒烟」（ascii/latin1/cjk 三组路径）与
+  「安装版实跑冒烟」（MSI 静默安装 → 断言落在 `C:\Program Files\WuZhuFolio` → 实跑 → 卸载），
+  探针脚本 `scripts/probe-packaged-launch.ps1`；④ 现场取证脚本 `scripts/diagnose-packaged-launch.ps1`。
+  **验收**：A1 安装默认目录为纯 ASCII 且无目录选择页（CI 安装版冒烟输出 + 人工安装确认）；
+  A2 非 ASCII 用户名机器可正常启动（人工复验 `manual-test-guide.md §16`）；A3 `INSTALLED_LAUNCH_SMOKE=True`；
+  A4 `PACKAGED_LAUNCH_SMOKE*` 结论稳定（cjk FAIL 作为**已知限制**留档）；A5 三平台便携版解压即用（人工 **TC-MAN-11**）；
+  A6 便携版不写注册表、不改数据位置；A7 冒烟失败不阻断产物上传（观察期口径）。
+  **回溯**：PRD §12、ADR-006 §1/§1.1、决策档 **D34**、`defects.md` DEF-42、`manual-test-guide.md §16`。
+
 
 ## 4. 里程碑验收门槛
 

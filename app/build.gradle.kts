@@ -169,9 +169,21 @@ compose.desktop {
                 menuGroup = "WuZhuFolio"
                 shortcut = true
                 menu = true
-                perUserInstall = true
-                dirChooser = true
-                // 固定 upgradeUuid：同 product 的后续 MSI 走升级而非并存安装（P7 起沿用，不可再改）
+                // DEF-42 / D34（2026-09-15 人工拍板 C1）：安装形态改为 **per-machine**，默认装到
+                // `C:\Program Files\WuZhuFolio` —— 该路径在任何区域设置下都是纯 ASCII。
+                //
+                // 依据：jpackage 的 Windows 原生启动器在「安装路径含系统 ANSI 代码页无法表示的字符」时
+                // 无法加载随包 jvm.dll（CI 对照实证：ASCII 路径 PASS、含 é（可表示）PASS、含中文（不可表示）
+                // FAIL —— 2 秒内 exitCode=2 且零应用日志 = 人工门看到的 `Failed to launch JVM`；
+                // 换 Temurin 21 打包同样 FAIL，故与 JDK 版本无关）。
+                // `man jpackage` 明确：`--install-dir` 在 Windows 只接受「安装根下的**相对子路径**」，
+                // 因此 per-user 安装无法摆脱 `%LOCALAPPDATA%\<用户名>\...`——用户名非 ASCII 时必然踩坑。
+                perUserInstall = false
+                // 关闭安装目录选择页：避免用户选到非 ASCII 目录再次触发同一崩溃。
+                // 需要自定义安装位置（或无管理员权限）的用户改用 **便携版 zip**（CI 产物 `portable/*-portable-*.zip`）。
+                dirChooser = false
+                // 固定 upgradeUuid：同 product 的后续 MSI 走升级而非并存安装（P7 起沿用，不可再改）。
+                // 注意：per-user → per-machine 的安装范围变更不属同一升级路径，旧 per-user 版需先卸载（D34 §4）。
                 upgradeUuid = "6f2a1c9e-8b74-4d3a-9c1f-2e5b7a0d4c88"
             }
         }

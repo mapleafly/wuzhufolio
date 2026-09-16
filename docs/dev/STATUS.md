@@ -7,7 +7,7 @@
 ## 当前阶段
 
 - **当前状态**：**P6 系统测试与质量 ⏳ 待审核（2026-09-15 第四轮人工门修复已落地，停人工门）**——按 PRD V2.0 验收标准做全量验证，
-  产出 `docs/test/test-plan.md` / `test-cases.md`（299 条）/ `security-checklist.md`（P6 复跑版，五条硬约束逐条打勾）/
+  产出 `docs/test/test-plan.md` / `test-cases.md`（300 条）/ `security-checklist.md`（P6 复跑版，五条硬约束逐条打勾）/
   `defects.md`（DEF-01…DEF-30）/ `test-report.md`；**712 用例（704 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；
   **P0/P1 缺陷 = 0**（P1 六项 DEF-13/15/20/22/25/27 均由人工门暴露并已修复闭环）；P2 全部有明确结论；
   **人工裁决 5 项（2026-09-14「5项都按建议来处理」）全部落地**（新增决策档 **D30** + 台账 + T12.5）；
@@ -52,7 +52,7 @@
 | P3 | 工程脚手架 | ✅ 已通过 | 代码骨架 + CI + dev-setup + hello 链路 + 迁移框架 + UI 基座（内嵌 CJK 字体）；Gradle 8.14.4；P3评审报告 | 2026-09-01 完成 M0 + 验收修复轮 + 评审闭环；人工「P3 通过」关闭 |
 | P4 | 分模块开发 | ✅ 已通过 | 代码 + `docs/dev/modules/`（M1–M13）+ `docs/test/security-checklist.md` | M1 ✅…M12 ✅（2026-09-12）、**M13 ✅（2026-09-12 人工「M13 通过」）**；**M1–M13 全部通过**；CI 三平台 build + package 六 job 全绿（run 34698502287）；GitHub 仓库 https://github.com/mapleafly/wuzhufolio |
 | P5 | 集成与联调 | ✅ 已通过（2026-09-13 人工「P5通过」关闭） | `docs/test/integration-report.md` + `app/src/test/.../integration/*`（10 项）+ `data/src/test/.../smoke/LiveNetworkSmokeTest`（2，门控） | 核心旅程真实组合根端到端打通；契约核对缺口已补；D25 原型补行闭环；**人工验收暴露 P0 恢复丢行 + 2 项 P1 已修复**；人工裁决 5 项（D27 稳定币 1:1 / cause 保留 / 启动即同步 / **D28 白名单收敛** / **D29 负持仓不计入**）已实施；**664 用例 0 失败（657 执行 + 7 跳过）**+ detekt 0 + 警告 0 |
-| P6 | 系统测试与质量 | ⏳ 待审核（2026-09-14 完成，停人工门） | `docs/test/`（test-plan / test-cases 299 条 / security-checklist P6 复跑版 / defects / test-report） | **677 用例（669 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；P0/P1 = 0；P2 = 6（3 修复 + 3 待定级）；安全清单五条硬约束逐条通过；运行期抓包仅三白名单主机 |
+| P6 | 系统测试与质量 | ⏳ 待审核（进行中：第十轮 DEF-42/D34 修复已落地，待人工 Windows 复验） | `docs/test/`（test-plan / test-cases 300 条 / security-checklist P6 复跑版 / defects / test-report） | **677 用例（669 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；P0/P1 = 0；P2 = 6（3 修复 + 3 待定级）；安全清单五条硬约束逐条通过；运行期抓包仅三白名单主机 |
 | P7 | 发布 | 未开始 | `docs/release/` | |
 | P8 | 上线后运营与迭代 | 未开始 | `docs/dev/retrospective.md` | |
 
@@ -1091,7 +1091,7 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
 
 - `docs/test/test-plan.md` —— 测试计划与范围（分层策略 L1–L5 / 环境 / 进出入准则 / 覆盖矩阵 / 缺陷分级 /
   **P6 启动须携带 9 项开放项逐条处置** / 人工门 10 条 / 风险与限制 / 需求回溯）
-- `docs/test/test-cases.md` —— **299 条测试用例**（PRD §5 故事 109 + §7.2 功能 60 + interaction 异常态 21 +
+- `docs/test/test-cases.md` —— **300 条测试用例**（PRD §5 故事 109 + §7.2 功能 60 + interaction 异常态 21 +
   加载·空·错误·离线·限流·UX 71 + 黄金用例 12 + 安全专项 16 + 人工门 10），逐条挂需求锚点与自动化映射：
   ✅ 186 / 🟡 87 / ⬜ 10（均有去向）/ 🔵 16
 - `docs/test/security-checklist.md` —— **P6 复跑版**：五条硬约束逐条复核打勾（M13 取证 + P6 新证据）+
@@ -1121,7 +1121,7 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
 
 **本次改了什么**：
 
-1. **全量验证**：按 PRD V2.0 逐条建立 299 条用例并执行；全量无缓存构建 **677 用例（669 执行 0 失败 + 8 跳过）**
+1. **全量验证**：按 PRD V2.0 逐条建立 300 条用例并执行；全量无缓存构建 **677 用例（669 执行 0 失败 + 8 跳过）**
    + detekt 0 + 编译警告 0（33 任务全部真正执行，基线 P5 关闭时 664 → P6 净增 13）。
 2. **修复 3 项 P2 实现偏差（建议 C0，待确认）**：
    ① **DEF-01 备份导出失败模式**（P5-4 闭环）：`BackupExportException(CREDENTIAL_UNREADABLE)` + 中英双档整句 +
@@ -1426,6 +1426,17 @@ user-guide / 签名公证；**产品宣传动画为 P7 必做项**，AGENTS.md �
     **DEF-40**（表格纵向列线 `verticalDivider`）属 D33「统一表格组件」网格线口径未补齐；
     **DEF-41**（币种详情成交表接入统一组件）属 D33「既有数据表一律用统一组件」未落实。三项均已修复并加回归，**不阻断** P6。
 
+33. **D34：Windows 安装形态调整 + 便携版产物（2026-09-15 人工门第十轮拍板「A 维持 C0（追认）+ B 采纳 C1（D34）」）**：
+    解决 **DEF-42（P1）**——安装版双击弹 `Failed to launch JVM`（TC-MAN-02 步骤 3 阻断）。CI 对照实验实证根因：
+    jpackage 的 Windows 原生启动器在**安装路径含系统 ANSI 代码页无法表示的字符**时无法加载随包 `jvm.dll`
+    （ascii PASS / `é` PASS / 中文 FAIL：2 秒 `exitCode=2`、零日志；换 Temurin 21 打包同样 FAIL）。
+    因 `man jpackage` 明确 Windows 的 `--install-dir` 只接受「安装根下的相对子路径」，per-user 无法摆脱
+    `%LOCALAPPDATA%\<用户名>\…` → 改为 **per-machine**（`C:\Program Files\WuZhuFolio`）+ 关闭目录选择页，
+    并新增三平台**便携版**产物（解压即用，覆盖无管理员权限/自定义位置/非 ASCII 用户名场景）。
+    落盘：决策档 `D34-安装形态与便携版.md` + 台账 D34 行（有效需求串 → `Δ{…, D33, D34}`）+ 决策索引 +
+    `task-breakdown **T12.8**` + `ADR-006 §1/§1.1/§6` + `M13.md §9` + `test-cases` **TC-MAN-11**；
+    随行 **A 项（CI 打包版/安装版启动冒烟）按 C0 追认**（观察期非阻断）。**待人工 Windows 复验 A2** 后闭环。
+
 ## 当前阻塞点
 
 - **阶段推进点（2026-09-15 · 第十轮）**：**P6 系统测试与质量 ⏳ 待审核**——全量验证完成 + 人工裁决 5 项已落地 +
@@ -1433,7 +1444,7 @@ user-guide / 签名公证；**产品宣传动画为 P7 必做项**，AGENTS.md �
   未闭环：DEF-42（Windows 安装版启动器报「Failed to launch JVM」，TC-MAN-02 步骤 3 阻断）→ DoD「P0/P1 清零」暂不满足**；
   **待人工**：① 跑一次取证（`manual-test-guide.md §16`，约 1 分钟）并贴回输出；② 对 DEF-42 两项根治建议拍板分级
   （A = 建议 C0「CI 打包版启动冒烟」；B = 建议 C1「安装策略调整 + 便携版 zip 产物」，决策档顺延 D34）；
-  ③ 修复复验 TC-MAN-02 后，拍板是否达到发布标准。
+  ③ **复验 TC-MAN-02（先卸载旧 per-user 版再装新 MSI，装到 `C:\Program Files\WuZhuFolio`）与 TC-MAN-11（便携版）**，通过后 DEF-42 闭环、P1 归零，再拍板是否达到发布标准。
 - **P6 裁决 5 项 = 已落地**（2026-09-14「5项都按建议来处理」）：① 隐私最小化接受现状（P7 用户指南/隐私声明）；
   ② DEF-03 补做（C1 · **D30** + T12.5 + 原型）；③ DEF-04 登记 P8；④ DEF-05 C0 文档澄清已回写；⑤ DEF-01/02/06 确认 C0。
 - **P6 门须人工执行的用例**（`test-cases.md §7`）：真实桌面托盘走查 / 读屏 NVDA·JAWS / 真实 Binance 只读 Key
@@ -1589,6 +1600,8 @@ user-guide / 签名公证；**产品宣传动画为 P7 必做项**，AGENTS.md �
 | 2026-09-15 | Agent | **C1 最小落盘清单落地（D32）+ C0 回写收口** | ① 决策档 **`D32-设置页层级标准.md`**（背景/拍板结论四级表/需求回溯/影响面扫描/关联文档/**验收 B1–B5**/P8 登记）；② 台账 D32 行 + 有效需求串 → **PRD V2.0 + Δ{…, D31, D32}**（P6 三件套/`integration-report`/STATUS 同步引用）；③ 决策索引 D32 行；④ `task-breakdown **T10.5**`（含验收证据映射，插入 M10 任务序列）；⑤ `design-tokens.md §3` 层级标准（已随修复回写）；⑥ C0 侧：`M6.md`（`addAndSync` 失败语义 + 手写行保护）、`M9.md`/`M10.md`（弹层承载 + 卡标题层级）、`api-contracts.md §3`（`addAndSync` 失败语义 + 去重口径）、`design-tokens.md §4.2`、`AGENTS.md §7.3-5/6`；⑦ `defects.md` §0.1 裁决 ⑦ + DEF-22/23/24/25 分级确认；⑧ STATUS 已决策事项 29 转已决策 |
 | 2026-09-15 | Agent | **人工门第五轮修复（DEF-22/23/24/25 + 核实 DEF-26）** | ① **DEF-22/23**：新增**页面级叠加槽** `ui/components/PageOverlay.kt`（弹层由页面根承载），设置页三处弹层（API 管理/行情与同步/数据管理）接入；② **DEF-24**：新增排版令牌 `sectionTitle`（15/600）作分组一级标题唯一取值，卡内二级统一 14/600，标准回写 `design-tokens.md §3`；③ **DEF-25**：`addAndSync` 落库后不再抛异常（返回失败结果）、VM 保存成功一律关弹窗 + 刷新、新增 zh/en 文案（已保存提示 + 保存中 + 勿关闭提示）；④ **DEF-26**：核实「同步不覆盖手写交易」并加回归；⑤ 规约沉淀 `AGENTS.md §7.3-5/6`、`interaction.md §3-12`、M6/M9/M10 模块勘误；⑥ 文档：`defects.md` DEF-22…DEF-26 + `manual-test-guide.md §12`；**708 用例（700 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；**P6 维持待审核，待人工复验 + DEF-24 分级拍板** |
 | 2026-09-15 | Agent | **人工门第四轮修复（DEF-20 修复 + DEF-21 落地）** | ① **DEF-20（P1，建议 C0）**：候选行选中即从组合移除 → 焦点回落窗口根；改为**显式交接**（资金：币种→数量；交易：基础币→计价币、计价币→价格、自定义手续费币种→原字段；`WzSelect` 候选→触发框）+ 交易候选行 `tx-suggestion-<id>` 标签 + 3 项回归；② **DEF-21（P2，建议 C1 待拍板）**：走查提案 A 落地——切页/进详情/对当前项再次回车 → 焦点进页面内容（容器不加 `focusable`，避免 DEF-13 式隐形停靠点）；页面内未被控件消费的 Esc/↑/↓ → 焦点回侧边栏当前项（冒泡阶段 + 弹层打开时不接管 `WzOverlayRegistry` + 组合键不接管）；侧边栏 ↑/↓ 移动；焦点 helper 拆 `ui/shell/ShellFocusNavigation.kt`；回归 `ShellFocusFlowUiTest` 5 例 + `KeyboardA11yUiTest` 改外壳 10 步固定顺序断言；文档：`defects.md` DEF-20/21 + `keyboard-walkthrough.md`（键位语义/焦点顺序/走查脚本/判定表/提案状态）+ `manual-test-guide.md` TC-MAN-06 + `M7/M8/M12` 勘误；**700 用例（692 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；**P6 维持待审核，待人工复验 + DEF-21 分级拍板** |
+| 2026-09-15 | 人 | **第十轮 DEF-42 两项拍板** | 原话选择「**A 维持 C0（追认）+ B 采纳 C1（D34），下一步实施 B**」——A = CI 打包版启动冒烟（观察期非阻断）追认为 C0；B = 安装形态调整 + 便携版产物按 C1 建档实施 |
+| 2026-09-15 | Agent | **D34 落地（C1 最小落盘清单）** | ① 打包配置：`windows { perUserInstall = false; dirChooser = false }`（默认 `C:\Program Files\WuZhuFolio`，纯 ASCII）；② 三平台**便携版**产物（CI `portable/*`，含 LICENSE + README）；③ CI 新增「安装版实跑冒烟」（MSI 静默安装 → 断言落点 → 实跑 → 卸载）与按需 JDK21 实验 job；④ 决策档 **D34** + 台账 D34 行（有效需求串 → `PRD V2.0 + Δ{…, D33, D34}`）+ 决策索引 + `task-breakdown **T12.8**`（验收 A1–A7）+ `ADR-006 §1/§1.1/§6` 回写 + `M13.md §9` + `defects.md` DEF-42/裁决 ⑪ + `test-cases` 新增 **TC-MAN-11**（总数 299→300）+ `manual-test-guide §5.3/§16.5/§17`；⑤ 本地 `clean build detekt --no-build-cache`：**718 用例（710 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**。**P6 维持待审核**，待人工复验 TC-MAN-02（先卸载旧 per-user 版）与 TC-MAN-11 |
 | 2026-09-15 | 人 | **Windows 11 第十轮：TC-MAN-08 通过；TC-MAN-02 步骤 3 报错** | 原话「**TC-MAN-08 真实桌面 GUI 全流程：通过**」+「TC-MAN-02 开机自启：… 双击桌面的 wuzhufolio 启动图标，弹出报错窗口，提示：**failed to launch JVM** …（本机 Java 为 Temurin-21.0.8+9）→ **分析原因和解决办法**」。**人工门累计通过 7 项**；TC-MAN-02 被新增 **DEF-42（P1）** 阻断 |
 | 2026-09-15 | Agent | **DEF-42 定性轮（打包版启动失败分析 + 取证工具）** | ① **现象澄清**：弹窗由 jpackage **原生启动器**产生（≠ Java 异常），语义 = 随包私有运行时未拉起 → **与机器上的 Temurin 21 无关**（ADR-006 §1.1 自带 JRE）；② **对照证据**：本地以同一 jpackage 配置产出 app-image 并实跑成功（`bootstrap ok \| build=0.1.0+8ccdee7`、45s 未退出、20 模块齐全、cfg 无 `--add-modules`）→ 打包配置本身可启动，问题在 Windows 启动器 × 安装环境；③ **候选根因 5 类**（非 ASCII 安装路径 / 安全软件删改运行时 / 陈旧并存安装 / 安装时文件被锁 / 系统 UTF-8 beta 代码页）逐条给出判定证据；④ 新增取证脚本 **`scripts/diagnose-packaged-launch.ps1`**（只读 + 启动探针）；⑤ 新增排查附录 **`manual-test-guide.md §16`**（四步快速判定 + 「拷贝到 ASCII 短路径」绕行 + 判定表）；⑥ `defects.md` **DEF-42** 条目 + §0 汇总（**合计 42，P1 现存 1 项未闭环**）+ §5 需求回溯；⑦ `test-cases.md §7.0`、`manual-test-guide.md §1.1-1` 的 TC-MAN-02 进展改为「阻塞」；⑧ 提出根治建议 **A = C0（CI 打包版启动冒烟）/ B = C1（安装策略 + 便携版 zip，决策档顺延 D34）**，**等人工拍板** |
-| 2026-09-14 | Agent | **执行 P6 系统测试与质量** | 产出 `test-plan.md`（分层策略 + 9 项开放项处置 + 人工门 10 条）· `test-cases.md`（**299 条**：✅186/🟡87/⬜10/🔵16，逐条可追溯）· `security-checklist.md`（**P6 复跑版**：五条硬约束逐条打勾 + 4 项到期项闭环）· `defects.md`（**P0/P1=0**，P2=6）· `test-report.md`（主产物，含待裁决 5 项）；**修复 3 项 P2 实现偏差**（DEF-01 备份导出失败模式 / DEF-02 recvWindow 契约 / DEF-06 恢复向导映射）+ 闭环 4 项 M13 到期登记项（大载荷内存曲线 / settings 键命名空间 / 登出 tick / P5-4）+ 运行期出站抓包与 GUI·权限实证；回写 `interaction.md §2.9`、`api-contracts.md §3/§4`；**677 用例（669 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；**P6 置待审核，停人工门** |
+| 2026-09-14 | Agent | **执行 P6 系统测试与质量** | 产出 `test-plan.md`（分层策略 + 9 项开放项处置 + 人工门 11 条）· `test-cases.md`（**299 条**：✅186/🟡87/⬜10/🔵16，逐条可追溯）· `security-checklist.md`（**P6 复跑版**：五条硬约束逐条打勾 + 4 项到期项闭环）· `defects.md`（**P0/P1=0**，P2=6）· `test-report.md`（主产物，含待裁决 5 项）；**修复 3 项 P2 实现偏差**（DEF-01 备份导出失败模式 / DEF-02 recvWindow 契约 / DEF-06 恢复向导映射）+ 闭环 4 项 M13 到期登记项（大载荷内存曲线 / settings 键命名空间 / 登出 tick / P5-4）+ 运行期出站抓包与 GUI·权限实证；回写 `interaction.md §2.9`、`api-contracts.md §3/§4`；**677 用例（669 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；**P6 置待审核，停人工门** |
