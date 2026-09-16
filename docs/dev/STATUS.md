@@ -1306,14 +1306,15 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
    （`bin/WuZhuFolio` 持续运行 45s；日志 `bootstrap ok | build=0.1.0+8ccdee7 | schema=12`；`runtime/release`
    `MODULES` 20 个齐全；`app/WuZhuFolio.cfg` 不含 `--add-modules`）→ **打包配置本身可启动**，问题落在
    Windows 启动器 × 本机安装环境侧。
-4. 新增取证工具 **`scripts/diagnose-packaged-launch.ps1`**（只读 + 可选启动探针，按 5 类候选根因逐项判定）；
+4. **根因已实证（CI 对照实验）**：同一 app-image 三组路径 → ASCII **PASS**、含 `é`（ANSI 代码页可表示）**PASS**、含中文（不可表示）**FAIL（2 秒内 exitCode=2、零应用日志，与人工门现象同型）** ⇒ jpackage Windows 启动器只在「路径字符无法用系统 ANSI 代码页表示」时崩溃；**升级打包 JDK 亦无效**（Temurin 21 实验：`ascii=PASS / cjk=FAIL`）。预防项已落地为 CI 启动冒烟（ascii/latin1/cjk 三组，观察期非阻断），探针脚本 `scripts/probe-packaged-launch.ps1` 可人工复跑。
+5. 新增取证工具 **`scripts/diagnose-packaged-launch.ps1`**（只读 + 可选启动探针，按 5 类候选根因逐项判定）；
    排查/绕行指引 **`docs/test/manual-test-guide.md §16`**（含四步快速判定与「拷到 ASCII 短路径」绕行法）。
-5. **P6 DoD 影响**：DoD 要求「P0/P1 清零」——**当前 P1 = 1（DEF-42 未闭环）**，故 **P6 门暂不可关闭**；
+6. **P6 DoD 影响**：DoD 要求「P0/P1 清零」——**当前 P1 = 1（DEF-42 未闭环）**，故 **P6 门暂不可关闭**；
    待人工取证 → 定性 → 修复 + 复验后收口。
-6. **待人工拍板的分级建议**：**A. C0**（CI 增「打包版启动冒烟」，实跑 app-image 并断言 `bootstrap ok`
+7. **待人工拍板的分级建议**：**A. C0**（CI 增「打包版启动冒烟」，实跑 app-image 并断言 `bootstrap ok`
    ——本缺陷即「产物未启动过就交付」的后果）；**B. C1**（建议决策档顺延 **D34**：Windows 安装策略调整
    `perUserInstall = false` / 向导提示英文目录 + 增「便携版 zip」产物）。
-7. **A 项已先行落地（2026-09-15，观察期非阻断）**：`ci.yml` package job 末尾新增 Windows 打包版启动冒烟，
+8. **A 项已先行落地（2026-09-15，观察期非阻断）**：`ci.yml` package job 末尾新增 Windows 打包版启动冒烟，
    置于**产物上传之后** + `continue-on-error: true`（日志判定串 `PACKAGED_LAUNCH_SMOKE=PASS/FAIL`）→
    **不改产物口径、不阻断产物下载**；请人工追认（维持 C0）或否决，稳定数轮后再改阻断式。**B 项（C1）待拍板**。
 

@@ -288,3 +288,7 @@ jobs:
           $cjkOk = ($LASTEXITCODE -eq 0)
           Write-Host "JDK21_PROBE ascii=$asciiOk cjk=$cjkOk"
           Write-Host '（ascii=True 且 cjk=True ⇒ 升级打包 JDK 可修掉非 ASCII 路径崩溃；cjk=False ⇒ 仍需 ASCII 路径/便携版）'
+          if (-not $cjkOk) {
+            Write-Host '::warning::JDK21 实验结论：升级打包 JDK 不能修掉「非 ASCII 安装路径」崩溃（仍需路径/产物结构方案）'
+          }
+          exit 0
