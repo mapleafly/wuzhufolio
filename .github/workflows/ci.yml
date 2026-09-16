@@ -432,7 +432,8 @@ jobs:
       - name: 产出控制台版 app-image 并打包
         shell: pwsh
         run: |
-          & .\gradlew.bat :app:createDistributable -Pwuzhufolio.windowsConsole=true --console=plain --stacktrace
+          # 注意：PowerShell 会把 -Pfoo.bar=true 拆成两个参数（CI 实证），必须加引号
+          & .\gradlew.bat :app:createDistributable "-Pwuzhufolio.windowsConsole=true" --console=plain --stacktrace
           $src = 'app/build/compose/binaries/main/app/WuZhuFolio'
           if (-not (Test-Path "$src/WuZhuFolio.exe")) { Write-Host '::error::控制台版 app-image 未产出'; exit 4 }
           $out = 'app/build/compose/binaries/main/portable'
