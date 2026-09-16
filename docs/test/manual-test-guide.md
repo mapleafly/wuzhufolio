@@ -749,3 +749,39 @@ ls -la ~/.wuzhufolio | head        # 数据仍在此
 
 - **判定**：应用可启动并进入登录页；数据写入 `~/.wuzhufolio`；解压目录内不产生用户数据；删除目录后无残留（无注册表项/无 `~/.local/share/applications` 入口）。
 - **常见假失败**：解压到**中文/含空格以外的非 ASCII** 路径 → 见 §16（Windows 启动器限制）；Linux 缺 FUSE 与便携版无关（那是 AppImage 的形态）。
+
+---
+
+## 18. 第十轮产物（D34）与复验指引（Windows 11 · 2026-09-15）
+
+> **本轮修复**：**DEF-42**（安装版双击弹 `Failed to launch JVM`）→ 决策档 **D34**：安装形态改 **per-machine**
+> （默认 `C:\Program Files\WuZhuFolio`，纯 ASCII）+ 关闭目录选择页 + 新增**便携版**产物 + CI 双启动冒烟。
+
+**产物（CI run [35091303719](https://github.com/mapleafly/wuzhufolio/actions/runs/35091303719)，commit `6e04f08`，六 job 全绿 · 未签名）**
+
+| 产物 | SHA256 |
+|------|--------|
+| `msi\WuZhuFolio-0.1.0.msi` | `adc6d34dc25bec4bcbd9eafcef2f81c40fce18ca2fc61f746672e0abe22b18cf` |
+| `exe\WuZhuFolio-0.1.0.exe` | `a58079bfb91631ea129af18b611071cf51b5520bb3b88127196a946fcdfd7e63` |
+| `portable\WuZhuFolio-portable-windows-x64.zip` | `1254367620eacd3403ce081b7a6ea6bad51c8052c0a0be904a38bf772cba987b` |
+
+```powershell
+gh run download 35091303719 --repo mapleafly/wuzhufolio -n wuzhufolio-windows-latest-native -D .\wzf-windows
+Get-FileHash .\wzf-windows\msi\WuZhuFolio-0.1.0.msi -Algorithm SHA256   # 应等于上表
+```
+
+**复验步骤（对应 D34 A1–A6 与 TC-MAN-02 / TC-MAN-11）**
+
+1. **先卸载旧的 per-user 版本**：设置 → 应用 → WuZhuFolio → 卸载（旧版路径为 `%LOCALAPPDATA%\WuZhuFolio`；
+   跨安装范围不属同一升级路径）。
+2. **装新版**：双击 `exe` 或 `msiexec /i` 装 MSI → 会请求管理员确认 → **安装向导不再有目录选择页** →
+   安装目录应为 `C:\Program Files\WuZhuFolio`。
+3. **启动**：双击桌面图标 → 应正常进入登录页（不再弹 `Failed to launch JVM`）；
+   日志 `%USERPROFILE%\.wuzhufolio\logs` 首行应为 `build=0.1.0+6e04f08`。
+4. **TC-MAN-02 步骤 3–5**：设置 → 开机自启开 →
+   `reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v WuZhuFolio` 有项 →
+   注销重登观察驻留 → 关开关复查注册项消失。
+5. **TC-MAN-11（便携版）**：解压 `portable\WuZhuFolio-portable-windows-x64.zip` 到 `D:\WuZhuFolio`（**纯英文路径**）→
+   双击 `WuZhuFolio.exe` → 查 `HKCU\...\Run` 无该项、解压目录内无用户数据、数据仍在 `%USERPROFILE%\.wuzhufolio` →
+   删除目录即完成卸载。详见 **§17**。
+6. **若仍有异常**：跑 `scripts/diagnose-packaged-launch.ps1`（或 **§16.1** 四步快速版）并把输出全文贴回。

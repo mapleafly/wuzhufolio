@@ -1318,7 +1318,13 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
    置于**产物上传之后** + `continue-on-error: true`（日志判定串 `PACKAGED_LAUNCH_SMOKE=PASS/FAIL`）→
    **不改产物口径、不阻断产物下载**；请人工追认（维持 C0）或否决，稳定数轮后再改阻断式。**B 项（C1）待拍板**。
 
-**建议的下一步**：① 人工按 `manual-test-guide.md §16` 跑一次取证（约 1 分钟）并贴回输出；
+9. **D34 CI 验收留痕（run [35091303719](https://github.com/mapleafly/wuzhufolio/actions/runs/35091303719)，commit `6e04f08`，六 job 全绿）**：
+   `msiexec /i exitCode=0` → **安装目录 = `C:\Program Files\WuZhuFolio`（per-machine、纯 ASCII）**；
+   **`INSTALLED_LAUNCH_SMOKE=True`**（安装版实跑写出 `bootstrap ok`）；`PACKAGED_LAUNCH_SMOKE=PASS` / `_LATIN1=PASS` / `_CJK=FAIL`（已知限制）；
+   `msiexec /x exitCode=0`；三平台便携包齐备（win 133.1MB / linux 144MB / macos 145MB）。
+   Windows 产物 SHA256：msi `adc6d34dc25bec4b…`、exe `a58079bfb91631ea…`、portable `1254367620eacd34…`（完整值见 `manual-test-guide.md §18`）。
+
+**建议的下一步**：① 人工按 `manual-test-guide.md §18` 复验（先卸载旧 per-user 版 → 装新版 → TC-MAN-02 步骤 3–5 → TC-MAN-11）；
 ② 对上述 A/B 两项分级拍板；③ 定位修复后复验 TC-MAN-02 步骤 3–5（开关 → `reg query` → 注销重登驻留 → 关闭后消失），
 随后 P6 归零 P1 并进入发布标准拍板（**P7 发布**解锁：`docs/release/`：release-plan / rollback / CHANGELOG /
 user-guide / 签名公证；**产品宣传动画为 P7 必做项**，AGENTS.md §7.2-3）。
