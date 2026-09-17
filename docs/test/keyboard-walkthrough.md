@@ -179,7 +179,8 @@
 # 任选**仓库外**目录执行（下载目录不在 .gitignore 内，别放进仓库）
 gh run download 34921450997 --repo mapleafly/wuzhufolio -n wuzhufolio-windows-latest-native -D .\wzf-windows
 Get-FileHash .\wzf-windows\msi\WuZhuFolio-0.1.0.msi -Algorithm SHA256   # 应等于上表对应行
-msiexec /i .\wzf-windows\msi\WuZhuFolio-0.1.0.msi
+$msi = (Resolve-Path .\wzf-windows\msi\WuZhuFolio-0.1.0.msi).Path
+Start-Process msiexec -ArgumentList "/i `"$msi`"" -Verb RunAs -Wait
 ```
 
 > 启动后**先核对日志首行**（Windows 路径 `%USERPROFILE%\.wuzhufolio\logs\wuzhufolio.log`）：

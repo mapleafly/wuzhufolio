@@ -24,11 +24,11 @@
 | **P2（第六轮）** | 3 | **均已修复**：**DEF-28**（窄窗表格列被压到内容宽度以下 → 标签竖排/数字换行/行高参差）、**DEF-29**（窄窗过滤按钮与操作列被压成竖排）、**DEF-30**（行情页搜索候选浮层不随清空/Esc 收起——在途搜索结果把浮层顶回来） |
 | **P2（第八轮 · GUI 全流程复验）** | 3 | **均已修复**：**DEF-39**（仪表盘卡片指标两级口径与原型不符 → 第一行明显偏大）、**DEF-40**（表格只有横线，补**纵向**列线）、**DEF-41**（币种详情成交表未接入统一表格 → 无单元线） |
 | **P1（第十轮 · 打包版启动）** | **1** | 🟢 **根因已实证 + 修复已实施（待人工 Windows 复验）**：**DEF-42**（Windows 安装版双击启动 → 弹窗「Failed to launch JVM」→ TC-MAN-02 步骤 3 阻断）→ 根因 = **jpackage Windows 启动器无法处理「系统 ANSI 代码页不可表示的安装路径」**；修复 = **D34**（per-machine 装到 `C:\Program Files\WuZhuFolio` + 关闭目录选择页 + 三平台便携版 + CI 启动冒烟） |
-| **P1（第十轮续 · 打包版启动／无障碍）** | **1** | 🟢 **根因已实证 + 修复已实施（待 CI/人工复验）**：**DEF-43**（开启 Java Access Bridge / 辅助技术时，打包版在 AWT 初始化抛 `AWTError` → 启动器只显示无细节的 `Failed to launch JVM`）→ 根因 = 裁剪运行时的模块集**缺 `jdk.accessibility`**；修复 = 模块集补齐（正向）+ `AssistiveTech` 兜底校验（防御），CI 增「开启辅助技术」冒烟变体 |
+| **P1（第十轮续 · 打包版启动／无障碍）** | **1** | ✅ **已闭环（CI + 人工实机复验通过）**：**DEF-43**（开启 Java Access Bridge / 辅助技术时，打包版在 AWT 初始化抛 `AWTError` → 启动器只显示无细节的 `Failed to launch JVM`）→ 根因 = 裁剪运行时的模块集**缺 `jdk.accessibility`**；修复 = 模块集补齐（正向）+ `AssistiveTech` 兜底校验（防御），CI 增「开启辅助技术」冒烟变体 |
 | **P2（第七轮 · 真实桌面 GUI 全流程 × 三档分辨率）** | 8 | **均按统一方案修复**：**DEF-31**（高 DPI 下币种列第三枚徽标被裁）、**DEF-32**（卡片大数字换行变形）、**DEF-33**（表格滚动条压住操作列 / 长数字换行）、**DEF-34**（环形图图例币种名换行）、**DEF-35**（截断数据无悬停全值）、**DEF-36**（表单弹窗多一条「不到一行」的滚动条）、**DEF-37**（列宽分配不保证最小宽）、**DEF-38**（列表缺单元线）—— 总体方案见 `docs/design/responsive-components.md` |
 | 测试缺陷（CI 暴露） | 1 | **DEF-12** 已修复（见 §3） |
 | **P3 / 观察项** | 6 | 登记（DEF-07…DEF-12），详见 §3 |
-| 合计 | 43 | P0 曾出现 1 项（DEF-17）· P1 曾出现 6 项（DEF-13/15/20/22/25/27）——**均已修复闭环**（人工门实测暴露）；**P1 现存 2 项（DEF-42 打包版启动／DEF-43 辅助技术开启时的启动失败；根因均已实证、修复已实施，待复验）**；P2 全部有明确结论 ✅ |
+| 合计 | 43 | P0 曾出现 1 项（DEF-17）· P1 曾出现 6 项（DEF-13/15/20/22/25/27）——**均已修复闭环**（人工门实测暴露）；**P1 均已闭环（DEF-43 人工实机复验通过；DEF-42 上游限制已按裁决登记 P8）**；P2 全部有明确结论 ✅ |
 
 > 结论：**P0 = 0**；**P1 三项（DEF-13/DEF-15/DEF-20）由人工门实测暴露并已修复闭环**（修复即回归，见 §1.5/§1.7），
 > P2 各项在人工 P6 门全部裁决完毕或已登记（见 §0.1），**无遗留未决项**；P1 的 DEF-42 已修复待复验（见下）。
@@ -441,7 +441,7 @@ Get-ChildItem "$env:USERPROFILE\.wuzhufolio\logs" | Sort-Object LastWriteTime -D
 ```
 
 
-### DEF-43 ✅ 已实施修复（**P1** · 人工门第十轮续实测 · 人工拍板 **C0**）· 开启辅助技术（Java Access Bridge）时打包版启动失败
+### DEF-43 ✅ 已闭环（**P1** · 人工门第十轮续实测 → 人工实机复验通过 · 人工拍板 **C0**）· 开启辅助技术（Java Access Bridge）时打包版启动失败
 
 | 项 | 内容 |
 |----|------|
@@ -452,6 +452,7 @@ Get-ChildItem "$env:USERPROFILE\.wuzhufolio\logs" | Sort-Object LastWriteTime -D
 | **修复** | ① **正向**：`app/build.gradle.kts` 运行时模块集补 **`jdk.accessibility`**（含 Windows 原生 Access Bridge DLL，随 jlink 入镜像）——读屏属 PRD §6 无障碍基线，**不能靠「让用户关掉辅助技术」绕过**；② **兜底（防御）**：新增 `app/.../AssistiveTech.kt`，在 AWT 初始化**之前**校验属性中的类可加载性（`Class.forName(..., initialize=false)`），不可用则清空属性并 `warn`——宁可「辅助技术降级 + 明确日志」，也不要「应用完全无法启动」；可用时不动属性 |
 | **本地验证（修复后）** | 同一 AT 探针 → **`bootstrap ok \| build=0.1.0+6e3dbbe \| schema=12`**，进程持续运行（`RC=124`）；`MODULES` 含 `jdk.accessibility` |
 | **回归（自动化）** | ① `app/.../AssistiveTechTest`（4 例）；② 探针脚本新增 `-AssistiveTech` 开关；③ CI `package` job 冒烟新增**「开启辅助技术」变体**：app-image 侧 `PACKAGED_LAUNCH_SMOKE_AT`、**安装版侧 `INSTALLED_LAUNCH_SMOKE_AT`**（人工机真实组合；Windows 原生 DLL 也在此实证） |
+| **人工实机复验（2026-09-16）** | ✅ **通过**：人工安装本修复版 MSI（`5d2ec322…`）后**应用可直接打开**（未关闭 Access Bridge）→ 该机症状消除、用例可继续。安装路径 `C:\Program Files\WuZhuFolio`（D34 口径）。|
 | **验收** | ✅ **CI 已验收（run [35115439554](https://github.com/mapleafly/wuzhufolio/actions/runs/35115439554)，commit `6f2c77b`，六 job 全绿）**：`LAUNCH_PROBE[at]=PASS` → **`PACKAGED_LAUNCH_SMOKE_AT=PASS`**；`LAUNCH_PROBE[installed-at]=PASS` → **`INSTALLED_LAUNCH_SMOKE_AT=True`**（**安装版 + 开启辅助技术 = 人工机的真实组合**，同时实证 Windows 原生 Access Bridge DLL 随模块入镜像）；同轮 `INSTALLED_LAUNCH_SMOKE=True`、`PACKAGED_LAUNCH_SMOKE=PASS`。⏳ 待人工装新版复验（**无需关闭 Access Bridge**）。CI 两处 `*_AT=PASS`（Windows）；人工装新版后（**无需关闭 Access Bridge**）正常启动；TC-MAN-03 读屏用例增加自动化守护证据 |
 | **影响面扫描** | 代码：`app/build.gradle.kts`（模块集 +1）、`AssistiveTech.kt`（新增）、`Main.kt`（启动序列插入校验）、新增测试 1 文件；分发口径：`ADR-006 §1.1`（体积代价 = 模块及其原生库，可忽略）；**不触**数据/schema/加密/接口/UI；`AGENTS.md §1.1` 五条硬约束**不触及** |
 | **分级（人工拍板 2026-09-16「按建议」）** | ✅ **C0（实现偏差纠正）**：PRD §6 已要求无障碍基线（读屏可用），打包漏装 `jdk.accessibility` 属实现/打包偏差 → 模块勘误 `M13.md §7` ③ + 技术文档回写 `ADR-006 §1.1`（无障碍模块为必需模块），**不建档、不进台账**；裁决记录见 §0.1 ⑫ |
@@ -523,6 +524,7 @@ Get-ChildItem "$env:USERPROFILE\.wuzhufolio\logs" | Sort-Object LastWriteTime -D
 | DEF-09 | `BackgroundScheduler.marketLoop` 的 `onTick()` 在 `runCatching` 之外 | 健壮性 | 当前 lambda 不抛（`proxyRuntime.refresh()`）；登记 P8 一并纳入异常隔离 |
 | DEF-10 | 英文界面下，服务层硬编码中文异常文案仍可能经 `t.message` 直达 UI（如备份密码强度：UI 侧已本地校验，属第二道防线） | i18n 完整性 | 本轮已收敛导出/恢复两条主要路径（DEF-01/06）；其余路径登记 P8 统一为类型化错误码 |
 | DEF-11 | DEF-01 的 `keyName = null` 分支与 `extra` 列坏值无独立用例 | 测试完整性 | 同一代码路径已被 passphrase 用例覆盖；登记 P8 补齐 |
+| **DEF-44** | ✅ **已修正（2026-09-16，人工门实测，测试文档勘误 · C0）**：手册中的 `msiexec /i .\wzf-windows\msi\WuZhuFolio-0.1.0.msi` **相对路径写法在 PowerShell 下必然失败**（报「无法打开此安装程序包。请确认该程序包存在，并且你有权访问它」），而文件管理器双击可正常安装。**根因**：`msiexec` 是独立进程，相对路径按它自己的工作目录解析；per-machine 安装触发 UAC 提权后工作目录变为 `C:\Windows\System32`，相对路径即失效（双击由资源管理器传**绝对路径**故正常）。**修正**：`manual-test-guide.md §5.3/§15/§18/§18.1` 与 `keyboard-walkthrough.md` 的全部安装命令改为 `$msi = (Resolve-Path .\…).Path` + `Start-Process msiexec -ArgumentList "/i `"$msi`"" -Verb RunAs -Wait`，并在 §5.3 增「为什么必须绝对路径」说明；同处说明「双击时先闪一下的窗口 = UAC 提权/引导，属正常现象」 | 文档可用性 | ✅ 已修正（不涉产品代码） |
 | **DEF-12** | ✅ **已修复（2026-09-14，CI 三平台复跑暴露，测试缺陷）** `SettingsKeyNamespaceGuardTest` 的符号索引**依赖文件遍历顺序**：早期实现用 `HashMap<裸名, 表达式>`，同名常量（`AppLanguage.SETTINGS_KEY="locale"` 与 `MarketWatchService.SETTINGS_KEY="watch.coins"`）互相覆盖 → **限定名 `MarketWatchService.SETTINGS_KEY` 未解析**，Windows（NTFS 目录顺序）上 `watch.coins` 丢失而 ubuntu/macos 通过。**修复** = 改为「限定名 → 表达式集合」索引（限定名唯一命中即用；裸名要求跨全部限定符唯一，否则 fail-closed）+ 限定符跟踪覆盖 `interface`/`enum class`/`data class` 等全部类型声明。**验证** = 本地把文件遍历顺序反转为降序后复跑仍绿（顺序无关性实证）；CI 复跑见 `test-report.md`/STATUS「CI 留痕」 | 测试基础设施 | 已修复并已推送复跑；教训：凡「跨文件符号解析」的守护测试必须与遍历顺序无关，且**限定名优先于裸名** |
 
 ---

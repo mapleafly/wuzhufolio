@@ -236,7 +236,9 @@ sudo apt install -y fakeroot rpm
 ```powershell
 # ① 安装版（per-machine，默认装到 C:\Program Files\WuZhuFolio，安装需管理员确认；安装向导无目录选择页）
 #    注意：若装过 D34 之前的 per-user 版本（%LOCALAPPDATA%\WuZhuFolio），请先卸载旧版再装新版
-msiexec /i .\ci-native\msi\WuZhuFolio-0.1.0.msi          # 或双击 .exe
+# 必须用绝对路径（见 §5.3 说明）；也可直接双击 .msi/.exe
+$msi = (Resolve-Path .\ci-native\msi\WuZhuFolio-0.1.0.msi).Path
+Start-Process msiexec -ArgumentList "/i `"$msi`"" -Verb RunAs -Wait
 # 启动：开始菜单「WuZhuFolio」，或
 & "C:\Program Files\WuZhuFolio\WuZhuFolio.exe"
 # 卸载：设置 → 应用 → WuZhuFolio → 卸载（或 msiexec /x {ProductCode}）
@@ -246,6 +248,13 @@ Expand-Archive .\ci-native\portable\WuZhuFolio-portable-windows-x64.zip -Destina
 & D:\WuZhuFolio\WuZhuFolio.exe
 # 卸载 = 直接删除该目录；数据仍在 %USERPROFILE%\.wuzhufolio（不写入解压目录）
 ```
+
+> **为什么 `msiexec /i .\xxx.msi` 会失败、而双击可以**（walkthrough 实测）：`msiexec` 是**独立进程**，
+> 相对路径按**它自己的当前目录**解析；per-machine 安装会触发 UAC 提权，**提权后工作目录变成 `C:\Windows\System32`**，
+> 于是 `.\wzf-windows\...` 解析成 `C:\Windows\System32\wzf-windows\...` → 报「无法打开此安装程序包。请确认该程序包存在，
+> 并且你有权访问它」。文件管理器双击之所以可以，是因为资源管理器传的是**绝对路径**。故命令行安装一律用
+> `$msi = (Resolve-Path .\...).Path` + `Start-Process msiexec -ArgumentList "/i `"$msi`"" -Verb RunAs -Wait`。
+> 双击安装时先闪一下的窗口 = UAC 提权/引导进程，属**正常现象**（D34 起为 per-machine 安装）。
 
 > **为什么要「纯 ASCII 路径」**：jpackage 的 Windows 原生启动器在安装路径含「系统 ANSI 代码页无法表示的字符」时
 > 无法加载随包 JVM，表现为启动即弹 `Failed to launch JVM`（**DEF-42**，CI 已实证）。安装版默认目录已是纯 ASCII；
@@ -509,7 +518,8 @@ backupBenchmark -Xmx512m: light 88.4 / typical 139.0 / heavy 434.0 MiB 峰值；
 ```powershell
 gh run download 34931651692 --repo mapleafly/wuzhufolio -n wuzhufolio-windows-latest-native -D .\wzf-windows
 Get-FileHash .\wzf-windows\msi\WuZhuFolio-0.1.0.msi -Algorithm SHA256   # 应等于上表
-msiexec /i .\wzf-windows\msi\WuZhuFolio-0.1.0.msi
+$msi = (Resolve-Path .\wzf-windows\msi\WuZhuFolio-0.1.0.msi).Path
+Start-Process msiexec -ArgumentList "/i `"$msi`"" -Verb RunAs -Wait
 ```
 
 | # | 人工观察 | 核实结论 | 复验指引 |
@@ -570,7 +580,8 @@ msiexec /i .\wzf-windows\msi\WuZhuFolio-0.1.0.msi
 ```powershell
 gh run download 34972057717 --repo mapleafly/wuzhufolio -n wuzhufolio-windows-latest-native -D .\wzf-windows
 Get-FileHash .\wzf-windows\msi\WuZhuFolio-0.1.0.msi -Algorithm SHA256   # 应等于上表
-msiexec /i .\wzf-windows\msi\WuZhuFolio-0.1.0.msi
+$msi = (Resolve-Path .\wzf-windows\msi\WuZhuFolio-0.1.0.msi).Path
+Start-Process msiexec -ArgumentList "/i `"$msi`"" -Verb RunAs -Wait
 ```
 
 ---
@@ -611,7 +622,8 @@ msiexec /i .\wzf-windows\msi\WuZhuFolio-0.1.0.msi
 ```powershell
 gh run download 34980698283 --repo mapleafly/wuzhufolio -n wuzhufolio-windows-latest-native -D .\wzf-windows
 Get-FileHash .\wzf-windows\msi\WuZhuFolio-0.1.0.msi -Algorithm SHA256   # 应等于上表
-msiexec /i .\wzf-windows\msi\WuZhuFolio-0.1.0.msi
+$msi = (Resolve-Path .\wzf-windows\msi\WuZhuFolio-0.1.0.msi).Path
+Start-Process msiexec -ArgumentList "/i `"$msi`"" -Verb RunAs -Wait
 ```
 
 > 复验前核对日志首行 `build=0.1.0+31d5d1f`。
@@ -648,7 +660,8 @@ msiexec /i .\wzf-windows\msi\WuZhuFolio-0.1.0.msi
 ```powershell
 gh run download 34987250801 --repo mapleafly/wuzhufolio -n wuzhufolio-windows-latest-native -D .\wzf-windows
 Get-FileHash .\wzf-windows\msi\WuZhuFolio-0.1.0.msi -Algorithm SHA256   # 应等于上表
-msiexec /i .\wzf-windows\msi\WuZhuFolio-0.1.0.msi
+$msi = (Resolve-Path .\wzf-windows\msi\WuZhuFolio-0.1.0.msi).Path
+Start-Process msiexec -ArgumentList "/i `"$msi`"" -Verb RunAs -Wait
 ```
 
 > 复验前核对日志首行 `build=0.1.0+d365e27`。
