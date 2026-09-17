@@ -312,6 +312,29 @@ cat ~/.config/autostart/*.desktop
 - ⚠️ **若双击图标弹「Failed to launch JVM」（DEF-42）**：见 **§16 排查附录**（含 4 步快速判定与绕行办法），
   该弹窗是 **jpackage 原生启动器**报的（表示随包私有运行时没被拉起来），**与机器上装不装 Java、装哪个版本无关**。
 
+#### TC-MAN-02 判定口径澄清（2026-09-16 人工提问 → 代码核实，C0 文档澄清，不改代码）
+
+**问**：自启开关是登录账户后设置的；若我先「退出登录」再关闭应用，开机自启还有效吗？
+
+**答：有效。** 依据：① 自启是**设备级偏好**（`settings` 全局行，`account_id = NULL`，
+`DesktopSettingsKeys.AUTOSTART_ENABLED`），与账户/会话无关；② `DefaultAccountService.logout()` 只做
+`sessions.clear()` + `clearRememberBestEffort("logout")`，**不触碰自启开关与注册项**；③ 注册只在开关切换时发生
+（写/删 `HKCU\...\Run` 的 `WuZhuFolio`），且每次启动 `AppBootstrap` 调 `reconcileAutostart()`（**登录之前、无需会话**）
+做自愈（补注册/清残留）。
+
+| 离开时的状态 | 开机自启后的预期表现 |
+|---|---|
+| 未登出（「记住我」仍在） | 自启 → **直接进主界面** |
+| **先退出登录再关** | 自启**照样生效**（进程/托盘图标出现），但**停在登录页**需输密码（登出即清「记住我」令牌，属设计行为） |
+
+**判定要点（避免误判）**：
+
+1. 判「自启有效」的判据是**进程/托盘图标出现**，不是「是否直接进主界面」；
+2. 注册值应为 `"C:\Program Files\WuZhuFolio\WuZhuFolio.exe"`（D34 起 per-machine 安装路径，可顺手核对）；
+3. 登录页状态下托盘「立即同步」不会同步交易所数据（`BackgroundScheduler.syncOnce` 的 `hasActiveSession()` 会话门），
+   行情刷新不受影响（公开数据）；
+4. 关窗行为（最小化到托盘 / 直接退出）与自启无关，均不触碰注册项。
+
 ### TC-MAN-03 读屏（Windows + NVDA）
 
 > **自动化守护（DEF-43 起）**：`app/.../AssistiveTechTest`（属性可用性校验 4 例）+ CI 冒烟变体
