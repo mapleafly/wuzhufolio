@@ -1096,6 +1096,12 @@ IntegrationHarness 1）在 ubuntu/windows/macos **全部执行通过**（含真�
 > **关闭后补充（同日第十一轮续）**：**TC-MAN-01 托盘走查 Windows 11 侧判定通过 ✅**（人工原话「TC-MAN-01托盘走查，在windows11下已经完成通过，
 > linux下还未测试」）→ **判定通过数 9 → 10 / 11**；P6 关闭结论不变（该项在关闭时已登记为 P7 携带，本轮为提前完成其 Windows 一侧），
 > **P7 携带范围收敛为：Linux / macOS 托盘 + TC-MAN-09（Ubuntu 出站抓包与权限实证）**。
+
+**P6 关闭提交 CI 留痕（2026-09-21）**：`docs(P6): P6 关闭（人工拍板）… + DEF-46 修正`（commit `db6cac7`，13 文件 docs-only）
+→ CI run [35667810859](https://github.com/mapleafly/wuzhufolio/actions/runs/35667810859) **六 job 全绿**：
+`windows-latest` / `ubuntu-latest` / `macos-latest`（build ×3）+ `package-ubuntu-latest` / `package-macos-latest` /
+`package-windows-latest`（package ×3）全部 success；两按需 job（`console-debug-windows`、`probe-jdk21-nonascii`）按设计 skipped。
+Windows 打包链路的启动冒烟与安装版实跑冒烟（观察期非阻断）在本轮同样 ✓。
 > **结论：达到发布标准，P7 发布解锁为「进行中」，待人工下达启动指令。** 以下为关闭时的产物与验收记录（历史归档）：
 
 > **启动记录**：人工原话「执行P6」（2026-09-14）。范围 = `AGENTS.md §4 P6`：按 PRD V2.0 验收标准做全量验证，
@@ -1677,3 +1683,4 @@ user-guide / 签名公证；**产品宣传动画为 P7 必做项**，AGENTS.md �
 | 2026-09-21 | Agent | **P6 关闭落盘 + P7 解锁（待启动指令）** | ① STATUS：当前阶段改「**P6 ✅ 已通过（2026-09-21 人工拍板关闭）**」+ 新增「**下一人工门 = P7 发布人工门**」与「**P7 携带项完整清单（8 条）**」；阶段总览 P6 → ✅、**P7 → ⏳ 进行中（待人工下达启动指令）**；「当前阻塞点」改为「**无阻塞**」+ 两项延期登记（含 DoD 与判据指向）+ P7 待人工三事项；② 测试三件套同步延期登记：`test-cases.md §7.0`、`manual-test-guide.md §1.1-1/§19`、`test-report.md`（状态行改 ✅ 已关闭 + §6/§7 两行）、`test-plan.md`（§7 第 1/8 条 + §2.3）、`security-checklist.md §7`（第 8 行 + **新增第 13 行**）、`defects.md §0`（P6 门关闭结论）；③ **P6 关闭依据留痕**：`test-report.md §0`（DoD 三项 ✅）+ 人工门 9/11 记录 + D34 §6 A1–A7 全绿。**未改任何产品代码**。 |
 | 2026-09-21 | 人 | **第十一轮续：TC-MAN-01 托盘走查 Windows 11 判定通过** | 原话「**TC-MAN-01托盘走查，在windows11下已经完成通过，linux下还未测试。**」——真实 Windows 11 桌面完成正式走查：关窗驻留托盘 / 托盘右键菜单**三项动作**（打开主界面·立即同步·退出）/ 关窗开关行为 / 后台同步通知逐项通过；首轮报出的乱码（**DEF-15**）与语言跟随（**DEF-18/19**）本轮**未复现**。**人工门判定通过数 9 → 10 / 11**；**P6 已关闭的结论不变**（该项在关闭时即登记为 P7 携带，本轮为提前完成其 Windows 一侧），**P7 携带范围收敛为 Linux/macOS 托盘 + TC-MAN-09**。 |
 | 2026-09-21 | Agent | **TC-MAN-01 判定落盘（Windows 通过 / Linux 未测）** | ① `test-cases.md`：§7.0 TC-MAN-01 行改「✅ 通过（Windows 侧）· 第十一轮续」+ 卡片加判定注；「剩余」注改为「仍未执行 1 项（TC-MAN-09）+ TC-MAN-01 仅剩 Linux/macOS」，通过数 10/11；② `manual-test-guide.md`：§1.1-1 同步 + §6 TC-MAN-01 卡片判定注 + **新增 §19.1「同轮补充：TC-MAN-01 托盘走查（Windows 11 侧）通过 ✅」**（用例/形态/结果/历史缺陷复核/未覆盖/状态影响表）；③ `test-report.md`：状态行、§6 仍需人工项、**§6.1 进展表新增 TC-MAN-01 行**、§7 残留风险（托盘行降级为「低」并收敛范围）；④ `defects.md §0`：通过数 10/11 + 延期范围收敛；⑤ `test-plan.md` §7 第 1 条与 §2.3；⑥ `security-checklist.md §7` 第 8 行（Windows 托盘+自启+便携版全绿，余 Linux/macOS）；⑦ `M11.md §5-3`：托盘 GUI 走查 Windows 侧闭环 + 剩余平台与 P7 检查点；⑧ STATUS：当前阶段 / 阶段总览 P6 行 / P6 关闭记录补充 / 阻塞点延期范围 / P7 携带项 ① / 三项延期验证在册 ① / 交接记录。**纯文档留痕，未改代码**（用例数维持 718）。 |
+| 2026-09-21 | Agent | **P6 关闭提交入库 + 远程推送 + CI 留痕** | 提交 `docs(P6): P6 关闭（人工拍板）—— 开机自启/便携版/托盘走查三项判定通过、P1 归零 + DEF-46 修正`（**`db6cac7`**，13 文件 docs-only：STATUS / test-cases / manual-test-guide / test-report / defects / test-plan / security-checklist / M11 / M13 / D34 / 决策索引 / 增量台账 / task-breakdown）→ 推送 `8dee607..db6cac7 origin/main`；**CI run [35667810859](https://github.com/mapleafly/wuzhufolio/actions/runs/35667810859) 六 job 全绿**（build ×3 + package ×3；两按需 job 按设计 skipped）。纯文档，未改产品代码，用例数维持 718。 |
