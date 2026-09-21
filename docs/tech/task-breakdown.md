@@ -226,10 +226,10 @@ flowchart LR
   「安装版实跑冒烟」（MSI 静默安装 → 断言落在 `C:\Program Files\WuZhuFolio` → 实跑 → 卸载），
   探针脚本 `scripts/probe-packaged-launch.ps1`；④ 现场取证脚本 `scripts/diagnose-packaged-launch.ps1`。
   **验收**：A1 安装默认目录为纯 ASCII 且无目录选择页（CI 安装版冒烟输出 + 人工安装确认）；
-  A2 非 ASCII 用户名机器可正常启动（人工复验 `manual-test-guide.md §16`）；A3 `INSTALLED_LAUNCH_SMOKE=True`；
-  A4 `PACKAGED_LAUNCH_SMOKE*` 结论稳定（cjk FAIL 作为**已知限制**留档）；A5 三平台便携版解压即用（人工 **TC-MAN-11**）；
-  A6 便携版不写注册表、不改数据位置；A7 冒烟失败不阻断产物上传（观察期口径）。
-  **回溯**：PRD §12、ADR-006 §1/§1.1、决策档 **D34**、`defects.md` DEF-42、`manual-test-guide.md §16`。
+  A2 非 ASCII 用户名机器可正常启动（**✅ 2026-09-21 人工复验通过**，`manual-test-guide.md §19`）；A3 `INSTALLED_LAUNCH_SMOKE=True`；
+  A4 `PACKAGED_LAUNCH_SMOKE*` 结论稳定（cjk FAIL 作为**已知限制**留档）；A5 三平台便携版解压即用（人工 **TC-MAN-11 ✅ 2026-09-21**，Linux/macOS 随 P7）；
+  A6 便携版不写注册表、不改数据位置（**✅ 2026-09-21 人工取证**）；A7 冒烟失败不阻断产物上传（观察期口径）。
+  **回溯**：PRD §12、ADR-006 §1/§1.1、决策档 **D34**、`defects.md` DEF-42、`manual-test-guide.md §16`/§19。
 
 
 ## 4. 里程碑验收门槛

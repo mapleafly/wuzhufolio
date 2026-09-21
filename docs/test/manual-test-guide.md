@@ -1,11 +1,11 @@
 # WuZhuFolio 人工门用例执行指南（Windows / Ubuntu 双环境）
 
-> **用途**：P6 人工门的 🔵 用例（`docs/test/test-cases.md §7`：TC-MAN-01…10）在 **Windows** 与 **Ubuntu**
+> **用途**：P6 人工门的 🔵 用例（`docs/test/test-cases.md §7`：TC-MAN-01…11）在 **Windows** 与 **Ubuntu**
 > 两套环境下的**环境要求、构建运行步骤、执行路径与取证方式**。用例判据以 `test-cases.md §7` 为准，
 > 本文件解决「在哪台机器、装什么、敲什么命令、怎么留证据」。
 > **执行人**：项目负责人 / 人工验收者（Agent 不可替代：托盘、读屏、真实 Key、目标机、视觉走查）。
 > **前置**：自动化基线绿（§3.3）；如失败先回到 P6 报告排查，不要带着红基线做人工走查。
-> **日期**：2026-09-14 · **有效需求**：PRD V2.0 + Δ{D21, D24, D25, D26, D27, D28, D29, D30}
+> **日期**：2026-09-14（**最近更新 2026-09-21 · 第十一轮复验见 §19**）· **有效需求**：PRD V2.0 + Δ{D21, D24, D25, D26, D27, D28, D29, D30, D31, D32, D33, D34}
 
 ---
 
@@ -26,12 +26,12 @@
 | TC-MAN-09 | 出站抓包 + 权限实证 | **必做** | **必做** | 路径 A | 权限判据按平台不同（见 §6 TC-MAN-09） |
 | TC-MAN-10 | 外链与关于页走查 | **必做** | **必做** | 路径 A | 需系统浏览器 |
 
-### 1.1-1 人工门执行进展（截至 2026-09-15 · 第十轮）
+### 1.1-1 人工门执行进展（截至 2026-09-21 · 第十一轮及其续轮）
 
 | 用例 | 平台 | 结果 | 判定轮次/日期 | 证据指向 |
 |------|------|------|---------------|----------|
-| TC-MAN-01 真实桌面托盘走查 | Windows 11 | ⏳ **待明确判定** | — | 首轮报出菜单乱码（**DEF-15**）与语言不跟随（**DEF-18/19**）均已修复并在第二～四轮复验中未再复现；**尚缺一次正式的「三项菜单动作 + 关窗驻留 + 后台通知」判定** |
-| TC-MAN-02 开机自启 | Windows 11 | ⏳ **待复验（DEF-42 已修复）** | 第十轮 · 2026-09-15 | 步骤 3 曾弹「Failed to launch JVM」→ 根因实证 + **D34 修复**（per-machine 装到 `C:\Program Files\WuZhuFolio`；旧 per-user 版需先卸载）；复验见 **§6 TC-MAN-02** 与 **§16** |
+| TC-MAN-01 真实桌面托盘走查 | **Windows 11 ✅ · Linux 未测** | ✅ **通过（Windows 侧）** | **第十一轮续 · 2026-09-21** | 真实 Windows 11 桌面完成正式判定（三项菜单动作 + 关窗行为 + 驻留 + 通知）；乱码 DEF-15 与语言跟随 DEF-18/19 本轮未复现；**Linux/macOS 转 P7 携带**；见 **§6 TC-MAN-01** 与 **§19.1** |
+| TC-MAN-02 开机自启 | Windows 11 · 打包安装版 | ✅ **通过** | **第十一轮 · 2026-09-21** | 第十轮步骤 3 曾弹「Failed to launch JVM」（→ DEF-42/DEF-43，均闭环）；装 DEF-43 修复版（run 35115439554）后复验：开关 → `reg query` 有项 → 注销重登驻留 → 关开关消失，全链路走通；见 **§6 TC-MAN-02** 与 **§19** |
 | TC-MAN-03 读屏 NVDA/JAWS | Windows 11 | ✅ **通过** | 第七轮 · 2026-09-15 | `manual-test-guide.md §14`；缺陷 DEF-13（隐形焦点目标）已修 |
 | TC-MAN-04 目标机性能 | Windows 11 | ✅ **通过** | 第七轮 · 2026-09-15 | `manual-test-guide.md §14`（含受限环境等效模拟数据：KDF 172.6 ms ≪2 s） |
 | TC-MAN-05 断网/代理异常 | Windows 11 | ✅ **通过** | 第八轮 · 2026-09-15 | 口径见 DEF-16（拔网不即时改状态属设计行为） |
@@ -40,11 +40,14 @@
 | TC-MAN-08 真实桌面 GUI 全流程 | Windows 11 · 三档分辨率 | ✅ **通过** | 第九轮 · 2026-09-15 | 六～八轮累计修复 DEF-27…DEF-41（入口焦点/窄窗表格/卡片层级/网格线/弹窗尺寸）后复验通过 |
 | TC-MAN-09 出站抓包 + 权限实证 | Ubuntu（建议） | ⬜ 未执行 | — | 工具 `scripts/outbound-capture-proxy.py`；判据 `security-checklist.md §8-4` |
 | TC-MAN-10 外链与关于页 | Windows 11 | ✅ **通过** | 第六轮 · 2026-09-15 | 系统浏览器打开 4 个入口（交易所密钥页/隐私政策/源码/GitHub） |
-| TC-MAN-11 便携版解压即用 | Windows 11 / Ubuntu | ⬜ 未执行 | — | D34 新增产物；步骤见 **§17** |
+| TC-MAN-11 便携版解压即用 | Windows 11 | ✅ **通过** | **第十一轮 · 2026-09-21** | D34 便携包解压到纯 ASCII 路径 → 双击 `WuZhuFolio.exe` 运行正常；数据仍落 `~/.wuzhufolio`、不写注册表、删除目录即卸载；步骤见 **§17**、留痕见 **§19** |
 
-> **剩余 4 项**：TC-MAN-01（待明确判定）、TC-MAN-02（**待复验：DEF-42 已按 D34 修复**，见 §16）、TC-MAN-09（未执行）、TC-MAN-11（便携版，见 §17）。
-> 其余 7 项已由人工判定通过（记录日期与轮次见上表；每轮反馈与修复见 `defects.md` DEF-01…DEF-42）。
-> **2026-09-15 第十轮**：**TC-MAN-08 真实桌面 GUI 全流程人工判定通过 ✅**；TC-MAN-02 在步骤 3 被 **DEF-42** 阻断。
+> **仍未执行 1 项**：**TC-MAN-09**（出站抓包 + 权限实证，Ubuntu 侧，见 §6 TC-MAN-09）——
+> **按人工拍板显式延期 → P7 携带，到期检查点 = P7 发布前，未到点前不得视为已完成**。
+> **TC-MAN-01 仅剩 Linux / macOS 托盘未测**（Windows 侧已于 2026-09-21 判定通过 ✅）。
+> **已由人工判定通过 10 项**（记录日期与轮次见上表；每轮反馈与修复见 `defects.md` DEF-01…DEF-46）。
+> **2026-09-21 第十一轮及其续轮**：**TC-MAN-01 托盘走查（Windows 11）✅ / TC-MAN-02 开机自启 ✅ / TC-MAN-11 便携版解压即用 ✅**
+> （第十轮被 DEF-42/DEF-43 阻断的打包版启动链路已恢复）→ **P6 人工门关闭**（DoD 三项全部达成）。
 
 > **Ubuntu 与 Windows 的分工建议**：托盘/自启/读屏在 Windows 最完整（Credential Manager + SystemTray 原生可用）；
 > Ubuntu 覆盖 deb/rpm/AppImage 三种分发形态与 Linux 钥匙串/托盘宿主行为。两平台都做的项见上表「必做」。
@@ -285,6 +288,11 @@ chmod +x ./ci-native/appimage/wuzhufolio-0.1.0-x86_64.AppImage
 
 ### TC-MAN-01 托盘走查
 
+> ✅ **2026-09-21 Windows 11 判定：通过**（第十一轮续）——真实桌面正式走查完成：关窗驻留托盘 / 托盘菜单三项动作
+> （打开主界面 · 立即同步 · 退出）/ 关窗开关关闭后直接退出 / 后台同步通知，逐项通过；DEF-15（乱码）与 DEF-18/19（语言跟随）
+> 本轮未复现。**Linux / macOS 托盘未测试** → 转 P7 携带（GNOME 需 AppIndicator 扩展；无宿主时验证降级分支）。
+> 留痕见 **§19.1**。
+
 - **平台**：Windows 必做；Ubuntu 需托盘宿主（无宿主则验降级分支）。
 - **起法**：§5.3 安装并启动打包版（或 `:app:run`，Windows 原生桌面可用）。
 - **取证**：① 关窗后进程仍在（Windows `Get-Process WuZhuFolio`；Ubuntu `pgrep -af WuZhuFolio`）；
@@ -293,6 +301,11 @@ chmod +x ./ci-native/appimage/wuzhufolio-0.1.0-x86_64.AppImage
   并在记录里注明「本机无托盘宿主，托盘菜单项未验」）。
 
 ### TC-MAN-02 开机自启
+
+> **2026-09-21 复验结论：通过 ✅**（第十一轮）——打包安装版（DEF-43 修复版，run 35115439554）实测：
+> 自启开关 → 注册项存在 → 注销重登后应用自动驻留托盘 → 关闭开关后注册项消失，四项判据全部走通；
+> 原先阻断本用例的 **DEF-42（上游非 ASCII 路径限制，D34 缓解）** 与 **DEF-43（缺 `jdk.accessibility`，已修）** 均已闭环。
+> 部分判据的逐条留痕见 **§19**。
 
 - **平台**：Windows 必做；Ubuntu 必做。**必须打包版**（开发态界面置灰并说明原因，属预期）。
 - **步骤与取证**：开启开关后按平台查注册项，把命令输出留档：
@@ -494,7 +507,7 @@ docs/test/manual-evidence/<YYYYMMDD>-<platform>/          # 本地留存；是�
 | # | 人工观察 | 核实结论 | 复验指引 |
 |---|----------|----------|----------|
 | 1 | 托盘三行菜单文字**乱码** | **P1 缺陷 DEF-15**，**第 2 版修复（改用 AWT 菜单 + 内嵌字体）人工复验仍乱码** → 推翻字体假设，确认为 **AWT 菜单文本渲染路径本身**的问题 | **第 3 版修复**：托盘菜单改由 **Compose/Skia 自绘**（AWT 只留图标与点击），字体链与应用界面一致。复验：**用新构建**（启动日志首行 `bootstrap ok \| build=0.1.0+<sha>` 可确认版本）→ 托盘右键应见可读中文三项；切 English 后为英文；三项动作生效；Esc/点别处关闭 |
-| 2 | 开机自启**未测** | 待人工执行（需打包版；开发态置灰属预期） | 见 §6 TC-MAN-02：开开关 → `reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v WuZhuFolio` → 注销重登观察驻留 → 关开关复查注册项消失 |
+| 2 | 开机自启**未测** | ✅ **已闭环（2026-09-21 第十一轮）**：打包安装版实测通过 → **TC-MAN-02 ✅**（当时受打包版启动失败 DEF-42/DEF-43 阻断，两缺陷均已修复） | 见 §6 TC-MAN-02：开开关 → `reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v WuZhuFolio` → 注销重登观察驻留 → 关开关复查注册项消失 |
 | 3 | Tab 只在左侧功能项移动，方向键无效，焦点进不到页面（六卡/图表） | **P1 缺陷 DEF-13**（焦点链重复目标）+ 一处**预期行为**：仪表盘六卡与环形图为**只读展示**，本就不在 Tab 序（读屏经 hover/浏览模式朗读）；方向键在 Compose 中默认不移动焦点（Tab/Shift+Tab 才是） | **已修复**：复验 Tab 应能到达页面内**可交互**控件（刷新行情、排序表头、行点击、表单按钮等），且不再出现「按一下没反应」的空步进；只读卡片仍不参与 Tab 属预期 |
 | 4 | 4GB 双核目标机无法提供 | 已用**等效受限环境模拟**替代：`taskset` 限 2 核 + 限堆跑基准（见下表） | 结果：KDF（m=64MiB/t=3/p=1）**172.6 ms** ≪ 2 s 预算（约 11× 余量）；512 MiB 堆下 `.cpro` 轻量/典型/重度档均可完成（峰值 88/139/434 MiB），压力档 OOM（登记容量边界）。**真机首屏计时仍需人工**（或按人工裁决放过） |
 | 5 | 拔网后不立即显示断网，手动刷新才显示；恢复网络点刷新即恢复 | **符合设计（DEF-16，非缺陷）**：断链指示的输入是「最近一次行情刷新结果」，最长需等下一轮自动刷新（默认 5 分钟）；请求失败即提示、保留上次价格与时间戳、点击可重试 = PRD 故事 3.2-3 + interaction §1.1 N1 | 复验：拔网 → 状态栏仍显示「直连」属预期 → 点顶栏「刷新行情」应立即转「网络断开」；恢复网络后点刷新应回到「直连」。若要求「拔网即刻提示」＝新增探测行为，登记 P8 |
@@ -807,6 +820,7 @@ ls -la ~/.wuzhufolio | head        # 数据仍在此
 
 - **判定**：应用可启动并进入登录页；数据写入 `~/.wuzhufolio`；解压目录内不产生用户数据；删除目录后无残留（无注册表项/无 `~/.local/share/applications` 入口）。
 - **常见假失败**：解压到**中文/含空格以外的非 ASCII** 路径 → 见 §16（Windows 启动器限制）；Linux 缺 FUSE 与便携版无关（那是 AppImage 的形态）。
+- ✅ **2026-09-21 Windows 11 判定：通过**（第十一轮）——本机便携包解压即用走通，留痕见 **§19**；Linux/macOS 便携包随 P7 三平台实测携带。
 
 ---
 
@@ -879,121 +893,6 @@ Start-Process -FilePath "C:\Program Files\WuZhuFolio\WuZhuFolio.exe" -Wait -Pass
 - A 能进登录页 ⇒ 应用与依赖都好，问题在启动器/环境（用 §16.6 的控制台版包拿启动器视角的真实原因）；
 - A 报错 ⇒ 把异常全文贴回即可定位；B 的退出码可佐证是否启动器级失败。
 
-### 16.4 与「开机自启」的关系
-
-自启注册的是**可执行文件的绝对路径**（`HKCU\...\Run` 下 `WuZhuFolio`），与安装目录位置无关。
-因此用 §16.1 的 ④ 或重装到英文目录**只要能启动，TC-MAN-02 的步骤 3–5 就可以继续走完**
-（开关 → `reg query` 有项 → 注销重登驻留 → 关开关后注册项消失）。
-
-### 16.5 预防（已提级建议，待人工拍板）
-
-- **A（C0 · 人工已追认 · 已落地观察期）**：CI「打包版启动冒烟」——实跑 app-image 并断言 `bootstrap ok`；
-  当前形态：**产物上传之后 + 非阻断**（grep `PACKAGED_LAUNCH_SMOKE*`），另含**安装版实跑冒烟**
-  （MSI 静默安装 → 断言落在 `C:\Program Files\WuZhuFolio` → 实跑 → 卸载，grep `INSTALLED_LAUNCH_SMOKE`）。
-  稳定数轮后可改阻断式并扩展到 Linux（需 xvfb）。**本轮缺陷正是「产物从未被启动过就交付到人工门」的后果。**
-- **已排除的选项**：升级打包 JDK（CI 实验：Temurin 21 打包后同样 `ascii=PASS / cjk=FAIL`）——该崩溃与 JDK 版本无关，别在工具链上找解法。
-- **B（C1 · 决策档 `D34` · 已实施）**：① `perUserInstall = false` + `dirChooser = false` → 默认装到
-  `C:\Program Files\WuZhuFolio`（任何区域设置下均为纯 ASCII）；② 三平台新增**便携版**产物
-  （`portable/WuZhuFolio-portable-*.zip|.tar.gz`，解压即用）。**注**：曾考虑用 Compose DSL 的 `installationPath`（映射 jpackage `--install-dir`）在 per-user 下指定绝对 ASCII 路径，
-  但 `man jpackage` 明确 **Windows 的 `--install-dir` 只接受「安装根下的相对子路径」**，故该路不通，改为 per-machine。
-
----
-
-## 17. TC-MAN-11 便携版解压即用走查（D34 新增产物）
-
-> **目的**：验证「免安装形态」可用且不污染系统——覆盖无管理员权限、需要自定义安装位置、以及**用户名非 ASCII** 的场景。
-
-- **前置**：拿到 CI artifact `wuzhufolio-<os>-native`（内含 `portable/`）。
-
-**Windows**
-
-```powershell
-# 1) 解压到纯 ASCII 路径（务必英文目录）
-Expand-Archive .\ci-native\portable\WuZhuFolio-portable-windows-x64.zip -DestinationPath D:\
-# 2) 运行
-& D:\WuZhuFolio\WuZhuFolio.exe
-# 3) 取证：不写注册表、不改系统
-reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v WuZhuFolio   # 期望：无此项（未开启自启时）
-Get-ChildItem D:\WuZhuFolio | Select-Object -First 5                                 # 目录内无用户数据
-Get-ChildItem "$env:USERPROFILE\.wuzhufolio" | Select-Object -Last 3                # 数据仍在此（时间戳为刚才）
-# 4) 卸载 = 删除目录
-# （可选）核对便携版与安装版日志首行 build= 一致
-```
-
-**Linux**
-
-```bash
-tar -xzf ./ci-native/portable/WuZhuFolio-portable-linux-x64.tar.gz -C ~/apps
-~/apps/WuZhuFolio/bin/WuZhuFolio &
-ls -la ~/.wuzhufolio | head        # 数据仍在此
-```
-
-- **判定**：应用可启动并进入登录页；数据写入 `~/.wuzhufolio`；解压目录内不产生用户数据；删除目录后无残留（无注册表项/无 `~/.local/share/applications` 入口）。
-- **常见假失败**：解压到**中文/含空格以外的非 ASCII** 路径 → 见 §16（Windows 启动器限制）；Linux 缺 FUSE 与便携版无关（那是 AppImage 的形态）。
-
----
-
-## 18. 第十轮产物（D34）与复验指引（Windows 11 · 2026-09-15）
-
-> **本轮修复**：**DEF-42**（安装版双击弹 `Failed to launch JVM`）→ 决策档 **D34**：安装形态改 **per-machine**
-> （默认 `C:\Program Files\WuZhuFolio`，纯 ASCII）+ 关闭目录选择页 + 新增**便携版**产物 + CI 双启动冒烟。
-
-**产物（CI run [35091303719](https://github.com/mapleafly/wuzhufolio/actions/runs/35091303719)，commit `6e04f08`，六 job 全绿 · 未签名）**
-
-| 产物 | SHA256 |
-|------|--------|
-| `msi\WuZhuFolio-0.1.0.msi` | `adc6d34dc25bec4bcbd9eafcef2f81c40fce18ca2fc61f746672e0abe22b18cf` |
-| `exe\WuZhuFolio-0.1.0.exe` | `a58079bfb91631ea129af18b611071cf51b5520bb3b88127196a946fcdfd7e63` |
-| `portable\WuZhuFolio-portable-windows-x64.zip` | `1254367620eacd3403ce081b7a6ea6bad51c8052c0a0be904a38bf772cba987b` |
-
-```powershell
-gh run download 35091303719 --repo mapleafly/wuzhufolio -n wuzhufolio-windows-latest-native -D .\wzf-windows
-Get-FileHash .\wzf-windows\msi\WuZhuFolio-0.1.0.msi -Algorithm SHA256   # 应等于上表
-```
-
-**复验步骤（对应 D34 A1–A6 与 TC-MAN-02 / TC-MAN-11）**
-
-1. **先卸载旧的 per-user 版本**：设置 → 应用 → WuZhuFolio → 卸载（旧版路径为 `%LOCALAPPDATA%\WuZhuFolio`；
-   跨安装范围不属同一升级路径）。
-2. **装新版**：双击 `exe` 或 `msiexec /i` 装 MSI → 会请求管理员确认 → **安装向导不再有目录选择页** →
-   安装目录应为 `C:\Program Files\WuZhuFolio`。
-3. **启动**：双击桌面图标 → 应正常进入登录页（不再弹 `Failed to launch JVM`）；
-   日志 `%USERPROFILE%\.wuzhufolio\logs` 首行应为 `build=0.1.0+6e04f08`。
-4. **TC-MAN-02 步骤 3–5**：设置 → 开机自启开 →
-   `reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v WuZhuFolio` 有项 →
-   注销重登观察驻留 → 关开关复查注册项消失。
-5. **TC-MAN-11（便携版）**：解压 `portable\WuZhuFolio-portable-windows-x64.zip` 到 `D:\WuZhuFolio`（**纯英文路径**）→
-   双击 `WuZhuFolio.exe` → 查 `HKCU\...\Run` 无该项、解压目录内无用户数据、数据仍在 `%USERPROFILE%\.wuzhufolio` →
-   删除目录即完成卸载。详见 **§17**。
-6. **若仍有异常**：跑 `scripts/diagnose-packaged-launch.ps1`（或 **§16.1** 四步快速版）并把输出全文贴回。
-
-### 16.6 最后一招：控制台版调试包（把启动器的真实错误打出来）
-
-GUI 启动器只弹一句 `Failed to launch JVM`（无细节）。CI 提供**按需产出**的控制台版调试包：
-
-```bash
-# 维护者：在提交信息里带 [probe-console] 推送，CI 会产出 wuzhufolio-windows-console-debug
-gh run download <run-id> --repo mapleafly/wuzhufolio -n wuzhufolio-windows-console-debug -D .\wzf-console
-```
-
-```powershell
-# 走查者：解压后**在 PowerShell/CMD 里**运行（不要双击，双击会看不到输出）
-cd .\wzf-console
-.\WuZhuFolio\WuZhuFolio.exe 2>&1 | Tee-Object "$env:TEMP\wzf-console.txt"
-# 控制台会打印 JVM 初始化失败的真实原因（模块/参数/原生库/安全策略等）→ 把输出贴回
-```
-
-**更快的等价手段（无需等 CI 产物）**：直接用随包运行时绕开启动器跑应用本体 ——
-
-```powershell
-$d = "C:\Program Files\WuZhuFolio"
-& "$d\runtime\bin\java.exe" -Dskiko.library.path="$d\app" `
-  -Dcompose.application.resources.dir="$d\app\resources" -cp "$d\app\*" com.wuzhufolio.app.MainKt 2>&1 |
-  Tee-Object "$env:TEMP\wzf-java-run.txt"
-```
-- **能起来** ⇒ 运行时与应用都没问题，问题在启动器/环境（此时控制台调试包给出启动器视角的原因）；
-- **报错退出** ⇒ 直接把 Java 抛出的异常贴回即可定位。
-
 ### 18.1 第十轮续产物（DEF-43 修复版 · 2026-09-16）
 
 > 本轮修复 **DEF-43**：开启辅助技术（Java Access Bridge）时打包版启动失败 → 运行时模块集补 `jdk.accessibility`
@@ -1013,3 +912,46 @@ Get-FileHash .\wzf-windows\msi\WuZhuFolio-0.1.0.msi -Algorithm SHA256   # 应等
 
 CI 验收留痕（run 35115439554）：`PACKAGED_LAUNCH_SMOKE_AT=PASS`、`INSTALLED_LAUNCH_SMOKE_AT=True`
 （安装版 + 开启辅助技术 = 本机真实组合）。
+
+---
+
+## 19. 第十一轮复验结果（Windows 11 · 2026-09-21 · TC-MAN-02 / TC-MAN-11）
+
+> **人工结论（原话）**：「P6的开机自启、便捷版运行，两项都通过」——即
+> **TC-MAN-02 开机自启 ✅** 与 **TC-MAN-11 便携版（免安装）运行 ✅** 两项判定通过。
+> 本轮为**打包态复验**，用的产物 = `§18.1` 的 DEF-43 修复版（run 35115439554，`build=0.1.0+6f2c77b`），
+> 即第十轮被 `Failed to launch JVM` 阻断的那条链路已恢复。
+
+| 用例 | 被测形态 | 结果 | 关联缺陷/决策 |
+|------|----------|------|---------------|
+| **TC-MAN-02 开机自启** | 打包安装版（per-machine，`C:\Program Files\WuZhuFolio`） | ✅ 通过 | **DEF-42**（上游 jpackage 非 ASCII 路径限制 → D34 缓解 + 登记 P8）· **DEF-43**（缺 `jdk.accessibility` → C0 已修）· 判定口径见 §6（DEF-45） |
+| **TC-MAN-11 便携版解压即用** | `portable\WuZhuFolio-portable-windows-x64.zip`（解压到纯 ASCII 路径） | ✅ 通过 | **D34 §6 A5/A6**（解压即用、不写注册表、数据仍落 `~/.wuzhufolio`、删除目录即卸载） |
+
+**对 P6 门的意义**：
+
+1. **P0/P1 缺陷归零**：第十轮两项 P1（DEF-42 打包版启动 / DEF-43 辅助技术）随本轮实机复验闭环 → P6 DoD「P0/P1 清零」达成；
+2. **D34 验收项**：`D34 §6` 的 **A2 ✅人工 / A5 ✅CI+人工 / A6 ✅人工** 三项补齐；
+3. **M11 §5-2 延期项闭环**：「开启后自启驻留托盘」端到端在打包版实测通过（原延期至 P7 打包版，提前在本轮完成）；
+4. **人工门累计通过 10/11**（含同日第十一轮续的 **TC-MAN-01 托盘走查 Windows 侧**，见 **§19.1**）：
+   仍未执行 **TC-MAN-09**（出站抓包 + 权限实证，Ubuntu 侧），另 **TC-MAN-01 的 Linux / macOS 托盘**未测
+   —— 均按人工拍板转 **P7 携带**（到期检查点 = P7 发布前）。
+
+**遗留（不因本轮通过而消失）**：
+
+- **macOS / Linux 便携包与自启**未人工执行 → 随 **P7 三平台实测**携带（`test-report.md §7`）；
+- **TC-MAN-09（出站抓包 + 权限实证）**：按人工拍板（2026-09-21「先关闭 P6 门并把两项登记为 P7 携带」）
+  转 **P7 携带**，**到期检查点 = P7 发布前**；
+- **jpackage 启动器非 ASCII 路径限制**仍为上游行为（P8 观察项；P7 用户指南写明「安装/解压路径请用英文」）。
+
+### 19.1 同轮补充：TC-MAN-01 托盘走查（Windows 11 侧）通过 ✅
+
+> **人工原话**：「**TC-MAN-01托盘走查，在windows11下已经完成通过，linux下还未测试。**」
+
+| 项 | 内容 |
+|----|------|
+| **用例** | TC-MAN-01 真实桌面托盘走查（判据见 `test-cases.md §7` 与 §6 TC-MAN-01） |
+| **平台 / 形态** | **Windows 11 真实桌面**（打包安装版，DEF-43 修复版 run 35115439554，`build=0.1.0+6f2c77b`） |
+| **结果** | ✅ **通过（Windows 侧）**——关窗驻留托盘、托盘右键菜单三项动作、关窗开关行为、后台同步通知逐项通过 |
+| **历史缺陷复核** | **DEF-15**（托盘菜单中文乱码）与 **DEF-18 / DEF-19**（托盘语言不跟随界面语言）本轮**未复现**（对应修复已闭环） |
+| **未覆盖** | **Linux / macOS 托盘**（GNOME 需 AppIndicator 扩展；无宿主时按设计验证「关窗即退出」降级分支） → **P7 携带**，到期检查点 = P7 发布前，DoD = `M11 §5-3` §4 步骤 4 之 ⑤ |
+| **状态影响** | 人工门用例**判定通过数 9 → 10 / 11**；**P6 门已关闭的结论不变**（该用例在 P6 门关闭时已被登记为 P7 携带，本轮为提前完成其中 Windows 一侧） |
