@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>WuZhuFolio · 30s 产品宣传动画 · 方向 A《账簿 The Ledger》</title>
+<!--
+  WuZhuFolio 产品宣传动画 · 方向 A《账簿 The Ledger》
+  ─────────────────────────────────────────────────────────────
+  本文件由 tools/build-promo.mjs 从 tools/promo.template.html 生成；UI 截图已 base64 内联，单文件自包含。
+
+  · 时钟：自写 Stage（等价 assets/animations.jsx <Stage> 契约）
+      (a) 首个 tick 同步置 window.__ready = true，与动画 t=0 严格 pair
+      (b) window.__recording / window.__seekRender 时强制 loop=false 并冻结自驱时钟
+      (c) window.__seek(t)：render(t) 是 t 的纯函数 → 逐帧 seek 渲染确定、无黑帧
+  · 渲染：tools/render-promo-seek.mjs（Chromium 逐帧 __seek → 截图 → ffmpeg H.264）
+  · 相机：camera-language.md §3 rig 分层（#viewport / #camera / #world / #hud）；
+      放大走 CSS zoom（布局级重栅格化，文字任意倍率锐利；pitfalls §22）
+      推拉时长 = 对数公式 × 1.9 的「沉稳档」（见 storyboard.md §1.5）
+  · 字体：本机无 CJK 系统字体 → 经 http://127.0.0.1:8791 注入随包 Noto Serif/Sans SC + JetBrains Mono（weight 100–900）
+  · 画面内不含任何伪 chrome（进度条 / 时间码 / 章节计数 / 署名条）；进度交给播放器
+-->
+<style>
+  :root{
+    --paper:#EDE8DF; --surface:#FFFFFF; --ink:#1E2A24; --ink2:#5A635C;
+    --brass:#B08A3E; --gain:#2E7D5B; --loss:#A8453F;
+    --sans:'Noto Sans SC',sans-serif;
+    --serif:'Noto Serif SC',Georgia,serif;
+    --mono:'JetBrains Mono','Noto Sans SC',monospace;
+    --pw:1180px; --ph:780.32px;
+  }
+  @font-face{font-family:'Noto Sans SC';src:url('http://127.0.0.1:8791/ui/src/main/resources/fonts/NotoSansSC.ttf') format('truetype');font-weight:100 900;font-display:block}
+  @font-face{font-family:'Noto Serif SC';src:url('http://127.0.0.1:8791/ui/src/main/resources/fonts/NotoSerifSC.ttf') format('truetype');font-weight:100 900;font-display:block}
+  @font-face{font-family:'JetBrains Mono';src:url('http://127.0.0.1:8791/ui/src/main/resources/fonts/JetBrainsMono.ttf') format('truetype');font-weight:100 800;font-display:block}
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#D8D2C6;overflow:hidden;
+    font-family:var(--sans);-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}
+
+  #viewport{position:relative;width:1920px;height:1080px;overflow:hidden;background:var(--paper)}
+  #camera{position:absolute;left:0;top:0;width:1920px;height:1080px}
+  #world{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0}
+  #hud{position:absolute;left:0;top:0;width:1920px;height:1080px;pointer-events:none}
+
+  /* ───────── 账页底（四周外扩 bleed，防 pan 露边）───────── */
+  #paper{position:absolute;left:-700px;top:-600px;width:3320px;height:3000px;background:var(--paper)}
+  #paper .rule-h{position:absolute;left:0;width:3320px;height:1px;background:rgba(30,42,36,.055)}
+  #paper .binding{position:absolute;top:0;width:1px;height:3000px;background:rgba(30,42,36,.17)}
+  #paper .binding2{position:absolute;top:0;width:1px;height:3000px;background:rgba(30,42,36,.085)}
+  #paper .stitch{position:absolute;width:26px;height:1.5px;background:rgba(176,138,62,.42)}
+  #paper .marginrule{position:absolute;top:0;width:1px;height:3000px;background:rgba(176,138,62,.20)}
+  #pageedge{position:absolute;left:-700px;width:3320px;height:1.5px;background:rgba(30,42,36,.28);opacity:0;z-index:30}
+  #pageedge .band{position:absolute;left:0;top:0;width:3320px;height:64px;
+    background:linear-gradient(180deg,rgba(30,42,36,.07),rgba(30,42,36,0))}
+
+  /* ───────── 通用排印（世界层）───────── */
+  .abs{position:absolute}
+  .mono{font-family:var(--mono)}
+  .serif{font-family:var(--serif)}
+
+  #rhR{left:0;top:56px;width:1920px;padding-right:190px;text-align:right;
+       font-family:var(--mono);font-size:11px;letter-spacing:.16em;color:var(--ink);opacity:0;line-height:1}
+  #ruleHead{left:190px;top:96px;width:1540px;height:1px;background:rgba(30,42,36,.30)}
+  #ruleHeadBrass{left:190px;top:95px;width:88px;height:3px;background:var(--brass);transform:scaleX(0);transform-origin:left center}
+  #wmSuffix{left:320px;top:56px;font-family:var(--mono);font-size:11px;letter-spacing:.16em;color:var(--ink2);opacity:0;line-height:1}
+
+  /* 书名（H2 · 跨段落 morph）*/
+  #wmPos{position:absolute;left:0;top:0;transform-origin:0 0}
+  #wmZoom{display:block;font-family:var(--serif);font-weight:600;font-size:132px;line-height:1;
+          letter-spacing:-.012em;color:var(--ink);white-space:nowrap}
+  #wmZoom .c,#repo .c{display:inline-block;will-change:transform,opacity}
+
+  /* 定位副行 */
+  #subline{left:0;top:428px;width:1920px;text-align:center;font-family:var(--serif);font-weight:400;
+           font-size:40px;letter-spacing:.22em;color:var(--ink2);line-height:1}
+  #brassShort{left:916px;top:500px;width:88px;height:3px;background:var(--brass);transform:scaleX(0);transform-origin:left center}
+  #posline{left:0;top:538px;width:1920px;text-align:center;font-family:var(--mono);font-size:13px;
+           letter-spacing:.30em;color:var(--brass);line-height:1}
+
+  /* 追问 */
+  #q1,#q2{left:262px;font-family:var(--serif);font-weight:600;font-size:78px;line-height:1;color:var(--ink)}
+  #q1{top:258px}
+  #q2{top:378px}
+  #qrule{left:262px;top:472px;width:920px;height:1px;background:rgba(30,42,36,.32);transform:scaleX(0);transform-origin:left center}
+
+  /* 三条账目 */
+  .claim{left:262px;width:820px}
+  .claim .cr{position:absolute;left:0;top:-24px;width:100%;height:1px;
+             background:rgba(30,42,36,.22);transform-origin:left center;transform:scaleX(0)}
+  .claim .num{position:absolute;left:0;top:4px;font-family:var(--mono);font-size:15px;
+              font-weight:600;letter-spacing:.08em;color:var(--brass)}
+  .claim .ttl{position:absolute;left:76px;top:0;font-family:var(--serif);font-weight:500;
+              font-size:30px;line-height:1.1;color:var(--ink);white-space:nowrap}
+  .claim .note{position:absolute;left:76px;top:46px;font-family:var(--mono);font-size:13px;
+               line-height:1.5;color:var(--ink2);white-space:nowrap}
+
+  /* 收尾 */
+  #endline{left:0;top:436px;width:1920px;text-align:center;font-family:var(--serif);font-weight:500;
+           font-size:34px;letter-spacing:.16em;color:var(--ink);opacity:0;line-height:1}
+  #repo{left:0;top:536px;width:1920px;text-align:center;font-family:var(--mono);font-size:15px;
+        letter-spacing:.10em;color:var(--brass);line-height:1}
+
+  /* ───────── 图版 / hero（H1）───────── */
+  #plate{position:absolute;left:0;top:0;width:var(--pw);height:var(--ph);transform-origin:50% 50%}
+  #plateClip{position:absolute;inset:0;overflow:hidden;border-radius:10px;background:#fff}
+  #plateFrame{position:absolute;inset:0;border-radius:10px;pointer-events:none;
+              box-shadow:inset 0 0 0 1px rgba(30,42,36,.16)}
+  .leaf{position:absolute;left:0;top:0;width:100%;height:100%;will-change:transform}
+  .leaf>img{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
+  #leafA{z-index:5}#leafB{z-index:4}#leafC{z-index:3}#leafD{z-index:2}#leafE{z-index:1}
+  #edgeShade{position:absolute;top:0;height:100%;width:86px;z-index:6;opacity:0;pointer-events:none;
+    background:linear-gradient(90deg,rgba(30,42,36,.34),rgba(30,42,36,0))}
+  #edgeShade.rev{background:linear-gradient(270deg,rgba(30,42,36,.34),rgba(30,42,36,0))}
+  #edgeLight{position:absolute;top:0;height:100%;width:30px;z-index:7;opacity:0;pointer-events:none;
+    background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.85))}
+  #edgeLight.rev{background:linear-gradient(270deg,rgba(255,255,255,0),rgba(255,255,255,.85))}
+  /* 交易管理首行「已实现盈亏」黄铜下划线（随该页翻走）*/
+  #rowHL{position:absolute;left:925px;top:317px;width:145px;height:1.5px;background:var(--brass);
+         z-index:8;transform-origin:left center;transform:scaleX(0)}
+  /* 行情页注脚（随该页翻走）*/
+  #qNote{position:absolute;left:280px;top:548px;width:720px;z-index:8;opacity:0}
+  #qNote .b{width:56px;height:2px;background:var(--brass);margin-bottom:14px}
+  #qNote .t{font-family:var(--mono);font-size:15px;line-height:1.62;color:var(--ink2)}
+  /* 安全与隐私：五行逐行点亮（世界 y 1187.0/1206.5/1228.3/1249.4/1268.9 → 图版局部 −700）*/
+  .litline{position:absolute;left:824px;width:286px;height:15px;z-index:8;transform-origin:left center;
+     transform:scaleX(0);
+     background:linear-gradient(90deg,rgba(176,138,62,.34),rgba(176,138,62,.12) 70%,rgba(176,138,62,0))}
+  /* 「立即备份 .cpro」按钮的黄铜标注框（世界 1172–1280 × 1286–1320）*/
+  #btnBox{position:absolute;left:802px;top:586px;width:108px;height:34px;z-index:9;pointer-events:none}
+  #btnBox i{position:absolute;background:var(--brass);opacity:0}
+  #btnBox i.t{left:0;top:0;height:1.5px;width:100%;transform-origin:left center}
+  #btnBox i.r{right:0;top:0;width:1.5px;height:100%;transform-origin:top center}
+  #btnBox i.b{left:0;bottom:0;height:1.5px;width:100%;transform-origin:left center}
+  #btnBox i.l{left:0;top:0;width:1.5px;height:100%;transform-origin:top center}
+
+  /* 白名单便签（S10 · 落在账页上的一张纸）*/
+  #slip{position:absolute;left:580px;top:1050px;width:436px;height:314px;z-index:20;opacity:0;
+        background:rgba(237,232,223,.975);
+        box-shadow:0 0 0 1px rgba(30,42,36,.18), 0 18px 34px -14px rgba(30,42,36,.42),
+                   0 3px 8px -4px rgba(30,42,36,.20)}
+  #slip .in{position:absolute;left:40px;top:36px;right:34px;bottom:28px}
+  #slip .lab{position:absolute;left:0;top:0;font-family:var(--mono);font-size:11px;font-weight:500;
+             letter-spacing:.24em;color:var(--brass);line-height:1}
+  #slip .rule{position:absolute;left:0;top:32px;width:118px;height:1px;background:rgba(30,42,36,.35)}
+  .host{position:absolute;left:0;font-family:var(--mono);font-size:13.5px;line-height:1;color:var(--ink);
+        white-space:nowrap;opacity:0}
+  .host .tick{position:absolute;left:-16px;top:5px;width:9px;height:1.5px;background:var(--brass)}
+  #host1{top:72px}#host2{top:122px}#host3{top:172px}
+  #slip .ft{position:absolute;left:0;bottom:0;font-family:var(--mono);font-size:10.5px;line-height:1.75;
+            color:var(--ink2)}
+
+  /* ───────── HUD（不跟镜头）───────── */
+  #vignette{position:absolute;inset:0;
+    background:radial-gradient(122% 92% at 34% 24%, rgba(237,232,223,0) 50%, rgba(30,42,36,.075) 100%)}
+  #grain{position:absolute;inset:0;opacity:.05;mix-blend-mode:multiply}
+  #watermark{position:absolute;right:32px;bottom:24px;font-family:var(--mono);font-size:11px;
+    letter-spacing:.15em;color:rgba(30,42,36,.42)}
+</style>
+</head>
+<body>
+<div id="viewport">
+  <div id="camera"><div id="world">
+
+    <div id="paper"></div>
+
+    <!-- 页眉 -->
+    <div class="abs" id="ruleHead"></div>
+    <div class="abs" id="ruleHeadBrass"></div>
+    <div class="abs" id="rhR">AGPL-3.0 · Windows / macOS / Linux</div>
+    <div class="abs" id="wmSuffix">· 本地加密资产账本</div>
+
+    <!-- hero：真实应用窗（H1）— 账页自上而下：仪表盘 → 资产列表 → 交易管理 → 行情 → 回到仪表盘 -->
+    <div id="plate">
+      <div id="plateClip">
+        <div class="leaf" id="leafE"><img alt="" src="__IMG_DASHBOARD__"></div>
+        <div class="leaf" id="leafD"><img alt="" src="__IMG_QUOTES__">
+          <div id="qNote"><div class="b"></div><div class="t">主源不可用时自动切换兜底源 CoinMarketCap<br>行情刷新与交易同步相互独立 · 互不阻塞</div></div>
+        </div>
+        <div class="leaf" id="leafC"><img alt="" src="__IMG_TRANSACTIONS__">
+          <div id="rowHL"></div>
+        </div>
+        <div class="leaf" id="leafB"><img alt="" src="__IMG_PORTFOLIO__"></div>
+        <div class="leaf" id="leafA"><img alt="" src="__IMG_DASHBOARD__"></div>
+        <div id="edgeShade"></div>
+        <div id="edgeLight"></div>
+        <div class="litline" id="lit1" style="top:479.5px"></div>
+        <div class="litline" id="lit2" style="top:499px"></div>
+        <div class="litline" id="lit3" style="top:520.8px"></div>
+        <div class="litline" id="lit4" style="top:541.9px"></div>
+        <div class="litline" id="lit5" style="top:561.4px"></div>
+        <div id="btnBox"><i class="t"></i><i class="r"></i><i class="b"></i><i class="l"></i></div>
+      </div>
+      <div id="plateFrame"></div>
+    </div>
+
+    <!-- 书名（跨全片 morph）-->
+    <div id="wmPos"><span id="wmZoom"></span></div>
+
+    <!-- 副行 / 定位 -->
+    <div class="abs" id="subline">本地加密资产账本</div>
+    <div class="abs" id="brassShort"></div>
+    <div class="abs" id="posline">LOCAL-FIRST · ENCRYPTED · AGPL-3.0</div>
+
+    <!-- 追问 -->
+    <div class="abs" id="q1"></div>
+    <div class="abs" id="q2"></div>
+    <div class="abs" id="qrule"></div>
+
+    <!-- 三条账目 -->
+    <div class="claim abs" style="top:552px"><div class="cr"></div>
+      <div class="num">01</div><div class="ttl">数据 100% 本地</div>
+      <div class="note">整库 SQLCipher + AES-256-GCM，不上传任何服务器</div></div>
+    <div class="claim abs" style="top:662px"><div class="cr"></div>
+      <div class="num">02</div><div class="ttl">零遥测</div>
+      <div class="note">无分析 SDK、无上报；出站仅三个白名单主机</div></div>
+    <div class="claim abs" style="top:772px"><div class="cr"></div>
+      <div class="num">03</div><div class="ttl">开源 AGPL-3.0</div>
+      <div class="note">构建可复现，代码可逐行核对</div></div>
+
+    <!-- 白名单便签 -->
+    <div id="slip"><div class="in">
+      <div class="lab">出站白名单 · 3</div><div class="rule"></div>
+      <div class="host" id="host1"><span class="tick"></span>api.coingecko.com</div>
+      <div class="host" id="host2"><span class="tick"></span>pro-api.coinmarketcap.com</div>
+      <div class="host" id="host3"><span class="tick"></span>api.binance.com</div>
+      <div class="ft">除这三个主机外，应用不发起任何出站连接。<br>交易所 API 仅需只读权限。</div>
+    </div></div>
+
+    <!-- 收尾 -->
+    <div class="abs" id="endline">数据始终在你自己手里</div>
+    <div class="abs" id="repo"></div>
+
+    <div id="pageedge"><div class="band"></div></div>
+  </div></div>
+
+  <div id="hud">
+    <div id="vignette"></div>
+    <svg id="grain" width="1920" height="1080" aria-hidden="true">
+      <filter id="papergrain"><feTurbulence type="fractalNoise" baseFrequency="0.86" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>
+      <rect width="1920" height="1080" filter="url(#papergrain)"/>
+    </svg>
+    <div id="watermark">Created by Huashu-Design</div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ══════════════ 常量 ══════════════ */
+const DUR = 30.0;
+const PLATE_W = 1180, PLATE_H = 780.32;                 // 与应用窗 1240×820 同比例（源 2480×1640 @2x）
+const WM_BIG_TOP = 250, WM_RH_X = 190, WM_RH_Y = 56, WM_RH_SCALE = 0.1515;
+
+/* ══════════════ easing ══════════════ */
+const cl01 = x => x < 0 ? 0 : x > 1 ? 1 : x;
+function bezier(x1,y1,x2,y2){
+  const cx=3*x1, bx=3*(x2-x1)-cx, ax=1-cx-bx;
+  const cy=3*y1, by=3*(y2-y1)-cy, ay=1-cy-by;
+  const fx=t=>((ax*t+bx)*t+cx)*t, dfx=t=>(3*ax*t+2*bx)*t+cx;
+  return function(x){
+    if(x<=0)return 0; if(x>=1)return 1;
+    let t=x;
+    for(let i=0;i<8;i++){const e=fx(t)-x; if(Math.abs(e)<1e-6) return ((ay*t+by)*t+cy)*t;
+      const d=dfx(t); if(Math.abs(d)<1e-6) break; t-=e/d;}
+    let lo=0,hi=1; t=x;
+    for(let i=0;i<22;i++){const v=fx(t); if(Math.abs(v-x)<1e-6) break; if(v>x)hi=t; else lo=t; t=(lo+hi)/2;}
+    return ((ay*t+by)*t+cy)*t;
+  };
+}
+const EASE = {
+  lin:t=>t, o2:t=>1-(1-t)*(1-t), o3:t=>1-Math.pow(1-t,3),
+  io2:t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2,
+  io3:t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2,
+  follow: bezier(0.33,0,0.15,1)
+};
+function mkTrack(keys){
+  return function(t){
+    if(t <= keys[0].t) return keys[0].v;
+    for(let i=1;i<keys.length;i++){
+      const k = keys[i];
+      if(t <= k.t){
+        const p = keys[i-1];
+        if(k.t === p.t) return k.v;
+        const u = (EASE[k.e] || EASE.lin)((t - p.t) / (k.t - p.t));
+        return p.v + (k.v - p.v) * u;
+      }
+    }
+    return keys[keys.length-1].v;
+  };
+}
+const seg = (t,a,b) => cl01((t-a)/(b-a));
+
+/* ══════════════ 相机轨道（camera-language §3 / gsap-recipes §9）══════════════
+   4 次镜头变化：4.40 命题 / 9.00 下潜 / 20.40 抵达安全卡片 / 23.60 让位按钮
+   + 2.40 的 1.06x 定场微推。9.00→20.40 是**一条 11.4 s 连续推轨**，零「回 1x」泵动。 */
+const camX = mkTrack([
+  {t:0,v:960},{t:4.85,v:960},{t:5.85,v:700,e:'io3'},{t:9.00,v:700},
+  {t:10.20,v:910,e:'io3'},{t:14.00,v:975,e:'lin'},{t:20.40,v:1070,e:'lin'},
+  {t:23.60,v:1030,e:'io2'},{t:26.00,v:1030},{t:26.60,v:960,e:'io3'},{t:30,v:960}
+]);
+const camY = mkTrack([
+  {t:0,v:540},{t:4.85,v:540},{t:5.85,v:620,e:'io3'},{t:9.00,v:620},
+  {t:10.20,v:1010,e:'io3'},{t:14.00,v:1090,e:'lin'},{t:20.40,v:1200,e:'lin'},
+  {t:23.60,v:1200,e:'io2'},{t:26.00,v:1200},{t:26.60,v:540,e:'io3'},{t:30,v:540}
+]);
+const camZ = mkTrack([
+  {t:0,v:1},{t:0.90,v:1},{t:2.40,v:1.06,e:'o2'},{t:4.85,v:1.06},
+  {t:5.85,v:1.25,e:'io3'},{t:9.00,v:1.25},{t:10.20,v:1.80,e:'io3'},
+  {t:14.00,v:1.85,e:'lin'},{t:20.40,v:2.05,e:'lin'},{t:23.60,v:2.05},
+  {t:26.00,v:2.05},{t:26.60,v:1.00,e:'io3'},{t:30,v:1.00}
+]);
+/* H1 图版自身状态：位置 / 尺度 / 旋转 / 虚焦 / 明度 */
+const pX  = mkTrack([{t:0,v:960},{t:3.60,v:960},{t:5.40,v:1450,e:'io3'},{t:9.00,v:1450},{t:10.80,v:960,e:'io3'},{t:30,v:960}]);
+const pY  = mkTrack([{t:0,v:1090},{t:3.60,v:1090},{t:5.40,v:1150,e:'io3'},{t:9.00,v:1150},{t:10.80,v:1090,e:'io3'},{t:30,v:1090}]);
+const pS  = mkTrack([{t:0,v:1.00},{t:3.60,v:1.00},{t:5.40,v:0.80,e:'io3'},{t:9.00,v:0.80},{t:10.80,v:1.00,e:'io3'},{t:30,v:1.00}]);
+const pR  = mkTrack([{t:0,v:-0.9},{t:3.60,v:-0.9},{t:5.40,v:-1.5,e:'io3'},{t:9.00,v:-1.5},{t:10.80,v:-0.9,e:'io3'},{t:30,v:-0.9}]);
+const pBL = mkTrack([{t:0,v:0},{t:4.80,v:0},{t:6.20,v:6,e:'io2'},{t:7.40,v:6},{t:7.90,v:0,e:'io2'},{t:30,v:0}]);
+const pBR = mkTrack([{t:0,v:1},{t:4.80,v:1},{t:6.20,v:0.86,e:'io2'},{t:7.40,v:0.86},{t:7.90,v:1,e:'io2'},{t:30,v:1}]);
+
+/* ══════════════ DOM ══════════════ */
+const $ = id => document.getElementById(id);
+const cameraEl=$('camera'), worldEl=$('world'), paperEl=$('paper');
+const plateEl=$('plate'), plateClip=$('plateClip');
+const wmPos=$('wmPos'), wmZoom=$('wmZoom'), wmSuffix=$('wmSuffix');
+const pageedge=$('pageedge');
+const leafEls=[$('leafA'),$('leafB'),$('leafC'),$('leafD')];   // A=仪表盘 B=资产列表 C=交易管理 D=行情（E 为底层仪表盘，不翻）
+const edgeShade=$('edgeShade'), edgeLight=$('edgeLight'), rowHL=$('rowHL');
+const qNote=$('qNote'), slip=$('slip'), endline=$('endline'), repo=$('repo');
+const rhR=$('rhR'), posline=$('posline'), subline=$('subline'), ruleHeadBrass=$('ruleHeadBrass');
+const brassShort=$('brassShort'), qrule=$('qrule'), q1El=$('q1'), q2El=$('q2');
+const litEls=[$('lit1'),$('lit2'),$('lit3'),$('lit4'),$('lit5')];
+const btnI=$('btnBox').querySelectorAll('i');
+const hostEls=[$('host1'),$('host2'),$('host3')];
+const claims=Array.prototype.slice.call(document.querySelectorAll('.claim'));
+
+/* ══════════════ 账页底纹（静态生成，确定性）══════════════ */
+(function(){
+  let h='';
+  for(let y=0;y<=3000;y+=30) h+='<div class="rule-h" style="top:'+y+'px"></div>';
+  h+='<div class="binding" style="left:752px"></div>';
+  h+='<div class="binding2" style="left:757px"></div>';
+  h+='<div class="marginrule" style="left:1336px"></div>';
+  for(let y=40;y<=2980;y+=48) h+='<div class="stitch" style="left:742px;top:'+y+'px"></div>';
+  paperEl.innerHTML=h;
+})();
+
+/* ══════════════ 文案 + 逐字 span ══════════════ */
+function chars(el,text){
+  el.innerHTML='';
+  for(const ch of text){
+    const s=document.createElement('span');
+    s.className='c'; s.textContent = (ch===' ') ? '\u00A0' : ch;
+    el.appendChild(s);
+  }
+  return Array.prototype.slice.call(el.children);
+}
+const wmChars = chars(wmZoom,'WuZhuFolio');
+const q1Chars = chars(q1El,'你的持仓，');
+const q2Chars = chars(q2El,'现在存在谁的服务器上？');
+const repChars= chars(repo,'github.com/mapleafly/wuzhufolio');
+const claimTtl=[],claimNote=[],claimNum=[];
+claims.forEach(function(c){
+  const t=c.querySelector('.ttl'), n=c.querySelector('.note'), m=c.querySelector('.num');
+  claimTtl.push(chars(t,t.textContent)); claimNote.push(n); claimNum.push(m);
+});
+
+/* 逐字揭示：窗口 [0,1]，每字占 62% 窗口 + 均分 stagger */
+function typeIn(list,p,dx,dy){
+  const N=list.length, span=0.62, step = N>1 ? (1-span)/(N-1) : 0;
+  for(let i=0;i<N;i++){
+    const a=i*step, b=a+span;
+    const e=EASE.o3(cl01((p-a)/(b-a)));
+    list[i].style.opacity=e.toFixed(3);
+    list[i].style.transform='translate('+((1-e)*(dx||0)).toFixed(2)+'px,'+((1-e)*(dy||0)).toFixed(2)+'px)';
+  }
+}
+/* 整块入场：保留最低可见度，保证第 0 帧是完整初始状态（不是空白）*/
+function blockIn(el,p,dy,floor){
+  const e=EASE.o3(cl01(p)), f=(floor===undefined?0:floor);
+  el.style.opacity=(f+(1-f)*e).toFixed(3);
+  el.style.transform='translateY('+((1-e)*(dy===undefined?10:dy)).toFixed(2)+'px)';
+}
+
+/* ══════════════ 翻页（本片的转场母题）══════════════ */
+const TURNS=[[11.20,11.82,'L'],[14.05,14.67,'R'],[16.80,17.42,'L'],[19.40,20.02,'R']];
+let turning=0;
+function applyTurns(t){
+  let active=null;
+  for(let i=0;i<4;i++){
+    const T=TURNS[i], leaf=leafEls[i];
+    const p=seg(t,T[0],T[1]);
+    if(p>=1){ leaf.style.transform='scaleX(0)'; leaf.style.opacity=0; leaf.style.filter='none'; continue; }
+    leaf.style.opacity=1;
+    if(p<=0){ leaf.style.transform='scaleX(1)'; leaf.style.filter='none'; }
+    else{
+      const e=EASE.io2(p), k=1-e;
+      leaf.style.transformOrigin=(T[2]==='L'?'0% 50%':'100% 50%');
+      leaf.style.transform='scaleX('+k.toFixed(5)+')';
+      leaf.style.filter='brightness('+(1-0.22*Math.sin(Math.PI*p)).toFixed(4)+')';
+      active={p:p,k:k,dir:T[2]};
+    }
+  }
+  turning = active ? 1 : 0;
+  if(active){
+    const k=active.k, W=PLATE_W, op=Math.sin(Math.PI*active.p);
+    const edgeX=(active.dir==='L') ? k*W : (1-k)*W;
+    edgeLight.style.opacity=(op*0.9).toFixed(3);
+    edgeShade.style.opacity=(op*0.85).toFixed(3);
+    if(active.dir==='L'){
+      edgeLight.classList.remove('rev'); edgeShade.classList.remove('rev');
+      edgeLight.style.transform='translateX('+(edgeX-30)+'px)';
+      edgeShade.style.transform='translateX('+edgeX+'px)';
+    }else{
+      edgeLight.classList.add('rev'); edgeShade.classList.add('rev');
+      edgeLight.style.transform='translateX('+edgeX+'px)';
+      edgeShade.style.transform='translateX('+(edgeX-86)+'px)';
+    }
+  }else{
+    edgeLight.style.opacity=0; edgeShade.style.opacity=0;
+  }
+}
+
+/* ══════════════ 书名 morph（H2）══════════════ */
+let WM_W=830;
+function wmK(t){ return EASE.io3(seg(t,3.90,4.70)) * (1-EASE.io3(seg(t,26.15,27.15))); }
+function wmScale(t){ return 1+(WM_RH_SCALE-1)*wmK(t); }
+function wmXY(t){
+  const k=wmK(t), bx=(1920-WM_W)/2, by=WM_BIG_TOP;
+  return [bx+(WM_RH_X-bx)*k, by+(WM_RH_Y-by)*k];
+}
+
+/* ══════════════ render(t) —— t 的纯函数 ══════════════ */
+function render(t){
+  /* 相机 */
+  const z=camZ(t), cx=camX(t), cy=camY(t);
+  cameraEl.style.transform='translate('+(960-z*cx).toFixed(3)+'px,'+(540-z*cy).toFixed(3)+'px)';
+  worldEl.style.zoom=z;
+
+  /* 远景层视差（层速比 0.65 : 1.00）+ 账页横线上移（转页的物理感）*/
+  const pdx=0.35*(cx-960), pdy=0.35*(cy-540)-26*EASE.io2(seg(t,2.45,3.35));
+  paperEl.style.transform='translate('+pdx.toFixed(2)+'px,'+pdy.toFixed(2)+'px)';
+
+  /* 页缘扫过（S1→S2 的接缝）*/
+  const pe=seg(t,2.42,3.10);
+  if(pe>0&&pe<1){
+    pageedge.style.opacity=(Math.sin(Math.PI*pe)*0.9).toFixed(3);
+    pageedge.style.top=(1160+(560-1160)*EASE.io2(pe)).toFixed(1)+'px';
+  }else pageedge.style.opacity=0;
+
+  /* H1 图版 */
+  const s=pS(t), drop=EASE.o3(seg(t,0,0.95));
+  const px=pX(t)-PLATE_W/2, py=pY(t)-PLATE_H/2-16*(1-drop);
+  plateEl.style.transform='translate('+px.toFixed(2)+'px,'+py.toFixed(2)+'px)'
+                        +' rotate('+pR(t).toFixed(3)+'deg) scale('+s.toFixed(4)+')';
+  const bl=pBL(t), br=pBR(t);
+  plateEl.style.filter=(bl<0.05&&br>0.999)?'none':'blur('+bl.toFixed(2)+'px) brightness('+br.toFixed(3)+')';
+  plateClip.style.boxShadow=
+      '0 '+(34*drop).toFixed(1)+'px '+(62*drop).toFixed(1)+'px -24px rgba(30,42,36,'+(0.36*drop).toFixed(3)+'),'
+    + '0 '+(8*drop).toFixed(1)+'px '+(18*drop).toFixed(1)+'px -8px rgba(30,42,36,'+(0.18*drop).toFixed(3)+')';
+
+  applyTurns(t);
+
+  /* 交易管理首行「已实现盈亏」下划线（随该页翻走 → 只在 15.55–16.80 有意义）*/
+  rowHL.style.transform='scaleX('+EASE.o3(seg(t,15.55,15.95)).toFixed(4)+')';
+  /* 行情页注脚 */
+  const qp=seg(t,17.60,18.15);
+  qNote.style.opacity=EASE.o3(qp).toFixed(3);
+  qNote.style.transform='translateY('+((1-EASE.o3(qp))*12).toFixed(2)+'px)';
+
+  /* 安全与隐私：五行逐行点亮 */
+  for(let i=0;i<5;i++){
+    const a=20.70+i*0.30, b=a+0.42;
+    litEls[i].style.transform='scaleX('+EASE.io2(seg(t,a,b)).toFixed(4)+')';
+  }
+
+  /* 白名单便签 + 按钮黄铜标注框 */
+  const sl=seg(t,23.90,24.70);
+  slip.style.opacity=EASE.io3(sl).toFixed(3);
+  slip.style.transform='translateX('+((1-EASE.io3(sl))*26).toFixed(2)+'px)';
+  for(let i=0;i<3;i++){
+    const a=24.55+i*0.13, b=a+0.34, e=EASE.o3(seg(t,a,b));
+    hostEls[i].style.opacity=e.toFixed(3);
+    hostEls[i].style.transform='translateX('+((1-e)*18).toFixed(2)+'px)';
+  }
+  const bs=[seg(t,24.62,24.80),seg(t,24.80,24.95),seg(t,24.95,25.10),seg(t,25.10,25.25)];
+  for(let i=0;i<4;i++){
+    const e=EASE.io2(bs[i]);
+    btnI[i].style.opacity=e>0?1:0;
+    btnI[i].style.transform=(i===0||i===2)?'scaleX('+e.toFixed(4)+')':'scaleY('+e.toFixed(4)+')';
+  }
+
+  /* H2 书名 morph */
+  const ws=wmScale(t), wxy=wmXY(t);
+  wmPos.style.transform='translate('+wxy[0].toFixed(2)+'px,'+wxy[1].toFixed(2)+'px)';
+  wmZoom.style.zoom=ws;
+  /* 书名逐字：保底 0.5 可见度 → 第 0 帧即是一张完整封面 */
+  const wp=seg(t,0.15,1.05);
+  for(let i=0;i<wmChars.length;i++){
+    const a=i*((1-0.62)/(wmChars.length-1)), b=a+0.62;
+    const e=EASE.o3(cl01((wp-a)/(b-a)));
+    wmChars[i].style.opacity=(0.5+0.5*e).toFixed(3);
+    wmChars[i].style.transform='translateX('+((1-e)*9).toFixed(2)+'px)';
+  }
+  /* 页眉后缀：只在书名收进行头时存在，书名放大回中时同步退场 */
+  wmSuffix.style.left=(WM_RH_X+WM_W*ws+18).toFixed(1)+'px';
+  wmSuffix.style.opacity=(EASE.o3(seg(t,5.00,5.42))*(1-EASE.io2(seg(t,26.15,26.65)))).toFixed(3);
+
+  /* 副行 / 黄铜短线 / 定位行（morph 时退场）*/
+  const outTitle=EASE.io2(seg(t,3.95,4.55));
+  const subP=seg(t,0.15,1.05), subE=EASE.o3(subP);
+  subline.style.opacity=((0.55+0.45*subE)*(1-outTitle)).toFixed(3);
+  subline.style.transform='translateY('+(((1-subE)*10)-12*outTitle).toFixed(2)+'px)';
+  const brP=EASE.io2(seg(t,2.55,3.00));
+  brassShort.style.transform='scaleX('+(brP*(1-outTitle)).toFixed(4)+')';
+  brassShort.style.opacity=brP.toFixed(3);
+  const plP=seg(t,3.10,3.55);
+  posline.style.opacity=((0.4+0.6*EASE.o3(plP))*(1-outTitle)).toFixed(3);
+  posline.style.transform='translateY('+(((1-EASE.o3(plP))*8)-12*outTitle).toFixed(2)+'px)';
+  ruleHeadBrass.style.transform='scaleX('+EASE.io2(seg(t,0.90,1.50)).toFixed(4)+')';
+  blockIn(rhR,seg(t,3.20,3.62),6,0);
+
+  /* ── 命题段（追问 + 三条账目）：镜头下潜进图版时整段退出，终帧必须干净 ── */
+  const propOut=1-EASE.io2(seg(t,9.60,10.40));
+  typeIn(q1Chars,seg(t,4.85,5.75),24,0);
+  typeIn(q2Chars,seg(t,5.55,6.45),24,0);
+  /* 退场系数 <1 时才乘；=1 时保持 typeIn 刚写入的值（render 仍是 t 的纯函数）*/
+  if(propOut<1){
+    for(const el of q1Chars) el.style.opacity=(parseFloat(el.style.opacity)*propOut).toFixed(3);
+    for(const el of q2Chars) el.style.opacity=(parseFloat(el.style.opacity)*propOut).toFixed(3);
+  }
+  qrule.style.transform='scaleX('+EASE.io2(seg(t,6.05,6.48)).toFixed(4)+')';
+  qrule.style.opacity=propOut.toFixed(3);
+
+  /* 三条账目：横线先画 → 文字后落 → 注脚浮入 */
+  for(let i=0;i<3;i++){
+    const c=claims[i], base=6.60+i*0.22;
+    c.style.opacity=propOut.toFixed(3);
+    c.querySelector('.cr').style.transform='scaleX('+EASE.io2(seg(t,base,base+0.25)).toFixed(4)+')';
+    typeIn(claimTtl[i],seg(t,base+0.06,base+0.68),18,0);
+    const np=EASE.o3(seg(t,base+0.30,base+0.72));
+    claimNote[i].style.opacity=np.toFixed(3);
+    claimNote[i].style.transform='translateX('+((1-np)*10).toFixed(2)+'px)';
+    claimNum[i].style.opacity=EASE.o3(seg(t,base,base+0.30)).toFixed(3);
+  }
+
+  /* 收尾 */
+  blockIn(endline,seg(t,27.15,27.85),12,0);
+  typeIn(repChars,seg(t,27.50,28.60),0,14);
+}
+
+/* ══════════════ Stage 时钟 ══════════════ */
+let time=0, playing=false, lastTick=null;
+function tick(now){
+  if(lastTick===null){
+    lastTick=now;
+    window.__ready=true;                       // (a) 与动画 t=0 严格 pair
+    render(0);
+    requestAnimationFrame(tick);
+    return;
+  }
+  const dt=(now-lastTick)/1000;
+  lastTick=now;
+  if(playing){
+    let t=time+dt;
+    if(t>=DUR){ t = window.__recording ? DUR-0.001 : 0; }   // (b) 录制 / seek 渲染强制 loop=false
+    time=t; render(time);
+  }
+  requestAnimationFrame(tick);
+}
+window.__seek=function(t){ time=Math.max(0,Math.min(t,DUR-0.001)); lastTick=null; render(time); };
+
+document.fonts.ready.then(function(){
+  requestAnimationFrame(function(){
+    wmZoom.style.zoom=1; wmPos.style.transform='translate(0px,0px)';
+    WM_W=wmZoom.getBoundingClientRect().width;   // 132px 下 "WuZhuFolio" 实测宽度
+    render(0);
+    window.__ready=true;
+    if(window.__seekRender) return;              // seek 渲染：冻结自驱时钟，只由 __seek 推帧
+    playing=true;
+    requestAnimationFrame(tick);
+  });
+});
+})();
+</script>
+</body>
+</html>

@@ -2,3 +2,11 @@
 *.bat text eol=crlf
 *.jar binary
 *.png binary
+# P7 新增的图标/动画/音频资产（显式声明二进制，避免被 text=auto 误判转换）
+*.ico binary
+*.icns binary
+*.jpg binary
+*.gif binary
+*.mp4 binary
+*.mp3 binary
+*.webm binary

@@ -6,7 +6,25 @@
 
 ## 当前阶段
 
-- **当前状态**：**P6 系统测试与质量 ✅ 已通过（2026-09-21 人工拍板关闭）**——按 PRD V2.0 验收标准完成全量验证，
+- **当前状态**：**P7 发布 ⏳ 进行中（2026-09-22 人工下达「执行 P7」）**——发布材料已产出，**停人工门待审核**：
+  `docs/release/` = `release-plan.md` / `rollback.md` / `CHANGELOG.md`（Keep a Changelog 1.1.0）/ `user-guide.md`（483 行，含隐私声明与 8 条 FAQ）/
+  `signing-notarization.md`（三平台签名公证手册 + CI 待补片段）+ **产品宣传动画三方向方向板**（`promo/boards/direction-{a,b,c}.png`）。
+  **P7 携带项已逐项收口**（详见 release-plan §7）：
+  ① **TC-MAN-09 出站抓包 + 权限实证 ✅ 本次实跑闭环**——GUI 运行期出站仅 `api.coingecko.com`；live smoke 全链路出站**恰好 = 三白名单主机**（无第四主机）；
+  数据目录 **700**、`master.key` / `wuzhufolio.db` **600**；② Linux 便携版**解压即用 ✅ 实证**（解压到 ASCII 路径 → 启动 → 真实行情刷新 → 驻留 60 s），
+  **托盘无宿主降级分支 ✅ 实证**（WSLg：`tray support | supported=false`，应用不崩溃）；③ **Linux 包 GPG 签名脚本已交付并实测**
+  （`scripts/sign-linux-artifacts.sh`：签名 → 校验 → 篡改检测全通，drill 密钥一次性）；④ 证书采购与真实签名/公证 = **待人工**（Apple $99/年、Windows OV $200–400/年）；
+  ⑤ 图标随动画方向定稿产出；jlink 裁剪与字体子集化**建议维持现状**（理由见 release-plan §7-⑤，待人工勾选）；
+  ⑥ SHA256 清单 + CHANGELOG + 用户指南 ✅；⑦ ✅ **产品宣传动画已出片**——方向 = **A · 账簿 The Ledger**（2026-09-22 人工拍板）：
+  `storyboard.md`（11 镜分镜卡）→ 逐帧 seek 渲染 **1800 帧 @60 fps** → BGM + 14 个 SFX cue 混音 →
+  **`promo/wuzhufolio-promo-30s.mp4`**（1920×1080 · 30.00 s · H.264 + AAC 立体声 · 17.2 MB）+ **`.gif`**（560×315 · 7.0 MB）。
+  **本轮未改任何产品代码**（`git status` 仅新增 `docs/release/`、`app/icons/`、`scripts/*.mjs|*.sh`、`app/build.gradle.kts`（仅打包图标配置）与 `.gitattributes`）；
+  **P6 的 718 用例结论继续有效**（图标接入后 `./gradlew build detekt` 复跑绿）。
+  本机实测构建产物：`.deb` 122.7 MiB / `.AppImage` 132.7 MiB / 便携版 tar.gz 137.4 MiB（SHA256 见 release-plan 附录 A.2）。
+- **下一人工门（一段）**：**P7 发布人工门** —— 批准发布（打 tag → 触发 CI 三平台出包 → 建 Release）+
+  裁决 release-plan §9 剩余 3 项（发布号口径 / 携带项 ⑤ 两项维持现状 / 真机托盘与自启补测）。
+  已裁决 2 项：**动画方向 = A**、**签名路径 = 先发未签名 0.1.0，证书到位后随 0.1.1 起签名**。
+- **上一阶段状态**：**P6 系统测试与质量 ✅ 已通过（2026-09-21 人工拍板关闭）**——按 PRD V2.0 验收标准完成全量验证，
   产出 `docs/test/test-plan.md` / `test-cases.md`（**300 条**）/ `security-checklist.md`（P6 复跑版，五条硬约束逐条打勾）/
   `defects.md`（**DEF-01…DEF-46**）/ `test-report.md`；**718 用例（710 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；
   **✅ P0/P1 缺陷 = 0**（P1 六项 DEF-13/15/20/22/25/27 由人工门暴露并修复闭环；第十轮的 **DEF-42 / DEF-43**
@@ -61,7 +79,7 @@
 | P4 | 分模块开发 | ✅ 已通过 | 代码 + `docs/dev/modules/`（M1–M13）+ `docs/test/security-checklist.md` | M1 ✅…M12 ✅（2026-09-12）、**M13 ✅（2026-09-12 人工「M13 通过」）**；**M1–M13 全部通过**；CI 三平台 build + package 六 job 全绿（run 34698502287）；GitHub 仓库 https://github.com/mapleafly/wuzhufolio |
 | P5 | 集成与联调 | ✅ 已通过（2026-09-13 人工「P5通过」关闭） | `docs/test/integration-report.md` + `app/src/test/.../integration/*`（10 项）+ `data/src/test/.../smoke/LiveNetworkSmokeTest`（2，门控） | 核心旅程真实组合根端到端打通；契约核对缺口已补；D25 原型补行闭环；**人工验收暴露 P0 恢复丢行 + 2 项 P1 已修复**；人工裁决 5 项（D27 稳定币 1:1 / cause 保留 / 启动即同步 / **D28 白名单收敛** / **D29 负持仓不计入**）已实施；**664 用例 0 失败（657 执行 + 7 跳过）**+ detekt 0 + 警告 0 |
 | P6 | 系统测试与质量 | ✅ **已通过（2026-09-21 人工拍板关闭）** | `docs/test/`（test-plan / test-cases 300 条 / security-checklist P6 复跑版 / defects DEF-01…46 / test-report） | **718 用例（710 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；**P0/P1 = 0**；P2 全部有明确结论；安全清单五条硬约束逐条通过；运行期抓包仅三白名单主机；人工门用例通过 **10/11**（**TC-MAN-01 托盘走查 Windows 11 侧 ✅ 2026-09-21**；剩余 TC-MAN-09 抓包+权限实证与 TC-MAN-01 的 Linux/macOS 托盘 → 按人工拍板**转 P7 携带**，到期检查点 = P7 发布前） |
-| P7 | 发布 | ⏳ **进行中（待人工下达启动指令）** | `docs/release/` | P6 已关闭解锁；产物 = release-plan / rollback / CHANGELOG / user-guide / 签名公证说明 + **产品宣传动画（必做项，AGENTS.md §7.2-3）**；携带项见「当前阶段」节 |
+| P7 | 发布 | ⏳ **进行中（2026-09-22；材料与动画全部产出，停发布人工门）** | `docs/release/`（release-plan / rollback / CHANGELOG / user-guide / signing-notarization + `promo/` 含 **30 s 宣传动画成品**） | 五份文档 + **动画成品 MP4/GIF** 已产出；**TC-MAN-09 抓包与权限实证 ✅ 闭环**（live smoke 恰好三白名单主机；700/600）、Linux 便携版与托盘降级 ✅ 实证、GPG 签名脚本 ✅ 实测、**应用图标 ✅ 定稿接入打包**；**待人工**：批准发布（+ §9 剩余 3 项裁决） |
 | P8 | 上线后运营与迭代 | 未开始 | `docs/dev/retrospective.md` | |
 
 ## P1 产品与交互设计（✅ 已通过--2026-08-31 人工终审）
@@ -1372,6 +1390,56 @@ user-guide / 签名公证；**产品宣传动画为 P7 必做项**，AGENTS.md �
 **建议的下一步（原始）**（已执行：P6 完成并停人工门）：人工按上节验收 + 裁决 5 项 → 通过后 **P7 发布**解锁
 （`docs/release/`：release-plan / rollback / CHANGELOG / user-guide / 签名公证；**产品宣传动画为 P7 必做项**，AGENTS.md §7.2-3）。
 
+## P7 发布（⏳ 进行中--2026-09-22 启动「执行 P7」；材料已产出，停人工门）
+
+> 启动记录：人工原话「**执行 P7**」（2026-09-22）。范围 = `AGENTS.md §4 P7`（`docs/release/` release-plan / rollback / CHANGELOG / user-guide / 签名公证说明
+> + **产品宣传动画（必做项，§7.2-3）**）+ **P7 携带项（7 条）逐项收口**。**本轮未改任何产品代码**。
+
+**产物清单**：
+
+- `docs/release/release-plan.md` - 发布清单与步骤（§3 发布前检查清单 / §4 构建步骤含本机实测 / §5 GitHub Release 步骤 / §6 发布后验证 / §7 携带项收口表 / §8 已知限制 / §9 待人工裁决 5 项 / 附录 A 实测证据 + SHA256 / 附录 B 需求回溯）
+- `docs/release/rollback.md` - 回滚方案（R0 撤回 / R1 标注 / R2 用户侧降级 / R3 代码回滚分级 + 触发阈值矩阵 + **数据兼容性代码事实核对**（`Migrator` 只升不降、无版本上限校验）+ 用户侧步骤 + 判据清单 + 不可回滚清单）
+- `docs/release/CHANGELOG.md` - 0.1.0 变更日志（185 行，Keep a Changelog 1.1.0；新增/变更/修复/安全/已知限制/未包含 六类 + 工程追溯附录 + 下载节）
+- `docs/release/user-guide.md` - 用户使用说明（483 行；13 节含隐私声明、出站白名单与「请求里带了什么」、8 条 FAQ、卸载、许可；两条强制提示已写入）
+- `docs/release/signing-notarization.md` - 三平台签名/公证执行手册（macOS Developer ID + notarytool/stapler、Windows signtool、Linux GPG：密钥生成/Secrets/命令/验证/轮换与吊销 + 携带项 ⑤ 的评估结论 + 合规核对表 + **待补 CI 步骤可直接粘贴**）
+- `scripts/sign-linux-artifacts.sh` - Linux 产物签名脚本（分离签名 + SHA256SUMS/`.asc`；`--verify` 含篡改检测）——**本机实测：签名 → 校验 → 篡改检测全通**
+- `scripts/generate-icons.mjs` + `app/icons/wuzhufolio.{png,ico,icns}` - **正式应用图标资产**（P7 携带项 ⑤）：由**与托盘图标同源的几何**（墨绿 `#1F5A48` 底 + 纸色 `#F6F4EF` 折线，design-tokens §2.1）生成三平台打包图标；已接入 `app/build.gradle.kts` 的 `linux/macOS/windows { iconFile }`，实证落到 app-image `lib/WuZhuFolio.png` 与 `.deb` 内 `./opt/wuzhufolio/lib/`；评审预览（1024 / 16px×8 / 32px×8）在 `docs/release/promo/assets/icon/`
+- `docs/release/promo/` - **产品宣传动画工程**：`assets/ui/*.png`（12 张真实 UI 截图，2× 采集）、`tools/capture-ui.mjs`（素材采集）、`tools/render-{a,b,c}.mjs`、`direction-{a,b,c}.html`（三份自包含方向板）、`boards/direction-{a,b,c}.png`（1920×1080 真实渲出）、`direction-approved.md`（**方向门 Gate 文件**，待记录人工选定原话）
+
+**本次改了什么**：
+
+1. **发布材料五份齐备**（DoD「发布与回滚步骤可执行」「用户文档与版本一致」）；版本口径统一为 **0.1.0**（单一真源 `app/build.gradle.kts`），并记录 **macOS bundle 版本因 Apple 约束为 1.0.0** 的平台差异（release-plan §2，需在发布说明保留一句）。
+2. **本机 Linux 构建实证**：`createDistributable` + `packageDeb`（57 s）→ `scripts/package-appimage.sh` → 便携版 tar.gz；三产物 SHA256 与体积入册（release-plan 附录 A.2）。
+3. **TC-MAN-09 出站抓包 + 权限实证实跑闭环**（P6 延期项，到期检查点 = P7 发布前）：① GUI 运行期（便携版、未登录）出站**仅 `api.coingecko.com`**；② live smoke 全链路出站**恰好三白名单主机**（`api.coingecko.com` / `pro-api.coinmarketcap.com` / `api.binance.com`，**无第四主机**）；③ 权限 **700 / 700 / 600 / 600**。
+4. **Linux 便携版解压即用 + 托盘降级分支实证**：解压到纯 ASCII 路径 → 启动成功 → 币种目录刷新（added=1638）→ 真实行情刷新（source=COINGECKO）→ 窗口驻留 60 s；`tray support | supported=false`（WSLg 无托盘宿主，降级不崩溃）。
+5. **Linux GPG 签名链路交付并实测**：脚本 + 手册 + CI 待补片段；以一次性 drill 密钥完成「签名 → `--verify` 通过 → 篡改后正确报 FAILED」，drill 密钥已销毁（不构成官方签名）。
+6. **产品宣传动画 ✅ 已出片（P7 必做项）**：按 huashu-design 三方向硬门，用**产品真实 UI 截图**做出 A 账簿 / B 暗夜金库 / C 本地机器三张 1920×1080 方向板供人工选定 → **人工拍板 A · 账簿 The Ledger**（Gate 记录 `promo/direction-approved.md`）→ 出**分镜卡**（11 镜，含 hero element 跨段落状态变化、能量骨架、hold/rest 与镜头预算、12 项音频 cue、逐帧复核清单）→ 动画源码（自包含单文件，真实 UI base64 内联）→ **逐帧 seek 渲染 1800 帧 @60 fps**（确定性、无黑帧）→ **BGM + 14 个 SFX cue 双轨混音** → 成品 **`wuzhufolio-promo-30s.mp4`**（1920×1080 · 30.00 s · 60 fps · H.264 High + AAC 48 kHz 立体声）+ 派生 **`.gif`**（560×315 · 12.5 fps · 7.0 MB）；复现管线写入 `promo/README.md`。
+   渲染自检：`pageerror=0`、三款内嵌字体 loaded 且非 fallback、1800 帧无坏帧；抽帧目视复核（开场书名页 / 产品推近页 / 谢幕页）与分镜卡 §7 复核清单一致。
+7. **携带项 ⑤ 的工程结论**：**图标已定稿并接入打包**（`scripts/generate-icons.mjs` → `app/icons/*`，三平台 `iconFile`，与托盘图标同一枚标记）；**jlink 裁剪建议 P8 评估**（现模块集经 P6 全量验证，发布前改动 = 换未验证产物）；**字体子集化建议不做**（产品允许用户输入任意 CJK，子集化会造成缺字，属功能正确性问题）。图标接入后已重构建三产物 + `./gradlew build detekt` 绿（代码零改动）。
+8. **两项人工拍板已落档**：① **动画方向 = A · 账簿 The Ledger**（`promo/direction-approved.md §3`，Gate 通过）→ 出成片；② **签名路径 = 先发未签名 0.1.0，证书到位后随 0.1.1 起签名**（release-plan §9）→ 发布说明须显式标注「未签名」并给 SmartScreen / Gatekeeper 放行说明；Linux 侧可即刻用 GPG 脚本签名。
+9. **P6 结论复用判定**：本轮**零产品代码改动**（`git status` 仅 `docs/release/`、`app/icons/`、`scripts/*.mjs|*.sh`、`app/build.gradle.kts`（仅打包图标配置）与 `.gitattributes`），故 **718 用例 / detekt 0 / P0P1=0 的 P6 结论继续有效**（release-plan §3.2 已写明「任何代码改动即失效」的判据）。
+
+**怎么验收（人工）**：
+
+1. **动画方向选择（第一段门，最先做）**：打开 `docs/release/promo/boards/direction-a.png` / `direction-b.png` / `direction-c.png` 三张方向板对比 → 在 `direction-approved.md §3` 记录选定方向与原话。
+2. **发布材料**：通读 `docs/release/release-plan.md`（重点 §3 检查清单、§5 发布步骤、§7 携带项收口表、§9 待裁决 5 项）；`rollback.md`（重点 §4 用户侧回退与 §7 不可回滚清单）；`user-guide.md`（重点 §3 两条强制提示、§7 隐私声明、§10 FAQ）；`signing-notarization.md`（重点 §1 总览与 §5 携带项 ⑤ 结论）。
+3. **本机复跑构建（可选）**：按 release-plan §4.1 三条命令复现 deb / AppImage / 便携版，并核对附录 A.2 的 SHA256。
+4. **携带项复核**：`bash scripts/sign-linux-artifacts.sh <目录> --key <KEYID>` 与 `--verify`；抓包复核见 release-plan 附录 A.4。
+5. **裁决 §9 五项**（发布号口径 / 携带项 ⑤ 两项维持现状 / Linux 托盘与自启真机补测 / 证书采购与「先发未签名还是等证书」/ **批准发布**）。
+
+**遗留问题（待人工，详见 release-plan §7 与 §9）**：
+
+- **动画成片未产出**：卡在方向门（需人工选定 A/B/C）——选定后按 skill Step 9 出分镜卡 → 渲染 → BGM + SFX → MP4 + GIF。
+- **图标仍为占位资产**：正式图标随动画方向定稿后产出（PNG/ICO/ICNS + 托盘），属携带项 ⑤ 的一部分。
+- **真实签名/公证未执行**：证书采购（Apple $99/年、Windows OV $200–400/年，实名核验 1–3 周）与 Secrets 注入为人工动作；Linux GPG 密钥可由项目自行生成（无外部依赖）。
+- **macOS / Linux 真机托盘与开机自启**：Windows 侧已闭环；Linux 侧本次仅实证**降级分支**与便携版启动，完整托盘菜单需真实桌面（GNOME 需 AppIndicator 扩展），macOS 本机不可测。
+- **rpm 未本机产出**：本机无 `rpmbuild` 且无 sudo 安装权限 → 由 CI（ubuntu-latest，已含安装步骤）产出，release-plan §4.1 已注明。
+- **CI 三平台正式发布产物未生成**：需推送触发 package job（发布动作本身待人工批准）。
+
+**建议的下一步**：① 人工从三方向板中**选定动画方向**（或提出修改意见）→ Agent 出成片；② 并行裁决 release-plan §9 五项；③ 方向与裁决落地后走 **P7 发布人工门**（批准发布 → 打 tag / 触发 CI / 建 Release）。
+
+---
+
 ## P0 需求基线（✅ 已通过--两端 + 跨端规范全部定稿）
 
 产物清单（只读基准，不得改动）：
@@ -1498,9 +1566,14 @@ user-guide / 签名公证；**产品宣传动画为 P7 必做项**，AGENTS.md �
   ② **TC-MAN-09 出站抓包 + 权限实证**（Ubuntu：`scripts/outbound-capture-proxy.py` 实测主机集合 ⊆
   {api.coingecko.com, pro-api.coinmarketcap.com, api.binance.com}；数据目录 700 / `master.key`·`device.key`·`.db` 600；
   判据 `security-checklist.md §8-4`；Agent 侧已有等效运行期抓包证据 —— 见 `test-report.md §5.2`）。
-- **P7 待人工**：① **下达 P7 启动指令**（`AGENTS.md §4 P7`：`docs/release/` release-plan / rollback / CHANGELOG / user-guide /
-  签名公证说明 + **产品宣传动画（必做，AGENTS.md §7.2-3）**）；② 证书采购（Windows 签名 / macOS 公证，ADR-006 §2.1）；
-  ③ **P7 发布人工门**（批准发布）。
+- **P7 状态（2026-09-22）**：**进行中 —— 材料与动画全部产出，无阻塞，仅剩发布人工门**：
+  **待人工**：① **批准发布**（打 tag → 触发 CI 三平台出包 → 建 Release）；② release-plan §9 剩余 3 项裁决
+  （发布号口径 / 携带项 ⑤ 的 jlink 与字体子集化「维持现状」/ Linux 托盘与开机自启真机补测）。
+  **已裁决 2 项**：**动画方向 = A · 账簿 The Ledger**；**签名路径 = 先发未签名 0.1.0，证书到位后随 0.1.1 起签名**。
+  已完成：`docs/release/` 五份材料齐备；**产品宣传动画成品**（MP4 30 s/60 fps/带 BGM+SFX + GIF）；
+  **TC-MAN-09 抓包与权限实证 ✅ 闭环**（GUI 会话仅 `api.coingecko.com`；live smoke 恰好三白名单主机；目录 700 / 密钥与库 600）；
+  Linux 便携版与托盘降级分支 ✅ 实证；GPG 签名脚本 ✅ 实测；**应用图标 ✅ 定稿并接入三平台打包**；
+  本机 Linux 三产物（deb / AppImage / 便携版）已重构建并记录 SHA256；**零产品代码改动**（P6 718 用例结论继续有效）。
 - **P6 裁决 5 项 = 已落地**（2026-09-14「5项都按建议来处理」）：① 隐私最小化接受现状（P7 用户指南/隐私声明）；
   ② DEF-03 补做（C1 · **D30** + T12.5 + 原型）；③ DEF-04 登记 P8；④ DEF-05 C0 文档澄清已回写；⑤ DEF-01/02/06 确认 C0。
 - **P6 门须人工执行的用例**（`test-cases.md §7`，**已判通过 10/11**）：~~真实桌面托盘走查~~（✅ **Windows 2026-09-21**；Linux/macOS → P7 携带）/
@@ -1684,3 +1757,5 @@ user-guide / 签名公证；**产品宣传动画为 P7 必做项**，AGENTS.md �
 | 2026-09-21 | 人 | **第十一轮续：TC-MAN-01 托盘走查 Windows 11 判定通过** | 原话「**TC-MAN-01托盘走查，在windows11下已经完成通过，linux下还未测试。**」——真实 Windows 11 桌面完成正式走查：关窗驻留托盘 / 托盘右键菜单**三项动作**（打开主界面·立即同步·退出）/ 关窗开关行为 / 后台同步通知逐项通过；首轮报出的乱码（**DEF-15**）与语言跟随（**DEF-18/19**）本轮**未复现**。**人工门判定通过数 9 → 10 / 11**；**P6 已关闭的结论不变**（该项在关闭时即登记为 P7 携带，本轮为提前完成其 Windows 一侧），**P7 携带范围收敛为 Linux/macOS 托盘 + TC-MAN-09**。 |
 | 2026-09-21 | Agent | **TC-MAN-01 判定落盘（Windows 通过 / Linux 未测）** | ① `test-cases.md`：§7.0 TC-MAN-01 行改「✅ 通过（Windows 侧）· 第十一轮续」+ 卡片加判定注；「剩余」注改为「仍未执行 1 项（TC-MAN-09）+ TC-MAN-01 仅剩 Linux/macOS」，通过数 10/11；② `manual-test-guide.md`：§1.1-1 同步 + §6 TC-MAN-01 卡片判定注 + **新增 §19.1「同轮补充：TC-MAN-01 托盘走查（Windows 11 侧）通过 ✅」**（用例/形态/结果/历史缺陷复核/未覆盖/状态影响表）；③ `test-report.md`：状态行、§6 仍需人工项、**§6.1 进展表新增 TC-MAN-01 行**、§7 残留风险（托盘行降级为「低」并收敛范围）；④ `defects.md §0`：通过数 10/11 + 延期范围收敛；⑤ `test-plan.md` §7 第 1 条与 §2.3；⑥ `security-checklist.md §7` 第 8 行（Windows 托盘+自启+便携版全绿，余 Linux/macOS）；⑦ `M11.md §5-3`：托盘 GUI 走查 Windows 侧闭环 + 剩余平台与 P7 检查点；⑧ STATUS：当前阶段 / 阶段总览 P6 行 / P6 关闭记录补充 / 阻塞点延期范围 / P7 携带项 ① / 三项延期验证在册 ① / 交接记录。**纯文档留痕，未改代码**（用例数维持 718）。 |
 | 2026-09-21 | Agent | **P6 关闭提交入库 + 远程推送 + CI 留痕** | 提交 `docs(P6): P6 关闭（人工拍板）—— 开机自启/便携版/托盘走查三项判定通过、P1 归零 + DEF-46 修正`（**`db6cac7`**，13 文件 docs-only：STATUS / test-cases / manual-test-guide / test-report / defects / test-plan / security-checklist / M11 / M13 / D34 / 决策索引 / 增量台账 / task-breakdown）→ 推送 `8dee607..db6cac7 origin/main`；**CI run [35667810859](https://github.com/mapleafly/wuzhufolio/actions/runs/35667810859) 六 job 全绿**（build ×3 + package ×3；两按需 job 按设计 skipped）。纯文档，未改产品代码，用例数维持 718。 |
+| 2026-09-22 | 人 | **下达 P7 启动指令** | 原话「**执行 P7**」——P7 发布阶段正式启动（`AGENTS.md §4 P7` + §7.2-3 宣传动画必做项 + 「P7 携带项」7 条收口）。 |
+| 2026-09-22 | Agent | **P7 续：图标定稿接入 + 动画方向落地与成片** | ① **人工两项拍板落档**：动画方向 = A · 账簿 The Ledger（`promo/direction-approved.md §3` 记录选择与日期）、签名路径 = 先发未签名 0.1.0（release-plan §9）；② **应用图标定稿**（携带项 ⑤）：`scripts/generate-icons.mjs` 由**与托盘图标同源几何**生成 `app/icons/wuzhufolio.{png,ico,icns}`（ICO 七档 / ICNS 11 档 / Linux PNG 512），接入三平台 `iconFile`；重构建 deb/AppImage/便携版并实证图标落入 app-image `lib/` 与 `.deb` 内（新 SHA256 入册）；③ **动画成片**：分镜卡 11 镜 → 逐帧 seek 渲染 **1800 帧 @60 fps**（886 s，`pageerror=0`、三款内嵌字体 loaded 非 fallback、无坏帧）→ **BGM + 14 SFX cue 双轨混音** → `wuzhufolio-promo-30s.mp4`（1920×1080 · 30.00 s · H.264 + AAC 立体声 · 17.2 MB）+ `.gif`（560×315 · 7.0 MB）；复现管线写入 `promo/README.md`；抽帧目视复核（开场 / 产品推近 / 谢幕）与分镜卡 §7 一致。**P7 维持进行中**，仅剩发布人工门。 |

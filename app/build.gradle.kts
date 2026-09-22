@@ -146,11 +146,15 @@ compose.desktop {
                 debMaintainer = "noreply@users.noreply.github.com"
                 // ADR-006 §2：Linux 包许可标识（deb = AGPL-3.0 自由文本；rpm = 许可证标签）
                 rpmLicenseType = "AGPL-3.0-only"
+                // P7 携带项 ⑤：正式应用图标（与托盘图标同一枚标记；生成器 scripts/generate-icons.mjs）
+                iconFile.set(project.file("icons/wuzhufolio.png"))
             }
             macOS {
                 bundleID = "com.wuzhufolio.app"
                 appCategory = "public.app-category.finance"
                 dockName = "WuZhuFolio"
+                // P7 携带项 ⑤：正式应用图标（ICNS，16–1024 全尺寸；Apple 图标网格留白 10%）
+                iconFile.set(project.file("icons/wuzhufolio.icns"))
                 // macOS bundle 版本：Apple 规定 CFBundleVersion 首段不得为 0（jpackage 实测报
                 // "The first number in an app-version cannot be zero or negative"），故 bundle 版本
                 // 与内部应用版本（appVersion=0.1.0，.cpro 头部/关于页）解耦；P7 定稿发布号后两者对齐。
@@ -176,6 +180,8 @@ compose.desktop {
                 menuGroup = "WuZhuFolio"
                 shortcut = true
                 menu = true
+                // P7 携带项 ⑤：正式应用图标（ICO，16/24/32/48/64/128/256 七档）
+                iconFile.set(project.file("icons/wuzhufolio.ico"))
                 // DEF-42 / D34（2026-09-15 人工拍板 C1）：安装形态改为 **per-machine**，默认装到
                 // `C:\Program Files\WuZhuFolio` —— 该路径在任何区域设置下都是纯 ASCII。
                 //
