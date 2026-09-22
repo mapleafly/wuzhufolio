@@ -33,6 +33,14 @@
 - **签名与平台策略 ✅ 已拍板（2026-09-22）**：① **Windows 不签名**（不采购 OV/EV，也不申请 SignPath Foundation 免费签名）；② **macOS 不提供 Release 二进制**，有需要的用户**从源码自行编译**；③ **预算 = 0 元**；④ **不做 Microsoft Store 渠道**；⑤ Linux 侧免费 GPG 脚本保留为**可选增强**（尚未启用密钥）。
   落实：`certificate-procurement.md §0` 拍板结论 + 4 条复评触发条件；`user-guide` 新增 §3 ②「从源码自行编译 macOS 版」与 **FAQ §10.9 Windows SmartScreen 放行**；`CHANGELOG` 与 **线上 Release 说明已同步更正**（原「证书到位后签名」表述作废）；README 增 macOS 自编译指引。
 - **证书采购材料**（决策依据，已归档）：**`docs/release/certificate-procurement.md`**
+- **⚠️ P7 发布后人工验收发现 1 项缺陷（2026-09-22）**：**DEF-47（P2 · 建议 C0）组件走查（DEV）页泄漏到正式发布版侧边栏**
+  —— 根因 = `MainShell.kt` 侧边栏**无条件**渲染 `ShellPage.GALLERY`（全仓库无任何 dev/构建期开关），
+  `ShellViewModel.kt` 注释「P4 起仅开发构建可见」**从未实现** → **全平台可见**（人工「其他版本也是这样」判断成立）；
+  **无数据/安全影响**（该页不读写任何真实数据）；`ShellUiTest`/`KeyboardA11yUiTest` 还把该行为固化成了断言。
+  **人工拍板**：修复 = **方案甲「加构建期开关 `DEV_UI`」**；节奏 = **攒着**，等本轮 Windows/Linux 验收问题齐了一起修 → 出 **0.1.1 补丁版**（**不回滚 0.1.0**）。
+  **同源排查结论**：同类泄漏**仅此一处**。详见 `docs/test/defects.md §2.1`。
+- **本轮验收待办（人工）**：① Windows 安装版继续走查（把发现的问题一并汇总给我）；② Linux 真机补测（托盘菜单 / 开机自启）；
+  ③ 全部问题汇总后 → 我一次性修复（DEF-47 + 你报的其他项）→ 重跑 718 用例 + 出包 + 发布 **0.1.1**。
   （Windows 五条路径对比：SignPath Foundation 免费 OSS 签名 / OV+云签名 ≈￥2,200–3,700 每年 / EV 不建议 /
   Azure 受信任签名个人仅限美加不可用 / Microsoft Store MSIX 免费免提示；macOS $99 每年；Linux GPG 0 元已就绪）。
 - **上一阶段状态**：**P6 系统测试与质量 ✅ 已通过（2026-09-21 人工拍板关闭）**——按 PRD V2.0 验收标准完成全量验证，

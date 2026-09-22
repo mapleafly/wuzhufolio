@@ -27,8 +27,9 @@
 | **P1（第十轮续 · 打包版启动／无障碍）** | **1** | ✅ **已闭环（CI + 人工实机复验通过）**：**DEF-43**（开启 Java Access Bridge / 辅助技术时，打包版在 AWT 初始化抛 `AWTError` → 启动器只显示无细节的 `Failed to launch JVM`）→ 根因 = 裁剪运行时的模块集**缺 `jdk.accessibility`**；修复 = 模块集补齐（正向）+ `AssistiveTech` 兜底校验（防御），CI 增「开启辅助技术」冒烟变体 |
 | **P2（第七轮 · 真实桌面 GUI 全流程 × 三档分辨率）** | 8 | **均按统一方案修复**：**DEF-31**（高 DPI 下币种列第三枚徽标被裁）、**DEF-32**（卡片大数字换行变形）、**DEF-33**（表格滚动条压住操作列 / 长数字换行）、**DEF-34**（环形图图例币种名换行）、**DEF-35**（截断数据无悬停全值）、**DEF-36**（表单弹窗多一条「不到一行」的滚动条）、**DEF-37**（列宽分配不保证最小宽）、**DEF-38**（列表缺单元线）—— 总体方案见 `docs/design/responsive-components.md` |
 | 测试缺陷（CI 暴露） | 1 | **DEF-12** 已修复（见 §3） |
+| **P2（P7 发布后 · 0.1.0 正式版人工验收）** | **1** | ⏳ **待修（合并到 0.1.1 修复轮）**：**DEF-47** 组件走查（DEV）页泄漏到正式发布版侧边栏（无数据/安全影响；人工拍板 **C0 + 方案甲「加构建期开关」**，等本轮验收问题齐了一起修） |
 | **P3 / 观察项** | 6 | 登记（DEF-07…DEF-12），详见 §3 |
-| 合计 | **46** | 编号连续至 **DEF-46**（其中 DEF-44/45/46 为测试文档/口径类，C0）。P0 曾出现 1 项（DEF-17）· P1 曾出现 6 项（DEF-13/15/20/22/25/27）——**均已修复闭环**（人工门实测暴露）；**P1 全部闭环（DEF-43 人工实机复验通过；DEF-42 经第十一轮 TC-MAN-02/TC-MAN-11 复验通过；上游限制仍按裁决登记 P8）**；P2 全部有明确结论 ✅ |
+| 合计 | **47** | 编号连续至 **DEF-47**（DEF-47 为 ⏳ 待修，其余均闭环/已登记）（其中 DEF-44/45/46 为测试文档/口径类，C0）。P0 曾出现 1 项（DEF-17）· P1 曾出现 6 项（DEF-13/15/20/22/25/27）——**均已修复闭环**（人工门实测暴露）；**P1 全部闭环（DEF-43 人工实机复验通过；DEF-42 经第十一轮 TC-MAN-02/TC-MAN-11 复验通过；上游限制仍按裁决登记 P8）**；P2 全部有明确结论 ✅ |
 
 > 结论：**P0 = 0**；**P1 三项（DEF-13/DEF-15/DEF-20）由人工门实测暴露并已修复闭环**（修复即回归，见 §1.5/§1.7），
 > P2 各项在人工 P6 门全部裁决完毕或已登记（见 §0.1），**无遗留未决项**；**P1 已全部闭环**（见下）。
@@ -526,6 +527,23 @@ Get-ChildItem "$env:USERPROFILE\.wuzhufolio\logs" | Sort-Object LastWriteTime -D
 
 ---
 
+## 2.1 P7 发布后人工验收（2026-09-22 · 0.1.1 修复轮）
+
+### DEF-47 ⏳ **待修**（**P2** · P7 发布后人工验收暴露 · **建议 C0（实现偏差）** · 人工拍板 2026-09-22）· 组件走查（DEV）页泄漏到正式发布版侧边栏
+
+| 项 | 内容 |
+|----|------|
+| **现象** | 人工原话：「windows下安装运行问题：1. **组件走查功能还在发布版本里**。估计其他版本的也是这样」（0.1.0 正式 Release 的 Windows 安装版） |
+| **根因** | `ui/src/main/kotlin/com/wuzhufolio/ui/shell/MainShell.kt` 侧边栏在 `ShellPage.sidebarPages.forEach{}` **之后无条件渲染** `ShellPage.GALLERY` 项（其上用 `Box(Modifier.weight(1f))` 撑开，把它压到账户区之上）。全仓库 `ui/`、`app/` 主源码中**不存在任何 dev/构建期开关**（grep `isDebug\|BuildConfig\|DEV_UI\|devUi\|systemProperty` **零命中**）→ **与操作系统、构建形态均无关**：Windows 安装版/便携版、Linux deb/rpm/AppImage/便携版**全部可见**（人工「估计其他版本也是这样」的判断成立）。另 `ShellFocusNavigation.kt` 的 `NAV_FOCUS_ORDER = sidebarPages + GALLERY` 使键盘 Tab/↓ 同样可达 |
+| **声明与实现不符** | `ShellViewModel.kt` 枚举注释写「M0 组件走查页（T0.6 验收载体；**P4 起仅开发构建可见**）」，但**该门控从未实现**；`docs/design/ia.md` 侧边栏口径为**六页**（不含组件走查） |
+| **危害** | **无数据/安全影响** —— 该页只调用 `viewModel.showToast(...)` 等 UI 演示动作，**不读写账户、交易、密钥或任何真实数据**。属**内部开发页面泄漏到正式版**（专业度与信任观感问题）。加重因素：P6 键盘走查把「侧边栏 7 项」当正常状态记录，`ShellUiTest.kt`（2 处 `nav-GALLERY` 点击）与 `KeyboardA11yUiTest.kt`（Tab 序含 `nav-GALLERY`）**主动断言其可达**，把错误行为固化成了回归基线 → CI 全绿也照不出来 |
+| **影响面扫描** | **代码**：`MainShell.kt`（侧边栏渲染 + `ShellPage.GALLERY -> ComponentGallery(viewModel)` 页面分支）、`ShellViewModel.kt`（枚举 / `label` / `sidebarPages`）、`ShellFocusNavigation.kt`（焦点序）、`ComponentGallery.kt` 与 `GalleryStrings.kt`（页面与文案，随门控转为开发构建专用）。**测试**：`ShellUiTest.kt`、`KeyboardA11yUiTest.kt`。**文档**：`user-guide.md §5`（本轮曾误写「正式发布版不含任何开发或调试页面」，**已按 0.1.0 事实更正**）、`docs/test/keyboard-walkthrough.md`（7 项记录需注明第 7 项为 DEV、发布构建不可见）、`M0.md`（T0.6 载体定位）、`M12.md`（UI 收尾未清理该入口） |
+| **人工拍板** | ① **修复方案 = 甲：加构建期开关**（`generateBuildInfo` 注入 `DEV_UI`，默认 `false`；`-Pwuzhufolio.devUi=true` 才开 —— `MainShell` 侧边栏项与 `NAV_FOCUS_ORDER` 均按它决定是否包含 GALLERY，**开发构建保留走查载体**）；② **修复节奏 = 攒着**：等本轮 Windows/Linux 验收问题齐了一起修，随后出 **0.1.1 补丁版**（按 `rollback.md §1.1` 触发阈值，本项**不回滚 0.1.0** —— 非阻断、非数据/安全问题） |
+| **同源排查**（Agent，2026-09-22） | 全量搜索用户可见文案中的 `DEV / 开发 / 演示 / demo / 示例 / sample` → **仅命中 `GalleryStrings.kt`**（组件走查页自身的示例文案）；设置页**无**调试分组；主源码**无**硬编码演示数据；Release 附件**不含** `console-debug` 构建。**结论：同类「内部内容泄漏到发布版」仅此一处** |
+| **验收标准（0.1.1 修复轮）** | ① 正式构建（默认参数）侧边栏**无**「组件走查」项、键盘焦点序不含 GALLERY，且 `ShellUiTest` **新增「正式构建断言 `nav-GALLERY` 不存在」**；② `-Pwuzhufolio.devUi=true` 构建下走查页与原断言仍可用；③ 全量 718 用例 + detekt 绿、编译警告 0；④ 打包版人工复核侧边栏为六页；⑤ 修复随 **0.1.1** 发布并在 `CHANGELOG` 记录 |
+
+---
+
 ## 3. P3 / 观察项（登记，不影响发布）
 
 | # | 事项 | 性质 | 处置 |
@@ -595,6 +613,7 @@ export JAVA_HOME=$(mise where java)
 
 | 缺陷 | 需求锚点 |
 |------|----------|
+| **DEF-47** 侧边栏不得出现开发页面 | `docs/design/ia.md`（侧边栏六页口径）、`ShellViewModel.kt` 枚举注释「P4 起仅开发构建可见」、`AGENTS.md §7.3`（GUI 共性约束） |
 | DEF-01 / DEF-06 | PRD 全局说明「统一异常处理」（清晰错误提示，不显示泛化的「请求失败」）、故事 5.2、`api-contracts.md §4` |
 | DEF-02 | ADR-004 §2、`api-contracts.md §2.1`（认证参数契约） |
 | DEF-03 | PRD 故事 3.4 验收 4（交易所/类型/时间筛选与搜索） |
