@@ -21,9 +21,15 @@
   **本轮未改任何产品代码**（`git status` 仅新增 `docs/release/`、`app/icons/`、`scripts/*.mjs|*.sh`、`app/build.gradle.kts`（仅打包图标配置）与 `.gitattributes`）；
   **P6 的 718 用例结论继续有效**（图标接入后 `./gradlew build detekt` 复跑绿）。
   本机实测构建产物：`.deb` 122.7 MiB / `.AppImage` 132.7 MiB / 便携版 tar.gz 137.4 MiB（SHA256 见 release-plan 附录 A.2）。
-- **下一人工门（一段）**：**P7 发布人工门** —— 批准发布（打 tag → 触发 CI 三平台出包 → 建 Release）+
-  裁决 release-plan §9 剩余 3 项（发布号口径 / 携带项 ⑤ 两项维持现状 / 真机托盘与自启补测）。
-  已裁决 2 项：**动画方向 = A**、**签名路径 = 先发未签名 0.1.0，证书到位后随 0.1.1 起签名**。
+- **P7 人工门 ✅ 已批准发布（2026-09-22 人工拍板）**：**发布范围收敛为 Windows + Linux 两平台**
+  （原话要点「只发布 windows 版和 ubuntu 类适用的版本（这两个我可以本机测试…）」）→ **macOS 本轮不发布**
+  （CI 仍产出 macOS 构件但不进 Release；`CHANGELOG` / `user-guide` 已按此口径改写）；
+  其余按建议：**发布号维持 0.1.0**、**携带项 ⑤ 的 jlink 裁剪与字体子集化维持现状**、
+  **Linux 托盘与开机自启补测放在发布后**（从 GitHub Release 下载安装包真机测试）。
+- **发布执行状态**：`dde53cb` 已推送 `origin/main` → **CI run [35696556247](https://github.com/mapleafly/wuzhufolio/actions/runs/35696556247) 出包中**（build ×3 + package ×3）→ 取 Windows/Linux 产物 → 打 `v0.1.0` → 建 Release（未签名，发布说明已标注）。
+- **证书采购**：⏳ **待用户决策** —— 决策材料已交付 **`docs/release/certificate-procurement.md`**
+  （Windows 五条路径对比：SignPath Foundation 免费 OSS 签名 / OV+云签名 ≈￥2,200–3,700 每年 / EV 不建议 /
+  Azure 受信任签名个人仅限美加不可用 / Microsoft Store MSIX 免费免提示；macOS $99 每年；Linux GPG 0 元已就绪）。
 - **上一阶段状态**：**P6 系统测试与质量 ✅ 已通过（2026-09-21 人工拍板关闭）**——按 PRD V2.0 验收标准完成全量验证，
   产出 `docs/test/test-plan.md` / `test-cases.md`（**300 条**）/ `security-checklist.md`（P6 复跑版，五条硬约束逐条打勾）/
   `defects.md`（**DEF-01…DEF-46**）/ `test-report.md`；**718 用例（710 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；

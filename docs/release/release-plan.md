@@ -29,6 +29,7 @@
 | `docs/release/CHANGELOG.md` | 0.1.0 变更日志（Keep a Changelog 1.1.0） |
 | `docs/release/user-guide.md` | 用户使用说明（含隐私声明与已知限制） |
 | `docs/release/signing-notarization.md` | 三平台签名/公证执行手册（凭据清单 + 逐条命令 + 验证） |
+| `docs/release/certificate-procurement.md` | **证书采购决策材料**（Windows 五条路径对比 / 地区可用性判定 / 免费 OSS 方案 / 硬件令牌对 CI 的影响 / macOS 与 Linux 口径 / 待用户回答的问题） |
 | `docs/release/promo/` | **产品宣传动画（已完成）**：`wuzhufolio-promo-30s.mp4`（成品，带 BGM + SFX）+ `.gif` + 源码 + 分镜卡 + 三方向方向板 + 真实 UI 素材 + 复现管线 README |
 
 ---
