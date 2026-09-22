@@ -10,7 +10,7 @@
 
 ## [0.1.0] - 2026-09-22
 
-首个公开版本：隐私与安全优先、数据完全本地化的加密资产组合追踪桌面应用。**本版发布 Windows 10/11 x64 与 Linux x64 两个平台**；macOS 版待代码签名证书与 Apple 公证就绪后随后续版本提供。
+首个公开版本：隐私与安全优先、数据完全本地化的加密资产组合追踪桌面应用。**本版发布 Windows 10/11 x64 与 Linux x64 两个平台**；macOS 不提供发行包（有需要的用户可从源码自行编译）。
 没有云端账号、没有遥测、没有在线同步——账本、密钥与流水全部留在你自己的机器上。
 
 ### 新增
@@ -136,8 +136,8 @@
 - 不含多设备数据同步、账户间数据迁移 / 合并、账户删除与用户名修改（数据本地化原则的必然结果）。
 - 交易所适配目前仅 Binance，其他交易所留待后续版本。
 - 未随本版提供 Linux Flatpak 包（当前提供 `.deb` / `.rpm` / `.AppImage` 与便携 tar.gz）。
-- **未随本版提供 macOS 版**：需要 Developer ID 代码签名与 Apple 公证，证书采购完成并完成真机实测后随后续版本推出。
-- **Windows 与 Linux 产物本版未做代码签名/GPG 签名**：Windows SmartScreen 首次下载可能提示「未知发布者」（选「更多信息 → 仍要运行」）；签名证书到位后自下一版本起签名（Linux 侧的 GPG 签名脚本已就绪）。
+- **不提供 macOS 发行包**：macOS 商店外分发需要 Developer ID 代码签名与 Apple 公证，本项目当前不采购证书；有需要的用户可从源码自行编译（《用户指南》§3 给了完整步骤）。
+- **Windows 与 Linux 产物未做代码签名**（本项目既定选择：不采购签名证书）：Windows SmartScreen 首次下载/运行可能提示「未知发布者」（选「更多信息 → 仍要运行」）；完整性请用发布页的 `SHA256SUMS` 核对。Linux 侧可选的免费 GPG 签名脚本已就绪，尚未启用。
 - 交易对级手续费率不在本版范围（费率按「交易所 > 全局」两级匹配）。
 
 ### 附：工程追溯
@@ -179,7 +179,7 @@
 
 - 发布页：<https://github.com/mapleafly/wuzhufolio/releases>（本版 release 为 0.1.0，各产物附 SHA256 校验和）
 - **Windows**：推荐 `WuZhuFolio-0.1.0.msi`（per-machine 安装，默认 `C:\Program Files\WuZhuFolio`）；也可用 `WuZhuFolio-0.1.0.exe`；无管理员权限或需自定义位置请下 `WuZhuFolio-portable-windows-x64.zip`（解压即用）。
-- **macOS**：⛔ **本版暂未提供**。macOS 应用在商店外分发需要 Developer ID 代码签名与 Apple 公证（否则会被 Gatekeeper 拦截），证书尚在采购流程中；就绪后会在后续版本提供（macOS 12+，Intel 与 Apple Silicon 分别出包）。
+- **macOS**：⛔ **本版不提供发行包**。macOS 应用在商店外分发需要 Developer ID 代码签名与 Apple 公证（否则会被 Gatekeeper 拦截），本项目当前不采购签名证书；需要 macOS 版的用户可 **clone 仓库自行编译**（需 macOS + JDK 17，步骤见《用户指南》§3）。
 - **Linux**：Debian / Ubuntu 下 `wuzhufolio_0.1.0-1_amd64.deb`；Fedora / RHEL 下 `wuzhufolio-0.1.0-1.x86_64.rpm`；免安装用 `wuzhufolio-0.1.0-x86_64.AppImage`；便携版为 `WuZhuFolio-portable-linux-x64.tar.gz`。
 - 数据位置：所有平台的数据都在 `~/.wuzhufolio`（Windows 为 `%USERPROFILE%\.wuzhufolio`），与程序目录分离——删除便携版目录不会影响账本数据；需要清理请先备份，再自行删除该数据目录。
 - 安装或解压路径请使用纯英文（ASCII）目录，详见上文「已知限制」。

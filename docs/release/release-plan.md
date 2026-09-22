@@ -75,7 +75,7 @@
 ### 3.3 签名/公证（合规硬门槛，PRD §12）
 
 - [ ] **macOS：本轮不发布 → 本项不适用**。证书采购与公证流程见 `certificate-procurement.md §4` 与 `signing-notarization.md §2`，待启动 macOS 发布时执行。
-- [x] **Windows：本轮不签名**（人工拍板 2026-09-22「先发未签名 0.1.0，证书到位后随 0.1.1 起签名」）→ 发布说明须显式标注「未签名」并给出 SmartScreen 放行说明；证书采购选项见 `certificate-procurement.md`。
+- [x] **Windows：不签名**（人工拍板 2026-09-22「windows 不签名」，预算 0 元）→ 发布说明与用户指南已显式标注「未签名」并给出 SmartScreen 放行步骤（`user-guide.md §10.9`）；决策依据与复评条件见 `certificate-procurement.md §0`。
 - [x] **Linux：GPG 签名脚本已交付并实测**（`scripts/sign-linux-artifacts.sh`）；0.1.0 首次发布可先出未签名包 + SHA256SUMS，GPG 密钥生成后在 0.1.1 起对 Linux 产物签名。
 - [ ] Windows：OV/EV 代码签名证书签名 msi/exe（含时间戳） → 见 §3。
 - [ ] Linux：`.deb`/`.rpm` GPG 签名 + `SHA256SUMS` 的 GPG 分离签名 → 见 §4。
@@ -197,7 +197,7 @@ gh release view v0.1.0 --web                # 人工复核附件与说明后，�
 | ① | **托盘走查**：Linux 实测（Windows 侧 2026-09-21 已 ✅） | **Linux 降级分支 ✅ 已实证**（WSLg 无托盘宿主 → `tray support \| supported=false`，应用正常驻留无异常）；**完整托盘菜单 = 发布后真机补测**（人工拍板 2026-09-22：从 GitHub Release 下载安装包在真机测试）；**macOS 本轮不发布**，不再列入 | §7.3 实测日志；`user-guide.md` FAQ 已写明降级行为；补测结果回填 `manual-test-guide.md` 与 STATUS |
 | ② | **TC-MAN-09 出站抓包 + 权限实证（Ubuntu）** | ✅ **已执行并闭环**：① **GUI 运行期**（便携版，未登录会话）出站**仅 `api.coingecko.com` 一个主机**；② **live smoke 全链路**（行情主源 + CMC 兜底 + Binance 同步）出站**恰好三主机**：`api.coingecko.com` / `pro-api.coinmarketcap.com` / `api.binance.com`，**无第四个主机**；③ 数据目录权限 **700**、`master.key` 与 `wuzhufolio.db` **600** | release-plan 附录 A.4（本次 P7 实跑，脚本 `scripts/outbound-capture-proxy.py`） |
 | ③ | 便携包与打包版开机自启实测 | **Linux 便携包解压即用 ✅ 已实证**（解压到纯 ASCII 路径 → 启动、真实网络刷新、驻留 60 s）；**Linux 打包版开机自启 = 发布后真机补测**（同①口径）；**macOS 本轮不发布** | §7.3；补测结果回填 `manual-test-guide.md` 与 STATUS |
-| ④ | 签名/公证合规实证 + Linux 包 GPG 签名 + 证书采购 | **Linux 包 GPG 签名脚本已交付并实测**（`scripts/sign-linux-artifacts.sh`：签名 → 校验 → 篡改检测全通）；**Windows 证书采购 = 待人工决策**（选项/成本/地区可用性见 **`certificate-procurement.md`**）；**macOS 证书随 macOS 发布一并决策** | **人工拍板（2026-09-22）：先发未签名 0.1.0（Windows + Linux），证书到位后随 0.1.1 起签名** |
+| ④ | 签名/公证合规实证 + Linux 包 GPG 签名 + 证书采购 | **Linux 包 GPG 签名脚本已交付并实测**（签名 → 校验 → 篡改检测全通，**保留为可选零成本增强、尚未启用**）；**Windows 不签名**（不采购 OV/EV，也不申请 SignPath Foundation）；**macOS 不提供发行包**（用户自行编译） | **人工拍板（2026-09-22）：预算 0 元、Windows 不签名、macOS 仅源码、不做 Microsoft Store** —— 决策依据与复评条件见 `certificate-procurement.md §0` |
 | ⑤ | 托盘正式图标与打包图标、jlink 裁剪、字体子集化 | **图标 ✅ 已定稿并接入打包**：`scripts/generate-icons.mjs` 由**与托盘图标同源的几何**（accent `#1F5A48` + 纸色 `#F6F4EF` 折线，design-tokens §2.1）生成 `app/icons/wuzhufolio.{png,ico,icns}`，已接入 jpackage 三平台 `iconFile`；**jlink 裁剪**：建议 **P8 评估**；**字体子集化**：**建议不做**（用户可输入任意 CJK，子集化会造成缺字） | 本表 + `signing-notarization.md §5`；**待人工批准**「⑤ 的两项优化维持现状」 |
 | ⑥ | 发布产物 SHA256 / CHANGELOG / 用户指南 | ✅ CHANGELOG 与用户指南已交付；SHA256 清单模板与命令见 §5；**正式 SHA256 由 CI 产物生成** | 本目录四份文档 |
 | ⑦ | **产品宣传动画（P7 必做项）** | ✅ **已出片**：方向 = **A · 账簿 The Ledger**（2026-09-22 人工拍板，Gate 见 `promo/direction-approved.md`）；`storyboard.md`（11 镜分镜卡）→ `wuzhufolio-promo.html` → 逐帧 seek 渲染 1800 帧 → BGM + 14 SFX cue → **`wuzhufolio-promo-30s.mp4`**（1920×1080 · 30.00 s · 60 fps · H.264 + AAC 立体声）+ **`wuzhufolio-promo-30s.gif`**（560×315 · 12.5 fps · 7.0 MB） | `docs/release/promo/`（含 `README.md` 复现管线） |
@@ -214,6 +214,8 @@ gh release view v0.1.0 --web                # 人工复核附件与说明后，�
 6. **`.cpro` 为非流式读写**：超大备份包（≈10× 典型数据量）内存占用升高（P6 实测：典型/重度 ≤483 MiB 通过）。
 7. **读屏**：无障碍为基线覆盖（Windows 侧已完成走查 TC-MAN-03 ✅），未做全平台全读屏软件矩阵。
 8. **Linux tray**：无 AppIndicator 宿主（如未装扩展的 GNOME）时托盘不可用，应用按降级分支运行（不崩溃）。
+9. **Windows 产物未签名**（本项目既定选择）：首次下载/运行会看到 SmartScreen「未知发布者」提示 → 选「更多信息 → 仍要运行」；完整性用 `SHA256SUMS` 核对（用户指南 §10.9）。
+10. **macOS 不提供发行包**：需 Developer ID 签名与 Apple 公证；需要的用户从源码自行编译（用户指南 §3 ②），自编译产物同样未签名，首次打开需右键「打开」。
 
 ---
 
@@ -227,8 +229,10 @@ gh release view v0.1.0 --web                # 人工复核附件与说明后，�
 | 发布号 = 0.1.0 | 采纳 | ✅ **已拍板**：维持 **0.1.0**；macOS bundle 版本差异（1.0.0）本轮不涉及（不发布 macOS） |
 | 携带项 ⑤：jlink 裁剪与字体子集化**维持现状** | 采纳（理由见 §7-⑤） | ✅ **已拍板：按建议**（图标部分已执行：`app/icons/` 三平台资产已接入打包；jlink 裁剪 → P8 评估；字体子集化 → 不做） |
 | 携带项 ①③ 的 Linux 托盘与开机自启补测 | 建议真机执行 | ✅ **已拍板：放在发布后** —— **从 GitHub Release 下载安装包在真机测试**，结果回填 `manual-test-guide.md` 与 STATUS |
-| **签名路径** | 建议「先发未签名 0.1.0」 | ✅ **已拍板（2026-09-22）**：**先发未签名 0.1.0（Windows + Linux），证书到位后随 0.1.1 起签名** → 发布说明必须显式标注「未签名」并给出 SmartScreen 放行说明；Linux 侧可即刻用 `scripts/sign-linux-artifacts.sh` 签名 |
-| **Windows 证书采购** | 提供选项与成本对比 | ⏳ **待用户决策** → 见 **`certificate-procurement.md`**（含地区可用性判定、免费 OSS 方案、硬件令牌对 CI 的影响、推荐路径） |
+| **签名路径** | 建议「先发未签名 0.1.0」 | ✅ **已拍板（2026-09-22）：不签名** —— Windows 不采购/不申请任何签名证书；**预算 = 0 元**；Linux 侧保留免费 GPG 脚本为可选增强（尚未启用）。发布说明与用户指南已显式标注「未签名」并给出 SmartScreen 放行步骤（`user-guide.md §10.9`） |
+| **Windows 证书采购** | 提供选项与成本对比 | ✅ **已拍板（2026-09-22）：不采购** → 决策材料 `certificate-procurement.md`（含 §0 拍板结论与 4 条复评触发条件） |
+| **macOS 发行包** | 三平台之一 | ✅ **已拍板（2026-09-22）：不提供 Release 二进制**，有需要的用户**自行从源码编译**（`user-guide.md §3 ②` 已写入步骤）；`CHANGELOG` 下载节同步 |
+| **Microsoft Store 渠道** | 未建议 | ✅ **已拍板（2026-09-22）：不做** |
 | **产品宣传动画方向** | 三方向板 A/B/C 供选 | ✅ **已拍板（2026-09-22）**：**A · 账簿 The Ledger**（记录见 `promo/direction-approved.md §3`）；**成片已交付** |
 | **批准发布 0.1.0** | —— | ✅ **已批准（2026-09-22）** → 执行：提交 → 推送触发 CI → 取 Windows/Linux 产物 → 打 `v0.1.0` → 建 Release |
 

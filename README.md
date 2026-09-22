@@ -34,9 +34,13 @@
 # 打包冒烟（当前平台 app-image + uber jar）
 ./gradlew :app:createDistributable :app:packageUberJarForCurrentOS
 
-# 原生安装包（当前平台：dmg / msi / deb，P7 签名公证）
+# 原生安装包（当前平台：dmg / msi / deb）
 ./gradlew :app:packageDistributionForCurrentOS
 ```
+
+> **macOS 用户**：本项目**不发布 macOS 发行包**（商店外分发需要 Developer ID 签名与 Apple 公证，当前不采购证书）。
+> 需要 macOS 版请自行编译：`brew install --cask temurin@17` → `git clone` → `./gradlew :app:packageDmg`；
+> 自编译产物未签名/未公证，首次打开需**右键 → 「打开」**放行。完整步骤见 `docs/release/user-guide.md` §3 ②。
 
 ## 仓库结构
 

@@ -1,6 +1,6 @@
 # WuZhuFolio 用户使用说明
 
-> **适用版本：0.1.0** · 桌面端 —— **本轮发布 Windows 10/11 与 Linux 两个平台**；macOS 版待代码签名证书与真机实测就绪后随后续版本提供（见 §2 与 §13）。
+> **适用版本：0.1.0** · 桌面端 —— **本版发布 Windows 10/11 与 Linux 两个平台**；**macOS 不提供发行包**（可从源码自行编译，见 §3 ②）。本版产物**未做代码签名**（Windows 首次运行见 §10.9）。
 >
 > 本文面向普通用户，只讲「点哪里、看到什么」。文中按钮与字段名均以界面实际文案为准（以简体中文界面为例；切换到 English 后位置与功能不变）。
 
@@ -37,7 +37,7 @@ WuZhuFolio 是一款**以隐私和安全为核心、数据完全本地化的加�
 | 平台 | 支持版本 | 安装包形态 |
 |------|----------|------------|
 | Windows | Windows 10 / 11（x64） | `.msi` / `.exe` 安装版；便携版 `.zip` |
-| macOS | ⛔ **本轮暂未提供**（需要 Developer ID 签名 + Apple 公证，证书采购中） | 后续版本提供 `.dmg` / 便携版 `.zip` |
+| macOS | ⛔ **不提供发行包**（需 Developer ID 签名 + Apple 公证，本项目不采购证书） | 可**从源码自行编译**（见 §3 ②，需 macOS + JDK 17） |
 | Linux | x64 桌面发行版（Ubuntu 22.04 / 24.04 等） | `.deb` / `.rpm` / `.AppImage`；便携版 `.tar.gz` |
 
 - **无需安装 Java**：安装包内已捆绑裁剪过的私有运行时，双击即可运行，不会用到（也不依赖）你机器上已有的 Java。
@@ -61,9 +61,23 @@ WuZhuFolio 是一款**以隐私和安全为核心、数据完全本地化的加�
 
 > 这是「per-machine」安装（装给整台机器），安装与卸载都需要管理员确认。⚠️ 如果你装过更早的旧版本（旧版默认装在 `%LOCALAPPDATA%\WuZhuFolio`），请**先卸载旧版再装新版**——两者不是同一条升级路径。
 
-**② macOS —— 本轮暂未提供**
+**② macOS —— 不提供官方发行包，可从源码自行编译**
 
-0.1.0 **不发布 macOS 版**。macOS 应用在商店外分发需要 Developer ID 代码签名与 Apple 公证（Gatekeeper 会拦截未签名/未公证的应用），该证书尚在采购流程中。证书与真机实测就绪后，会在后续版本提供 macOS 包（macOS 12+，Intel 与 Apple Silicon 分别出包）。
+0.1.0 **不发布 macOS 安装包**：macOS 应用在商店外分发需要 Developer ID 代码签名与 Apple 公证（否则会被 Gatekeeper 拦截），本项目当前不采购签名证书。**需要 macOS 版的用户可以自己编译**（需要一台 macOS 机器）：
+
+```bash
+# 1) 安装 JDK 17（Temurin）
+brew install --cask temurin@17
+
+# 2) 获取源码并编译（首次会下载 Gradle 依赖）
+git clone https://github.com/mapleafly/wuzhufolio.git
+cd wuzhufolio
+./gradlew :app:packageDmg        # 生成 .dmg → app/build/compose/binaries/main/dmg/
+# 或者只生成可直接运行的 app-image：
+./gradlew :app:createDistributable
+```
+
+自编译产物**未签名、未公证**：首次打开请**右键点图标 → 选「打开」**（或在「系统设置 → 隐私与安全性」里点「仍要打开」）放行，之后可正常双击启动。功能与 Windows / Linux 版一致，数据同样只存在本机 `~/.wuzhufolio`。
 
 **③ Linux（`.deb` / `.rpm` / `.AppImage`）**
 
@@ -449,6 +463,20 @@ CSV 是**明文**文件，适合自己存档或交给其他工具处理；交易
 2. 若弹窗伴随其他异常，先核对安装包的 SHA256 是否与发布页一致，并确认安全软件没有隔离安装目录里的文件。
 3. Linux / macOS 的便携版同样建议解压到纯英文路径。
 
+### 10.9 Windows 首次运行提示「Windows 已保护你的电脑 · 未知发布者」
+
+本版安装包**未做代码签名**（本项目的既定选择：不采购签名证书），因此 Windows SmartScreen 会对新下载的程序给出提醒。放行步骤：
+
+1. 在弹出的蓝色窗口中点「**更多信息**」；
+2. 点右下角的「**仍要运行**」；
+3. 安装过程中若再次被拦，同样选「更多信息 → 仍要运行」。
+
+这不是病毒告警，而是「发布者身份未知」的通用提示。想进一步确认文件没被篡改，可用发布页的 `SHA256SUMS` 核对：
+
+```powershell
+certutil -hashfile WuZhuFolio-0.1.0.msi SHA256   # 与 SHA256SUMS 里的值比对
+```
+
 ### 10.8 卸载后数据在哪？怎么彻底删除？
 
 卸载程序只移除应用，**不会删除数据目录**（这是刻意设计，避免误删账本）：
@@ -479,7 +507,7 @@ CSV 是**明文**文件，适合自己存档或交给其他工具处理；交易
 | 项 | 内容 |
 |----|------|
 | 适用版本 | **0.1.0** |
-| 适用平台 | **Windows 10/11 x64 · Linux x64**（deb / rpm / AppImage / 便携版）—— **本轮发布范围**；macOS 版随后续版本提供 |
+| 适用平台 | **Windows 10/11 x64 · Linux x64**（deb / rpm / AppImage / 便携版）—— **本版发布范围**；macOS 不提供发行包，可自行编译 |
 | 文档版本 | v1.0 |
 | 更新日期 | **2026-09-22** |
 | 许可 | AGPL-3.0 |
