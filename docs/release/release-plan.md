@@ -172,8 +172,15 @@ gh release view v0.1.0 --web                # 人工复核附件与说明后，�
 
 ## 6. 发布后验证（Post-release）
 
+> **✅ 2026-09-22 已执行的验证（发布后即时）**：从 GitHub Release 公开页面下载 `SHA256SUMS` 与代表产物
+> `wuzhufolio_0.1.0-1_amd64.deb` → `sha256sum -c --ignore-missing SHA256SUMS` → **OK**。
+> Release 附件清单核对：**7 个产物 + `SHA256SUMS`，无 macOS 构件、无调试产物**。
+> 发布地址：<https://github.com/mapleafly/wuzhufolio/releases/tag/v0.1.0>
+
 - [ ] 从 Release 页面**真实下载**代表产物（Windows `msi` / Linux `deb` / Linux `AppImage` / Linux 便携版），逐个核对 `sha256sum -c SHA256SUMS`。
+      ✅ 首项（Linux `deb`）已执行通过；其余待人工按需复核。
 - [ ] **Linux 真机补测（人工拍板：发布后执行）**：从 GitHub Release 下载包 → 实测托盘菜单（GNOME 需 AppIndicator 扩展）与开机自启（`~/.config/autostart/*.desktop`），结果回填 `manual-test-guide.md` 与 STATUS。
+- [ ] **Windows 安装包人工验收**：下载 `WuZhuFolio-0.1.0.msi` 走查安装 → 首启 → 核心旅程 → 卸载。
 - [ ] 全新机器/干净账户安装并走查核心旅程：**创建账户 → 增资 → 记录交易 → 仪表盘与 ROI → 导出 .cpro → 恢复**（无阻断）。
 - [ ] 冒烟：启动无「Failed to launch JVM」；日志只含脱敏信息；`~/.wuzhufolio` 权限 700、`master.key` 600。
 - [ ] 官方渠道链接（关于页）可打开；Release 附件齐全且**不含**调试产物（console-debug zip 不得上传）。
