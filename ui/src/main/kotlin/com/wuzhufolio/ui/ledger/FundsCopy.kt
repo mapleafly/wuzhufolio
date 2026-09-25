@@ -123,9 +123,6 @@ object FundsCopy {
     /** 校准失败兜底文案（异常无 message 时）。 */
     val CAL_FAILED: String get() = ledgerStrings.calFailed
 
-    /** 候选列表最多展示条数（可滚动；同名资产靠 cg_id 区分）。 */
-    const val MAX_CANDIDATES = 12
-
     /** 已选候选展示前缀（表单内「已选择」行；同名资产靠 cg_id 区分）。 */
     val PICKED_PREFIX: String get() = ledgerStrings.pickedPrefix
     val PICKED_HINT: String get() = ledgerStrings.pickedHint

@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.wuzhufolio.domain.catalog.CatalogCoin
 import com.wuzhufolio.domain.engine.Side
+import com.wuzhufolio.ui.components.CoinSuggestionList
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
 import com.wuzhufolio.ui.components.WzModal
@@ -364,33 +365,19 @@ private fun FeeRoleButton(text: String, selected: Boolean, testTag: String, onCl
     )
 }
 
-/** 目录候选列表（基础币/计价币/自定义手续费币种自动补全；点击选中即收起）。 */
+/**
+ * 目录候选列表（基础币/计价币/自定义手续费币种自动补全；点击选中即收起）。
+ *
+ * **DEF-51**：改用统一组件 [CoinSuggestionList] —— 此前是 `candidates.take(6)` 且**不可滚动**
+ * （人工实测「查 usdt 只显示 6 条、真正的 Tether 反而看不到」）；行内容同时补上 cg_id，
+ * 与资金/校准/行情三处口径一致。
+ */
 @Composable
 private fun SuggestionList(candidates: List<CatalogCoin>, onPick: (CatalogCoin) -> Unit) {
-    if (candidates.isEmpty()) return
-    val colors = WzTheme.colors
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 4.dp)
-            .background(colors.surface)
-            .testTag("suggestion-list"),
-    ) {
-        candidates.take(6).forEach { coin ->
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onPick(coin) }
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
-                    // 行标识：DEF-20 焦点交接的自动化回归 + 人工键盘走查定位
-                    .testTag("tx-suggestion-" + coin.id),
-            ) {
-                Text(
-                    text = coin.symbol + " · " + coin.name,
-                    color = colors.ink,
-                    style = WzTheme.typography.body,
-                )
-            }
-        }
-    }
+    CoinSuggestionList(
+        candidates = candidates,
+        onPick = onPick,
+        rowTagPrefix = "tx-suggestion-",
+        listTag = "suggestion-list",
+    )
 }

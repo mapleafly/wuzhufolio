@@ -248,6 +248,39 @@ class SqlCoinCatalogTest {
         assertEquals(ResolveMethod.RANK, unique.method)
     }
 
+
+    /**
+     * **DEF-51**（2026-09-24 人工拍板 C1）：候选检索必须按**市值排名**打破「同名 symbol」并列。
+     *
+     * 人工实测（Ubuntu 24.04，CoinGecko 全量目录 21,549 条）：查 `usdt` 时**49 条 symbol 恰为 USDT**
+     * 的桥接币按名称字母序排在前面，真正的 Tether 落到第 42 位、6 条列表里根本看不到。
+     * 本用例把「排名靠前的同名币必须排在前面」钉死。
+     */
+    @Test
+    fun `search orders same-symbol ties by market rank`() = runBlocking {
+        refreshFixtures() // fixtures 里 aaa-token-one / aaa-token-two 同 symbol=aaa（名称字母序 one < two）
+        val ranked = SqlCoinCatalog(
+            gate,
+            rankProvider = MarketRankProvider { cgId ->
+                mapOf("aaa-token-two" to 12, "aaa-token-one" to 980)[cgId]
+            },
+        )
+        val hits = ranked.search("aaa", limit = 5)
+        assertEquals(listOf("aaa-token-two", "aaa-token-one"), hits.map { it.cgId }, "同 symbol 时按市值排名升序")
+    }
+
+    /** DEF-51：未入前 1000 名（rank = null）的候选排在已入榜者之后，而非插到前面。 */
+    @Test
+    fun `search puts unranked coins after ranked ones`() = runBlocking {
+        refreshFixtures()
+        val ranked = SqlCoinCatalog(
+            gate,
+            rankProvider = MarketRankProvider { cgId -> mapOf("aaa-token-one" to 900)[cgId] },
+        )
+        val hits = ranked.search("aaa", limit = 5)
+        assertEquals(listOf("aaa-token-one", "aaa-token-two"), hits.map { it.cgId })
+    }
+
     @Test
     fun `freezeMapping rejects unknown coin id`() = runBlocking {
         refreshFixtures()

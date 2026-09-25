@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.wuzhufolio.domain.catalog.CatalogCoin
 import com.wuzhufolio.domain.engine.FlowKind
+import com.wuzhufolio.ui.components.CoinSuggestionList
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
 import com.wuzhufolio.ui.components.WzModal
@@ -213,41 +214,17 @@ private fun fiatPreviewText(state: FundFormState): String {
     }
 }
 
-/** 目录候选列表（币种自动补全；行含 cg_id 供同名资产区分——M8 修复轮 §8-1；点击选中即收起）。 */
+/**
+ * 目录候选列表（币种自动补全；行含 cg_id 供同名资产区分——M8 修复轮 §8-1；点击选中即收起）。
+ *
+ * **DEF-51**：改用统一组件 [CoinSuggestionList]（上限/滚动/行内容与交易、校准、行情三处一致）。
+ */
 @Composable
 private fun FundSuggestionList(candidates: List<CatalogCoin>, onPick: (CatalogCoin) -> Unit) {
-    if (candidates.isEmpty()) return
-    val colors = WzTheme.colors
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 4.dp)
-            .background(colors.surface)
-            .testTag("fund-suggestion-list"),
-    ) {
-        val scroll = rememberScrollState()
-        Box(modifier = Modifier.heightIn(max = 168.dp)) {
-            Column(modifier = Modifier.fillMaxWidth().verticalScroll(scroll)) {
-                candidates.take(FundsCopy.MAX_CANDIDATES).forEach { coin ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onPick(coin) }
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
-                            .testTag("fund-suggestion-" + coin.id),
-                    ) {
-                        Text(
-                            text = FundsCopy.coinLabel(coin.symbol, coin.name, coin.cgId),
-                            color = colors.ink,
-                            style = WzTheme.typography.body,
-                        )
-                    }
-                }
-            }
-            VerticalScrollbar(
-                adapter = rememberScrollbarAdapter(scroll),
-                modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
-            )
-        }
-    }
+    CoinSuggestionList(
+        candidates = candidates,
+        onPick = onPick,
+        rowTagPrefix = "fund-suggestion-",
+        listTag = "fund-suggestion-list",
+    )
 }

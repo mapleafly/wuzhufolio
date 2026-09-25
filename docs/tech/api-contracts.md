@@ -160,7 +160,11 @@ interface SettingsService {
 > （MockEngine 全分支绿）。消费方接线见模块记录 M5.md §6：M7 折算解析、M11 调度宿主、M12 状态栏。
 >
 > **D21 补录（行情浏览页 · C1 范围增量，2026-09-04，决策 docs/dev/decisions/D21-行情浏览页-范围增量.md）**：
-> `MarketWatchService`（`listWatch`/`add`/`remove`/`seed`——settings 全局行 `watch.coins` JSON [cg_id]，上限 50，
+> **D35（2026-09-24）**：`addCoins(cgIds)` 为**幂等批量加入**（已存在不重复写、新币追加在末尾），
+> 供「成交币自动进入行情自选」三路调用（手动交易/编辑、CSV 导入、交易所同步）；
+> **候选检索排序口径（DEF-51）**：`CoinCatalog.search` = 相关性 → ACTIVE → **市值排名**（未入前 1000 名排后）→ 符号 → 名称；
+> 资金/交易两条服务路径共用 `PinnedCoinSearch`（命中查询时默认币 USD→USDT / 其他法币→USDC 置顶）。
+> `MarketWatchService`（`listWatch`/`add`/**`addCoins`**/`remove`/`seed`——settings 全局行 `watch.coins` JSON [cg_id]，**无数量上限**（D35 取消原 50 条上限），
 > 未写入=默认种子=稳定币白名单；目录解析读时清理不改写存储、损坏自愈回默认）+ `MarketQuotesService`（行 = coins 目录
 > + `price_snapshots.latest(coin, fiat)`，缺行 = 「无行情」）+ `MarketSettingsService.baseFiat()`（行情页计价）。
 > 消费方 `MarketWatchPage`（第六页 QUOTES），复用 `MarketRefreshService.refresh`（币集 = 当前列表）。回溯：D21、ia.md §2.19。

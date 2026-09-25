@@ -120,7 +120,10 @@ fun MainShell(
     // 页面自管入口焦点（DEF-27）：页面把 requester 附在首个可聚焦控件上，主壳优先请求它，
     // 避免依赖 Compose 子树遍历的「猜第一个可聚焦控件」（实测会落到页面中部的输入框）
     val pageEntryState = remember { PageEntryFocusState() }
-    val navFocusRequesters = remember { NAV_FOCUS_ORDER.associateWith { FocusRequester() } }
+    // DEF-47：开发期 UI 开关（构建期注入，默认 false）——决定侧边栏与键盘焦点序是否含组件走查页
+    val devUi = LocalDevUi.current
+    val navPages = remember(devUi) { navFocusOrder(devUi) }
+    val navFocusRequesters = remember(navPages) { navPages.associateWith { FocusRequester() } }
     var lastEntryKey by remember { mutableStateOf<String?>(null) }
     var reentryNonce by remember { mutableStateOf(0) }
     val entryKey = page.name + "/" + (coinDetailId ?: "")
@@ -149,6 +152,7 @@ fun MainShell(
                         },
                         accountArea = accountArea,
                         navFocusRequesters = navFocusRequesters,
+                        navPages = navPages,
                     )
                     Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
                         TopBar(
@@ -294,6 +298,8 @@ private fun Sidebar(
     onSelect: (ShellPage) -> Unit,
     accountArea: @Composable () -> Unit,
     navFocusRequesters: Map<ShellPage, FocusRequester>,
+    /** DEF-47：开发构建才渲染组件走查页入口（正式构建侧边栏 = ia.md 的六页）。 */
+    navPages: List<ShellPage>,
 ) {
     val colors = WzTheme.colors
     // 当前获得焦点的导航项（供 ↑/↓ 计算相邻项；鼠标点击不入此状态也无需入）
@@ -305,7 +311,7 @@ private fun Sidebar(
             .background(colors.surface)
             .border(0.dp, colors.line)
             .padding(vertical = 12.dp)
-            .onKeyEvent { event -> handleSidebarArrowKey(event, focusedNavPage, navFocusRequesters) }
+            .onKeyEvent { event -> handleSidebarArrowKey(event, focusedNavPage, navFocusRequesters, navPages) }
             .testTag("sidebar"),
     ) {
         Text(
@@ -320,7 +326,9 @@ private fun Sidebar(
             style = WzTheme.typography.caption,
             modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 12.dp),
         )
-        ShellPage.sidebarPages.forEach { page ->
+        // 正式六页（ia.md 顺序）
+        navPages.forEach { page ->
+            if (page == ShellPage.GALLERY) return@forEach
             SidebarNavItem(
                 label = page.label,
                 active = page == currentPage,
@@ -331,14 +339,17 @@ private fun Sidebar(
             )
         }
         Box(modifier = Modifier.weight(1f))
-        SidebarNavItem(
-            label = shellStrings.navGallery,
-            active = currentPage == ShellPage.GALLERY,
-            onClick = { onSelect(ShellPage.GALLERY) },
-            testTag = "nav-" + ShellPage.GALLERY.name,
-            focusRequester = navFocusRequesters[ShellPage.GALLERY],
-            onFocused = { focusedNavPage = ShellPage.GALLERY },
-        )
+        // 组件走查页入口（DEF-47）：只在开发构建出现（`-Pwuzhufolio.devUi=true`），正式版无此项
+        if (ShellPage.GALLERY in navPages) {
+            SidebarNavItem(
+                label = shellStrings.navGallery,
+                active = currentPage == ShellPage.GALLERY,
+                onClick = { onSelect(ShellPage.GALLERY) },
+                testTag = "nav-" + ShellPage.GALLERY.name,
+                focusRequester = navFocusRequesters[ShellPage.GALLERY],
+                onFocused = { focusedNavPage = ShellPage.GALLERY },
+            )
+        }
         accountArea()
     }
 }

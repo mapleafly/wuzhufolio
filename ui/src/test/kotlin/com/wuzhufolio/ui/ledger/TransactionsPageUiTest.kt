@@ -407,6 +407,30 @@ class TransactionsPageUiTest {
     }
 
     /**
+     * **DEF-51**（2026-09-24 人工拍板 C1）：交易表单候选不再是「只显示 6 条且不可滚动」。
+     *
+     * 人工实测：计价币输入 usdt 时 6 条全是同名桥接币、真正的 Tether 看不到；且列表不可滚动。
+     * 现统一为 `CoinSuggestionList`（上限 20、可滚动、行含 cg_id，与资金/校准/行情同口径）。
+     */
+    @Test
+    fun candidateListIsUnifiedAndScrollable() = runComposeUiTest {
+        val coins = (1..20).map {
+            CatalogCoin(it.toLong(), "coin-$it", null, "C$it", "Coin $it", CoinStatus.ACTIVE)
+        }
+        val svc = FakeLedgerService().apply { searchResults = coins }
+        setContent { TransactionsPage(svc, { null }, { null }) }
+        onNodeWithTag("tx-add").performClick()
+        onNodeWithTag("tx-base-input").performTextInput("C")
+        waitUntil(timeoutMillis = 2_000) { textCount("C7 · Coin 7") >= 1 }
+        // ① 第 7 条存在 → 旧的 take(6) 上限已取消
+        onNodeWithTag("tx-suggestion-7", useUnmergedTree = true).assertExists()
+        // ② 第 20 条可达 → 列表可滚动（旧实现没有 verticalScroll）
+        onNodeWithTag("tx-suggestion-20", useUnmergedTree = true).performScrollTo().assertIsDisplayed()
+        // ③ 行内容含 cg_id（同名资产可分辨 —— M8 口径，现四处统一）
+        assertTrue(textCount("（coin-7）") >= 1, "候选行应带 cg_id")
+    }
+
+    /**
      * DEF-20（2026-09-15 Windows 人工走查）：候选行点选后该行随即消失，焦点此前会掉回窗口根，
      * 下一次 Tab 从侧边栏重来。修复后：基础币候选 → 焦点交到「计价币」，再 Tab 继续在弹窗内走。
      */

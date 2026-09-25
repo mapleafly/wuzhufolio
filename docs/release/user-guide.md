@@ -1,6 +1,6 @@
 # WuZhuFolio 用户使用说明
 
-> **适用版本：0.1.0** · 桌面端 —— **本版发布 Windows 10/11 与 Linux 两个平台**；**macOS 不提供发行包**（可从源码自行编译，见 §3 ②）。本版产物**未做代码签名**（Windows 首次运行见 §10.9）。
+> **适用版本：0.1.1** · 桌面端 —— **本版发布 Windows 10/11 与 Linux 两个平台**；**macOS 不提供发行包**（可从源码自行编译，见 §3 ②）。本版产物**未做代码签名**（Windows 首次运行见 §10.9）。
 >
 > 本文面向普通用户，只讲「点哪里、看到什么」。文中按钮与字段名均以界面实际文案为准（以简体中文界面为例；切换到 English 后位置与功能不变）。
 
@@ -63,7 +63,7 @@ WuZhuFolio 是一款**以隐私和安全为核心、数据完全本地化的加�
 
 **② macOS —— 不提供官方发行包，可从源码自行编译**
 
-0.1.0 **不发布 macOS 安装包**：macOS 应用在商店外分发需要 Developer ID 代码签名与 Apple 公证（否则会被 Gatekeeper 拦截），本项目当前不采购签名证书。**需要 macOS 版的用户可以自己编译**（需要一台 macOS 机器）：
+0.1.1 **不发布 macOS 安装包**：macOS 应用在商店外分发需要 Developer ID 代码签名与 Apple 公证（否则会被 Gatekeeper 拦截），本项目当前不采购签名证书。**需要 macOS 版的用户可以自己编译**（需要一台 macOS 机器）：
 
 ```bash
 # 1) 安装 JDK 17（Temurin）
@@ -83,16 +83,16 @@ cd wuzhufolio
 
 ```bash
 # Debian / Ubuntu
-sudo dpkg -i wuzhufolio_0.1.0-1_amd64.deb      # 缺依赖时执行 sudo apt -f install
+sudo dpkg -i wuzhufolio_0.1.1-1_amd64.deb      # 缺依赖时执行 sudo apt -f install
 # 之后从应用菜单启动，或运行 /opt/wuzhufolio/bin/WuZhuFolio
 
 # Fedora / RHEL 系
-sudo rpm -i wuzhufolio-0.1.0-1.x86_64.rpm
+sudo rpm -i wuzhufolio-0.1.1-1.x86_64.rpm
 
 # AppImage（免安装）
-chmod +x wuzhufolio-0.1.0-x86_64.AppImage
-./wuzhufolio-0.1.0-x86_64.AppImage
-# 无 FUSE 的环境改用：APPIMAGE_EXTRACT_AND_RUN=1 ./wuzhufolio-0.1.0-x86_64.AppImage
+chmod +x wuzhufolio-0.1.1-x86_64.AppImage
+./wuzhufolio-0.1.1-x86_64.AppImage
+# 无 FUSE 的环境改用：APPIMAGE_EXTRACT_AND_RUN=1 ./wuzhufolio-0.1.1-x86_64.AppImage
 ```
 
 **④ 三平台便携版（解压即用）**
@@ -168,9 +168,8 @@ chmod +x wuzhufolio-0.1.0-x86_64.AppImage
 主界面由以下几部分组成：
 
 - **左侧边栏**：仪表盘 / 资产列表 / 交易管理 / 资金管理 / 行情 / 设置（共六页）。
-  > ⚠️ **0.1.0 已知问题**：该版侧边栏最下方**多出一个「组件走查」页**（开发用的界面组件预览，不是产品功能）。
-  > 它**不读取也不修改你的任何数据**（只演示按钮/弹窗等控件样式），点开后不会有任何数据变化；
-  > 日常使用**请忽略该项**，将在下一版本移除。
+  > ✅ **0.1.0 的「组件走查」页已在 0.1.1 移除**（该页是开发用的界面组件预览，不是产品功能）；
+  > 若你仍在侧边栏看到它，说明运行的是 0.1.0，请安装 0.1.1。
 - **左下角账户区**：头像 + 账户名 + 「切换账户 / 登出」。点它打开账户菜单：**切换账户**、**修改密码**、**登出**。切换账户必须输入目标账户密码。
 - **顶栏**：当前页面标题、行情数据源徽章（如「数据源：CoinGecko · 上次成功 09:41」）、**刷新行情**、**立即同步**、☾ / ☀（明暗主题快捷切换）。
 - **底部状态栏**：网络与同步状态、代理指示（「代理：系统代理」或「直连」）、行情源、上次价格时间、同步结果；距上次备份超过 30 天时会显示「建议备份」。
@@ -477,7 +476,7 @@ CSV 是**明文**文件，适合自己存档或交给其他工具处理；交易
 这不是病毒告警，而是「发布者身份未知」的通用提示。想进一步确认文件没被篡改，可用发布页的 `SHA256SUMS` 核对：
 
 ```powershell
-certutil -hashfile WuZhuFolio-0.1.0.msi SHA256   # 与 SHA256SUMS 里的值比对
+certutil -hashfile WuZhuFolio-0.1.1.msi SHA256   # 与 SHA256SUMS 里的值比对
 ```
 
 ### 10.8 卸载后数据在哪？怎么彻底删除？
@@ -509,8 +508,8 @@ certutil -hashfile WuZhuFolio-0.1.0.msi SHA256   # 与 SHA256SUMS 里的值比�
 
 | 项 | 内容 |
 |----|------|
-| 适用版本 | **0.1.0** |
+| 适用版本 | **0.1.1** |
 | 适用平台 | **Windows 10/11 x64 · Linux x64**（deb / rpm / AppImage / 便携版）—— **本版发布范围**；macOS 不提供发行包，可自行编译 |
-| 文档版本 | v1.0 |
-| 更新日期 | **2026-09-22** |
+| 文档版本 | v1.1 |
+| 更新日期 | **2026-09-25** |
 | 许可 | AGPL-3.0 |

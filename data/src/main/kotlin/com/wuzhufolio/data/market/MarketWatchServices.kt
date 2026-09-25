@@ -39,13 +39,21 @@ class SettingsMarketWatchService(
         return out
     }
 
-    override suspend fun addCoin(cgId: String) {
+    override suspend fun addCoin(cgId: String) = addCoins(listOf(cgId))
+
+    /**
+     * 批量加入（**D35**）：幂等、去重、**不设上限**（2026-09-24 人工口径：取消原 50 条上限）。
+     *
+     * 顺序语义：新币按传入顺序**追加在末尾**，已存在的不动（不打乱用户既有排列）。
+     * 未写入过自选时（默认种子态）以种子为基；`cgIds` 里的空串/重复项自动剔除。
+     */
+    override suspend fun addCoins(cgIds: Collection<String>) {
+        val incoming = cgIds.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+        if (incoming.isEmpty()) return
         val current = readStoredIds() ?: MarketConfig.DEFAULT_WATCH_SEED
-        if (cgId in current) return
-        require(current.size < MarketWatchService.WATCH_LIMIT) {
-            "watch list is full (${MarketWatchService.WATCH_LIMIT})"
-        }
-        persist(current + cgId)
+        val fresh = incoming.filterNot { it in current }
+        if (fresh.isEmpty()) return
+        persist(current + fresh)
     }
 
     override suspend fun removeCoin(cgId: String) {

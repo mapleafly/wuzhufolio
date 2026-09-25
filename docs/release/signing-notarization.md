@@ -10,15 +10,19 @@
 
 ## 1. 总览
 
-| 平台 | 需要的凭据 | 成本 / 周期 | CI 现状 | 本次 P7 状态 |
+| 平台 | 需要的凭据 | 成本 / 周期 | CI 现状 | **最终状态（2026-09-22 拍板，见 §0）** |
 |------|-----------|-------------|---------|--------------|
-| macOS | Apple Developer Program + Developer ID Application 证书 | ≈ **$99/年**；实名核验 1–3 周 | ✅ 已实现（Compose DSL → `codesign`；公证 → `notarytool` + `stapler`） | **待采购 → 注入 Secrets 即生效** |
-| Windows | OV 代码签名证书（EV 需硬件令牌） | ≈ **$200–400/年**；实名核验 1–3 周 | ✅ 已实现（`signtool` + 时间戳，覆盖 msi/exe） | **待采购 → 注入 Secrets 即生效** |
-| Linux | 发布 GPG 密钥（签名 `.deb`/`.rpm`/AppImage/`SHA256SUMS`） | **0 元** | ⚠️ **待补 CI 步骤**（本手册 §4.4 给出可直接粘贴的片段）；**本地脚本已交付并实测**（`scripts/sign-linux-artifacts.sh`） | **密钥可由项目自行生成，无外部依赖** |
+| macOS | Apple Developer Program + Developer ID Application 证书 | ≈ **$99/年**；实名核验 1–3 周 | ✅ 已实现（Compose DSL → `codesign`；公证 → `notarytool` + `stapler`） | **不采购、不发布 macOS 发行包**（用户自行编译；本手册留作将来复评时的执行步骤） |
+| Windows | OV 代码签名证书（EV 需硬件令牌） | ≈ **$200–400/年**；实名核验 1–3 周 | ✅ 已实现（`signtool` + 时间戳，覆盖 msi/exe） | **不签名**（0.1.0 起为既定选择；用户按 `user-guide.md §10.9` 走 SmartScreen 放行） |
+| Linux | 发布 GPG 密钥（签名 `.deb`/`.rpm`/AppImage/`SHA256SUMS`） | **0 元** | ⚠️ **待补 CI 步骤**（本手册 §4.4 给出可直接粘贴的片段）；**本地脚本已交付并实测**（`scripts/sign-linux-artifacts.sh`） | **保留为可选零成本增强**（尚未生成正式密钥；未签名 + `SHA256SUMS` 已满足当前发布口径） |
 
-> **决策点（见 `release-plan.md §9`）**：证书采购周期与 0.1.0 发布时间冲突时，建议二选一：
+> **⚠️ 决策已更新（2026-09-22 人工拍板）**：Windows **不签名**、macOS **不提供 Release 二进制**、**预算 = 0 元**、不做 Microsoft Store ——
+> 因此本手册 §2/§3 的 macOS/Windows 签名流程**当前不执行**，保留为将来复评（触发条件见 `certificate-procurement.md §0`）时的执行步骤。
+> 唯一可能启用的是 **§4 Linux GPG 分离签名**（零成本，密钥可由项目自行生成）。
+>
+> 以下为**本手册编写时（决策前）**的原始决策点，保留作背景：
 > **(a)** 先发未签名 0.1.0 并在发布说明中显式标注「未签名」，证书到位后随 0.1.1 起全面签名；
-> **(b)** 等证书到位再发 0.1.0。Agent 建议 **(a)**（首个版本用户量小，且不内置自动更新，影响面可控）。
+> **(b)** 等证书到位再发 0.1.0。Agent 当时建议 **(a)**（首个版本用户量小，且不内置自动更新，影响面可控）。**实际采纳 = 永久 (a)（不采购证书）**。
 
 ---
 

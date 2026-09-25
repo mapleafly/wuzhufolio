@@ -64,9 +64,9 @@ class KeyboardA11yUiTest {
                 },
             )
         }
-        // ① 外壳一轮：侧边栏 7 项 → 顶栏 3 项，每一步恰好一个**有标识的真实**焦点目标（DEF-13 护栏）
+        // ① 外壳一轮：侧边栏 6 项（正式构建无 DEV 走查页，DEF-47）→ 顶栏 3 项，每一步恰好一个**有标识的真实**焦点目标（DEF-13 护栏）
         val shellOrder = mutableListOf<String>()
-        repeat(10) {
+        repeat(9) {
             onRoot().performKeyInput { pressKey(Key.Tab) }
             waitForIdle()
             val tags = focusedTags()
@@ -77,11 +77,13 @@ class KeyboardA11yUiTest {
         assertEquals(
             listOf(
                 "nav-DASHBOARD", "nav-ASSETS", "nav-TRANSACTIONS", "nav-FUNDS", "nav-QUOTES", "nav-SETTINGS",
-                "nav-GALLERY", "topbar-refresh-quotes", "topbar-sync", "theme-toggle",
+                "topbar-refresh-quotes", "topbar-sync", "theme-toggle",
             ),
             shellOrder,
-            "外壳 Tab 顺序（侧边栏 7 + 顶栏 3）",
+            "外壳 Tab 顺序（侧边栏 6 + 顶栏 3；正式构建不含 nav-GALLERY）",
         )
+        // DEF-47：正式构建下 DEV 走查页既不渲染、也就不在 Tab 序里
+        onNodeWithTag("nav-GALLERY").assertDoesNotExist()
 
         // ② 键盘选中「资金管理」→ 焦点**直接进入页面内容**（走查改进项 A / DEF-20 修复后的焦点流）
         onNodeWithTag("nav-FUNDS").performSemanticsAction(SemanticsActions.RequestFocus)

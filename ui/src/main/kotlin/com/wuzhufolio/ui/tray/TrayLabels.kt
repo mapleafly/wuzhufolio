@@ -16,6 +16,8 @@ import com.wuzhufolio.ui.i18n.ShellStringsZh
 data class TrayLabels(
     val open: String,
     val syncNow: String,
+    /** DEF-49：行情刷新（与交易同步分列，两类 API 独立）。 */
+    val refreshQuotes: String,
     val quit: String,
 )
 
@@ -24,11 +26,13 @@ fun trayLabels(language: AppLanguage): TrayLabels = when (language) {
     AppLanguage.ZH -> TrayLabels(
         open = ShellStringsZh.trayOpen,
         syncNow = ShellStringsZh.traySyncNow,
+        refreshQuotes = ShellStringsZh.trayRefreshQuotes,
         quit = ShellStringsZh.trayQuit,
     )
     AppLanguage.EN -> TrayLabels(
         open = ShellStringsEn.trayOpen,
         syncNow = ShellStringsEn.traySyncNow,
+        refreshQuotes = ShellStringsEn.trayRefreshQuotes,
         quit = ShellStringsEn.trayQuit,
     )
 }

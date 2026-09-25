@@ -39,9 +39,11 @@ fun ApplicationScope.TrayMenuWindow(
     onDismiss: () -> Unit,
     onOpen: () -> Unit,
     onSync: () -> Unit,
+    onRefresh: () -> Unit,
     onQuit: () -> Unit,
 ) {
-    val state = rememberWindowState(position = position, size = DpSize(208.dp, 124.dp))
+    // DEF-49：新增「立即刷新行情」一项 → 高度 124 → 156dp
+    val state = rememberWindowState(position = position, size = DpSize(208.dp, 156.dp))
     Window(
         onCloseRequest = onDismiss,
         state = state,
@@ -71,9 +73,11 @@ fun ApplicationScope.TrayMenuWindow(
             TrayMenuContent(
                 open = labels.open,
                 syncNow = labels.syncNow,
+                refreshQuotes = labels.refreshQuotes,
                 quit = labels.quit,
                 onOpen = onOpen,
                 onSync = onSync,
+                onRefresh = onRefresh,
                 onQuit = onQuit,
                 onDismiss = onDismiss,
             )

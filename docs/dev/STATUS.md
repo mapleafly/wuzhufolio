@@ -6,7 +6,47 @@
 
 ## 当前阶段
 
-- **当前状态**：**P7 发布 ⏳ 进行中（2026-09-22 人工下达「执行 P7」）**——发布材料已产出，**停人工门待审核**：
+- **当前状态（2026-09-25 更新）**：**0.1.1 修复轮 ✅ 实施完成 + ✅ 人工复验通过，待人工批准发布**——
+  人工原话（2026-09-25）：「**托盘功能通过，windows走查通过**」→ D36 §6 B1–B8 与 D35 §6 A1–A7 的可人工判定部分全部通过，
+  无新增缺陷、无回退项（复验记录见 `docs/test/manual-test-guide.md §20`、`defects.md §2.4`）。
+  **下一步 = 人工批准发布 0.1.1**：版本号 bump（`appVersion` 0.1.0 → 0.1.1）→ 提交推送 → CI 三平台出包 →
+  取 Windows/Linux 产物 → 打 tag `v0.1.1` → 建 Release（`CHANGELOG` 已含 0.1.1 节；发布步骤含 `release-plan §4.1.1` 的 Linux 桌面集成补齐）。
+  以下为实施内容（2026-09-24）：
+  人工下达「**按建议定级并实施**」（同意 Agent 在 `defects.md §2.2` 给出的分级建议），
+  **7 项验收缺陷全部收口 + 1 项增量（D35）落地**：
+  | 编号 | 内容 | 级别 |
+  |------|------|------|
+  | DEF-47 | 组件走查（DEV）页泄漏到正式版侧边栏 → **构建期 `DEV_UI` 开关**（默认 false） | C0 |
+  | DEF-48 | 托盘图标显示不全 → 透明安全边距 + **按逻辑尺寸出实体位图**（AWT 会把图再乘一次屏幕缩放；二轮真机像素取证后修复） | C1（D36） |
+  | DEF-49 | 托盘缺「立即刷新行情」+ 同步无可见反馈 → 菜单四项 + **Linux 应用内提示窗**（Win/mac 保留原生气泡） | C1（D36） |
+  | DEF-50 | 托盘「打开主界面」不置前 → `toFront()` + `requestFocus()`（本机 X11 可行） | C0 |
+  | DEF-51 | 候选排序未用市值排名 + 三处条数/滚动不一 → **排序插入市值排名** + 统一组件 `CoinSuggestionList`（20 条可滚） | C1（D36） |
+  | DEF-52 | Ubuntu 图标显示为通用齿轮 → **主窗口图标**（`_NET_WM_ICON`）+ `.deb` 桌面集成补齐（`StartupWMClass=com-wuzhufolio-app-MainKt`（实测）/hicolor/`Categories`/缓存刷新） | C1（D36） |
+  | DEF-53 | 冗余 `?.` 与用例/警告口径 → 已清理（**编译警告 0**） | C0 |
+  | **D35** | **成交币自动进入行情自选**（删掉也回加且幂等 / **取消自选上限** / 手动交易与交易所同步都生效） | C1 |
+  **GUI 冒烟实证（隔离数据目录，真实 X11 桌面）**：`./gradlew :app:run` 启动 → `bootstrap ok | schema=12`、托盘 `supported=true`、
+  目录刷新 `added=21545`、**排名缓存预热 `entries=492`**、无异常栈；窗口属性实测 **`_NET_WM_ICON = Icon (192 x 192)`**
+  （0.1.0 打包版同一属性为 `not found`）→ **DEF-52① 端到端验证通过**。
+  **本轮实测证据（本机 JDK 21，交付前最终一轮为无缓存全量）**：`./gradlew clean build --rerun-tasks --no-build-cache`
+  → **BUILD SUCCESSFUL（33/33 任务真实执行）** → **748 用例 / 744 执行 / 0 失败 / 0 错误 / 4 跳过**
+  （4 条 = env 门控 live 网络冒烟）+ **detekt 0** + **编译警告 0**；候选修法用真实 CoinGecko 目录（21,549 条）验证
+  （`usdt→Tether`/`btc→Bitcoin`/`eth→Ethereum`/`sol→Solana` 全部第 1）；`.deb` 桌面集成补丁**已在线上 0.1.0 包上实测**
+  （三字段 + 8 档图标 + `postinst` 缓存刷新），**CI 已接线并在打包后校验**。
+  **产物**：决策档 `D35` / `D36` + `增量台账` 两行 + `决策索引` + `task-breakdown **T12.9**` +
+  `defects.md §2.3`（修复轮结论）+ 模块记录 `M3/M5/M6/M7/M8/M11/M12/M13` + `CHANGELOG`（0.1.1 未发布节）+
+  `ADR-006 §1.1.1` + `design-tokens §5` / `interaction §2.7` / `ia §2.19` / `data-model §2.3` / `api-contracts §3`。
+  **⚠️ 二轮补充（2026-09-24 晚，人工复测「托盘图标仍显示不全」后）**：已用**像素级取证**（`xwininfo` 定位 XEmbed 窗口 →
+  `xwd` 抓 32×32 内容 → 逐像素分析）定位真因 = **AWT 会把图标再乘一次屏幕缩放**（按 24 逻辑给图 → 实画 ~48 物理像素，
+  画进 32 像素窗口 → 右下被裁）；修复 = 实体 `BufferedImage` + `报告值 ÷ 屏幕缩放`（本机 16）+ `setImageAutoSize(false)`，
+  **修复后实拍图标完整且四边留边距**；`TrayIconTest` 增至 5 例。详见 `defects.md §2.2 DEF-48` 与 `§2.3`。
+  **怎么验收（人工）**：按 **D36 §6 B1–B8** 与 **D35 §6 A1–A7** 在真机复验（重点：B2/B6 托盘与桌面图标、
+  B3 托盘四项与可见反馈、B4 遮挡时置前、B5 四处候选查 usdt 首屏即 Tether 且可滚动、B7 成交币自动入自选）。
+  **下一步（人工门）**：① 复验通过 → 批准发布 **0.1.1**（打 tag → CI 出包 → 建 Release，`CHANGELOG` 已有 0.1.1 节）；
+  ② 若复验发现问题 → 回报，我并入同一轮修复；③ Windows 安装包走查回执仍待人工（与 Linux 复验一并汇总）。
+- **上一阶段状态**：**P7 发布 ⏳ 进行中（2026-09-22 人工下达「执行 P7」）**——v0.1.0 已发布（Windows + Linux），发布材料已产出：
+  `docs/release/` = `release-plan.md` / `rollback.md` / `CHANGELOG.md`（Keep a Changelog 1.1.0）/ `user-guide.md`（483 行，含隐私声明与 8 条 FAQ）/
+  `signing-notarization.md`（三平台签名公证手册 + CI 待补片段）+ **产品宣传动画三方向方向板**（`promo/boards/direction-{a,b,c}.png`）。
+  **P7 携带项已逐项收口**（详见 release-plan §7）：
   `docs/release/` = `release-plan.md` / `rollback.md` / `CHANGELOG.md`（Keep a Changelog 1.1.0）/ `user-guide.md`（483 行，含隐私声明与 8 条 FAQ）/
   `signing-notarization.md`（三平台签名公证手册 + CI 待补片段）+ **产品宣传动画三方向方向板**（`promo/boards/direction-{a,b,c}.png`）。
   **P7 携带项已逐项收口**（详见 release-plan §7）：
@@ -29,7 +69,9 @@
 - **✅ 已发布（2026-09-22）**：`dde53cb` + `620146e` 推送 `origin/main` → **CI run [35696556247](https://github.com/mapleafly/wuzhufolio/actions/runs/35696556247) 六 job 全绿**（build ×3 + package ×3）→ 取 Windows/Linux 产物（**7 个产物的 SHA256 与本机/CI 记录逐条交叉核对一致**）→ 打 tag `v0.1.0` → **GitHub Release 已发布：<https://github.com/mapleafly/wuzhufolio/releases/tag/v0.1.0>**
   （`WuZhuFolio-0.1.0.msi` / `.exe` / 便携版 zip · `wuzhufolio_0.1.0-1_amd64.deb` / `.rpm` / AppImage / 便携版 tar.gz + `SHA256SUMS`；**未签名**，发布说明已显式标注并给出 SmartScreen 放行路径；**macOS 未发布**）。
   **发布后验证已执行**：从 Release 公开页面下载 `SHA256SUMS` + `.deb` → `sha256sum -c` **OK**。
-- **P7 待人工关闭的 3 项**：① **Linux 真机补测**（从该 Release 下载安装包实测托盘菜单与开机自启 → 结果回填）；② **Windows 侧安装包人工验收**（本机测试）；③ **证书采购决策**（阅读 `certificate-procurement.md` 后拍板，见下）。
+- **P7 待人工关闭的 2 项**（原第 ③ 项「证书采购决策」已于同日拍板，见下条）：
+  ① **Linux 真机补测**（从该 Release 下载安装包实测托盘菜单与开机自启 → 结果回填）——**2026-09-24 已执行并回执 10 条**
+  （8 项问题 + 2 项口径/建议，见下「P7 发布后人工验收（Linux 真机）」）；② **Windows 侧安装包人工验收**（本机测试）。
 - **签名与平台策略 ✅ 已拍板（2026-09-22）**：① **Windows 不签名**（不采购 OV/EV，也不申请 SignPath Foundation 免费签名）；② **macOS 不提供 Release 二进制**，有需要的用户**从源码自行编译**；③ **预算 = 0 元**；④ **不做 Microsoft Store 渠道**；⑤ Linux 侧免费 GPG 脚本保留为**可选增强**（尚未启用密钥）。
   落实：`certificate-procurement.md §0` 拍板结论 + 4 条复评触发条件；`user-guide` 新增 §3 ②「从源码自行编译 macOS 版」与 **FAQ §10.9 Windows SmartScreen 放行**；`CHANGELOG` 与 **线上 Release 说明已同步更正**（原「证书到位后签名」表述作废）；README 增 macOS 自编译指引。
 - **证书采购材料**（决策依据，已归档）：**`docs/release/certificate-procurement.md`**
@@ -39,8 +81,16 @@
   **无数据/安全影响**（该页不读写任何真实数据）；`ShellUiTest`/`KeyboardA11yUiTest` 还把该行为固化成了断言。
   **人工拍板**：修复 = **方案甲「加构建期开关 `DEV_UI`」**；节奏 = **攒着**，等本轮 Windows/Linux 验收问题齐了一起修 → 出 **0.1.1 补丁版**（**不回滚 0.1.0**）。
   **同源排查结论**：同类泄漏**仅此一处**。详见 `docs/test/defects.md §2.1`。
-- **本轮验收待办（人工）**：① Windows 安装版继续走查（把发现的问题一并汇总给我）；② Linux 真机补测（托盘菜单 / 开机自启）；
-  ③ 全部问题汇总后 → 我一次性修复（DEF-47 + 你报的其他项）→ 重跑 718 用例 + 出包 + 发布 **0.1.1**。
+- **⚠️ P7 发布后人工验收（Linux 真机 · 2026-09-24）回执 10 条**：已登记 **DEF-48…DEF-52**（托盘图标显示不全 /
+  托盘菜单缺「刷新行情」且同步无可见反馈 / 「打开界面」不置前 / 币种候选排序·条数·滚动三处不一致 / Ubuntu 图标为通用齿轮）
+  + **1 项增量提案**（成交币自动进入行情自选，D35 候选）+ **1 项文档口径**（JDK 17/21 均可、mise 为建议，**已完成**）。
+  **Agent 只读定位 + 分级建议已给，等在人工门拍板**（不自行定级、不自行实现）；详见下「P7 发布后人工验收（Linux 真机）」与 `defects.md §2.2`。
+- **本轮顺带的只读核验发现（2026-09-24 → DEF-53，建议 C0）**：① **用例总数口径**：文档多处「718 用例（710 执行 + 8 跳过）」偏低 4 条，
+  实测 **722 用例**（CI-ubuntu/JDK17：714 执行 0 失败 + 8 跳过；本机 WSL2/JDK21：**718 执行 0 失败 + 4 跳过**，全量构建 4m27s 绿）；
+  ② **「编译警告 0」不成立**：实测 2 条（`UiPreferenceState.kt:33/36` 冗余 `?.`，与 JDK 版本无关）→ 随 0.1.1 一并清理回填。
+- **本轮验收待办（人工）**：① Windows 安装版继续走查（把发现的问题一并汇总给我）；② ~~Linux 真机补测（托盘菜单 / 开机自启）~~
+  → ✅ **2026-09-24 已执行并回执 10 条**（见下「P7 发布后人工验收（Linux 真机）」）；
+  ③ 全部问题汇总后 → 我一次性修复（**DEF-47 + DEF-48…DEF-52 + 待定级增量提案 + DEF-53 口径清理**）→ 重跑**全量用例（当前基准 722）** + detekt + 出包 + 发布 **0.1.1**。
   （Windows 五条路径对比：SignPath Foundation 免费 OSS 签名 / OV+云签名 ≈￥2,200–3,700 每年 / EV 不建议 /
   Azure 受信任签名个人仅限美加不可用 / Microsoft Store MSIX 免费免提示；macOS $99 每年；Linux GPG 0 元已就绪）。
 - **上一阶段状态**：**P6 系统测试与质量 ✅ 已通过（2026-09-21 人工拍板关闭）**——按 PRD V2.0 验收标准完成全量验证，
@@ -67,9 +117,10 @@
   **仍未执行 1 项 + 未覆盖平台**：**TC-MAN-09** 出站抓包 + 权限实证（Ubuntu 侧）与 **TC-MAN-01 的 Linux / macOS 托盘**
   —— 均按人工拍板显式延期 → 见下「P7 携带项」（到期检查点 = P7 发布前）。
 - **推进顺序**：先桌面端，后移动端。**P1–P8 只针对桌面端或两端共同部分；移动端相关工作放到下一个版本。**（移动端相关技能/技术方案/开发待桌面端主线稳定后再启用。）
-- **下一人工门**：**P7 发布人工门**——输入 = `docs/test/test-report.md`（P6 结论）+ `docs/release/`（release-plan /
-  rollback / CHANGELOG / user-guide / 签名公证说明）+ **P7 产品宣传动画**；DoD 见 `AGENTS.md §4 P7`
-  （发布与回滚步骤可执行、产物签名合规、用户文档与版本一致）。**P7 置「进行中」，待人工下达启动指令。**
+- **下一人工门**：**P7 发布后验收收口门**——发布本身已获批并执行（2026-09-22，v0.1.0 上线）；当前门 = **人工验收结果汇总 → 0.1.1 修复轮**。
+  输入 = `docs/test/test-report.md`（P6 结论）+ `docs/release/`（release-plan / rollback / CHANGELOG / user-guide / 签名公证说明）
+  + **P7 产品宣传动画** + **发布后人工验收回执**（DEF-47…+ Linux 真机 10 条）；DoD 见 `AGENTS.md §4 P7`
+  （发布与回滚步骤可执行、产物签名合规、用户文档与版本一致）。**P7 维持「进行中」，待人工关闭阶段。**
 - **P7 携带项（含 P6 显式延期两项，到期检查点 = P7 发布前，未到点前不得视为已完成）**：
   ① **TC-MAN-01 托盘走查正式判定**（Windows 三项菜单动作 + 关窗两种行为 + 后台同步通知；DoD = `M11 §5-3` §4 步骤 4 之 ⑤）
   ／ macOS·Linux 托盘实测；② **TC-MAN-09 出站抓包 + 权限实证**（Ubuntu：`scripts/outbound-capture-proxy.py` 主机集合 ⊆
@@ -98,7 +149,7 @@
 | P4 | 分模块开发 | ✅ 已通过 | 代码 + `docs/dev/modules/`（M1–M13）+ `docs/test/security-checklist.md` | M1 ✅…M12 ✅（2026-09-12）、**M13 ✅（2026-09-12 人工「M13 通过」）**；**M1–M13 全部通过**；CI 三平台 build + package 六 job 全绿（run 34698502287）；GitHub 仓库 https://github.com/mapleafly/wuzhufolio |
 | P5 | 集成与联调 | ✅ 已通过（2026-09-13 人工「P5通过」关闭） | `docs/test/integration-report.md` + `app/src/test/.../integration/*`（10 项）+ `data/src/test/.../smoke/LiveNetworkSmokeTest`（2，门控） | 核心旅程真实组合根端到端打通；契约核对缺口已补；D25 原型补行闭环；**人工验收暴露 P0 恢复丢行 + 2 项 P1 已修复**；人工裁决 5 项（D27 稳定币 1:1 / cause 保留 / 启动即同步 / **D28 白名单收敛** / **D29 负持仓不计入**）已实施；**664 用例 0 失败（657 执行 + 7 跳过）**+ detekt 0 + 警告 0 |
 | P6 | 系统测试与质量 | ✅ **已通过（2026-09-21 人工拍板关闭）** | `docs/test/`（test-plan / test-cases 300 条 / security-checklist P6 复跑版 / defects DEF-01…46 / test-report） | **718 用例（710 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；**P0/P1 = 0**；P2 全部有明确结论；安全清单五条硬约束逐条通过；运行期抓包仅三白名单主机；人工门用例通过 **10/11**（**TC-MAN-01 托盘走查 Windows 11 侧 ✅ 2026-09-21**；剩余 TC-MAN-09 抓包+权限实证与 TC-MAN-01 的 Linux/macOS 托盘 → 按人工拍板**转 P7 携带**，到期检查点 = P7 发布前） |
-| P7 | 发布 | ⏳ **已发布 v0.1.0（Windows + Linux），待人工关闭阶段** | `docs/release/`（6 份材料 + `promo/` 30 s 宣传动画成品）+ **GitHub Release v0.1.0**（7 产物 + SHA256SUMS） | CI 六 job 全绿；**未签名**（人工拍板先发未签名）；**macOS 本轮不发布**；TC-MAN-09 抓包与权限 ✅ 闭环、Linux 便携版/托盘降级 ✅ 实证、GPG 签名脚本 ✅ 实测、应用图标 ✅ 接入打包；**待人工**：Linux 真机补测 + Windows 安装包验收 + 证书采购决策 |
+| P7 | 发布 | ⏳ **v0.1.0 已发布；0.1.1 修复轮已实施完成，停人工门待复验/发布** | `docs/release/`（6 份材料 + `promo/` 30 s 宣传动画成品）+ **GitHub Release v0.1.0**（7 产物 + SHA256SUMS） | CI 六 job 全绿；**未签名**（人工拍板 不签名 / 预算 0）；**macOS 本轮不发布**；TC-MAN-09 抓包与权限 ✅ 闭环、Linux 便携版/托盘降级 ✅ 实证、GPG 签名脚本 ✅ 实测、应用图标 ✅ 接入打包；**验收回执**：Windows 1 项（**DEF-47**）+ Linux 10 条（**DEF-48…DEF-52** + 1 增量提案）；**分级已拍板（按建议）→ 0.1.1 修复轮已实施**（`D35`/`D36` + T12.9，746 用例 0 失败 / 警告 0 / `.deb` 桌面集成补丁已实测、CI 已接线）；**待人工**：复验（D36 §6 B1–B8 / D35 §6 A1–A7）→ 批准发布 0.1.1 + Windows 走查回执 |
 | P8 | 上线后运营与迭代 | 未开始 | `docs/dev/retrospective.md` | |
 
 ## P1 产品与交互设计（✅ 已通过--2026-08-31 人工终审）
@@ -206,7 +257,7 @@
 
 **建议的下一步**（已执行）：P2 于 2026-08-31 拍板通过；**下一步 = 人工下达 P3 启动指令**，按 task-breakdown M0（T0.1–T0.6，含 T0.6 Compose UI 基座）搭建工程脚手架。
 
-## P3 工程脚手架（⏳ 待审核--2026-09-01 完成 M0，停人工门）
+## P3 工程脚手架（✅ 已通过--2026-09-01 人工「P3 通过」；以下为 M0 交付时归档）
 
 > 启动记录：人工原话「执行P3」（2026-09-01）。范围 = task-breakdown M0（T0.1–T0.6，P3 DoD：本地构建通过、CI 绿、hello 链路端到端可跑 + UI 基座双主题、对比度达标）。首次 git 提交 `6ed10fd`（85 文件，P0–P2 文档同期入库）。
 
@@ -1448,6 +1499,10 @@ user-guide / 签名公证；**产品宣传动画为 P7 必做项**，AGENTS.md �
 
 **遗留问题（待人工，详见 release-plan §7 与 §9）**：
 
+> ⚠️ **本节为「P7 启动时（2026-09-22 上午）」快照，保留作时间线留痕**；下列 6 条与「建议的下一步」**已于同日后续全部收口**
+> （动画已出片、图标已定稿接入、签名/平台策略已拍板=不签名、Linux 便携版与托盘降级已实证、rpm 已由 CI 产出、**v0.1.0 已发布**）。
+> **当前真实待办以本文件开头「当前阶段」与「当前阻塞点」为准**（= 发布后人工验收 → 0.1.1 修复轮）。
+
 - **动画成片未产出**：卡在方向门（需人工选定 A/B/C）——选定后按 skill Step 9 出分镜卡 → 渲染 → BGM + SFX → MP4 + GIF。
 - **图标仍为占位资产**：正式图标随动画方向定稿后产出（PNG/ICO/ICNS + 托盘），属携带项 ⑤ 的一部分。
 - **真实签名/公证未执行**：证书采购（Apple $99/年、Windows OV $200–400/年，实名核验 1–3 周）与 Secrets 注入为人工动作；Linux GPG 密钥可由项目自行生成（无外部依赖）。
@@ -1456,6 +1511,61 @@ user-guide / 签名公证；**产品宣传动画为 P7 必做项**，AGENTS.md �
 - **CI 三平台正式发布产物未生成**：需推送触发 package job（发布动作本身待人工批准）。
 
 **建议的下一步**：① 人工从三方向板中**选定动画方向**（或提出修改意见）→ Agent 出成片；② 并行裁决 release-plan §9 五项；③ 方向与裁决落地后走 **P7 发布人工门**（批准发布 → 打 tag / 触发 CI / 建 Release）。
+
+---
+
+## P7 发布后人工验收（Linux 真机 · 2026-09-24）
+
+> **输入**：人工在 **Ubuntu 24.04** 对 0.1.0 安装版执行 P7 携带项 ①（Linux 托盘实测）与 ③（Linux 侧启动/托盘行为），
+> 回执 **10 条**（8 项问题 + 2 项口径/建议）。**Agent 本轮只做只读定位，未改任何产品代码**（`AGENTS.md §8.4`：
+> 分级由人工拍板，Agent 不自行定级、不自行实现）。逐条详情（现象/根因代码定位/影响面/建议修法）见
+> **`docs/test/defects.md §2.2`**。
+
+| # | 人工反馈（摘要） | Agent 只读定位结论 | 落点 | 分级建议 |
+|---|------------------|--------------------|------|----------|
+| 1 | 托盘图标显示不全 | `TrayIcon.kt` 仍为**满幅程序化占位图**（无透明安全边距，缩放后被裁）；未与 P7 的正式图标资产统一 | **DEF-48** | C1（纯边距最小修法可 C0） |
+| 2 | 托盘「立即同步」像只开窗口；无「刷新行情」项 | **确实执行了同步**（`AppHost.kt:133` → `scheduler.syncNow()`）；问题在**反馈不可见**（AWT 气泡在 GNOME/SNI 下不显示）+ 菜单本就只有三项；`refreshMarketNow()` 已存在，加项属接线 | **DEF-49** | C1 |
+| 3 | 遮挡时「打开界面」能否置前 | `showWindow()` 只显示+取消最小化，**无 `toFront()`**；可做（Compose `ComposeWindow.toFront()`；Wayland 需降级说明） | **DEF-50** | C0 |
+| 4 | 交易表单计价币/交易对：真 USDT 不显示、只有 6 条 | **同一根因**：`SqlCoinCatalog.search()` 排序**未使用市值排名**（同名 symbol 只能按名称字母序 → tether 被挤出）；交易表单 `take(6)` 且**不可滚动** | **DEF-51** | C1 |
+| 5 | 成交币自动进入行情自选（手动 + 同步） | 现状自选**只由用户手动维护**；需在账本写入与同步两处挂钩 + 「用户已移除」语义决策 | **增量提案（D35 候选）** | C1 |
+| 6 | Ubuntu 状态栏图标是通用齿轮 | **解包线上 `.deb` 实证**：图标未进 `hicolor` 主题、`postinst` 只跑 `xdg-desktop-menu install`（无缓存刷新）、`Categories=Unknown`（`appCategory` 未生效）；托盘侧 AWT 仍是 **XEmbed**，GNOME 24.04 走 SNI（OpenJDK JDK-8341144） | **DEF-52** | C1 |
+| 7 | JDK 17 与 21 差异；mise 不应是硬性规定 | **两者均可**（`jvmTarget`/`sourceCompatibility` 显式锁 17，JDK 21 跑 Gradle 不改产物兼容性；CI 已有 JDK 21 打包实验 job）；**mise 降级为建议** | `dev-setup.md`/`README.md` + 已决策事项 34（非缺陷） | 文档口径 |
+| 8 | 资金四窗「币种」候选：按市值/rank 排序 + 可滚动 | 资金路径**已有 defaultCoin 置顶**（USDT 优先）+ 12 条可滚；缺的是**市值排名排序**与**三处口径统一** | **DEF-51** | C1 |
+| 9 | 行情搜索像只按首字母排序 | **同 DEF-51 根因**（同一 `catalog.search`） | **DEF-51** | C1 |
+| 10 | 交易表单交易对/计价币同 8 处理 | **同 DEF-51**（交易路径连 defaultCoin 置顶都没有） | **DEF-51** | C1 |
+
+**Agent 已完成的独立核验（只读 + 一次干净的本地构建，供人工引用）**：
+① **`.deb` 解包核对**（从线上 Release 下载）：包内**无** `usr/share/icons/hicolor/**`；512×512 正式图标仅在 `/opt/wuzhufolio/lib/WuZhuFolio.png`；
+`.desktop` 位于 `/opt/wuzhufolio/lib/wuzhufolio-WuZhuFolio.desktop`，`Icon=` 为**绝对路径**、`Categories=Unknown`；
+`postinst` 仅 `xdg-desktop-menu install`（无 `gtk-update-icon-cache` / `update-desktop-database`）。
+② **JDK 21 全量构建实测**（本机 WSL2 + JDK 21.0.11）：`./gradlew build` **BUILD SUCCESSFUL（4m27s，29 任务全执行）**
+→ **722 用例 / 718 执行 / 0 失败 / 0 错误 / 4 跳过**（4 条 = env 门控的 live 网络冒烟）。
+③ **与 CI 交叉核对**（run 35723986240 的 `test-results-ubuntu-latest` 产物）：同为 **722 用例**、
+**714 执行 0 失败 + 8 跳过**（差的 4 条 = 钥匙串真实后端用例：CI-ubuntu 无 Secret Service 故跳过，本机实跑通过）。
+⇒ **文档多处「718 用例（710 执行 + 8 跳过）」偏低 4 条**；且**「编译警告 0」与当前代码不符**（实测 **2 条**：
+`UiPreferenceState.kt:33/36` 非空接收者上的冗余 `?.`，**与 JDK 版本无关**）→ 两项一并登记 **DEF-53**，
+随 0.1.1 修复轮统一回填（届时用例数还会再变）。
+
+④ **真机同机复核（2026-09-24 续 · 关键进展）**：Agent 运行环境**就是这台 Ubuntu 24.04 桌面**
+（GNOME Shell 46 / **X11** 会话 / 已装 `wuzhufolio 0.1.0-1`），因此下列两项由「推断」升级为「实测」：
+  - **DEF-51（候选排序）——用应用同一数据源复现**：CoinGecko 全量目录 **21,549 条** → `usdt` 命中 131 条、**其中 49 条 symbol 恰为 `USDT`**，
+    现状排序前 6 = `Abstract Bridged USDT` / `Alcor IBC Bridged USDT` / …，**真正的 Tether 排第 42 位**；
+    `btc` 第 1 名竟是 **Big Tom Coin**；`eth` 把 **Ethereum 挤到第 6**；`sol` 前 6 **没有 Solana**。
+    **按建议修法（同层插入 `rankOf` 升序）复算：四个查询全部回到正确第 1 名** → 修法有效性已用真实数据验证。
+  - **DEF-52（通用齿轮图标）——三处缺口实测**：已安装 `.desktop` 实测为 `Icon=/opt/wuzhufolio/lib/WuZhuFolio.png`（绝对路径）、
+    **`Categories=Unknown`**、**无 `StartupWMClass=`**；`/usr/share/icons/hicolor/*/apps/` **无本应用图标**；
+    `WuZhuFolio.cfg` 的 `[JavaOptions]` **无** `-Dsun.awt.application.icon` 且 `AppHost.kt` 的 `Window(...)` **未传 `icon=`**
+    → **窗口图标（`_NET_WM_ICON`）+ 主题图标 + 桌面条目关联三处都缺** → GNOME 回落通用齿轮。
+  - 附带事实：托盘承载扩展 = `ubuntu-appindicators@ubuntu.com`（v58）→ AWT 的 XEmbed 图标由其转发，
+    **AWT 气泡通知在 GNOME 无承载**（DEF-49 的「同步无可见反馈」成因坐实）；会话为 **X11** → DEF-50 的 `toFront()` 在本机可行。
+  - **实跑取证（同轮，隔离数据目录启动已安装的 0.1.0，跑完即杀）**：`xprop` 得 **`WM_CLASS = "WuZhuFolio", "WuZhuFolio"`**
+    且 **`_NET_WM_ICON: not found`** ⇒ 「窗口图标完全没有」由推断升级为**实测**（齿轮的直接原因）；
+    SNI 宿主就绪但**本应用未注册 SNI item**（托盘走扩展的 XEmbed 转发）。**真实数据未被触碰**（探针只写 `/tmp/wzf-probe`）。
+
+**✅ 已执行（2026-09-24，人工「按建议定级并实施」）**：DEF-47…DEF-53 全部收口 + D35 落地，
+全量 **746 用例 / 742 执行 / 0 失败 / 4 跳过** + detekt 0 + **编译警告 0**；`.deb` 桌面集成补丁已在线上 0.1.0 包实测、CI 已接线。
+**下一步（人工门）**：真机复验（D36 §6 B1–B8 / D35 §6 A1–A7）→ 批准发布 **0.1.1**（打 tag → CI 出包 → 建 Release；
+`CHANGELOG` 已含 0.1.1 节，**不回滚 0.1.0**）。Windows 安装包走查回执仍待人工，可与复验一并汇总。
 
 ---
 
@@ -1497,6 +1607,7 @@ user-guide / 签名公证；**产品宣传动画为 P7 必做项**，AGENTS.md �
 17. **桌面端技术栈 = Kotlin + Compose Desktop（2026-08-31，人工拍板）**：废弃 P2 原 Tauri 2 建议；脚手架可采官方 compose-multiplatform-desktop-template / KMP 向导；行情客户端须基于 CoinGecko/CoinMarketCap 真实 API；其余方案全面适配 Kotlin 栈（ADR-001 已按此重写）。
 18. **P2 技术方案拍板通过（2026-08-31，人工）**：① SQLCipher 驱动选型 = Willena/sqlite-jdbc-crypt，P3 三平台验证并锁版，失败回退自维护 JNI 绑官方 sqlcipher（回退路径随拍板确认）；② Flatpak 口径 = 本轮先 AppImage/.deb/.rpm，Flathub manifest 并行推进、P7 前评估是否为硬门槛；③ 任务优先级/顺序 = 按 F3 垂直切片依赖图（M4 引擎先行全绿黄金用例为硬前置）。ADR-001~006 全部转为「人工拍板采纳」；ADR-002 增补 Kotlin 亲和存储栈评审（Room KMP 无桌面端 SQLCipher、Realm 违反 SQLite 约束、SQLDelight 不降低驱动风险——均否决，维持现有方案）与加密严苛度评审（匹配定位；「记住我」令牌语义整改）。**P2 关闭，P3 解锁**。
 19. **开发环境工具链 = mise（2026-08-31，人工）**：开发基准 = WSL2 + Ubuntu 24.04；SDK 优先用已安装的 mise 管理——JDK 17 = `mise use java@temurin-17`（`.mise.toml` 入库）；Gradle 以仓库 Wrapper 为唯一真源（不装全局 gradle）；Kotlin 由 Gradle 插件驱动（不单独安装）；detekt/ktlint 等 CLI 同入 `.mise.toml`；CI 用 setup-java temurin-17 对齐；GUI 冒烟走 WSLg，托盘以三平台 runner + 实机验证为准。已写入 task-breakdown T0.2/T0.3。
+    **⚠️ 2026-09-24 人工修订（见下第 34 条）**：**mise 为「建议」而非硬性规定**；JDK **17 或 21 均可**用于本地开发；**发布/CI 基线维持 Temurin 17**。
 20. **GUI 共性约束（2026-09-04，人工验收确立）**：M2（密码弹窗）与 M5（Key 弹窗）同根缺陷（桌面端 Popup 无法可靠接收键盘输入）→ 固化 `AGENTS.md §7.3`：弹窗一律同窗口就地叠加（WzModal 已统一，禁 Popup 承载交互）、含输入框弹窗传 initialFocusRequester 聚焦首输入框、模块验收必须含 Compose UI 测试 performTextInput+assertIsFocused 与人工键盘录入复验。
 21. **V1.9 范围增补：正式「行情」页（2026-09-04，人工拍板）**：行情刷新后无查看途径（M5 验收反馈）→ 侧边栏第六页「行情」；只读现价列表 + **持久化自选**（settings 全局行 watch.coins，默认种子 = 稳定币白名单）；搜索 coins 目录添加、移除、手动/自动刷新；无图表/交易（Out of Scope 维持）。决策档 docs/dev/decisions/D21-行情浏览页-范围增量.md；ia.md 页面清单已同步（2.19）；PRD 正文只读不改。**下游回填（2026-09-04，变更控制流程确立后）**：data-model §2.3（watch.coins）、api-contracts §3（MarketWatch/Quotes 补录）、task-breakdown T5.6 + M12 页数 18→19、interaction §2.7（行情页异常态）；已登记 `docs/dev/增量台账.md`（级别 C1）。prototype 已补齐（2026-09-04：第六页 + verify 断言，M12 债提前还）。
 22. **变更控制流程（2026-09-04，人工拍板「全做」）**：PRD 锁定后的变更按 **C0 勘误 / C1 增量 / C2 大修改** 分级处置——C0 不建决策档不进台账；C1 = 决策档 + 台账登记 + 下游文档回写 + 代码（DoD 五件套）；C2 = mini-P0/P1/P2 闭环（升 C2 红线五条）。**有效需求 = PRD 定稿版 + `docs/dev/增量台账.md`**；固化为 `AGENTS.md §8`。
@@ -1572,9 +1683,26 @@ user-guide / 签名公证；**产品宣传动画为 P7 必做项**，AGENTS.md �
     装 DEF-43 修复版后 —— **TC-MAN-02 开机自启 ✅ / TC-MAN-11 便携版解压即用 ✅ / D34 A2·A5·A6 ✅**
     （macOS/Linux 便携包与自启随 P7 三平台实测）；留痕见 `manual-test-guide.md §19` 与 `defects.md §0.1 裁决 ⑬`。
 
+34. **JDK 口径与工具链建议（2026-09-24 人工指令「检查 java17 和 java21 的差异…mise 管理环境也是一种建议，不能上升到硬性规定」）**：
+    人工两条口径 = ① **JDK 17 与 21 均可**用于本项目（本地开发/构建）；② **mise 仅为建议**，不是硬性规定。
+    **Agent 结论 = 两条均可接受**，依据（只读核验）：`build.gradle.kts` 以 `jvmTarget = JVM_17` +
+    `sourceCompatibility/targetCompatibility = 17` + detekt `jvmTarget = 17` **显式锁定字节码级别**，与运行 Gradle 的 JDK 版本解耦；
+    Gradle 8.14.4 / Kotlin 2.4.10 / Compose 1.12 均支持在 JDK 21 上运行；CI 已有 **JDK 21 打包实验 job**
+    （`probe-jdk21-nonascii`，实测可产出并运行 app-image）。**边界**：JDK 必须 **≥17**（低于 17 无法编译）；
+    `jpackage` 随包运行时由**执行构建的 JDK** 生成（模块集显式列出，`jdk.accessibility` 在 17/21 均存在）；
+    **发布产物基线维持 Temurin 17**（CI 与已发布 0.1.0 的 SHA256 口径一致，自编译产物不与官方清单对齐）。
+    落盘：`docs/tech/dev-setup.md §1/§2` 与 `README.md` 已改为「17 或 21 均可 + mise 为可选建议」。
+    **修订第 19 条**（mise 由「明确要求」降为「建议」）；**非产品需求变更**，不进 `增量台账`、不建 D 档。
+
+35. **D35：成交币自动进入「行情」自选（2026-09-24 人工三问三答 · C1）**：① 用户手动删掉的币**下次触达自动加回**（不设排除集、**幂等不重复**）；② **取消自选数量上限**（原 50 条）；③ 手动交易与交易所同步**都生效**（CSV 导入同属手动路径一并生效）。实现 = 数据层窄接口 `TradedCoinSink`（默认 no-op）+ `AppBootstrap` 装配注入 `MarketWatchService::addCoins`；账本三处（新增/编辑/CSV 导入）与交易所同步一处触发；**失败隔离**（自选维护失败不影响交易落账与同步结果）。落盘：决策档 `D35-成交币自动进行情自选.md` + 台账 + 索引 + `task-breakdown **T12.9**` + `data-model §2.3` + `api-contracts §2/§3` + `ia §2.19` + `interaction §2.7` + 模块记录 M5/M6/M7。
+36. **D36：0.1.1 发布后验收修复批次（2026-09-24 人工「按建议定级并实施」· 4 项 C1 合并建档）**：DEF-48 托盘图标（安全边距 + 按宿主尺寸）/ DEF-49 托盘菜单四项 + 手动动作可见反馈（Linux 应用内提示窗）/ DEF-51 候选按**市值排名**排序 + 统一组件 `CoinSuggestionList` / DEF-52 主窗口图标 + Linux 桌面集成补齐（`StartupWMClass`/hicolor/`Categories`/缓存刷新，脚本 + CI 校验）。**随行 C0 三项不建档**：DEF-47 构建期 `DEV_UI` 开关、DEF-50 「打开主界面」置前、DEF-53 冗余 `?.` 与口径清理。落盘：决策档 `D36-0.1.1验收修复批次.md` + 台账 + 索引 + `T12.9` + `design-tokens §5` + `interaction §2.7` + `ADR-006 §1.1.1` + `data-model`/`api-contracts` + 模块记录 M3/M5/M6/M7/M8/M11/M12/M13 + `CHANGELOG`（0.1.1 未发布节）。
+
 ## 当前阻塞点
 
-- **无阻塞 —— P6 已关闭，P7 已解锁（2026-09-21）**。P6 关闭依据：DoD 三项全部达成
+- **无阻塞 —— P6 已关闭（2026-09-21）；P7 已发布 v0.1.0，0.1.1 修复轮实施完成（2026-09-24），待人工复验与发布批准。**
+  本轮**未改任何数据模型/加密/备份格式/出站白名单**（`security-checklist.md` 的五条硬约束结论不受影响）；
+  改动集中在展示层（候选检索/托盘/图标）、打包后处理与一处新增行为（D35 自选自动加入）。
+- ~~**无阻塞 —— P6 已关闭，P7 已解锁（2026-09-21）**。~~P6 关闭依据：DoD 三项全部达成
   （**P0/P1 清零 ✅**（DEF-42/DEF-43 于第十一轮人工复验闭环）+ **P2 明确处理结论 ✅** + **`security-checklist.md` 全部通过 ✅**）
   + 人工门用例判定通过 **10/11**（关闭时 9/11；同日第十一轮续补 **TC-MAN-01 托盘走查 Windows 侧 ✅**；
   其余通过项 = TC-MAN-02 / 03 / 04 / 05 / 06 / 07 / 08 / 10 / 11）。
@@ -1585,14 +1713,16 @@ user-guide / 签名公证；**产品宣传动画为 P7 必做项**，AGENTS.md �
   ② **TC-MAN-09 出站抓包 + 权限实证**（Ubuntu：`scripts/outbound-capture-proxy.py` 实测主机集合 ⊆
   {api.coingecko.com, pro-api.coinmarketcap.com, api.binance.com}；数据目录 700 / `master.key`·`device.key`·`.db` 600；
   判据 `security-checklist.md §8-4`；Agent 侧已有等效运行期抓包证据 —— 见 `test-report.md §5.2`）。
-- **P7 状态（2026-09-22）**：**进行中 —— 材料与动画全部产出，无阻塞，仅剩发布人工门**：
-  **待人工**：① **批准发布**（打 tag → 触发 CI 三平台出包 → 建 Release）；② release-plan §9 剩余 3 项裁决
-  （发布号口径 / 携带项 ⑤ 的 jlink 与字体子集化「维持现状」/ Linux 托盘与开机自启真机补测）。
-  **已裁决 2 项**：**动画方向 = A · 账簿 The Ledger**；**签名路径 = 先发未签名 0.1.0，证书到位后随 0.1.1 起签名**。
-  已完成：`docs/release/` 五份材料齐备；**产品宣传动画成品**（MP4 30 s/60 fps/带 BGM+SFX + GIF）；
+- **P7 状态（更新至 2026-09-24）**：**进行中 —— 发布已完成（v0.1.0 上线），当前无阻塞，仅剩「发布后验收收口」**：
+  **待人工**：① **拍板本轮验收项分级**（DEF-48…DEF-52 + 1 项增量提案，Agent 已给建议，见「P7 发布后人工验收（Linux 真机）」）；
+  ② **Windows 安装包走查回执**（把问题一并汇总）；③ 拍板后 Agent 一次性实施 → 出 **0.1.1**。
+  **已裁决（2026-09-22 全部落地）**：发布范围 = Windows + Linux、发布号 0.1.0、携带项 ⑤ 维持现状、
+  动画方向 = A · 账簿、**签名策略 = 不签名（预算 0，macOS 不发包）**、Linux 托盘/自启补测放发布后。
+  已完成：`docs/release/` 材料 + `certificate-procurement.md` 齐备；**产品宣传动画成品**（MP4 30 s/60 fps/带 BGM+SFX + GIF）；
   **TC-MAN-09 抓包与权限实证 ✅ 闭环**（GUI 会话仅 `api.coingecko.com`；live smoke 恰好三白名单主机；目录 700 / 密钥与库 600）；
   Linux 便携版与托盘降级分支 ✅ 实证；GPG 签名脚本 ✅ 实测；**应用图标 ✅ 定稿并接入三平台打包**；
-  本机 Linux 三产物（deb / AppImage / 便携版）已重构建并记录 SHA256；**零产品代码改动**（P6 718 用例结论继续有效）。
+  **v0.1.0 已发布**（7 产物 + SHA256SUMS，发布后校验 OK）；**Linux 真机验收已回执**（10 条 → DEF-48…DEF-52 + 提案）。
+  **P6 718 用例结论**在「零产品代码改动」期间继续有效；**0.1.1 一旦动代码即需全量复跑**。
 - **P6 裁决 5 项 = 已落地**（2026-09-14「5项都按建议来处理」）：① 隐私最小化接受现状（P7 用户指南/隐私声明）；
   ② DEF-03 补做（C1 · **D30** + T12.5 + 原型）；③ DEF-04 登记 P8；④ DEF-05 C0 文档澄清已回写；⑤ DEF-01/02/06 确认 C0。
 - **P6 门须人工执行的用例**（`test-cases.md §7`，**已判通过 10/11**）：~~真实桌面托盘走查~~（✅ **Windows 2026-09-21**；Linux/macOS → P7 携带）/
@@ -1602,15 +1732,16 @@ user-guide / 签名公证；**产品宣传动画为 P7 必做项**，AGENTS.md �
 - **P6 已闭环的开放项**（原「P6 启动须携带」9 项）：② `.cpro` 大载荷内存曲线 ✅ · ③ 隐私最小化评估 ✅（已裁决接受）·
   ⑤ settings 键命名空间 + 登出 tick ✅ · ⑥ 出站抓包（Agent 侧）✅ · ⑧ 安全清单复跑 ✅ · ⑨ P5-4 导出失败模式 ✅；
   ①（托盘）④（读屏）—— **读屏 ✅ 已判通过（TC-MAN-03）**，**托盘 → P7 携带（TC-MAN-01）**；⑦真实 Key ✅ 已判通过（TC-MAN-07）。
-- **P7 携带项（完整清单；到期检查点 = P7 发布前，未到点前不得视为已完成）**：
-  ① ~~TC-MAN-01 托盘走查正式判定（Windows）~~ → ✅ 2026-09-21 判定通过；**剩余 = Linux / macOS 托盘实测**
-  （GNOME 需 AppIndicator 扩展；无宿主时验证降级分支；DoD = `M11 §5-3`）；
-  ② **TC-MAN-09 出站抓包 + 权限实证**（Ubuntu；判据 `security-checklist.md §8-4`）；
-  ③ macOS / Linux 便携包与打包版开机自启实测（Windows 侧已 ✅ 2026-09-21）；
-  ④ `user-guide.md` 增「安装/解压路径请使用纯英文（ASCII）目录」与便携版说明（默认安装路径已为 `C:\Program Files\WuZhuFolio`，
-  无需干预）+「备份文件密码强度 = 凭证保护强度」+ 隐私声明（行情请求仅发送币种标识、不含金额与交易）；
-  ⑤ 签名/公证合规实证 + Linux 包 GPG 签名 + 证书采购（ADR-006 §2.1）；⑥ 托盘/打包图标、jlink 裁剪与字体子集化；
-  ⑦ 发布产物 SHA256 / CHANGELOG；⑧ **P7 产品宣传动画（必做项）**。
+- **P7 携带项（完整清单；到期检查点 = P7 发布前，未到点前不得视为已完成）——收口状态更新至 2026-09-24**：
+  ① ~~TC-MAN-01 托盘走查正式判定（Windows）~~ → ✅ 2026-09-21 判定通过；**Linux 侧 2026-09-24 已实测并回执**
+  （托盘**可用但存在 5 项问题** → DEF-48/49/50/52 等，GNOME 需 AppIndicator 扩展；无宿主降级分支已实证；DoD = `M11 §5-3`）；
+  **macOS 仍不适用**（本轮不发布 macOS，人工无 macOS 环境）；
+  ② ~~**TC-MAN-09 出站抓包 + 权限实证**~~ → ✅ **2026-09-22 实跑闭环**（判据 `security-checklist.md §8-4`）；
+  ③ macOS / Linux 便携包与打包版开机自启实测（Windows 侧 ✅ 2026-09-21；**Linux 便携版启动 ✅ 2026-09-24**，自启项待在 0.1.1 复验中一并确认）；
+  ④ ✅ `user-guide.md` 两条强制提示 + 隐私声明（已交付）；
+  ⑤ ✅ 签名/公证口径已收口（**人工拍板不签名**，`certificate-procurement.md §0`）+ Linux GPG 脚本已交付实测；
+  ⑥ ⏳ **托盘/打包图标**：打包图标 ✅ 已接入，但**托盘图标仍为程序化占位**且 Ubuntu 图标显示异常 → **DEF-48 / DEF-52 待修**（jlink 裁剪与字体子集化按拍板维持现状）；
+  ⑦ ✅ 发布产物 SHA256 / CHANGELOG；⑧ ✅ **P7 产品宣传动画**（A · 账簿，MP4 + GIF 已交付）。
 - **P8 立项输入（人工裁决 2026-09-16）**：**彻底消除 jpackage 启动器的非 ASCII 路径限制**（DEF-42 上游行为）——候选方案：自建启动器/自定义 WiX、跟踪上游修复升级打包 JDK、便携包内批处理兜底；当前由 D34 缓解。
 - **测试关注点（P6 结论，供 P7/P8 引用）**：缺价币不计入净值（已修自动补价 + 显式提示）；负持仓币市值排除（D29 + interaction §2.8）；
   稳定币 1:1 与白名单扩展项市价折算（D27/D28）；启动时自动同步与首启目录就绪；**UI 展示层 87 条 🟡 由人工走查覆盖**。
@@ -1782,3 +1913,9 @@ user-guide / 签名公证；**产品宣传动画为 P7 必做项**，AGENTS.md �
 | 2026-09-22 | Agent | **✅ 执行发布：v0.1.0 已上线（Windows + Linux）** | ① 范围收敛落档：release-plan §1/§2/§3/§5/§6/§7/§9 + `CHANGELOG`（+ 未签名与 macOS 不发布声明）+ `user-guide`（系统要求/安装/版本信息三处）全部改写为 **Windows + Linux 首发**；② **证书采购决策材料交付** `docs/release/certificate-procurement.md`（Windows 五路径：SignPath Foundation 免费 OSS / OV+云签名 ≈￥2,200–3,700 每年 / EV 不建议（2024 起不再免 SmartScreen）/ Azure 受信任签名个人仅限美加**不可用** / Microsoft Store MSIX 免费免提示；macOS $99 每年；Linux GPG 0 元已就绪 + 4 个待用户回答的问题）；③ **提交并推送**（`dde53cb`、`620146e`）→ **CI run [35696556247](https://github.com/mapleafly/wuzhufolio/actions/runs/35696556247) 六 job 全绿**；④ 下载 Windows/Linux 产物并**与本机及 CI 记录逐条交叉核对 SHA256（7/7 一致）** → 打 tag `v0.1.0` → **发布 GitHub Release**（7 产物 + `SHA256SUMS`，无 macOS/无调试件）；⑤ **发布后验证**：从公开页面下载 `SHA256SUMS` + `.deb` → `sha256sum -c` **OK**。**P7 待人工关闭**（Linux 真机补测 / Windows 安装包验收 / 证书采购决策）。 |
 | 2026-09-22 | 人 | **签名与平台策略拍板（四项）** | 原话「① **windows 不签名** ② **macos 暂不提供 Release，有需要的可以自己编译** ③ **预算：0** ④ **不做 Microsoft Store 渠道**」——据此 P7 的「产物签名合规」以**不签名**方式收口（Windows/Linux 未签名 + SHA256SUMS；macOS 仅源码）。 |
 | 2026-09-22 | Agent | **四项拍板落地 + 线上发布说明更正** | ① `certificate-procurement.md` 增 **§0 拍板结论**（含 4 条复评触发条件：用户因提示放弃安装 / 企业分发要求 / 明确要 macOS 包 / 获得预算）；② **`user-guide.md`**：macOS 段改为「不提供官方发行包 + 完整自编译步骤（brew temurin@17 → clone → `:app:packageDmg` → 右键打开放行）」，系统要求表/版本信息表/文首同步，**新增 FAQ §10.9** Windows SmartScreen 放行与 `certutil` 校验；③ **`CHANGELOG.md`** 两处「随后续版本提供/证书到位后签名」表述改为既定选择；④ **更正已上线的 Release 说明**（`gh release edit v0.1.0`）——顶部改为「macOS 不提供发行包（可自行编译）」+「本版未签名是既定选择」，并补 `certutil` 校验命令；⑤ `release-plan §7-④/§8/§9` 与 `README.md`（macOS 自编译指引）同步。**产品代码零改动**。 |
+| 2026-09-24 | 人 | **Linux 真机验收回执（10 条）+ 两项口径指令** | 原话要点：① 托盘图标显示不全；② 托盘「立即同步」像只开窗口、无「刷新行情」项；③ 「打开界面」能否把窗口提到最前；④ 交易表单计价币/交易对只出 6 条且真 USDT 不显示；⑤ 成交币能否自动进入行情自选；⑥ Ubuntu 状态栏图标是通用齿轮（能否与托盘/桌面图标统一）；⑦ 检查 JDK 17/21 差异（mise 只是建议，不能硬性规定）；⑧⑨⑩ 资金四窗与行情搜索的候选排序/滚动统一按 rank。**并指示**：巡检中发现的文档不一致「按你的建议修改」。 |
+| 2026-09-24 | Agent | **Linux 验收回执只读定位 + 分级提案 + 文档一致性收口** | ① **零产品代码改动**（遵守 `AGENTS.md §8.4`：先提报后实施）；② 逐条只读定位并登记 **DEF-48…DEF-52**（含 `.deb` 解包实证：图标未进 hicolor 主题、`postinst` 无缓存刷新、`Categories=Unknown`）+ **1 项增量提案**（成交币自动进行情自选，D35 候选）+ **1 项口径**（JDK 17/21 均可、mise 为建议）；分级建议表见「P7 发布后人工验收（Linux 真机）」与 `defects.md §2.2`；③ **文档一致性按人工指令修订**：STATUS 待关闭项 3→2、P7 小节遗留问题加「启动时快照」注、P3 小节标题 ⏳→✅、下一人工门改为「发布后验收收口门」、P7 状态/携带项/阻塞点按 2026-09-24 事实更新、`signing-notarization.md §1` 与 `certificate-procurement.md` 背景段按最终拍板（不签名）订正、台账 D34 行产物落地口径订正、`dev-setup.md`/`README.md` 改「JDK 17 或 21 均可 + mise 为建议」、新增已决策事项 **34**（修订第 19 条）；④ 交付物：本轮分级提案 + 实施清单，**停在人工门等拍板**。 |
+| 2026-09-24 | 人 | **拍板「按建议定级并实施」+ D35 三口径** | ① 同意 Agent 对 DEF-48…DEF-52 的分级建议（C1×4 + C0×1，另 DEF-47/50/53 为 C0）；② D35 三问三答：**删掉的币下次同步要再自动加回**（注意不能重复）／**不要限制自选上限**／**手动交易与交易所同步都生效**。 |
+| 2026-09-24 | Agent | **0.1.1 修复轮实施完成（停人工门）** | ① **DEF-47** 构建期 `DEV_UI` 开关（`BuildInfo.DEV_UI` → `LocalDevUi` → 侧边栏/焦点序；`ShellUiTest` 两分支 + `KeyboardA11yUiTest` 6+3）；② **DEF-48** `TrayIcon` 安全边距 8% + 按 AWT 宿主尺寸出图（`TrayIconTest` 3 例）；③ **DEF-49** 托盘四项 + `NoticeDelivery`（Linux 应用内提示窗 `DesktopToastWindow`/`TrayNoticeCard`，Win/mac 原生气泡）+ 手动动作开始/结果文案（`TrayMenuContentUiTest` 四项、`NoticeDeliveryTest`、`DesktopNoticeTextTest` +5）；④ **DEF-50** `showWindow()` 置前取焦；⑤ **DEF-51** `SqlCoinCatalog.search` 插入**市值排名** + `PinnedCoinSearch`（资金/交易共用）+ 统一组件 `CoinSuggestionList`（20 条可滚、行含 cg_id）——真实 CoinGecko 目录验证四个查询全部回到第 1 位（`SqlCoinCatalogTest` +2、`PinnedCoinSearchTest` 6、`TransactionsPageUiTest` +1）；⑥ **D35** `TradedCoinSink` + 账本三处与同步一处触发（`MarketWatchServicesTest` +4、核心旅程集成用例加自选断言）；⑦ **DEF-52** 窗口图标 + `scripts/patch-linux-desktop-integration.sh`（**线上 0.1.0 `.deb` 实测**：三字段 + 8 档 hicolor 图标 + postinst 缓存刷新）+ CI 接线校验；⑧ **DEF-53** 冗余 `?.` 清理 → **0 警告**。全量：**746 用例 / 742 执行 / 0 失败 / 4 跳过 + detekt 0**。文档：D35/D36 + 台账 + 索引 + T12.9 + design/tech 回写 + 模块记录 M3/M5/M6/M7/M8/M11/M12/M13 + `CHANGELOG` 0.1.1 节 + `defects.md §2.3`。**未改数据模型/加密/备份格式/出站白名单**；**停人工门待复验与发布批准**。 |
+| 2026-09-25 | 人 | **0.1.1 人工复验通过** | 原话「**托盘功能通过，windows走查通过**」——① **托盘功能（Ubuntu 24.04 真机）**：图标完整显示（DEF-48 二轮修复生效）、菜单四项、点选可见反馈、打开界面置前；② **Windows 走查**：无组件走查项（DEF-47）、托盘菜单与气泡反馈（DEF-49）、候选查 usdt 首屏 Tether 且可滚动（DEF-51）、窗口/任务栏图标为应用图标（DEF-52①）。据此 **D36 §6 B1–B8 与 D35 §6 A1–A7 的可人工判定部分全部通过**；**0.1.1 待人工批准发布**。 |
+| 2026-09-25 | Agent | **复验结果落盘 + 发布前状态收口** | ① `defects.md`：§0 汇总改「已修复 + 人工复验通过」、DEF-48 增人工复验行、**新增 §2.4「0.1.1 人工复验结论」**（验收面/覆盖项/结论 + 发布下一步）；② `manual-test-guide.md` **新增 §20「0.1.1 修复轮人工复验结果」**（含两轮修复背景与取证图索引）；③ STATUS：当前阶段改「实施完成 + 复验通过，待人工批准发布」+ 交接记录两行。**本轮未改任何代码**；全量回归维持 **748 用例 / 744 执行 / 0 失败 / 4 跳过 + detekt 0 + 编译警告 0**。 |

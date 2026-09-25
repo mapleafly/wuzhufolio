@@ -30,12 +30,10 @@ class UiPreferenceState(
     /** 偏好键 → 状态更新（与 `ShellViewModel.onPreferenceChange` 的键一致）。 */
     fun apply(key: String, value: String) {
         when (key) {
-            THEME_KEY -> ThemeMode.fromStorage(value)?.let { mode ->
-                _state.update { it.copy(theme = mode) }
-            }
-            PNL_SCHEME_KEY -> PnlColorScheme.fromStorage(value)?.let { scheme ->
-                _state.update { it.copy(pnlScheme = scheme) }
-            }
+            // 注：fromStorage 返回**非空**（未知值回落 LIGHT/GREEN_UP），故不用 `?.let`
+            // ——DEF-53：此处原有冗余安全调用，编译期警告「Unnecessary safe call」。
+            THEME_KEY -> _state.update { it.copy(theme = ThemeMode.fromStorage(value)) }
+            PNL_SCHEME_KEY -> _state.update { it.copy(pnlScheme = PnlColorScheme.fromStorage(value)) }
             LANGUAGE_KEY -> {
                 _state.update { it.copy(language = AppLanguage.fromStorage(value)) }
             }

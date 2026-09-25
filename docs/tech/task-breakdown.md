@@ -232,6 +232,20 @@ flowchart LR
   **回溯**：PRD §12、ADR-006 §1/§1.1、决策档 **D34**、`defects.md` DEF-42、`manual-test-guide.md §16`/§19。
 
 
+- **T12.9 0.1.1 发布后验收修复轮（D35/D36，2026-09-24 人工拍板「按建议定级并实施」）**：三组内容 ——
+  ① **D35 成交币自动进入行情自选**：数据层窄接口 `TradedCoinSink` + 装配注入；手动交易/编辑、CSV 导入、交易所同步
+  三路触发；**幂等**（重复不写、顺序不变）、**删掉后下次触达自动加回**、**取消自选 50 条上限**；自选写入失败不影响交易落账。
+  ② **D36 四项展示层/分发层修复**：DEF-48 托盘图标（透明安全边距 + 按 AWT 宿主尺寸出图 + 与打包图标同源几何）；
+  DEF-49 托盘菜单四项（打开主界面 / 立即同步交易 / 立即刷新行情 / 退出）+ 手动动作的**开始/结果可见反馈**
+  （Linux 应用内提示窗 `DesktopToastWindow`，Win/mac 保持原生气泡）；DEF-51 候选检索排序插入**市值排名** +
+  统一候选组件 `CoinSuggestionList`（20 条、可滚动、行含 cg_id；交易/资金/校准/行情四处一致）+
+  交易路径默认币置顶；DEF-52 主窗口图标（`_NET_WM_ICON`）+ Linux 桌面集成补齐
+  （`scripts/patch-linux-desktop-integration.sh`：`StartupWMClass` / hicolor 图标 / `Categories` / 缓存刷新，CI 已接线并校验）。
+  ③ **随行 C0 三项**（不建档）：DEF-47 构建期 `DEV_UI` 开关（正式构建隐藏组件走查页）、DEF-50 托盘「打开主界面」置前、DEF-53 冗余 `?.` 与用例/警告口径清理。
+  **验收**：见 D35 §6 A1–A7、D36 §6 B1–B8（含 `SqlCoinCatalogTest` 排名用例、`PinnedCoinSearchTest`、
+  `TransactionsPageUiTest` 候选可滚动、`TrayMenuContentUiTest` 四项、`TrayIconTest` 安全边距、
+  `NoticeDeliveryTest` 投递通道、核心旅程集成用例的自选断言）。回溯：人工验收回执（`defects.md §2.2`）、D35、D36、PRD §9.7/§9.8/§12。
+
 ## 4. 里程碑验收门槛
 
 | 里程碑 | 门槛（DoD 前置） |

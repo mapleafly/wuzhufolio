@@ -124,11 +124,7 @@ class MarketWatchViewModel(
         scope.launch {
             runCatching { watchService.addCoin(cgId) }
                 .onSuccess { clearSearch(); reloadAll() }
-                .onFailure { error ->
-                    // 自选上限（interaction.md §2.7「自选已达上限（50）」）：数据层以 require 抛出，
-                    // 消息前缀见 WATCH_FULL_PREFIX；其余失败沿用异常文本 / 通用兜底文案。
-                    toast(WzToastKind.Failure, addFailureText(error))
-                }
+                .onFailure { error -> toast(WzToastKind.Failure, addFailureText(error)) }
         }
     }
 
@@ -137,20 +133,13 @@ class MarketWatchViewModel(
         toast(WzToastKind.Failure, error.message ?: MarketCopy.WATCH_NO_RESULT)
     }
 
-    /** 添加失败文案：自选已满 → 上限提示；其余 → 异常文本或通用兜底。 */
-    private fun addFailureText(error: Throwable): String = if (error.isWatchListFull()) {
-        MarketCopy.watchLimitReached(MarketWatchService.WATCH_LIMIT)
-    } else {
-        error.message ?: MarketCopy.ADD_FAILED
-    }
-
     /**
-     * 自选已满判定：数据层 `require(size < WATCH_LIMIT)` 抛 [IllegalArgumentException]，消息以
-     * [WATCH_FULL_PREFIX] 开头。此处只做**判定**、不展示原文（若要摆脱消息耦合，需领域/数据层
-     * 引入类型化错误——超出本模块文件范围，登记为遗留）。
+     * 添加失败文案：异常文本或通用兜底。
+     *
+     * 注：**自选数量上限已取消**（D35，2026-09-24 人工口径），故「自选已满」分支随之移除；
+     * 数据层不再因数量抛 [IllegalArgumentException]。
      */
-    private fun Throwable.isWatchListFull(): Boolean =
-        this is IllegalArgumentException && message?.startsWith(WATCH_FULL_PREFIX) == true
+    private fun addFailureText(error: Throwable): String = error.message ?: MarketCopy.ADD_FAILED
 
     fun removeCoin(cgId: String) {
         scope.launch {
@@ -228,8 +217,5 @@ class MarketWatchViewModel(
     private companion object {
         /** 候选浮层上限（走查反馈：原 8 条偏少且不可滚动；浮层可滚动，放宽到 20）。 */
         const val CANDIDATE_LIMIT: Int = 20
-
-        /** 数据层自选已满的 `require` 消息前缀（data/market/MarketWatchServices，英文内部协议串，不展示）。 */
-        const val WATCH_FULL_PREFIX = "watch list is full"
     }
 }

@@ -44,6 +44,7 @@ import com.wuzhufolio.data.market.DeviceSecretStore
 import com.wuzhufolio.data.market.PriceSnapshotRepository
 import com.wuzhufolio.data.market.RefreshableRankProvider
 import com.wuzhufolio.data.market.SettingsMarketWatchService
+import com.wuzhufolio.data.market.TradedCoinSink
 import com.wuzhufolio.data.market.SettingsQuotaLedger
 import com.wuzhufolio.data.market.SnapshotMarketQuotesService
 import com.wuzhufolio.data.market.newOkHttpMarketClient
@@ -568,6 +569,9 @@ object AppBootstrap {
                 }
                 val apiKeyRepository = ApiKeyRepository(gate)
                 val syncLogRepository = SyncLogRepository(gate)
+                // D35：同步新增的成交币 → 行情自选（SettingsMarketWatchService 无状态：读/写 settings 全局行，
+                // 与行情页实例行为等价；此处独立实例避免为「展示偏好」反向穿透服务边界）
+                val watchAutoAdd: MarketWatchService = SettingsMarketWatchService(settings, catalog)
                 val syncService: ExchangeSyncService = DefaultExchangeSyncService(
                     sessions = sessions,
                     crypto = CryptoService(),
@@ -578,6 +582,7 @@ object AppBootstrap {
                     settings = settings,
                     adapterFactory = adapterFactory,
                     rankWarmUp = rankWarmUp,
+                    tradedCoins = TradedCoinSink { ids -> watchAutoAdd.addCoins(ids) },
                     logger = logger,
                 )
                 return ExchangeServicesBundle(
@@ -628,6 +633,8 @@ object AppBootstrap {
                 // 「可用现金」口径（PortfolioCalculator / 资金总览），两者不再混用
                 val eventBuilder = TransactionEventBuilder(catalog, snapshots)
                 val assembler = LedgerEventAssembler(catalog, eventBuilder)
+                // D35：手动记录/编辑/CSV 导入的成交币 → 行情自选（同交易所侧口径，见上）
+                val watchAutoAdd: MarketWatchService = SettingsMarketWatchService(settings, catalog)
                 val service: TransactionLedgerService = DefaultTransactionLedgerService(
                     sessions = sessions,
                     repository = txRepository,
@@ -639,6 +646,7 @@ object AppBootstrap {
                     parser = CsvTradeParser(catalog),
                     eventBuilder = eventBuilder,
                     assembler = assembler,
+                    tradedCoins = TradedCoinSink { ids -> watchAutoAdd.addCoins(ids) },
                 )
 
                 return LedgerServicesBundle(

@@ -34,6 +34,25 @@
 
 ---
 
+### 1.2 0.1.1 补丁版发布口径（2026-09-25 人工批准发布）
+
+首个补丁版：修复 0.1.0 发布后人工验收暴露的问题 + 人工批准的增量（详见 `CHANGELOG.md` 的 `[0.1.1]` 节、
+分级与影响面见 `docs/dev/decisions/D35-*.md` / `D36-*.md`）。与 0.1.0 的差异：
+
+| 项 | 0.1.0 | **0.1.1** |
+|----|-------|-----------|
+| 版本号 | 0.1.0 | **0.1.1**（`appVersion` 单一真源） |
+| Git tag / Release 标题 | `v0.1.0` / `WuZhuFolio 0.1.0` | **`v0.1.1` / `WuZhuFolio 0.1.1`** |
+| 产物文件名 | `WuZhuFolio-0.1.0.msi` 等 | **`WuZhuFolio-0.1.1.msi` / `wuzhufolio_0.1.1-1_amd64.deb` / …** |
+| 平台范围 | Windows + Linux（macOS 不发布） | **同左**（macOS 仍不发布发行包） |
+| 签名 | 未签名（既定选择，预算 0） | **同左**（未签名 + `SHA256SUMS`） |
+| 新增发布步骤 | —— | **Linux 桌面集成补齐**（§4.1.1，CI 自动执行并校验） |
+| 数据兼容 | —— | **schema 未变（12）**：可直接覆盖安装，数据目录与 `.cpro` 备份格式均不变 |
+| 校验和 | 本机 + CI 双向核对 | **同左**（发布前逐条交叉核对，发布后从公开页面下载复核） |
+
+> §3 的发布前检查清单、§4 构建步骤、§5 发布步骤、§6 发布后验证**同样适用于 0.1.1**，
+> 只需把其中的 `0.1.0` / `v0.1.0` 替换为 `0.1.1` / `v0.1.1`。
+
 ## 2. 版本号与产物命名口径
 
 - **应用版本 = 0.1.0**：`.cpro` 备份头部 `app_version`、应用内「关于」页、诊断报告三处同源（构建期由 `BuildInfo` 注入），不得手改。
@@ -118,6 +137,19 @@ find app/build/compose/binaries/main \( -name '*.deb' -o -name '*.rpm' -o -name 
 ```
 
 **本机实测记录（2026-09-22，WSL2 Ubuntu 24.04 + temurin-17.0.20）**：`createDistributable` + `packageDeb` 构建成功（57 s）；`scripts/package-appimage.sh` 成功；便携版 tar.gz 生成成功；三者 SHA256 见 §7.2。
+
+### 4.1.1 Linux 桌面集成补齐（D36 / DEF-52，CI 已自动执行）
+
+`jpackage` 直接产出的 `.deb` 有两处桌面集成缺口（图标不在主题、桌面条目无 `StartupWMClass`/分类、安装后不刷缓存），
+现由 **CI 的 Linux package job 自动补齐并校验**（脚本 `scripts/patch-linux-desktop-integration.sh`）：
+
+```bash
+# CI 中自动执行（本地复现同样适用）：
+scripts/patch-linux-desktop-integration.sh app/build/compose/binaries/main/deb/*.deb
+# 校验：桌面条目三字段 + hicolor 512 图标
+dpkg-deb --fsys-tarfile <deb> | tar -xO ./opt/*/lib/*.desktop | grep -E '^(Icon|Categories|StartupWMClass)='
+```
+**rpm / AppImage 的同类补齐未纳入**（本机无 rpmbuild；AppImage 无桌面条目）→ 登记 P8。
 
 ### 4.2 CI 三平台出包（正式发布件的唯一来源）
 

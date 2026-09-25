@@ -7,12 +7,14 @@
 - **加密**：SQLCipher 整库加密 + 分层密钥（DEK/KEK）+ AES-256-GCM + Argon2id（M1 起，ADR-002）。
 - **开源**：AGPL-3.0（决策 D1），GitHub Releases 分发。
 
-> 当前阶段：**P3 工程脚手架（M0）**。技术栈 Kotlin + Compose Desktop（ADR-001）。
+> 当前阶段：**P7 发布 —— v0.1.0 已发布（Windows + Linux，2026-09-22）**，处于发布后验收与 0.1.1 修复轮。
+> 技术栈 Kotlin + Compose Desktop（ADR-001）。
 > 需求基线见 `docs/prd/`，技术方案见 `docs/tech/`，流水线与状态看板见 `AGENTS.md` / `docs/dev/STATUS.md`。
 
 ## 环境要求
 
-- JDK 17（推荐 mise 管理：`mise install`，见 `.mise.toml`）
+- **JDK 17 或 21**（任一即可；发布/CI 基线为 Temurin 17，自编译产物请自行核对）
+  - 用 mise 管理 JDK 是**可选建议**（`mise install`，见 `.mise.toml`），直接用系统/发行版 JDK 亦可
 - Gradle 无需安装：以仓库 Wrapper 为唯一真源（`./gradlew`，8.14.4）
 - 本地开发环境搭建详见 `docs/tech/dev-setup.md`
 

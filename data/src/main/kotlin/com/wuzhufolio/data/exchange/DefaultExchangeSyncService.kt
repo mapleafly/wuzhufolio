@@ -20,6 +20,7 @@ import com.wuzhufolio.domain.exchange.ExchangeSyncPolicy
 import com.wuzhufolio.domain.exchange.ExchangeSyncService
 import com.wuzhufolio.domain.exchange.PairInfo
 import com.wuzhufolio.domain.exchange.SyncLogRow
+import com.wuzhufolio.data.market.TradedCoinSink
 import com.wuzhufolio.domain.exchange.SyncStatus
 import com.wuzhufolio.domain.exchange.ExchangeTrade
 import com.wuzhufolio.domain.security.CryptoService
@@ -61,6 +62,11 @@ class DefaultExchangeSyncService(
     private val adapterFactory: (ExchangeCredentials) -> ExchangeAdapter,
     /** M6 二轮：歧义消歧规则③输入的市值榜预热回调（AppBootstrap 接行情编排实现；测试可空）。 */
     private val rankWarmUp: (suspend () -> Unit)? = null,
+    /**
+     * **D35**：本次同步**新增落库**的成交币 → 行情自选（默认 no-op；装配层注入 `MarketWatchService::addCoins`）。
+     * 失败不影响同步结果（调用点 runCatching）。
+     */
+    private val tradedCoins: TradedCoinSink = TradedCoinSink.NONE,
     private val logger: Logger = LoggerFactory.getLogger(DefaultExchangeSyncService::class.java),
 ) : ExchangeSyncService {
 
@@ -249,6 +255,12 @@ class DefaultExchangeSyncService(
                 logger.warn("sync unresolved samples (key={}): {}", record.id, tally.unresolvedSamples)
             }
 
+            // D35：本轮新增成交的币 → 行情自选（幂等；失败不影响同步结果与计数）
+            if (tally.tradedCoins.isNotEmpty()) {
+                runCatching { tradedCoins.accept(tally.tradedCoins) }
+                    .onFailure { t -> logger.debug("watch auto-add skipped ({})", t.javaClass.simpleName) }
+            }
+
             if (status == SyncStatus.OK) {
                 apiKeyRepository.updateSyncState(accountId, record.id, at, SyncStatus.OK.storageValue)
                 syncLogRepository.append(accountId, record.id, SyncStatus.OK, tally.newTrades,
@@ -307,8 +319,13 @@ class DefaultExchangeSyncService(
                     tally.noteUnresolvedSample(resolved.reason)
                 }
                 is RowResolution.Ok ->
-                    if (transactionsRepository.insertIfAbsent(resolved.row)) tally.newTrades++
-                    else tally.duplicates++
+                    if (transactionsRepository.insertIfAbsent(resolved.row)) {
+                        tally.newTrades++
+                        // D35：新落库的成交币自动进入行情自选（幂等；失败不影响同步）
+                        tally.addCoins(listOf(resolved.baseCgId, resolved.quoteCgId))
+                    } else {
+                        tally.duplicates++
+                    }
             }
         }
         return SymbolOutcome(tally)
@@ -333,7 +350,7 @@ class DefaultExchangeSyncService(
 
     /** 单笔成交解析结果：可入账行，或跳过原因（未收录/歧义/退化对——二轮诊断上浮）。 */
     private sealed interface RowResolution {
-        data class Ok(val row: ImportedTradeRow) : RowResolution
+        data class Ok(val row: ImportedTradeRow, val baseCgId: String, val quoteCgId: String) : RowResolution
         data class Skipped(val reason: String) : RowResolution
     }
 
@@ -359,7 +376,9 @@ class DefaultExchangeSyncService(
             return RowResolution.Skipped(pairInfo.symbol + "：退化对（两腿同币种）")
         }
         return RowResolution.Ok(
-            ImportedTradeRow(
+            baseCgId = baseCoin.cgId,
+            quoteCgId = quoteCoin.cgId,
+            row = ImportedTradeRow(
                 accountId = accountId,
                 exchange = exchange,
                 exchangeOrderId = trade.id.toString(),
@@ -441,6 +460,15 @@ private class SyncTally {
     var firstError: ExchangeError? = null
     private val unresolvedSampleList: MutableList<String> = mutableListOf()
 
+    /** D35：本轮新增成交涉及的币（LinkedHashSet 去重保序）。 */
+    private val tradedCoinIds: MutableSet<String> = LinkedHashSet()
+
+    val tradedCoins: Set<String> get() = tradedCoinIds
+
+    fun addCoins(ids: Collection<String>) {
+        tradedCoinIds += ids
+    }
+
     /** 未解析样本（前 3 条，含交易对与原因——二轮诊断上浮，message 展示首条）。 */
     val unresolvedSamples: List<String> get() = unresolvedSampleList.toList()
 
@@ -454,6 +482,7 @@ private class SyncTally {
         unresolved += other.unresolved
         fetchFailed += other.fetchFailed
         if (firstError == null) firstError = other.firstError
+        tradedCoinIds += other.tradedCoinIds
         for (sample in other.unresolvedSampleList) noteUnresolvedSample(sample)
     }
 

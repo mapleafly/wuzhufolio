@@ -1,17 +1,19 @@
 package com.wuzhufolio.ui
 
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.wuzhufolio.domain.settings.PnlColorScheme
 import com.wuzhufolio.domain.settings.ThemeMode
+import com.wuzhufolio.ui.shell.LocalDevUi
 import com.wuzhufolio.ui.shell.MainShell
 import com.wuzhufolio.ui.shell.ShellPage
 import com.wuzhufolio.ui.shell.ShellViewModel
@@ -78,9 +80,21 @@ class ShellUiTest {
     }
 
     @Test
-    fun `component gallery renders all sections`() = runComposeUiTest {
+    fun `component gallery hidden in release build`() = runComposeUiTest {
+        // DEF-47 回归护栏：默认（正式）构建侧边栏**没有**组件走查入口，六页齐全
+        setContent { MainShell(newViewModel()) }
+        onNodeWithTag("nav-GALLERY").assertDoesNotExist()
+        ShellPage.sidebarPages.forEach { page ->
+            onNodeWithTag("nav-" + page.name).assertExists()
+        }
+    }
+
+    @Test
+    fun `component gallery renders all sections when dev ui enabled`() = runComposeUiTest {
         val vm = newViewModel()
-        setContent { MainShell(vm) }
+        setContent {
+            CompositionLocalProvider(LocalDevUi provides true) { MainShell(vm) }
+        }
 
         onNodeWithTag("nav-GALLERY").performClick()
         onNodeWithTag("component-gallery").assertIsDisplayed()
@@ -92,7 +106,9 @@ class ShellUiTest {
     @Test
     fun `modal opens from gallery and dismisses`() = runComposeUiTest {
         val vm = newViewModel()
-        setContent { MainShell(vm) }
+        setContent {
+            CompositionLocalProvider(LocalDevUi provides true) { MainShell(vm) }
+        }
 
         onNodeWithTag("nav-GALLERY").performClick()
         // 走查页可滚动，按钮在首屏视口外：先滚动到位再点击（performClick 不自动滚动）

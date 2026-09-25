@@ -15,6 +15,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.wuzhufolio.domain.engine.FlowKind
+import com.wuzhufolio.ui.components.CoinSuggestionList
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
 import com.wuzhufolio.ui.components.WzModal
@@ -51,27 +52,13 @@ fun CalibrationModal(
             fieldFocusRequester = coinFocus,
             testTag = "cal-coin-input",
         )
-        if (state.candidates.isNotEmpty()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp)
-                    .background(colors.surface)
-                    .testTag("cal-suggestion-list"),
-            ) {
-                state.candidates.take(FundsCopy.MAX_CANDIDATES).forEach { coin ->
-                    Text(
-                        text = FundsCopy.coinLabel(coin.symbol, coin.name, coin.cgId),
-                        color = colors.ink,
-                        style = WzTheme.typography.body,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { vm.pickCalibrationCandidate(coin) }
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                    )
-                }
-            }
-        }
+        // DEF-51：统一候选组件（上限 20 / 可滚动 / 行含 cg_id），与资金、交易、行情三处同口径
+        CoinSuggestionList(
+            candidates = state.candidates,
+            onPick = vm::pickCalibrationCandidate,
+            rowTagPrefix = "cal-suggestion-",
+            listTag = "cal-suggestion-list",
+        )
         if (state.pickedLabel != null) {
             Text(
                 text = FundsCopy.PICKED_PREFIX + state.pickedLabel,

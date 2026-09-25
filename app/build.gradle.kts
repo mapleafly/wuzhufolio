@@ -23,7 +23,18 @@ val packagingFormats: List<TargetFormat> = when {
 }
 
 /** 应用版本单一真源（M13 T13.2）：同时注入 jpackage packageVersion 与运行期 BuildInfo.VERSION。 */
-val appVersion = "0.1.0"
+val appVersion = "0.1.1"
+
+/**
+ * 开发期 UI 开关（DEF-47，2026-09-24 人工拍板「方案甲：加构建期开关」）。
+ *
+ * **默认 false = 正式构建不含开发/走查页面**（侧边栏无「组件走查」项、键盘焦点序不含 GALLERY）；
+ * 开发/走查时显式打开：`./gradlew :app:run -Pwuzhufolio.devUi=true`（`build` / `createDistributable` 同参数）。
+ * 取值注入 [BuildInfo.DEV_UI]，由 app 装配层经 `LocalDevUi` 下发给 ui 层——
+ * ui 模块不认识 Gradle 属性，只认这个布尔入参（两个分支都可单测）。
+ */
+val devUiEnabled: Boolean =
+    (providers.gradleProperty("wuzhufolio.devUi").orNull ?: "false").trim().equals("true", ignoreCase = true)
 
 // ---------------------------------------------------------------------------
 // 构建期版本注入：生成 com.wuzhufolio.app.BuildInfo（.cpro 头部 app_version / 关于页 / 诊断报告同源）。
@@ -32,6 +43,7 @@ val appVersion = "0.1.0"
 val buildInfoDir = layout.buildDirectory.dir("generated/buildinfo/kotlin")
 val generateBuildInfo by tasks.registering {
     val versionValue = appVersion
+    val devUiValue = devUiEnabled
     // 构建标识（P6 人工门：需要能区分「测的是哪一版」，否则修没修都无法确认）
     val commitValue = providers.exec {
         commandLine("git", "rev-parse", "--short", "HEAD")
@@ -39,6 +51,7 @@ val generateBuildInfo by tasks.registering {
     val outputDir = buildInfoDir
     inputs.property("appVersion", versionValue)
     inputs.property("buildCommit", commitValue)
+    inputs.property("devUi", devUiValue.toString())
     outputs.dir(outputDir)
     doLast {
         val file = outputDir.get().asFile.resolve("com/wuzhufolio/app/BuildInfo.kt")
@@ -56,6 +69,12 @@ val generateBuildInfo by tasks.registering {
             |
             |    /** 构建提交（short SHA）——人工验收/缺陷复现时用于确认「跑的是哪一版」。 */
             |    const val COMMIT: String = "$commitValue"
+            |
+            |    /**
+            |     * 开发期 UI 开关（DEF-47）：默认 false —— 正式构建不含组件走查页；
+            |     * 以 `-Pwuzhufolio.devUi=true` 构建才为 true（开发/走查载体）。
+            |     */
+            |    const val DEV_UI: Boolean = $devUiValue
             |}
             |
             """.trimMargin(),
@@ -104,6 +123,9 @@ compose.desktop {
         // M11 T11.3：开箱即启用 JDK 系统代理探测（Windows Internet 选项 / macOS 网络设置 / GNOME gsettings）。
         // Main.main 首行也会设置（幂等）——此处是打包版的兜底，保证属性在任何网络类加载前生效。
         jvmArgs += listOf("-Djava.net.useSystemProxies=true")
+        // D36 / DEF-52 备注：曾尝试 `-Dsun.awt.X11.XWMClass=WuZhuFolio` 固定 WM_CLASS，**实测无效**
+        // （本机 JDK 21：窗口 WM_CLASS 仍为主类名 `com-wuzhufolio-app-MainKt`）→ 不保留死配置，
+        // 改由 .desktop 的 `StartupWMClass` 使用**实测值**对齐（见 scripts/patch-linux-desktop-integration.sh）。
 
         nativeDistributions {
             // 产物口径见 ADR-006 §1（M13 T13.2 补齐 rpm/AppImage/exe/pkg）

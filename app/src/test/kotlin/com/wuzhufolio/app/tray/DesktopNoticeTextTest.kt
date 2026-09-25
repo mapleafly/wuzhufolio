@@ -120,4 +120,44 @@ class DesktopNoticeTextTest {
         assertTrue(notice.message.contains("41 天"), notice.message)
         assertTrue(notice.message.contains(".cpro"), "指明导出方式")
     }
+
+    // ---- DEF-49：托盘手动动作的即时反馈（点击后必须「有反应」）----
+
+    @Test
+    fun `manual sync announces start before any result`() {
+        val started = DesktopNoticeText.manualSyncStarted()
+        assertEquals(NoticeLevel.INFO, started.level)
+        assertTrue(started.title.contains("同步"), "开始提示要说清正在同步：${started.title}")
+    }
+
+    @Test
+    fun `manual sync without keys says why nothing happened`() {
+        val none = DesktopNoticeText.manualSyncNoKeys()
+        assertEquals(NoticeLevel.WARNING, none.level)
+        assertTrue(none.message.contains("密钥"), "无密钥时要说清原因：${none.message}")
+    }
+
+    @Test
+    fun `manual refresh reports coin count on success`() {
+        val ok = DesktopNoticeText.manualRefreshFinished(refreshedCoins = 7, error = null)
+        assertEquals(NoticeLevel.INFO, ok.level)
+        assertTrue(ok.message.contains("7"), "成功提示应含币数：${ok.message}")
+    }
+
+    @Test
+    fun `manual refresh reports readable reason on failure and truncates`() {
+        val failed = DesktopNoticeText.manualRefreshFinished(
+            refreshedCoins = 0,
+            error = "network unreachable ".repeat(20),
+        )
+        assertEquals(NoticeLevel.ERROR, failed.level)
+        assertTrue(failed.message.length <= DesktopNoticeText.MESSAGE_LIMIT, "失败原因应截断：${failed.message.length}")
+    }
+
+    @Test
+    fun `manual action failure surfaces the cause instead of a generic phrase`() {
+        val notice = DesktopNoticeText.manualActionFailed("刷新行情", IllegalStateException("boom: quota exceeded"))
+        assertEquals(NoticeLevel.ERROR, notice.level)
+        assertTrue(notice.message.contains("quota exceeded"), "应上浮真实原因：${notice.message}")
+    }
 }

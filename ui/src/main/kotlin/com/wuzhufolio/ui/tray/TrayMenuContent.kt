@@ -48,9 +48,11 @@ import com.wuzhufolio.ui.theme.WzTheme
 fun TrayMenuContent(
     open: String,
     syncNow: String,
+    refreshQuotes: String,
     quit: String,
     onOpen: () -> Unit,
     onSync: () -> Unit,
+    onRefresh: () -> Unit,
     onQuit: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
@@ -77,6 +79,9 @@ fun TrayMenuContent(
     ) {
         TrayMenuItem(open, "tray-menu-open", colors.ink) { onOpen(); onDismiss() }
         TrayMenuItem(syncNow, "tray-menu-sync", colors.ink) { onSync(); onDismiss() }
+        // DEF-49：行情刷新与交易同步**分列**（PRD §1.1-4 两类 API 独立）——此前菜单没有刷新入口，
+        // 人工实测「点了『立即同步』像什么都没发生」也有这一层：想刷行情却没有可点的项。
+        TrayMenuItem(refreshQuotes, "tray-menu-refresh", colors.ink) { onRefresh(); onDismiss() }
         Box(
             modifier = Modifier
                 .fillMaxWidth()

@@ -53,6 +53,11 @@ class MarketWatchPageUiTest {
             val base = stored ?: listOf("tether", "usd-coin", "dai", "true-usd")
             stored = (base + cgId).distinct()
         }
+
+        override suspend fun addCoins(cgIds: Collection<String>) {
+            val base = stored ?: listOf("tether", "usd-coin", "dai", "true-usd")
+            stored = (base + cgIds).distinct()
+        }
         override suspend fun removeCoin(cgId: String) {
             val base = stored ?: listOf("tether", "usd-coin", "dai", "true-usd")
             stored = base.filterNot { it == cgId }

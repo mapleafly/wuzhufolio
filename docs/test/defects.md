@@ -27,9 +27,10 @@
 | **P1（第十轮续 · 打包版启动／无障碍）** | **1** | ✅ **已闭环（CI + 人工实机复验通过）**：**DEF-43**（开启 Java Access Bridge / 辅助技术时，打包版在 AWT 初始化抛 `AWTError` → 启动器只显示无细节的 `Failed to launch JVM`）→ 根因 = 裁剪运行时的模块集**缺 `jdk.accessibility`**；修复 = 模块集补齐（正向）+ `AssistiveTech` 兜底校验（防御），CI 增「开启辅助技术」冒烟变体 |
 | **P2（第七轮 · 真实桌面 GUI 全流程 × 三档分辨率）** | 8 | **均按统一方案修复**：**DEF-31**（高 DPI 下币种列第三枚徽标被裁）、**DEF-32**（卡片大数字换行变形）、**DEF-33**（表格滚动条压住操作列 / 长数字换行）、**DEF-34**（环形图图例币种名换行）、**DEF-35**（截断数据无悬停全值）、**DEF-36**（表单弹窗多一条「不到一行」的滚动条）、**DEF-37**（列宽分配不保证最小宽）、**DEF-38**（列表缺单元线）—— 总体方案见 `docs/design/responsive-components.md` |
 | 测试缺陷（CI 暴露） | 1 | **DEF-12** 已修复（见 §3） |
-| **P2（P7 发布后 · 0.1.0 正式版人工验收）** | **1** | ⏳ **待修（合并到 0.1.1 修复轮）**：**DEF-47** 组件走查（DEV）页泄漏到正式发布版侧边栏（无数据/安全影响；人工拍板 **C0 + 方案甲「加构建期开关」**，等本轮验收问题齐了一起修） |
-| **P3 / 观察项** | 6 | 登记（DEF-07…DEF-12），详见 §3 |
-| 合计 | **47** | 编号连续至 **DEF-47**（DEF-47 为 ⏳ 待修，其余均闭环/已登记）（其中 DEF-44/45/46 为测试文档/口径类，C0）。P0 曾出现 1 项（DEF-17）· P1 曾出现 6 项（DEF-13/15/20/22/25/27）——**均已修复闭环**（人工门实测暴露）；**P1 全部闭环（DEF-43 人工实机复验通过；DEF-42 经第十一轮 TC-MAN-02/TC-MAN-11 复验通过；上游限制仍按裁决登记 P8）**；P2 全部有明确结论 ✅ |
+| **P2（P7 发布后 · 0.1.0 正式版人工验收 · Windows）** | **1** | ✅ **已修复 + 人工复验通过（2026-09-25 Windows 走查）**：**DEF-47** 组件走查（DEV）页泄漏到正式发布版侧边栏（人工拍板 **C0 + 方案甲「加构建期开关」** → `BuildInfo.DEV_UI`，默认 false） |
+| **P2（P7 发布后 · 0.1.0 Linux 真机验收 2026-09-24）** | **5** | ✅ **均已修复 + 人工复验通过（2026-09-25：「托盘功能通过，windows走查通过」）**：：**DEF-48** 托盘图标显示不全（**C1** · D36）、**DEF-49** 托盘缺「刷新行情」+ 同步无可见反馈（**C1** · D36）、**DEF-50** 「打开主界面」不置前（**C0**）、**DEF-51** 候选排序/上限/滚动不一致（**C1** · D36，合并人工第 4/8/9/10 条）、**DEF-52** Ubuntu 图标为通用齿轮（**C1** · D36）；另 **1 项增量提案已立项实施**（成交币自动进行情自选 → **D35**）与 **1 项文档口径**（JDK 17/21 与 mise，非缺陷，已按指令修订） |
+| **P3 / 观察项** | 7 | 登记（DEF-07…DEF-12 + **DEF-53** ✅ 已收口），详见 §3 |
+| 合计 | **53** | 编号连续至 **DEF-53**（**本轮 7 项（DEF-47…DEF-53）已全部收口，且经人工复验通过（2026-09-25）**；其余均闭环/已登记）（其中 DEF-44/45/46 为测试文档/口径类，C0）。P0 曾出现 1 项（DEF-17）· P1 曾出现 6 项（DEF-13/15/20/22/25/27）——**均已修复闭环**（人工门实测暴露）；**P1 全部闭环（DEF-43 人工实机复验通过；DEF-42 经第十一轮 TC-MAN-02/TC-MAN-11 复验通过；上游限制仍按裁决登记 P8）**；P2 全部有明确结论 ✅ |
 
 > 结论：**P0 = 0**；**P1 三项（DEF-13/DEF-15/DEF-20）由人工门实测暴露并已修复闭环**（修复即回归，见 §1.5/§1.7），
 > P2 各项在人工 P6 门全部裁决完毕或已登记（见 §0.1），**无遗留未决项**；**P1 已全部闭环**（见下）。
@@ -529,7 +530,7 @@ Get-ChildItem "$env:USERPROFILE\.wuzhufolio\logs" | Sort-Object LastWriteTime -D
 
 ## 2.1 P7 发布后人工验收（2026-09-22 · 0.1.1 修复轮）
 
-### DEF-47 ⏳ **待修**（**P2** · P7 发布后人工验收暴露 · **建议 C0（实现偏差）** · 人工拍板 2026-09-22）· 组件走查（DEV）页泄漏到正式发布版侧边栏
+### DEF-47 ✅ **已修复（0.1.1 修复轮 2026-09-24）**（**P2** · P7 发布后人工验收暴露 · **人工拍板 C0（实现偏差）** + 方案甲「加构建期开关」）· 组件走查（DEV）页泄漏到正式发布版侧边栏
 
 | 项 | 内容 |
 |----|------|
@@ -540,9 +541,152 @@ Get-ChildItem "$env:USERPROFILE\.wuzhufolio\logs" | Sort-Object LastWriteTime -D
 | **影响面扫描** | **代码**：`MainShell.kt`（侧边栏渲染 + `ShellPage.GALLERY -> ComponentGallery(viewModel)` 页面分支）、`ShellViewModel.kt`（枚举 / `label` / `sidebarPages`）、`ShellFocusNavigation.kt`（焦点序）、`ComponentGallery.kt` 与 `GalleryStrings.kt`（页面与文案，随门控转为开发构建专用）。**测试**：`ShellUiTest.kt`、`KeyboardA11yUiTest.kt`。**文档**：`user-guide.md §5`（本轮曾误写「正式发布版不含任何开发或调试页面」，**已按 0.1.0 事实更正**）、`docs/test/keyboard-walkthrough.md`（7 项记录需注明第 7 项为 DEV、发布构建不可见）、`M0.md`（T0.6 载体定位）、`M12.md`（UI 收尾未清理该入口） |
 | **人工拍板** | ① **修复方案 = 甲：加构建期开关**（`generateBuildInfo` 注入 `DEV_UI`，默认 `false`；`-Pwuzhufolio.devUi=true` 才开 —— `MainShell` 侧边栏项与 `NAV_FOCUS_ORDER` 均按它决定是否包含 GALLERY，**开发构建保留走查载体**）；② **修复节奏 = 攒着**：等本轮 Windows/Linux 验收问题齐了一起修，随后出 **0.1.1 补丁版**（按 `rollback.md §1.1` 触发阈值，本项**不回滚 0.1.0** —— 非阻断、非数据/安全问题） |
 | **同源排查**（Agent，2026-09-22） | 全量搜索用户可见文案中的 `DEV / 开发 / 演示 / demo / 示例 / sample` → **仅命中 `GalleryStrings.kt`**（组件走查页自身的示例文案）；设置页**无**调试分组；主源码**无**硬编码演示数据；Release 附件**不含** `console-debug` 构建。**结论：同类「内部内容泄漏到发布版」仅此一处** |
-| **验收标准（0.1.1 修复轮）** | ① 正式构建（默认参数）侧边栏**无**「组件走查」项、键盘焦点序不含 GALLERY，且 `ShellUiTest` **新增「正式构建断言 `nav-GALLERY` 不存在」**；② `-Pwuzhufolio.devUi=true` 构建下走查页与原断言仍可用；③ 全量 718 用例 + detekt 绿、编译警告 0；④ 打包版人工复核侧边栏为六页；⑤ 修复随 **0.1.1** 发布并在 `CHANGELOG` 记录 |
+| **验收标准（0.1.1 修复轮）** | ① 正式构建（默认参数）侧边栏**无**「组件走查」项、键盘焦点序不含 GALLERY，且 `ShellUiTest` **新增「正式构建断言 `nav-GALLERY` 不存在」**；② `-Pwuzhufolio.devUi=true` 构建下走查页与原断言仍可用；③ 全量用例 + detekt 绿、编译警告 0；④ 打包版人工复核侧边栏为六页；⑤ 修复随 **0.1.1** 发布并在 `CHANGELOG` 记录 |
+| **✅ 修复留痕（2026-09-24）** | ① **构建期开关**：`app/build.gradle.kts` 新增 `-Pwuzhufolio.devUi`（默认 false）→ 注入 `BuildInfo.DEV_UI`；② **下发**：app 装配层 `CompositionLocalProvider(LocalDevUi provides BuildInfo.DEV_UI)`（`ui/shell/DevUi.kt` 新增 `LocalDevUi` + `visibleShellPages(devUi)`）；③ **主壳**：侧边栏与焦点序（`navFocusOrder`）按 `devUi` 决定是否含 `GALLERY`，正式构建不渲染该入口；④ **回归**：`ShellUiTest` 新增「正式构建不可见」用例、原两例改为 `LocalDevUi provides true`（**两分支都可测**）；`KeyboardA11yUiTest` Tab 序 7+3 → **6+3** 并显式断言 `nav-GALLERY` 不存在；⑤ 验收标准 ①②③ 已达成（④ 打包版目视由人工复验，⑤ 随 0.1.1 发布记录） |
 
 ---
+
+### 2.2 Linux 真机验收回执（2026-09-24 · 人工在 Ubuntu 24.04 实机走查 0.1.0）
+
+> **来源**：人工原话（10 条，编号照录）：「Linux 真机补测：1. 托盘图标显示不全整个图标。2. 托盘菜单中的『立即同步』，
+> 好像只是打开窗口的功能，没有执行同步？为神m菜单中没有『刷新行情』菜单项？…3. 桌面窗口重叠后…点击托盘菜单的『打开界面』，
+> 是否可以实现将窗口提到桌面最前面？4. 交易管理-添加交易界面，计价币窗口输入 usdt…真正的 usdt 反而显示不出来，
+> 而且检索内容只显示六条…5. 当用户手动添加一个交易对时…是否可以自动在行情列表添加这个已经有过交易的币种？…6. 在 ubuntu24.04
+> 桌面下，wuzhufolio 在状态栏的图标是一个环形齿轮…7. 检查 java17 和 java21 在本项目中的使用时的差异…8. 资金管理-记录增资、
+> 记录辙资、编辑、校准持仓…『币种』输入框…能不能根据币种的总市值或 rank 来排序？…9. 行情-搜索币种框，能够滚动显示多条数据，
+> 但是好像也只是按首字母排序？…10. 交易管理-添加交易、修改交易、编辑，窗口中的交易对框，计价币框都按 8 中的设想执行。」
+> **分级状态**：以下 DEF-48…DEF-52 为 **Agent 只读定位后的分级建议，等人工拍板**（`AGENTS.md §8.4`：Agent 不自定级、不自行实现）；
+> 第 5 条为**增量提案**（非缺陷）；第 7 条为**文档口径**（非缺陷，已按人工指令修订 `dev-setup.md`/`README.md`）。
+
+#### DEF-48 ✅ **已修复（0.1.1 修复轮，人工拍板 C1，D36）**（**P2** · Linux 真机验收）· 托盘图标显示不全
+
+| 项 | 内容 |
+|----|------|
+| **现象** | 「托盘图标显示不全整个图标」（Ubuntu 24.04 真机，0.1.0） |
+| **根因（只读定位）** | `app/src/main/kotlin/com/wuzhufolio/app/tray/TrayIcon.kt` 仍是 **M11 期的「程序化徽章占位」**：在 64×64 位图上**满幅**绘制圆角方块（`drawRoundRect` 覆盖 `0..side`，圆角仅 22%），W 折线（`folioMark`）也贴近边缘，**四角与笔画均无透明安全边距**；`AwtTrayHost.install()` 用 `TrayIcon.setImageAutoSize(true)` 交给面板自行缩放（GNOME 一般 16–22px）。满幅图形被缩到小尺寸、再被面板做圆角/方形裁剪时，四角与笔画边缘被切 → 「显示不全」。**另一层**：P7 只把**打包图标**统一到正式资产（`app/icons/wuzhufolio.{png,ico,icns}`，由 `scripts/generate-icons.mjs` 生成），**托盘仍走程序化绘制**，两条路径未统一（M11 §5 遗留正是「正式图标待 P7」） |
+| **建议分级** | **C1**（图标资产统一 + 尺寸/边距策略 → 影响托盘/窗口/打包三处消费口径）；若只做「加安全边距」的最小修复，可按 **C0** 走 |
+| **建议修法** | ① 以 `app/icons/wuzhufolio.png`（512×512，已在仓库）为**唯一图标真源**，托盘改为加载该资产并按 16/22/24/32/64 出多尺寸；② 图形保留 ≥12% 透明安全边距（与 macOS 图标网格 10% 口径呼应）；③ 真机复验 Windows + Ubuntu 两平台的面板显示；④ 顺带补主窗口图标（`Window {}` 现未设 `icon`，见 DEF-52 影响面） |
+| **✅ 修复留痕（2026-09-24）** | `TrayIcon` 增 `PADDING = 0.08`（透明安全边距）与 `painter(sizePx, padding)`；`AppHost` 不再把 64px 满幅图交给面板缩放。回归 `TrayIconTest`。与打包图标仍同源（同一几何）。 |
+| **⚠️ 一轮修复未解决 → 二轮真机取证（2026-09-24 晚）** | 人工复测仍报「托盘图标显示不全」。Agent 在本机做**像素级取证**（`xwininfo` 找 XEmbed 图标窗口 → `xwd` 抓窗口内容 → 逐像素分析 + 放大目视），得到矩阵结论：<br>① AWT `SystemTray.trayIconSize` 报告 **24（逻辑）**，而 XEmbed 图标窗口实际是 **32 物理像素**（GNOME 面板 16 逻辑 × 屏幕缩放 2）；<br>② **AWT 画图时会再乘一次屏幕缩放**：按 24 给图 → 实际按 ~48 物理像素栅格化后 1:1 画进 32 像素窗口 → **右下被裁**；按 32 给图 → 按 ~64 画 → 裁得更狠；**按 16 给图 → 画满 32 且完整**；<br>③ 关键坑：Compose 的 `Painter.toAwtImage(...)` 返回的是**惰性 `PainterImage`**（非实体位图），栅格化尺寸不受我们控制 —— 必须先用 `ImageBitmap` 画好再 `toAwtImage()` 转**实体 BufferedImage**。<br>取证命令与矩阵见 §2.3。 |
+| **✅ 二轮修复（2026-09-24）** | ① `TrayIcon.awtImage(px)`：Compose 侧画成确定尺寸位图 → `ImageBitmap.toAwtImage()` → **实体 BufferedImage**；② `preferredTraySizePx()` 改为 **`AWT 报告值 ÷ 屏幕缩放`**（夹取 **16–64**）→ 本机 24/2 = 16（**实拍验证：图标完整落在 32×32 窗口内，四边留边距，W 清晰**）；③ `AwtTrayHost` 的 `autoSize` 改由 **`TrayIcon.policy(osName, hint, scale)`** 决定：**Linux/X11 → 逻辑尺寸 + `autoSize=false`**；**Windows/macOS → 维持 0.1.0 行为（64px + `autoSize=true`，系统按 DPI 缩放）**（原生托盘无 XEmbed 的二次缩放问题，套用 Linux 口径会让高 DPI 图标偏小发糊）；④ 保留两个诊断开关：`-Dwuzhufolio.trayIconPx=<N>`、`-Dwuzhufolio.trayAutoSize=<bool>`；⑤ 回归 `TrayIconTest` 增两例（实体位图尺寸/四角透明、尺寸夹取范围）；⑥ **取证截图**（放大目视）：修复前 `docs/test/evidence/DEF-48-tray-broken-zoom12.png`（只露出图标左上角一块）→ 修复后 `docs/test/evidence/DEF-48-tray-fixed-zoom14.png`（完整绿底 + 白 W + 四边留边距）。 |
+| **✅ 人工复验通过（2026-09-25）** | 人工原话「**托盘功能通过，windows走查通过**」——托盘图标在 Ubuntu 24.04 真机**完整显示**（连同托盘菜单四项与执行反馈一并判定通过）；Windows 走查同轮通过（含高 DPI 下的托盘图标与窗口/任务栏图标）。 |
+
+#### DEF-49 ✅ **已修复（0.1.1 修复轮，人工拍板 C1，D36）**（**P2** · Linux 真机验收）· 托盘菜单「立即同步」无可见反馈 + 缺「刷新行情」项
+
+| 项 | 内容 |
+|----|------|
+| **现象** | 「立即同步，好像只是打开窗口的功能，没有执行同步？为神m菜单中没有『刷新行情』菜单项？」 |
+| **代码事实（只读核验——它确实执行了同步）** | `app/src/main/kotlin/com/wuzhufolio/app/AppHost.kt:133`：`onSync = { scope.launch { runCatching { runtime.scheduler.syncNow() } }; trayMenuAt = null }` → **确实调用了 `BackgroundScheduler.syncNow()`**（交易所只读 API 同步），**不是**「只打开窗口」。真正的问题是**反馈不可见**：同步结果只经 `SchedulerEvent` → `AwtTrayHost.notify()` → AWT `TrayIcon.displayMessage`（`AppHost.kt:110-117`）透出，而 **Linux/GNOME 侧 AWT 走 XEmbed，气泡通知不被 SNI 环境显示** → 用户点完菜单「什么都没发生」。另：菜单固定三项（`ui/src/main/kotlin/com/wuzhufolio/ui/tray/TrayMenuContent.kt:78-87`：打开主界面 / 立即同步 / 退出），**没有「刷新行情」**；但 `scheduler.refreshMarketNow(manual)` **已存在**（`BackgroundScheduler` 契约），加该项属纯接线 |
+| **真机链路事实（2026-09-24）** | 托盘承载扩展 = `ubuntu-appindicators@ubuntu.com`（包 `gnome-shell-extension-appindicator 58-1ubuntu24.04.1`）→ AWT 的 **XEmbed** 图标由该扩展转发；**AWT `displayMessage` 气泡在 GNOME 下无承载** → 「同步完成/失败」通知天然不可见（与上面的推断一致） |
+| **建议分级** | **C1**（新增菜单项 + 新增反馈通道 → 改 `docs/design/design-tokens.md §5` 的托盘菜单清单，属设计基线增量） |
+| **建议修法** | ① 菜单改为**四项**：打开主界面 / 立即同步交易 / 立即刷新行情 / ─── / 退出（行情与交易是**两类独立 API**，PRD §1.1-4，故分列两项）；② 补**可见反馈**：执行中 → 托盘 tooltip + 状态栏指示；完成后 → 有窗口则主界面 toast，无窗口则系统通知（不支持通知的桌面降级为「下次打开窗口时 toast + 状态栏摘要」）；文案复用 `DesktopNoticeText`（脱敏口径不变）；③ 菜单项文案与快捷键在 `design-tokens.md §5` + `interaction.md` 补条款 |
+| **✅ 修复留痕（2026-09-24）** | 菜单四项（`TrayMenuContent` + `TrayLabels.refreshQuotes` + zh/en 文案「立即刷新行情 / Refresh quotes now」，`TrayMenuWindow` 高度 124→156dp）；`AppHost` 新增 `syncFromTray()/refreshFromTray()`（开始提示 → 结果提示，异常上浮原因）；新增 `NoticeDelivery`（Linux → 应用内提示窗）、`DesktopToastWindow` + `TrayNoticeCard`（置顶/不抢焦点/3.2s 自动消失）。回归：`TrayMenuContentUiTest`（四项 + 四回调）、`NoticeDeliveryTest`、`DesktopNoticeTextTest` +5 例。 |
+
+#### DEF-50 ✅ **已修复（0.1.1 修复轮，人工拍板 C0）**（**P2** · Linux 真机验收）· 托盘「打开主界面」不把窗口提到最前
+
+| 项 | 内容 |
+|----|------|
+| **现象** | 「桌面窗口重叠后，wuzhufolio 窗口被遮挡到后面看不到时，点击托盘菜单的『打开界面』，是否可以实现将窗口提到桌面最前面？」 |
+| **代码事实** | `AppHost.kt:63-66`：`fun showWindow() { windowVisible = true; windowState.isMinimized = false }` —— **只做「显示 + 取消最小化」，没有任何置前请求**（全仓 grep `toFront` **零命中**）→ 窗口 Z 序不变，被别的窗口压住时用户依然看不到。**可行性 = 可以**：Compose Desktop 在 `Window { }` 内容里可拿到 `ComposeWindow`，调用 `window.toFront()` + `window.requestFocus()`；X11 有「防抢焦点」策略，必要时用 `isAlwaysOnTop = true → toFront() → isAlwaysOnTop = false` 的经典绕行；**Wayland/GNOME 下 WM 可能只让任务栏闪烁**，需真机判定并写入已知限制 |
+| **真机会话事实（2026-09-24）** | 该机 `XDG_SESSION_TYPE=`**`x11`**、GNOME Shell 46 → **X11 下 `toFront()`/`requestFocus()` 可正常工作**（Wayland 的防抢焦点限制在本机不适用；仍需为 Wayland 用户写降级说明） |
+| **建议分级** | **C0**（「打开界面」应有的实现补全）／若人工认为「置前」属新增行为 → **C1** |
+| **建议修法** | `showWindow()` 增加置前请求（三平台同路径），Wayland 降级行为写入 `user-guide`/`M11`；人工门在 Ubuntu + Windows 各复验「窗口被遮挡 → 托盘打开 → 是否到最前」 |
+| **✅ 修复留痕（2026-09-24）** | `AppHost.showWindow()` 增 `mainWindow?.toFront()` + `requestFocus()`（`LaunchedEffect` 里留住 `ComposeWindow`）；本机 X11 实测可行；Wayland 的 WM 策略差异写入用户指南/M11 已知限制。 |
+
+#### DEF-51 ✅ **已修复（0.1.1 修复轮，人工拍板 C1，D36）**（**P2** · Linux 真机验收）· 币种候选三处不一致：排序未用市值排名、上限 6/12/20 不一、交易表单不可滚动（**合并人工反馈第 4/8/9/10 条**）
+
+| 项 | 内容 |
+|----|------|
+| **现象（人工原话摘要）** | ④ 交易表单「计价币」输入 usdt → 「检索出来的都是不常用的信息，真正的 usdt 反而显示不出来，而且检索内容只显示六条」（交易对输入框同）；⑧ 资金管理「记录增资/记录撤资/编辑/校准持仓」四窗「币种」框 → 希望**按总市值或 rank 排序**、并且**候选可滚动**；⑨ 行情页搜索框「能滚动，但好像只按首字母排序，很多重要币种反而在后面」 |
+| **根因（只读实测）** | ① **排序键缺市值排名**：`data/src/main/kotlin/com/wuzhufolio/data/catalog/SqlCoinCatalog.kt:60-67` 的 `search()` 排序 = 相关性（`symbol == q` / `startsWith` / 其它）→ `ACTIVE` 优先 → **symbol 字母序** → name 字母序；**全程未使用 `rankProvider`**（该 provider 只在同文件 `:205` 的**消歧**路径被消费）。因此**同名 symbol 的一批条目**（symbol 恰为 `USDT` 的 tether 与各链桥接/包装 USDT）只能按**名称字母序**排队 → 真正的 Tether 被字母序靠前的条目挤出前 N → 人工观察到的「都是不常用的、真正的 usdt 不显示」。② **行情搜索同源**：`SettingsMarketWatchService.searchCandidates()` → 同一个 `catalog.search()`，故 ⑨ 的「重要币种在后面」是同一根因。③ **上限与滚动三处不一致**：交易表单 `ui/src/main/kotlin/com/wuzhufolio/ui/ledger/TransactionFormModal.kt:379` `candidates.take(6)` 且外层 `Column` **没有 `verticalScroll`（不可滚动）**；资金/校准 `FundFormModal.kt:231`、`CalibrationModal.kt:62` 用 `FundsCopy.MAX_CANDIDATES = 12` + `heightIn(max=168.dp)` + `verticalScroll`；行情页 `MarketWatchViewModel.CANDIDATE_LIMIT = 20` + 240dp 滚动面板。④ **默认币置顶只有资金路径有**：`DefaultFundService.kt:252-256` 会把 `defaultCoin()`（基础法币孪生，如 USD→USDT）置顶，而交易路径 `DefaultTransactionLedgerService.kt:413-416` 直接透传 `catalog.search`，无置顶 |
+| **Agent 真机复核（2026-09-24 · 用应用同一数据源复现排序）** | 拉 CoinGecko 全量目录（**21,549 条**，与应用 `refreshDirectory` 同源）按 `SqlCoinCatalog.search` 的**现状排序键**模拟，结果与人工反馈完全吻合：**`usdt` 命中 131 条、其中 49 条 symbol 恰为 `USDT`** → 现状前 6 = `Abstract Bridged USDT` / `Alcor IBC Bridged USDT` / `Anubis Bridged USDT` …，**真正的 Tether 排第 42 位**（6 条列表里根本看不到）；`btc` 现状**第 1 名是 `Big Tom Coin`**（Bitcoin 第 2）；`eth` 现状 **Ethereum 被挤到第 6**；`sol` 现状前 6 **没有 Solana**。**按建议修法复算**（同层内插入 `rankOf` 升序、未入前 1000 名排后；排名缓存按应用口径实拉 4×250 页 = 前 1000）：**`usdt→Tether`、`btc→Bitcoin`、`eth→Ethereum`、`sol→Solana` 四个查询全部回到第 1 位** → **修法有效性已用真实数据验证**（非纸面推演） |
+| **建议分级** | **C1**：改的是 M3/M7/M8/M12 **已通过模块的展示行为**，但**无数据表/接口签名/加密/备份格式变更**（红线 1/2/4 未触），与先例 D31（键盘焦点流）、D33（响应式与组件统一）同类 → C1；**若人工认为「候选排序」属需求口径变更**，则升 **C2**（走 mini 闭环） |
+| **建议修法** | ① `SqlCoinCatalog.search()` 排序键插入**市值排名**：相关性 → ACTIVE → **`rankOf(cgId)` 升序（未入前 1000 = 末位）** → symbol → name（排名缓存由 `RefreshableRankProvider` 提供，行情目录刷新时已预热，离线未热时自动退化为现状，**无新网络请求**）；② 抽**统一候选组件**（`CoinSuggestionList`）：同一上限（建议 20）、**一律可滚动**、行内展示 `symbol · name · cgId`（同名资产可分辨，沿用 M8 口径），四处（交易表单 3 个字段 / 资金+校准 / 行情搜索）全部接入；③ 交易路径也接 `defaultCoin` 置顶；④ 回归：同名 symbol 场景断言「tether 在首屏」、滚动可达、三处条数一致；⑤ 下游回写 `ia.md`/`interaction.md`/`data-model`（无）/`api-contracts`（无）与 `M3/M7/M8/M12` 模块记录 |
+| **✅ 修复留痕（2026-09-24）** | ① `SqlCoinCatalog.search` 排序键插入 `rankProvider.rankOf(cgId)` 升序（未入榜排后）；② 新增 `PinnedCoinSearch`（资金与交易共用：目录检索 + 默认币命中置顶 + 放大 50 再裁剪）；③ 新增统一组件 `CoinSuggestionList`（上限 **20**、一律可滚动 + 可见滚动条、行 `symbol · name · cgId`），交易三字段/资金/校准全部接入，`FundsCopy.MAX_CANDIDATES`（12）删除；④ 回归 `SqlCoinCatalogTest`（排名打破同名并列 / 未入榜排后）、`PinnedCoinSearchTest`（6 例）、`TransactionsPageUiTest`（第 7 条存在 + 第 20 条滚动可达 + 行含 cg_id）。**修法有效性已用真实数据验证**：`usdt→Tether`、`btc→Bitcoin`、`eth→Ethereum`、`sol→Solana` 全部回到第 1 位。 |
+
+#### DEF-52 ✅ **已修复（0.1.1 修复轮，人工拍板 C1，D36）**（**P2** · Linux 真机验收）· Ubuntu 下状态栏/应用图标显示为通用齿轮（图标未进图标主题 + `Categories=Unknown`）
+
+| 项 | 内容 |
+|----|------|
+| **现象** | 「在 ubuntu24.04 桌面下，wuzhufolio 在状态栏的图标是一个环形齿轮，大概是默认图标…能不能和托盘图标、桌面图标统一起来？」 |
+| **已实证（Agent 解包线上 0.1.0 `.deb` 核对，非推测）** | 包内**没有** `usr/share/icons/hicolor/**`（grep 计数 0）；512×512 正式图标只落在 `/opt/wuzhufolio/lib/WuZhuFolio.png`；`.desktop` = `/opt/wuzhufolio/lib/wuzhufolio-WuZhuFolio.desktop`（`Icon=/opt/wuzhufolio/lib/WuZhuFolio.png` **绝对路径**、**`Categories=Unknown`**、`MimeType=` 空）；`postinst` **仅**执行 `xdg-desktop-menu install <该绝对路径>`，**没有** `gtk-update-icon-cache`、**没有** `update-desktop-database`、**没有**把图标装进主题目录。**注**：构建脚本里写了 `linux { appCategory = "Office" }`，但产物里是 `Unknown` → 需进一步确认是 jpackage 模板行为还是 DSL 未透传（**待修项之一**） |
+| **机制说明（为何是「齿轮」）** | 「桌面条目图标」与「托盘图标」是**两条独立链路**：① 桌面/应用列表图标走 `.desktop` + 图标主题（当前靠绝对路径 PNG，且缺缓存刷新 → GNOME 在索引/缓存未更新时显示通用占位，社区已知「装完图标异常、注销重登后正常」）；② 托盘走 AWT `TrayIcon`，**Linux 上仍是 XEmbed**，而 Ubuntu 24.04 的 GNOME 已改用 **StatusNotifierItem/SNI**，需 `xembed-sni-proxy` 之类的代理转发（OpenJDK 已登记该平台差异：JDK-8341144「Java AWT TrayIcon uses the old xembed while most Linux distros switched to SNI」） |
+| **Agent 真机复核（2026-09-24 · 本机 = 该 Ubuntu 24.04 桌面，已装 `wuzhufolio 0.1.0-1`）** | ① 会话 = **X11**（GNOME Shell 46）；② **已安装**的 `/usr/share/applications/wuzhufolio-WuZhuFolio.desktop` 全文实测：`Icon=/opt/wuzhufolio/lib/WuZhuFolio.png`（绝对路径）、**`Categories=Unknown`**、**无 `StartupWMClass=`**；③ `ls /usr/share/icons/hicolor/*/apps/ \| grep -i wuzhu` = **空**（图标未进主题；`icon-theme.cache` 存在但无本应用条目）；④ 已启用扩展 = `ubuntu-appindicators@ubuntu.com` + `ubuntu-dock@ubuntu.com`；⑤ **窗口图标从未设置**：jpackage 生成的 `/opt/wuzhufolio/lib/app/WuZhuFolio.cfg` 的 `[JavaOptions]` **无** `-Dsun.awt.application.icon`，且 `AppHost.kt` 的 `Window(...)` **未传 `icon=`** → 窗口没有 `_NET_WM_ICON`。**②+③+⑤ 叠加 ⇒ GNOME 既无窗口图标、也无法经图标主题/`StartupWMClass` 把窗口关联到桌面条目 → 顶部栏 / Dock / 应用网格回落为通用齿轮**（与人工观察一致）。**结论：不是「某个图标没装」，而是「窗口图标 + 主题图标 + 桌面条目关联」三处都缺** |
+| **Agent 实跑取证（2026-09-24 · 启动已安装的 0.1.0 做窗口取证，隔离数据目录，跑完即杀）** | 以 `WUZHUFOLIO_DATA_DIR=/tmp/wzf-probe` 启动 `/opt/wuzhufolio/bin/WuZhuFolio` 后 `xprop` 取证：**`WM_CLASS(STRING) = "WuZhuFolio", "WuZhuFolio"`**（→ `StartupWMClass=WuZhuFolio` 即可对齐，**无需**自定义 `-Dsun.awt.X11.XWMClass`）；**`_NET_WM_ICON: not found`** ⇒ **窗口图标确实完全没有** —— 这是 GNOME 顶部栏/Dock 显示通用齿轮的**直接原因**（已从推断升级为实测）。同轮 `busctl --user list`：`org.kde.StatusNotifierWatcher` 由 gnome-shell 持有（SNI 宿主就绪），但**本应用未注册任何 SNI item**（同时段仅 WPS 的 `StatusNotifierItem-3802-1`）→ 托盘走的是 `ubuntu-appindicators` 扩展的 **XEmbed 转发**路径。**数据隔离已核实**：真实 `~/.wuzhufolio/wuzhufolio.db` mtime 未被触碰（探针只写 `/tmp/wzf-probe`）。**注意：本次仅取证，未改任何代码/配置** |
+| **建议分级** | **C1**（分发包的桌面集成口径：图标主题安装 + 分类 + 缓存刷新；AppImage 另需集成步骤） |
+| **建议修法** | ① **窗口图标**（Dock/顶栏立即见效的那一处）：`AppHost.kt` 的 `Window(...)` 传 `icon = TrayIcon.painter()`（或独立的 `AppIcon.painter()`，与托盘同一枚资产）；② 打包后处理：PNG 安装到 `/usr/share/icons/hicolor/{16,32,48,64,128,256,512}x*/apps/wuzhufolio.png`，`.desktop` 改 `Icon=wuzhufolio` + `Categories=Office;Finance;`；③ **桌面条目关联**：给 `.desktop` 加 `StartupWMClass=`，并与启动参数 `-Dsun.awt.X11.XWMClass=wuzhufolio-WuZhuFolio` **同名固定**（不依赖 AWT 默认值）；④ `postinst` 追加 `update-desktop-database` / `gtk-update-icon-cache -f -t /usr/share/icons/hicolor`（或改用 `xdg-icon-resource install --novendor --size 512`）；⑤ 托盘在 GNOME 下走 SNI 的路径单独评估（扩展已装时 AWT XEmbed 可经 `ubuntu-appindicators` 转发；ADR-001 已把 dorkbox AppIndicator 列为备选；若不做，则用户指南明示「GNOME 需 AppIndicator 扩展」+ 无扩展时的降级行为）；⑥ 真机复验清单：**注销/重登前后 × 顶部栏 / Dock / 应用网格 / 托盘** 四处图标是否一致；⑦ 顺带修 `Categories=Unknown`（确认 `linux { appCategory }` 是否透传；未透传则改用 jpackage 资源覆盖） |
+| **✅ 修复留痕（2026-09-24）** | **StartupWMClass 取值订正（2026-09-24 复核）**：首版误取 `WuZhuFolio`（用 `xprop -name WuZhuFolio` 命中了**窗口框架** mutter-x11-frames，不是客户端窗口）；正确取法 = `_NET_CLIENT_LIST` 遍历 + `_NET_WM_PID` 反查， 实测打包版 **WM_CLASS = `com-wuzhufolio-app-MainKt`**（AWT 取主类名、`.`→`-`；app-image 与 .deb 安装版一致）。 尝试用 `-Dsun.awt.X11.XWMClass=WuZhuFolio` 固定 WM_CLASS **实测无效**（JDK 21），故不保留该配置， `.desktop` 的 `StartupWMClass` 直接写实测值。<br>① **窗口图标**：`AppHost` 的 `Window(icon = TrayIcon.painter(WINDOW_SIZE))` → 提供 `_NET_WM_ICON`；② **桌面集成后处理**：新增 `scripts/patch-linux-desktop-integration.sh`（`.desktop` → `Icon=wuzhufolio` + `Categories=Office;Finance;` + `StartupWMClass=WuZhuFolio`；8 档图标装进 `hicolor/*/apps/`；`postinst` 追加 `update-desktop-database`/`gtk-update-icon-cache`；`dpkg-deb --build` 重打包）——**已用线上 0.1.0 `.deb` 本地实测通过**（三字段 + 8 尺寸全部落地）；③ **CI**：Linux package job 打包后执行该脚本并校验三字段 + `hicolor/512x512/apps/wuzhufolio.png`（缺一即失败）。**未纳入**：rpm/AppImage 同类补齐、GNOME 原生 SNI 托盘 → P8。 |
+
+#### 增量提案 ⏳ **待定级（建议 C1 · D35 候选）**· 成交/持仓币自动进入「行情」自选（人工反馈第 5 条）
+
+| 项 | 内容 |
+|----|------|
+| **人工诉求** | 「手动添加一个交易对时，如果交易的币种没有在行情列表里，是否可以自动在行情列表添加这个已经有过交易的币种？同样，当同步交易所交易数据时…也可以把行情列表中缺少、但有实际交易的币种，自动列入行情列表，以便后续刷新这些币种的行情」 |
+| **现状（只读核验）** | `watch.coins`（settings 全局行，上限 `MarketWatchService.WATCH_LIMIT = 50`）目前**只由用户在行情页手动增删**（`SettingsMarketWatchService.addCoin/removeCoin`）；账本写入路径（`DefaultTransactionLedgerService`）与交易所同步路径（`DefaultExchangeSyncService`）**都不碰自选列表**，故成交币不会自动出现在行情页，也不会被自动刷新（只能靠「持仓 ∪ 自选」的聚合页自动补价路径） |
+| **建议分级** | **C1**（新增行为、写已有 settings 键、无新表/无加密变更；需新增决策档 D35 + 台账 + `ia.md §2.19`/`interaction.md §2.7` 回写 + task-breakdown 新任务） |
+| **需要人工拍板的三个口径** | ① **是否会「复活」用户删掉的币**：建议只对**新出现**的成交币自动加入，并记住「用户已移除」集合（或加设置开关「成交币自动加入行情自选」，默认开）；② **上限**：自选上限 50，超出时不自动加（只在行情页提示）；③ **触发点**：手动交易保存成功后 + 交易所同步新增交易后（`ApiKeySyncResult` 现只带计数、不带币种 → 需在结果里新增**本次新增成交涉及的 cg_id 集合**，属**进程内契约**扩展，`api-contracts.md §2/§3` 回写） |
+
+> **第 7 条（JDK 17/21 与 mise 口径）**：非缺陷 —— 见 `docs/tech/dev-setup.md §1/§2` 与 `STATUS.md` 已决策事项 34 的修订口径
+> （**JDK 17 与 21 均可**；发布/CI 基线维持 Temurin 17；**mise 为建议而非硬性规定**）。
+
+---
+
+### 2.3 0.1.1 修复轮结论（2026-09-24 · 人工「按建议定级并实施」）
+
+**范围**：本轮 7 项全部收口 —— DEF-47（C0）、DEF-48（C1）、DEF-49（C1）、DEF-50（C0）、DEF-51（C1）、DEF-52（C1）、DEF-53（C0），
+外加人工批准的增量 **D35**（成交币自动进入行情自选）。**无新增缺陷**（修复轮未引入回归）。
+
+**分级与建档**：C1 五项按 `AGENTS.md §8.2` 落最小清单 —— 决策档 **D35** / **D36** + `增量台账` 两行 +
+`决策索引` 两行 + `task-breakdown **T12.9**` + 设计/技术文档回写（`design-tokens §5`、`interaction §2.7`、`ia §2.19`、
+`data-model §2.3`、`api-contracts §3`、`ADR-006 §1.1.1`）+ 模块记录（`M3/M5/M6/M7/M8/M11/M12/M13`）。
+C0 三项按 §8.1 不建档、不进台账（索引见 D36 §5）。
+
+**本机实测证据（Agent，2026-09-24）**：
+- **无缓存全量验证（JDK 21，交付前最终一轮）**：`./gradlew clean build --rerun-tasks --no-build-cache` →
+  **BUILD SUCCESSFUL（33/33 任务真实执行）** → **748 用例 / 744 执行 / 0 失败 / 0 错误 / 4 跳过**
+  （4 条 = env 门控的 live 网络冒烟：`LiveMarketRefreshWiringTest` 1 + `LiveNetworkSmokeTest` 2 + `ProxyRoutingSmokeTest` 1）
+  + **detekt 0** + **编译警告 0**（DEF-53 的 2 条冗余 `?.` 清掉后恢复为 0）；分模块：app 50 / domain 222 / data 300 / ui 176；
+- **候选排序修法验证**（真实 CoinGecko 全量目录 21,549 条）：修法后 `usdt→Tether`、`btc→Bitcoin`、`eth→Ethereum`、`sol→Solana` 全部第 1 位；
+- **Linux 桌面集成补丁实测**：对**线上 0.1.0 `.deb`** 跑 `scripts/patch-linux-desktop-integration.sh` →
+  重打包后 `.desktop` 三字段齐（`Icon=wuzhufolio` / `Categories=Office;Finance;` / `StartupWMClass=WuZhuFolio`）、
+  `hicolor` 下 **8 档**图标（16/24/32/48/64/128/256/512）、`postinst` 含缓存刷新；包元数据（Package/Version/Installed-Size）不变；
+- **CI 接线**：Linux package job 打包后执行该脚本并校验（缺字段/缺图标即 job 失败）；
+- **托盘图标像素级取证（DEF-48 二轮，可复现）**：
+  ```bash
+  # ① 找 XEmbed 图标窗口（AWT 的 canvas peer）
+  wid=$(xwininfo -root -tree | awk '/sun-awt-X11-XCanvasPeer/ {print $1; exit}')
+  # ② 抓窗口内容并逐像素分析（绿=accent，浅=纸色）
+  xwd -id "$wid" -silent -out /tmp/tray.xwd   # 配合 PIL 解析 XWD（>25I 头 + RGBA stride）
+  ```
+  实测矩阵（Ubuntu 24.04 / GNOME 46 / 缩放 2 / JDK 21；窗口恒为 32×32）：
+  | 给 AWT 的图 | autoSize | 窗口内实际绘制 | 结果 |
+  |---|---|---|---|
+  | 24px（AWT 报告值） | true / false | ≈48px | **右下被裁**（人工所见） |
+  | 32px | false | ≈64px | 裁得更狠 |
+  | **16px（24 ÷ 缩放 2）** | false | ≈32px | **完整、四边留边距** ✅ |
+- **窗口图标端到端实证（GUI 冒烟，隔离数据目录 `/tmp/wzf-smoke`）**：`./gradlew :app:run` 启动后对**真实窗口** `xprop` ——
+  **修复前**（0.1.0 安装版）：`_NET_WM_ICON: not found`；**修复后**：`_NET_WM_ICON(CARDINAL) = Icon (192 x 192)` ✅；
+  同轮实测 **打包版 WM_CLASS = `WuZhuFolio`**（开发运行 `:app:run` 为 `com-wuzhufolio-app-MainKt`），
+  故 `.desktop` 的 `StartupWMClass=WuZhuFolio` 与已安装产物一致；目录刷新 `added=21545`、**排名缓存预热 `entries=492`**
+  （DEF-51 新排序在生产路径上的前提成立）；bootstrap `schema=12`、托盘 `supported=true`、无异常栈。
+
+**待人工复验（0.1.1 出包后）**：D36 §6 B1–B8 与 D35 §6 A1–A7 —— 重点是
+**B2/B6（托盘与桌面图标在真机完整显示）**、**B3（托盘四项 + 点完可见反馈）**、**B4（遮挡时置前）**、
+**B5（四处候选查 usdt 首屏即 Tether、可滚动）**、**B7（成交币自动入自选）**。
+
+
+### 2.4 0.1.1 人工复验结论（2026-09-25 · 人工门通过）
+
+**人工原话**：「**托盘功能通过，windows走查通过**」。
+
+| 验收面 | 覆盖项 | 结论 |
+|--------|--------|------|
+| **Linux 真机（Ubuntu 24.04）托盘功能** | DEF-48 托盘图标完整显示（二轮修复后）· DEF-49 菜单四项 + 点选后有可见反馈 · DEF-50「打开主界面」置前 | ✅ 通过 |
+| **Windows 走查** | DEF-47 侧边栏无组件走查项 · DEF-49 托盘菜单与气泡反馈 · DEF-51 候选排序（查 usdt 首屏为 Tether、可滚动）· DEF-52① 窗口/任务栏图标（此前为 Java 默认图标） | ✅ 通过 |
+| 其余（不依赖平台） | DEF-51 排序与候选统一（Linux 已随托盘复验一并走查）· DEF-53 编译警告 0 · D35 成交币自动入自选 | ✅ 自动化回归覆盖（748 用例 0 失败）+ Linux 走查覆盖 |
+
+**结论**：**0.1.1 修复轮的全部验收项通过**（D36 §6 B1–B8 与 D35 §6 A1–A7 的可人工判定部分均通过），
+无新增缺陷、无回退项。**下一步 = 人工批准发布 0.1.1**（版本号 bump → 提交推送 → CI 出包 → 打 tag → 建 Release）。
 
 ## 3. P3 / 观察项（登记，不影响发布）
 
@@ -557,6 +701,7 @@ Get-ChildItem "$env:USERPROFILE\.wuzhufolio\logs" | Sort-Object LastWriteTime -D
 | **DEF-44** | ✅ **已修正（2026-09-16，人工门实测，测试文档勘误 · C0）**：手册中的 `msiexec /i .\wzf-windows\msi\WuZhuFolio-0.1.0.msi` **相对路径写法在 PowerShell 下必然失败**（报「无法打开此安装程序包。请确认该程序包存在，并且你有权访问它」），而文件管理器双击可正常安装。**根因**：`msiexec` 是独立进程，相对路径按它自己的工作目录解析；per-machine 安装触发 UAC 提权后工作目录变为 `C:\Windows\System32`，相对路径即失效（双击由资源管理器传**绝对路径**故正常）。**修正**：`manual-test-guide.md §5.3/§15/§18/§18.1` 与 `keyboard-walkthrough.md` 的全部安装命令改为 `$msi = (Resolve-Path .\…).Path` + `Start-Process msiexec -ArgumentList "/i `"$msi`"" -Verb RunAs -Wait`，并在 §5.3 增「为什么必须绝对路径」说明；同处说明「双击时先闪一下的窗口 = UAC 提权/引导，属正常现象」 | 文档可用性 | ✅ 已修正（不涉产品代码） |
 | **DEF-46** | ✅ **已修正（2026-09-21，Agent 记录第十一轮复验时发现，测试文档勘误 · C0）**：`manual-test-guide.md` 自 **§16.4 起整段重复**——同一份内容出现两次（§16.4 / §16.5 / §17 TC-MAN-11 / §18 第十轮产物 / §16.6），系 2026-09-16 追加 §18.1 时**在文件尾部整段复粘**所致。**危害**：① 同一用例两份卡片、证据更新容易只改一处（本轮即需同时改两处）；② 两版 §16.6 的探针命令**互相矛盾**——保留版注明「随包运行时不含 `java.exe`（`--strip-native-commands` 裁剪），不能用它做探针」，而复粘版给出 `& "$d\runtime\bin\java.exe" …` 直跑命令；`scripts/diagnose-packaged-launch.ps1` 对该文件是 `Test-Path` 后 `continue`（缺失即跳过），故以「缺 `java.exe`」口径为准。**修正**：删除**复粘的第二份**（115 行），保留首份（含 `§18.1` 第十轮续产物留痕）；文件 1015 → 900 行，标题结构恢复单份。**不涉产品代码、不改任何用例判据**。 | 文档可用性 | ✅ 已修正（保留「§16.6 结论：随包运行时无 `java.exe`」口径；如后续确认产物确实带 `java.exe`，按 C0 再回写该注） |
 | **DEF-12** | ✅ **已修复（2026-09-14，CI 三平台复跑暴露，测试缺陷）** `SettingsKeyNamespaceGuardTest` 的符号索引**依赖文件遍历顺序**：早期实现用 `HashMap<裸名, 表达式>`，同名常量（`AppLanguage.SETTINGS_KEY="locale"` 与 `MarketWatchService.SETTINGS_KEY="watch.coins"`）互相覆盖 → **限定名 `MarketWatchService.SETTINGS_KEY` 未解析**，Windows（NTFS 目录顺序）上 `watch.coins` 丢失而 ubuntu/macos 通过。**修复** = 改为「限定名 → 表达式集合」索引（限定名唯一命中即用；裸名要求跨全部限定符唯一，否则 fail-closed）+ 限定符跟踪覆盖 `interface`/`enum class`/`data class` 等全部类型声明。**验证** = 本地把文件遍历顺序反转为降序后复跑仍绿（顺序无关性实证）；CI 复跑见 `test-report.md`/STATUS「CI 留痕」 | 测试基础设施 | 已修复并已推送复跑；教训：凡「跨文件符号解析」的守护测试必须与遍历顺序无关，且**限定名优先于裸名** |
+| **DEF-53** | ✅ **已收口（0.1.1 修复轮 2026-09-24 · 人工拍板 C0）**：**① 用例总数口径偏低 4 条**——文档多处写「**718 用例（710 执行 0 失败 + 8 跳过）**」，实测两侧均非此数：**CI（ubuntu / JDK 17）= 722 用例，714 执行 0 失败 + 8 跳过**；**本机 WSL2（JDK 21）= 722 用例，718 执行 0 失败 + 4 跳过**（差异 = `KeychainMasterKeyStoreTest`×2 与 `KeyringRememberMeStoreTest` 2/3 这 4 条钥匙串真实后端用例在 CI-ubuntu 无 Secret Service 而跳过、在本机 WSL2 实际执行并通过）。**② 「编译警告 0」表述与当前代码不符**：本机干净全量构建实测 **2 条 Kotlin 警告**（`app/src/main/kotlin/com/wuzhufolio/app/UiPreferenceState.kt:33:54` 与 `:36:64`「Unnecessary safe call on a non-null receiver」）——根因 = `ThemeMode.fromStorage()/PnlColorScheme.fromStorage()` **声明返回非空类型**（`?: LIGHT` / `?: GREEN_UP`），调用处却写了 `?.let {}`；属**类型层面即可判定，与 JDK 版本无关**（该文件自 P6 DEF-19 修复提交 `79d4069` 起未再改动）。**处置建议**：把用例数与跳过数的**双环境口径**写清（0.1.1 修复轮会再次变动，届时统一回填 `test-report.md`/`test-cases.md`/STATUS），并顺手删掉两处冗余 `?.`（1 行级改动）后重跑全量确认「警告 0」恢复成立；**均不涉产品行为** | 测试文档 / 质量口径 | ✅ 已收口：① 冗余 `?.` 已删（`UiPreferenceState.kt`，全量构建 **0 警告**）；② 用例/警告口径在 0.1.1 修复轮按实测回填（**746 用例 = 742 执行 0 失败 + 4 跳过**，本机 JDK 21） |
 
 ---
 

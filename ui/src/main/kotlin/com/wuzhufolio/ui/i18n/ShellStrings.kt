@@ -33,6 +33,8 @@ interface ShellStrings {
     /** 托盘菜单（P6 DEF-15：自建 AWT 托盘，文案随界面语言——此前硬编码中文）。 */
     val trayOpen: String
     val traySyncNow: String
+    /** DEF-49：托盘「立即刷新行情」（与交易同步分列——两类 API 独立，PRD §1.1-4）。 */
+    val trayRefreshQuotes: String
     val trayQuit: String
     val syncing: String
     val themeToggleTooltip: String
@@ -76,7 +78,8 @@ object ShellStringsZh : ShellStrings {
     override val navGallery = "组件走查"
     override val manualSync = "立即同步"
     override val trayOpen = "打开主界面"
-    override val traySyncNow = "立即同步"
+    override val traySyncNow = "立即同步交易"
+    override val trayRefreshQuotes = "立即刷新行情"
     override val trayQuit = "退出"
     override val syncing = "同步中…"
     override val themeToggleTooltip = "切换明/暗主题"
@@ -131,7 +134,8 @@ object ShellStringsEn : ShellStrings {
     override val navGallery = "Components"
     override val manualSync = "Sync now"
     override val trayOpen = "Open WuZhuFolio"
-    override val traySyncNow = "Sync now"
+    override val traySyncNow = "Sync trades now"
+    override val trayRefreshQuotes = "Refresh quotes now"
     override val trayQuit = "Quit"
     override val syncing = "Syncing…"
     override val themeToggleTooltip = "Toggle light/dark theme"

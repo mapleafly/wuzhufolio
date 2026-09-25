@@ -125,7 +125,6 @@ interface MarketStrings {
     fun watchColPrice(fiat: String): String
 
     /** 自选已达上限（interaction.md §2.7「自选已达上限（50）」；上限取自数据层自选服务）。 */
-    fun watchLimitReached(limit: Int): String
 
     /** 行情行数据源列的「无行情」档（[MarketCopy.sourceText] 的 null 分支；zh 逐字）。 */
     val sourceNoQuote: String
@@ -230,7 +229,6 @@ object MarketStringsZh : MarketStrings {
 
     override fun watchColPrice(fiat: String) = "现价（" + fiat + "）"
 
-    override fun watchLimitReached(limit: Int) = "自选已达上限（" + limit + "）"
 
     override fun watchSourceBadge(configured: Boolean) =
         "数据源：CoinGecko" + if (configured) " · 专属额度" else " · 无 Key 公共 API"
@@ -347,7 +345,6 @@ object MarketStringsEn : MarketStrings {
 
     override fun watchColPrice(fiat: String) = "Price (" + fiat + ")"
 
-    override fun watchLimitReached(limit: Int) = "Watchlist limit reached (" + limit + ")"
 
     override fun watchSourceBadge(configured: Boolean) =
         "Source: CoinGecko" + if (configured) " · personal quota" else " · public API (no key)"

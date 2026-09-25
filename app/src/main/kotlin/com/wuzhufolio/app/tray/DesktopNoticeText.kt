@@ -39,6 +39,38 @@ object DesktopNoticeText {
         level = NoticeLevel.WARNING,
     )
 
+    // ---- DEF-49：托盘手动动作的即时反馈（点完必须「有反应」，且与背景同步通知同源文案）----
+
+    /** 手动同步：开始（点击后立刻显示，消除「点了没反应」的观感）。 */
+    fun manualSyncStarted(): DesktopNotice =
+        DesktopNotice("正在同步交易数据", "正在向已配置的交易所拉取成交记录…", NoticeLevel.INFO)
+
+    /** 手动同步：没有可同步的密钥（不是失败，但要说清为什么没有结果）。 */
+    fun manualSyncNoKeys(): DesktopNotice =
+        DesktopNotice("没有可同步的密钥", "尚未添加交易所 API 密钥；添加后可在托盘直接同步。", NoticeLevel.WARNING)
+
+    /** 手动刷新行情：开始。 */
+    fun manualRefreshStarted(): DesktopNotice =
+        DesktopNotice("正在刷新行情", "正在获取最新行情快照…", NoticeLevel.INFO)
+
+    /** 手动刷新行情：结束（成功给币数；失败给可读原因——PRD 统一异常处理，不给泛化的「请求失败」）。 */
+    fun manualRefreshFinished(refreshedCoins: Int, error: String?): DesktopNotice = if (error == null) {
+        DesktopNotice(
+            title = "行情刷新完成",
+            message = "已更新 " + refreshedCoins + " 个币种的行情快照",
+            level = NoticeLevel.INFO,
+        )
+    } else {
+        DesktopNotice(title = "行情刷新失败", message = truncate(error), level = NoticeLevel.ERROR)
+    }
+
+    /** 手动动作抛异常（网络/配置等）：给出可读原因，不吞。 */
+    fun manualActionFailed(action: String, error: Throwable): DesktopNotice = DesktopNotice(
+        title = action + "失败",
+        message = truncate(error.message ?: error.javaClass.simpleName),
+        level = NoticeLevel.ERROR,
+    )
+
     private fun okNotice(results: List<ApiKeySyncResult>): DesktopNotice {
         val newTrades = results.sumOf { it.newTrades }
         val duplicates = results.sumOf { it.duplicatesSkipped }

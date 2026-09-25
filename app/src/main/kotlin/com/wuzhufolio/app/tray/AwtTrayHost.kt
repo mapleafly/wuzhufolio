@@ -32,6 +32,14 @@ class AwtTrayHost(
     private val onOpen: () -> Unit,
     /** 右键菜单请求（屏幕坐标 px）——由调用方弹出 Compose 自绘菜单。 */
     private val onMenuRequest: (x: Int, y: Int) -> Unit,
+    /**
+     * 是否让 AWT 自动缩放图标到「系统托盘尺寸」。
+     *
+     * **DEF-48 二轮实测（Ubuntu 24.04 / 缩放 2 / JDK 21）**：AWT 报告的 `trayIconSize=24`（逻辑），
+     * 它会把图片按 `24 × 2 = 48` 物理像素栅格化后**按 1:1 画进 32 像素的 XEmbed 窗口** → 图标右下被裁
+     * （人工看到的「显示不全」）。因此默认改为 **false**：按给定像素 1:1 绘制，尺寸完全由调用方掌握。
+     */
+    private val imageAutoSize: Boolean = false,
 ) : AutoCloseable {
 
     private var trayIcon: TrayIcon? = null
@@ -41,7 +49,7 @@ class AwtTrayHost(
         if (!TraySupport.isSupported()) return false
         return runCatching {
             val awtIcon = TrayIcon(icon, TOOLTIP).apply {
-                setImageAutoSize(true)
+                setImageAutoSize(imageAutoSize)
                 addActionListener(ActionListener { onOpen() })
                 addMouseListener(
                     object : MouseAdapter() {

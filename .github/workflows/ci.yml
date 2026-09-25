@@ -136,6 +136,23 @@ jobs:
           fi
           ./gradlew :app:packageDistributionForCurrentOS $EXTRA --console=plain --stacktrace
 
+      - name: Linux 桌面集成补齐（DEF-52：图标进主题 + StartupWMClass + 缓存刷新）
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          debs=(app/build/compose/binaries/main/deb/*.deb)
+          if [ ${#debs[@]} -eq 0 ]; then echo '::warning::未找到 .deb，跳过桌面集成补齐'; exit 0; fi
+          scripts/patch-linux-desktop-integration.sh "${debs[@]}"
+          # 校验：修补后的桌面条目字段必须齐（缺一即失败，避免"静默没补上"）
+          dpkg-deb --fsys-tarfile "${debs[0]}" | tar -xO ./opt/*/lib/*.desktop > /tmp/wzf.desktop
+          grep -q '^Icon=wuzhufolio$' /tmp/wzf.desktop
+          grep -q '^Categories=Office;Finance;$' /tmp/wzf.desktop
+          grep -q '^StartupWMClass=com-wuzhufolio-app-MainKt$' /tmp/wzf.desktop
+          dpkg-deb -c "${debs[0]}" | grep -q 'hicolor/512x512/apps/wuzhufolio.png'
+          echo '桌面集成补齐校验通过 ✅'
+
       - name: 打包失败诊断（jpackage 输出与错误日志）
         if: failure()
         shell: bash

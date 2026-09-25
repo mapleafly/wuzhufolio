@@ -11,7 +11,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 import com.wuzhufolio.ui.components.WzOverlayRegistry
 
-/** 侧边栏导航项顺序（与渲染顺序一致：六个一级页 + 组件走查页）；↑/↓ 与「焦点回外壳」按此顺序。 */
+/** 侧边栏导航项顺序（与渲染顺序一致：六个一级页 +〔开发构建才有的〕组件走查页）；↑/↓ 与「焦点回外壳」按此顺序。 */
 /**
  * 主壳键盘焦点编排（2026-09-15 Windows 人工走查第 4 轮反馈，DEF-20 / 走查改进项 A）。
  *
@@ -26,7 +26,7 @@ import com.wuzhufolio.ui.components.WzOverlayRegistry
  * - **弹层打开时不接管**（[WzOverlayRegistry]）：否则焦点会跑到弹层背后，弹层还开着而键盘已无法操作；
  * - 带 Ctrl/Alt/Meta 的组合键不接管（留给 P8 全局快捷键，见键盘走查改进项 B）。
  */
-internal val NAV_FOCUS_ORDER: List<ShellPage> = ShellPage.sidebarPages + ShellPage.GALLERY
+internal fun navFocusOrder(devUi: Boolean): List<ShellPage> = visibleShellPages(devUi)
 
 /**
  * 页面内容区键盘「退出」：把未被页面控件消费的 Esc / ↑ / ↓ 交回侧边栏当前页项。
@@ -53,11 +53,12 @@ internal fun handleSidebarArrowKey(
     event: KeyEvent,
     focusedPage: ShellPage?,
     navFocusRequesters: Map<ShellPage, FocusRequester>,
+    navFocusOrder: List<ShellPage>,
 ): Boolean {
     val step = sidebarArrowStep(event)
-    val index = focusedPage?.let(NAV_FOCUS_ORDER::indexOf) ?: -1
+    val index = focusedPage?.let(navFocusOrder::indexOf) ?: -1
     val target = if (step != null && index >= 0) {
-        navFocusRequesters[NAV_FOCUS_ORDER.getOrNull(index + step)]
+        navFocusRequesters[navFocusOrder.getOrNull(index + step)]
     } else {
         null
     }

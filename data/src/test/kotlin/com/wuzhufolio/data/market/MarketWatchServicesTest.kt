@@ -1,5 +1,6 @@
 package com.wuzhufolio.data.market
 
+import com.wuzhufolio.domain.catalog.CoinDirectoryEntry
 import com.wuzhufolio.domain.market.MarketWatchService
 import com.wuzhufolio.domain.market.PriceSource
 import com.wuzhufolio.domain.market.WatchQuoteRow
@@ -46,15 +47,57 @@ class MarketWatchServicesTest {
     }
 
     @Test
-    fun `add duplicate is idempotent and limit is enforced`() = runBlocking {
+    fun `add duplicate is idempotent and there is no length limit`() = runBlocking {
         MarketTestEnv().use { env ->
             val service = SettingsMarketWatchService(env.settings, env.catalog)
             service.addCoin("bitcoin")
             service.addCoin("bitcoin")
             assertEquals(2, service.watchCoins().size, "默认 1（USDT）+ 1 不重复")
-            repeat(45) { i -> service.addCoin("extra-coin-$i") }
-            assertEquals(MarketWatchService.WATCH_LIMIT, service.watchCoins().size)
-            assertFailsWith<IllegalArgumentException> { service.addCoin("overflow-coin") }
+            // D35（2026-09-24 人工口径）：自选**不设数量上限**——原 50 条上限与 IllegalArgumentException 已移除
+            val extra = (0 until 80).map {
+                CoinDirectoryEntry("extra-coin-$it", "x$it", "Extra Coin $it")
+            }
+            env.seedDirectory(MarketTestEnv.DEFAULT_ENTRIES + extra)
+            repeat(80) { i -> service.addCoin("extra-coin-$i") }
+            assertEquals(82, service.watchCoins().size)
+        }
+    }
+
+    // ---- D35：成交币批量自动加入（幂等 / 保序 / 去空）----
+
+    @Test
+    fun `batch add appends new coins in order and is idempotent`() = runBlocking {
+        MarketTestEnv().use { env ->
+            val service = SettingsMarketWatchService(env.settings, env.catalog)
+            service.addCoins(listOf("bitcoin", "ethereum"))
+            service.addCoins(listOf("ethereum", "dai", "bitcoin"))
+            assertEquals(
+                listOf("tether", "bitcoin", "ethereum", "dai"),
+                service.watchCoins().map { it.cgId },
+                "重复币不重复写入、既有顺序不变、新币追加在末尾",
+            )
+        }
+    }
+
+    @Test
+    fun `batch add ignores blank entries and empty batches`() = runBlocking {
+        MarketTestEnv().use { env ->
+            val service = SettingsMarketWatchService(env.settings, env.catalog)
+            service.addCoins(listOf("  ", "bitcoin", "bitcoin", ""))
+            service.addCoins(emptyList())
+            assertEquals(listOf("tether", "bitcoin"), service.watchCoins().map { it.cgId })
+        }
+    }
+
+    @Test
+    fun `removed coin is added back by the next batch (auto add wins over manual removal)`() = runBlocking {
+        MarketTestEnv().use { env ->
+            val service = SettingsMarketWatchService(env.settings, env.catalog)
+            service.removeCoin("tether")
+            assertEquals(emptyList(), service.watchCoins().map { it.cgId }, "手动移除后自选为空")
+            // D35 口径①：下次同步/交易触达该币时**自动加回**（不记录「用户已移除」排除集）
+            service.addCoins(listOf("tether"))
+            assertEquals(listOf("tether"), service.watchCoins().map { it.cgId })
         }
     }
 

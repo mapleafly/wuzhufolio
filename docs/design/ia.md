@@ -192,3 +192,6 @@ graph TD
   候选点选加入）与移除；页面可见期间按行情刷新频率自动轮询。
 - **数据来源**：coins 目录（symbol/name/搜索）、price_snapshots.latest(coin, fiat)（现价/来源/时刻）、
   settings 全局行（fiat、watch.coins 自选 JSON）、行情刷新服务（MarketRefreshService）。
+> **D35 补充（2026-09-24）**：自选列表 = 手动维护 ∪ **成交币自动加入**（手动交易 / CSV 导入 / 交易所同步），
+> 用户移除后再次触达会自动加回；**无数量上限**。候选检索四处统一（详见 `interaction.md §2.7`）。
+

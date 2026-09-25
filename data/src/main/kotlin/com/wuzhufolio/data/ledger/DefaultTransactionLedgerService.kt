@@ -3,6 +3,10 @@ package com.wuzhufolio.data.ledger
 import com.wuzhufolio.data.accounts.ActiveSession
 import com.wuzhufolio.data.accounts.ActiveSessionStore
 import com.wuzhufolio.data.settings.SettingsRepository
+import com.wuzhufolio.data.catalog.PinnedCoinSearch
+import com.wuzhufolio.data.market.TradedCoinSink
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import com.wuzhufolio.domain.catalog.CatalogCoin
 import com.wuzhufolio.domain.catalog.CoinCatalog
 import com.wuzhufolio.domain.catalog.CoinStatus
@@ -66,9 +70,16 @@ class DefaultTransactionLedgerService(
     private val parser: CsvTradeParser,
     private val eventBuilder: TransactionEventBuilder,
     private val assembler: LedgerEventAssembler,
+    /**
+     * **D35**：成交币 → 行情自选的接收口（默认 no-op，装配层注入 `MarketWatchService::addCoins`）。
+     * 失败**不得**影响交易写入，故调用点统一 `runCatching` 包住。
+     */
+    private val tradedCoins: TradedCoinSink = TradedCoinSink.NONE,
 ) : TransactionLedgerService {
 
     private val csvSessions = ConcurrentHashMap<String, CsvSession>()
+
+    private val logger: Logger = LoggerFactory.getLogger(DefaultTransactionLedgerService::class.java)
 
     /** 三类记录联合读取 + 事件装配（M8 资金半边接入：重放校验输入 = 交易+资金+锚点全集）。 */
     private val rowSource = LedgerRowsSource(repository, fundsRepository, reconsRepository)
@@ -131,7 +142,7 @@ class DefaultTransactionLedgerService(
         val seq = assembler.nextSeq(rows.tx, rows.funds, rows.recons)
         val candidate = mutationEvent(resolved, "candidate-" + UUID.randomUUID(), seq, baseFiat)
         validateMutation(without + candidate, without, candidate, rows.tx)
-        return repository.insert(
+        val id = repository.insert(
             NewLedgerTxRow(
                 accountId = accountId,
                 exchange = resolved.exchange,
@@ -150,6 +161,9 @@ class DefaultTransactionLedgerService(
                 priceStatus = PRICE_OK,
             ),
         )
+        // D35：手动记录的交易 → 该币自动进入行情自选（幂等；失败不影响落账）
+        rememberTradedCoins(resolved)
+        return id
     }
 
     override suspend fun updateTransaction(id: Long, input: TransactionInput) {
@@ -184,6 +198,8 @@ class DefaultTransactionLedgerService(
                 notes = input.notes?.trim()?.takeIf { it.isNotEmpty() },
             ),
         )
+        // D35：编辑后的交易同样触达该币（幂等）
+        rememberTradedCoins(resolved)
     }
 
     override suspend fun deleteTransactions(ids: List<Long>) {
@@ -385,39 +401,74 @@ class DefaultTransactionLedgerService(
                 t.copy(quoteCoin = quote, baseCoin = base)
             }
         }
-        var imported = 0
-        var duplicatesSkipped = 0
-        var unresolvedSkipped = 0
-        for (t in rows) {
-            val base = t.baseCoin
-            val quote = t.quoteCoin
-            if (base == null || quote == null || base.cgId == quote.cgId) {
-                unresolvedSkipped++
-                continue
-            }
-            val duplicate = isDuplicate(accountId, t)
-            when {
-                duplicate && t.rowKey !in includeRowKeys -> duplicatesSkipped++
-                duplicate && t.rowKey in includeRowKeys ->
-                    if (insertCsvRow(accountId, t, base, quote)) imported++ else duplicatesSkipped++
-                else -> if (insertCsvRow(accountId, t, base, quote)) imported++ else duplicatesSkipped++
-            }
+        val tally = insertCsvRows(accountId, rows, includeRowKeys)
+        if (tally.importedCoins.isNotEmpty()) {
+            // D35：CSV 同属手动录入路径 → 落库的币并入行情自选（失败不影响导入结果）
+            runCatching { tradedCoins.accept(tally.importedCoins) }
         }
         // 导入后全量重放（LENIENT）：负持仓币种 = 「持仓异常」清单（PRD 导入路径例外）
         val build = eventBuilder.build(repository.listAll(accountId), csv.baseFiat)
         val outcome = ReplayEngine.replay(build.events, NegativePolicy.LENIENT)
         val anomalous = outcome.anomalousCoins.mapNotNull { catalog.getByCgId(it)?.symbol }.distinct().sorted()
-        return CsvImportSummary(imported, duplicatesSkipped, unresolvedSkipped, anomalous)
+        return CsvImportSummary(tally.imported, tally.duplicatesSkipped, tally.unresolvedSkipped, anomalous)
     }
 
+    /**
+     * 候选检索：**与资金页同一口径**（DEF-51）——目录排序含市值排名 + 默认币（USD→USDT）置顶。
+     * 此前直接透传 `catalog.search`，导致交易表单里查 usdt 只看到同名桥接币（人工反馈第 4/10 条）。
+     */
     override suspend fun searchCoins(
         query: String,
         limit: Int,
-    ): List<com.wuzhufolio.domain.catalog.CatalogCoin> = catalog.search(query, limit)
+    ): List<com.wuzhufolio.domain.catalog.CatalogCoin> = coinSearch.search(query, limit)
+
+    /** 统一候选检索（含默认币置顶）。 */
+    private val coinSearch = PinnedCoinSearch(catalog) {
+        settings.getGlobal(SETTING_FIAT)?.takeIf { it.isNotBlank() } ?: "USD"
+    }
 
     override fun csvTemplateCsv(): String = CSV_TEMPLATE
 
     // ---- 内部 ----
+
+    /** CSV 导入计数袋（含 D35：本批实际落库的币）。 */
+    private data class CsvInsertTally(
+        var imported: Int = 0,
+        var duplicatesSkipped: Int = 0,
+        var unresolvedSkipped: Int = 0,
+        val importedCoins: MutableSet<String> = LinkedHashSet(),
+    )
+
+    /** CSV 行落库（导入循环主体；未解析/去重/新增三分支 + D35 币收集）。 */
+    private suspend fun insertCsvRows(
+        accountId: Int,
+        rows: List<CsvTradeParser.ParsedTrade>,
+        includeRowKeys: Set<String>,
+    ): CsvInsertTally {
+        val tally = CsvInsertTally()
+        for (t in rows) {
+            val base = t.baseCoin
+            val quote = t.quoteCoin
+            val resolvable = base != null && quote != null && base.cgId != quote.cgId
+            when {
+                !resolvable -> tally.unresolvedSkipped++
+                isDuplicate(accountId, t) && t.rowKey !in includeRowKeys -> tally.duplicatesSkipped++
+                insertCsvRow(accountId, t, base, quote) -> {
+                    tally.imported++
+                    tally.importedCoins += base.cgId
+                    tally.importedCoins += quote.cgId
+                }
+                else -> tally.duplicatesSkipped++
+            }
+        }
+        return tally
+    }
+
+    /** D35：把一笔已解析交易的两腿（base/quote）并入行情自选；失败只记日志、不影响交易写入。 */
+    private suspend fun rememberTradedCoins(resolved: ResolvedInput) {
+        runCatching { tradedCoins.accept(listOf(resolved.base.cgId, resolved.quote.cgId)) }
+            .onFailure { logger.debug("watch auto-add skipped ({})", it.javaClass.simpleName) }
+    }
 
     private suspend fun isDuplicate(accountId: Int, t: CsvTradeParser.ParsedTrade): Boolean =
         if (t.orderId != null) {

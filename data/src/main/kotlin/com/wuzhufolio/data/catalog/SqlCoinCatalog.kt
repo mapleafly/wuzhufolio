@@ -61,6 +61,11 @@ class SqlCoinCatalog(
                 compareBy(
                     { relevance(rowSymbol(it), q) },
                     { if (rowStatus(it) == CoinStatus.ACTIVE) 0 else 1 },
+                    // DEF-51（2026-09-24 人工拍板 C1）：同层内按**市值排名**升序——此前只按符号/名称字母序，
+                    // 于是「自己 symbol 就叫 USDT」的 49 条桥接币把真正的 Tether 挤到第 42 位
+                    // （人工实测：交易表单/行情搜索里查 usdt 只看到不常用条目）。
+                    // 排名来自 RefreshableRankProvider（行情目录刷新时预热的前 1000 名）；未入榜 → 末位。
+                    { rankProvider.rankOf(rowCgId(it)) ?: Int.MAX_VALUE },
                     { rowSymbol(it) },
                     { rowName(it) },
                 ),
@@ -69,6 +74,8 @@ class SqlCoinCatalog(
             .map { it.toCatalogCoin() }
             .toList()
     }
+
+    private fun rowCgId(row: ResultRow): String = row[CoinsTable.cgId]
 
     private fun rowSymbol(row: ResultRow): String = row[CoinsTable.symbol]
 

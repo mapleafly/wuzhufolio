@@ -158,7 +158,6 @@ object MarketCopy {
     fun watchColPrice(fiat: String): String = marketStrings.watchColPrice(fiat)
 
     /** 自选已达上限提示（interaction.md §2.7「自选已达上限（50）」）。 */
-    fun watchLimitReached(limit: Int): String = marketStrings.watchLimitReached(limit)
 
     /** 行情页数据源徽章（M12 T12.1）。 */
     fun watchSourceBadge(configured: Boolean): String = marketStrings.watchSourceBadge(configured)

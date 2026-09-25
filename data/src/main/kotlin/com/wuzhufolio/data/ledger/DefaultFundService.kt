@@ -2,6 +2,7 @@ package com.wuzhufolio.data.ledger
 
 import com.wuzhufolio.data.accounts.ActiveSessionStore
 import com.wuzhufolio.data.settings.SettingsRepository
+import com.wuzhufolio.data.catalog.PinnedCoinSearch
 import com.wuzhufolio.domain.catalog.CatalogCoin
 import com.wuzhufolio.domain.catalog.CoinCatalog
 import com.wuzhufolio.domain.catalog.CoinStatus
@@ -239,30 +240,17 @@ class DefaultFundService(
     }
 
     /**
-     * 候选检索（M8 修复轮 §8-2）：目录检索同名符号按名称字母序并列（M3 口径，未接市值排名），
-     * canonical 资产（tether 等）会被同名资产挤出 limit——本层把**命中查询的默认币种置顶**，
-     * 其余保持目录相关度序；不动 M3 已通过产物的排序口径。
+     * 候选检索：**统一口径** = `PinnedCoinSearch`（DEF-51 起资金页与交易页共用同一实现）。
+     * 目录排序含市值排名（M3 层修复）；命中查询时默认币（USD→USDT / 其他法币→USDC）置顶。
      */
-    @Suppress("ReturnCount") // 空查询/空结果/主路径三段早退
-    override suspend fun searchCoins(query: String, limit: Int): List<CatalogCoin> {
-        val q = query.trim()
-        if (q.isEmpty()) return emptyList()
-        val widened = catalog.search(q, SEARCH_WIDEN_LIMIT)
-        if (widened.isEmpty()) return emptyList()
-        val pinned = defaultCoin()?.takeIf {
-            it.symbol.contains(q, ignoreCase = true) || it.name.contains(q, ignoreCase = true)
-        }
-        val rest = widened.filter { it.id != pinned?.id }
-        return (listOfNotNull(pinned) + rest).take(limit)
-    }
+    override suspend fun searchCoins(query: String, limit: Int): List<CatalogCoin> =
+        coinSearch.search(query, limit)
 
-    override suspend fun defaultCoin(): com.wuzhufolio.domain.catalog.CatalogCoin? {
-        val fiat = settings.getGlobal(DefaultTransactionLedgerService.SETTING_FIAT)?.takeIf { it.isNotBlank() }
-            ?: "USD"
-        // PRD §9.8：基础法币为 USD 时默认 USDT，其余法币默认 USDC——按白名单 cg_id 直取
-        //（同名符号歧义下默认币种必须唯一确定，M8 修复轮 §8-1）
-        val cgId = if (fiat.equals("USD", ignoreCase = true)) "tether" else "usd-coin"
-        return catalog.getByCgId(cgId)
+    override suspend fun defaultCoin(): com.wuzhufolio.domain.catalog.CatalogCoin? = coinSearch.defaultCoin()
+
+    /** 统一候选检索（含默认币置顶）——资金/交易两条路径同一实例口径。 */
+    private val coinSearch = PinnedCoinSearch(catalog) {
+        settings.getGlobal(DefaultTransactionLedgerService.SETTING_FIAT)?.takeIf { it.isNotBlank() } ?: "USD"
     }
 
     // ---- 内部 ----
@@ -429,7 +417,6 @@ class DefaultFundService(
         const val PRICE_PENDING = "PENDING"
 
         /** 候选检索加宽数（先取宽、置顶默认币后再裁剪到调用方 limit）。 */
-        const val SEARCH_WIDEN_LIMIT = 50
 
         /** 法币输入提示前缀（PRD §9.8「输入法币代码时提示改为记录兑换后到账的稳定币」）。 */
         const val FIAT_HINT = "法币不入账本（仅作计价单位），"

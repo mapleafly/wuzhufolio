@@ -86,6 +86,28 @@ internal class CoreJourneyIntegrationTest {
             assertEquals(1, runBlocking { ledger.confirmCsvImport(preview.sessionId) }.imported)
             assertEquals(3, runBlocking { ledger.listTransactions(TxFilter()) }.size)
 
+            // ---- ④.1 D35：成交币自动进入「行情」自选（手动交易 + CSV 导入都算） ----
+            // 口径（2026-09-24 人工拍板）：① 手动删掉的币下次触达会**自动加回**；② 自选**无数量上限**；
+            // ③ 手动录入与交易所同步**都生效**。此处走真实组合根（AppBootstrap 装配的 MarketWatchService）。
+            val watchIds = runBlocking { h.runtime.marketWatchService.watchCoins() }.map { it.cgId }
+            assertTrue(
+                watchIds.containsAll(listOf("tether", "bitcoin", "ethereum")),
+                "手动交易（BTC/USDT）与 CSV（ETH/USDT）的成交币都应自动进入行情自选，实际：$watchIds",
+            )
+            assertEquals(watchIds.distinct(), watchIds, "自选不得出现重复项（幂等）")
+            // 用户手动移除后，下一次交易触达该币 → 自动加回（不设「已移除」排除集）
+            runBlocking { h.runtime.marketWatchService.removeCoin("bitcoin") }
+            assertTrue(runBlocking { h.runtime.marketWatchService.watchCoins() }.none { it.cgId == "bitcoin" })
+            saveTrade(ledger, Side.BUY, "51000", "0.01", at(4))
+            assertTrue(
+                runBlocking { h.runtime.marketWatchService.watchCoins() }.any { it.cgId == "bitcoin" },
+                "再次交易触达后应自动加回（D35 口径①）",
+            )
+            // 清理该笔追加交易，保持后续聚合断言与既有黄金用例一致
+            val extraId = runBlocking { ledger.listTransactions(TxFilter(coinSymbol = "BTC")) }
+                .first { it.price.compareTo(java.math.BigDecimal("51000")) == 0 }.id
+            runBlocking { ledger.deleteTransactions(listOf(extraId)) }
+
             // ---- ⑤ 看板 / ROI（M12 聚合页数据源：全量重放 → PortfolioCalculator → 补目录与现价） ----
             val snapshot = runBlocking { portfolio.snapshot() }
             assertEquals("USD", snapshot.fiat)
