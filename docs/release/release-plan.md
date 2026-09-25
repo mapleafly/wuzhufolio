@@ -53,6 +53,19 @@
 > §3 的发布前检查清单、§4 构建步骤、§5 发布步骤、§6 发布后验证**同样适用于 0.1.1**，
 > 只需把其中的 `0.1.0` / `v0.1.0` 替换为 `0.1.1` / `v0.1.1`。
 
+#### 1.2.1 0.1.1 发布执行记录（2026-09-25 ✅ 已完成）
+
+| 步骤 | 结果 |
+|------|------|
+| 版本号 | `appVersion` 0.1.0 → **0.1.1**（构建注入校验 `BuildInfo.VERSION="0.1.1"`、`DEV_UI=false`） |
+| 提交 / 推送 | **`d0991a6`**（79 文件，+2457/−322）→ `origin/main` |
+| CI | run [36087052258](https://github.com/mapleafly/wuzhufolio/actions/runs/36087052258) **六 job 全绿**；Linux 打包 job 内桌面集成补齐步骤跑通（8 档图标 → 重打包 → 字段校验通过 ✅） |
+| 产物 | `WuZhuFolio-0.1.1.msi` / `.exe` / `WuZhuFolio-portable-windows-x64.zip` / `wuzhufolio_0.1.1-1_amd64.deb` / `wuzhufolio-0.1.1-1.x86_64.rpm` / `wuzhufolio-0.1.1-x86_64.AppImage` / `WuZhuFolio-portable-linux-x64.tar.gz` + `SHA256SUMS` |
+| 校验和 | 本机计算 7 产物 SHA256 → AppImage 自带 `.sha256` 一致；`.deb` 复核含桌面集成字段与 hicolor 8 档图标 |
+| tag / Release | tag **`v0.1.1`**（指向 `d0991a6`）；Release **WuZhuFolio 0.1.1**（`Latest`），正文 = `release-notes-0.1.1.md` |
+| 发布后校验 | 8 附件公开 URL 全部 **HTTP 200**、大小与本地一致；公开下载 `.deb` / `.msi` 后 `sha256sum -c` **成功** |
+| 踩坑留痕 | `gh release create` 一次性上传多枚大文件会 **HTTP 400**，失败清理又遇 TLS 超时 → 残留 0 附件 draft；**改为「先建 draft → 逐个 upload（带重试）→ `--draft=false --latest` 发布」**（下次发布直接按此顺序） |
+
 ## 2. 版本号与产物命名口径
 
 - **应用版本 = 0.1.0**：`.cpro` 备份头部 `app_version`、应用内「关于」页、诊断报告三处同源（构建期由 `BuildInfo` 注入），不得手改。

@@ -6,11 +6,17 @@
 
 ## 当前阶段
 
-- **当前状态（2026-09-25 更新）**：**0.1.1 修复轮 ✅ 实施完成 + ✅ 人工复验通过，待人工批准发布**——
+- **当前状态（2026-09-25 更新）**：🎉 **0.1.1 已发布**（[GitHub Release v0.1.1](https://github.com/mapleafly/wuzhufolio/releases/tag/v0.1.1)，
+  提交 `d0991a6`，tag `v0.1.1`，8 附件 + `SHA256SUMS`，发布后校验通过）——**P7 收尾完成，等待人工决定是否进入 P8（复盘与下一迭代范围）**。
   人工原话（2026-09-25）：「**托盘功能通过，windows走查通过**」→ D36 §6 B1–B8 与 D35 §6 A1–A7 的可人工判定部分全部通过，
   无新增缺陷、无回退项（复验记录见 `docs/test/manual-test-guide.md §20`、`defects.md §2.4`）。
-  **下一步 = 人工批准发布 0.1.1**：版本号 bump（`appVersion` 0.1.0 → 0.1.1）→ 提交推送 → CI 三平台出包 →
-  取 Windows/Linux 产物 → 打 tag `v0.1.1` → 建 Release（`CHANGELOG` 已含 0.1.1 节；发布步骤含 `release-plan §4.1.1` 的 Linux 桌面集成补齐）。
+  **发布全过程留痕**：人工批准（「批准发布 0.1.1」）→ 版本号 bump → 提交推送 → CI 六 job 全绿（含 Linux 桌面集成补齐步骤在 CI 上跑通）
+  → 取 Windows/Linux 产物 → 生成 `SHA256SUMS`（AppImage 自带校验和一致）→ 打 tag `v0.1.1` → 建 Release →
+  **发布后校验**：8 附件公开 HTTP 200，下载 `.deb`/`.msi` 后 `sha256sum -c` **成功**；发布的 `.deb` 已含桌面集成字段与 8 档 hicolor 图标。
+  **发布执行留痕（2026-09-25）**：版本号 `appVersion` 0.1.0 → **0.1.1**（单一真源，构建注入校验 `BuildInfo.VERSION="0.1.1"`、`DEV_UI=false`）→
+  提交 **`d0991a6`**（79 文件、+2457/−322）推送 `origin/main` → **CI run [36087052258](https://github.com/mapleafly/wuzhufolio/actions/runs/36087052258)**（六 job：build ×3 + package ×3）。
+  文档同步：`CHANGELOG` 落 `[0.1.1] - 2026-09-25`、`release-plan §1.2`（0.1.1 发布口径）、`user-guide` 版本/产物名/已知问题更新、
+  新增 **`release-notes-0.1.1.md`**（Release 正文）。
   以下为实施内容（2026-09-24）：
   人工下达「**按建议定级并实施**」（同意 Agent 在 `defects.md §2.2` 给出的分级建议），
   **7 项验收缺陷全部收口 + 1 项增量（D35）落地**：
@@ -1919,3 +1925,5 @@ user-guide / 签名公证；**产品宣传动画为 P7 必做项**，AGENTS.md �
 | 2026-09-24 | Agent | **0.1.1 修复轮实施完成（停人工门）** | ① **DEF-47** 构建期 `DEV_UI` 开关（`BuildInfo.DEV_UI` → `LocalDevUi` → 侧边栏/焦点序；`ShellUiTest` 两分支 + `KeyboardA11yUiTest` 6+3）；② **DEF-48** `TrayIcon` 安全边距 8% + 按 AWT 宿主尺寸出图（`TrayIconTest` 3 例）；③ **DEF-49** 托盘四项 + `NoticeDelivery`（Linux 应用内提示窗 `DesktopToastWindow`/`TrayNoticeCard`，Win/mac 原生气泡）+ 手动动作开始/结果文案（`TrayMenuContentUiTest` 四项、`NoticeDeliveryTest`、`DesktopNoticeTextTest` +5）；④ **DEF-50** `showWindow()` 置前取焦；⑤ **DEF-51** `SqlCoinCatalog.search` 插入**市值排名** + `PinnedCoinSearch`（资金/交易共用）+ 统一组件 `CoinSuggestionList`（20 条可滚、行含 cg_id）——真实 CoinGecko 目录验证四个查询全部回到第 1 位（`SqlCoinCatalogTest` +2、`PinnedCoinSearchTest` 6、`TransactionsPageUiTest` +1）；⑥ **D35** `TradedCoinSink` + 账本三处与同步一处触发（`MarketWatchServicesTest` +4、核心旅程集成用例加自选断言）；⑦ **DEF-52** 窗口图标 + `scripts/patch-linux-desktop-integration.sh`（**线上 0.1.0 `.deb` 实测**：三字段 + 8 档 hicolor 图标 + postinst 缓存刷新）+ CI 接线校验；⑧ **DEF-53** 冗余 `?.` 清理 → **0 警告**。全量：**746 用例 / 742 执行 / 0 失败 / 4 跳过 + detekt 0**。文档：D35/D36 + 台账 + 索引 + T12.9 + design/tech 回写 + 模块记录 M3/M5/M6/M7/M8/M11/M12/M13 + `CHANGELOG` 0.1.1 节 + `defects.md §2.3`。**未改数据模型/加密/备份格式/出站白名单**；**停人工门待复验与发布批准**。 |
 | 2026-09-25 | 人 | **0.1.1 人工复验通过** | 原话「**托盘功能通过，windows走查通过**」——① **托盘功能（Ubuntu 24.04 真机）**：图标完整显示（DEF-48 二轮修复生效）、菜单四项、点选可见反馈、打开界面置前；② **Windows 走查**：无组件走查项（DEF-47）、托盘菜单与气泡反馈（DEF-49）、候选查 usdt 首屏 Tether 且可滚动（DEF-51）、窗口/任务栏图标为应用图标（DEF-52①）。据此 **D36 §6 B1–B8 与 D35 §6 A1–A7 的可人工判定部分全部通过**；**0.1.1 待人工批准发布**。 |
 | 2026-09-25 | Agent | **复验结果落盘 + 发布前状态收口** | ① `defects.md`：§0 汇总改「已修复 + 人工复验通过」、DEF-48 增人工复验行、**新增 §2.4「0.1.1 人工复验结论」**（验收面/覆盖项/结论 + 发布下一步）；② `manual-test-guide.md` **新增 §20「0.1.1 修复轮人工复验结果」**（含两轮修复背景与取证图索引）；③ STATUS：当前阶段改「实施完成 + 复验通过，待人工批准发布」+ 交接记录两行。**本轮未改任何代码**；全量回归维持 **748 用例 / 744 执行 / 0 失败 / 4 跳过 + detekt 0 + 编译警告 0**。 |
+| 2026-09-25 | 人 | **批准发布 0.1.1** | 选择「批准发布 0.1.1（推荐）」：bump 版本号 → 提交推送触发 CI → 核对 SHA256 → 打 tag `v0.1.1` → 建 GitHub Release → 发布后校验。 |
+| 2026-09-25 | Agent | **0.1.1 发布完成 + 发布后校验通过** | ① 版本号 `appVersion` → **0.1.1**（构建注入校验 `BuildInfo.VERSION="0.1.1"`、`DEV_UI=false`）；② 提交 **`d0991a6`**（79 文件，+2457/−322）推送 `origin/main`；③ **CI run [36087052258](https://github.com/mapleafly/wuzhufolio/actions/runs/36087052258) 六 job 全绿**（windows/ubuntu/macos 的 build ×3 + package ×3；Linux 打包 job 内**桌面集成补齐步骤跑通**：「装入 hicolor 图标 8 个尺寸 → 已重打包 ✅ → 桌面集成补齐校验通过 ✅」）；④ 取 `wuzhufolio-windows-latest-native` + `wuzhufolio-ubuntu-latest-native` → 7 产物 + `SHA256SUMS`（AppImage 自带 `.sha256` 与本机计算一致）；⑤ 发布的 `.deb` 复核：`Icon=wuzhufolio` / `Categories=Office;Finance;` / `StartupWMClass=com-wuzhufolio-app-MainKt` + `hicolor/512x512/apps/wuzhufolio.png` 全部在内；⑥ 打 tag **`v0.1.1`** → 建 Release（首次 `gh release create` 因大文件上传 400 + 清理网络超时残留 **0 附件 draft**，改为逐个上传 + 重试后补齐 8 附件，`--draft=false --latest` 发布）；⑦ **发布后校验**：8 附件公开 URL 全部 **HTTP 200**、大小与本地一致，公开下载 `.deb`/`.msi` 后 `sha256sum -c` **成功**；⑧ 文档回写：`CHANGELOG[0.1.1] - 2026-09-25`、`release-plan §1.2`、`user-guide` 版本/产物名/已知问题、新增 `release-notes-0.1.1.md`。**P7 收尾完成**。 |
