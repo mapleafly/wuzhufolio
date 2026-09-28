@@ -974,3 +974,20 @@ CI 验收留痕（run 35115439554）：`PACKAGED_LAUNCH_SMOKE_AT=PASS`、`INSTAL
   并按平台分叉（Windows/macOS 维持 64px + `autoSize=true`）。取证前后对比图见 `docs/test/evidence/DEF-48-tray-{broken,fixed}-zoom*.png`。
 
 **结论**：0.1.1 修复轮**验收通过**，无新增缺陷；下一步为**人工批准发布 0.1.1**（`CHANGELOG` 已含 0.1.1 节，`docs/release/release-plan.md` 已含桌面集成补齐步骤）。
+
+### 20.1 真机安装版复核（2026-09-28 · 人工 `sudo apt install ./wuzhufolio_0.1.1-1_amd64.deb` 覆盖升级后）
+
+人工在 Ubuntu 24.04 真机执行 `sudo apt install -y ./wuzhufolio_0.1.1-1_amd64.deb`（0.1.0-1 → **0.1.1-1** 覆盖升级，
+输出末尾 `N: 由于文件 … 无法被用户'_apt'访问，已脱离沙盒并提权为根用户来进行下载` 为 **apt 沙盒的常规提示、非错误**）。
+Agent 随即在同一台机器上核验**已安装的发布产物**：
+
+| 检查项 | 结果 |
+|--------|------|
+| 包版本 | `dpkg -l` → **wuzhufolio 0.1.1-1 amd64** |
+| 桌面条目（0.1.0 装的是**未修补**版，本次首次落地补丁） | `Icon=wuzhufolio` · `Categories=Office;Finance;` · `StartupWMClass=com-wuzhufolio-app-MainKt` ✅ |
+| hicolor 图标 | **8 档齐全**（16/24/32/48/64/128/256/512），`hicolor-icon-theme` 触发器已处理 ✅ |
+| 旧条目残留 | 无（同名 `wuzhufolio-WuZhuFolio.desktop` 被覆盖） |
+| 实跑（隔离 `WUZHUFOLIO_DATA_DIR`，真实数据未触碰） | `bootstrap ok \| build=**0.1.1+d0991a6** \| schema=12`、`tray support supported=true`、`tray icon \| awtTrayIconSize=24 \| **renderPx=16 \| autoSize=false**`（Linux 策略生效） |
+| 窗口属性 | `WM_CLASS = com-wuzhufolio-app-MainKt`（与 `.desktop` 的 `StartupWMClass` **一致** → Dock/应用网格可正确关联）· `_NET_WM_ICON = Icon (192 x 192)`（DEF-52① 在**发布产物**上生效） |
+
+⇒ **发布产物在真机上端到端可用**（版本号、托盘策略、窗口图标、桌面集成四项同时成立）。

@@ -675,6 +675,16 @@ C0 三项按 §8.1 不建档、不进台账（索引见 D36 §5）。
 **B5（四处候选查 usdt 首屏即 Tether、可滚动）**、**B7（成交币自动入自选）**。
 
 
+### 2.3.1 真机安装版复核（2026-09-28）
+
+人工 `sudo apt install ./wuzhufolio_0.1.1-1_amd64.deb` 覆盖升级后，Agent 在同机核验**发布产物**：
+
+- `dpkg -l` → **0.1.1-1**；桌面条目三字段齐（`Icon=wuzhufolio` / `Categories=Office;Finance;` / `StartupWMClass=com-wuzhufolio-app-MainKt`）；
+  hicolor **8 档图标**落地；无旧条目残留（0.1.0 装的是未修补版，本次为补丁**首次在真机落地**）；
+- 实跑（隔离数据目录）：`build=0.1.1+d0991a6`、`tray icon | awtTrayIconSize=24 | renderPx=16 | autoSize=false`、
+  窗口 `_NET_WM_ICON = Icon (192 x 192)`、`WM_CLASS = com-wuzhufolio-app-MainKt` **与 `StartupWMClass` 一致**。
+- ⇒ DEF-52①②③④ 在**发布产物 + 真机**上闭环；DEF-48 的 Linux 策略在发布产物上生效。
+
 ### 2.4 0.1.1 人工复验结论（2026-09-25 · 人工门通过）
 
 **人工原话**：「**托盘功能通过，windows走查通过**」。
