@@ -125,6 +125,12 @@
     **CI 三平台全绿**（run 36702447843：ubuntu / windows / macos）；**GitHub Release 已发布**：
     <https://github.com/mapleafly/wuzhufolio/releases/tag/v0.2.0>，**10 个资产**（Windows msi/exe/便携版 ·
     Linux deb/rpm/AppImage/便携版 · SHA256SUMS · 宣传动画 MP4 14 MB + GIF 6 MB）；macOS 产物按发布口径**不入 Release**。
+  - **P8 第二轮复盘（M14 / 0.2.0）** ✅ **已落盘**（`docs/dev/retrospective.md` 第二轮章节）：
+    目标达成（T14.1–T14.11 全绿、DEF-54…57 闭环、两条口径收口、v0.2.0 已发布）·
+    **7 条问题与教训**（DEF-57 排障方法、D41 方案收敛、宣传片验片、账户认知、埋点卫生、发布链重试、token 变更连带）·
+    **7 条可复用经验**（先查证后动手 / C2 mini 闭环 / 守护测试 / UI 判定抽纯函数 / 视觉回归复用 / 逐处回写清单 / 发布链可复现）·
+    6 项遗留风险 + 下轮候选（**推荐 A：移动端启动 0.3.0**）。
+    **人工门**：复盘确认 + 拍板下一迭代范围（`retrospective.md §5`）。
   - **本轮实测**：`./gradlew build detekt` **BUILD SUCCESSFUL** → **768 用例 / 764 执行 / 0 失败 / 0 错误 / 4 跳过**
     （4 条 = env 门控 live 网络冒烟）+ **detekt 0** + **编译警告 0**；本迭代新增用例 **21 条**
     （`ThemeMappingTest` 5 · `AmountSanitizerTest` 6 · `WzModalKeyboardUiTest` 2 · `WzDateTimeFieldUiTest` 4 · `M3FrameworkSectionUiTest` 2 · 上轮 2）。
