@@ -16,7 +16,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 
 /**
- * 顶栏手动同步 VM（M7 补口 · PRD 故事 4.3）：无密钥引导提示、有密钥汇总新增/失败计数、传 null 同步全部。
+ * 顶栏手动同步 VM（M7 补口 · PRD 故事 4.3）：无密钥引导提示、有密钥汇总新增/失败计数、同步全部密钥。
+ * **D43**：执行体由组合根注入（经调度器 ⇒ 含会话门禁）；测试注入 fake 用例的「同步全部」路径。
  */
 class TopBarSyncViewModelTest {
 
@@ -63,7 +64,7 @@ class TopBarSyncViewModelTest {
     @Test
     fun noKeysShowsGuidanceAndDoesNotSync() {
         val service = FakeSyncService(emptyList())
-        val vm = TopBarSyncViewModel(service)
+        val vm = TopBarSyncViewModel { service.syncNow(null) }
         vm.syncNow()
         val message = awaitToast(vm)
         assertEquals(ApiCopy.SYNC_ALL_EMPTY, message)
@@ -73,7 +74,7 @@ class TopBarSyncViewModelTest {
     @Test
     fun keysAggregateNewTradesAndPassNullForAll() {
         val service = FakeSyncService(listOf(result(SyncStatus.OK, 3), result(SyncStatus.OK, 2)))
-        val vm = TopBarSyncViewModel(service)
+        val vm = TopBarSyncViewModel { service.syncNow(null) }
         vm.syncNow()
         val message = awaitToast(vm)
         assertEquals("同步完成 · 2 个密钥 · 新增 5", message)
@@ -83,7 +84,7 @@ class TopBarSyncViewModelTest {
     @Test
     fun failedKeySurfacesPartialFailure() {
         val service = FakeSyncService(listOf(result(SyncStatus.OK, 1), result(SyncStatus.FAILED, 0)))
-        val vm = TopBarSyncViewModel(service)
+        val vm = TopBarSyncViewModel { service.syncNow(null) }
         vm.syncNow()
         val message = awaitToast(vm)
         assertEquals("同步完成（部分失败 1 个密钥）· 新增 1", message)

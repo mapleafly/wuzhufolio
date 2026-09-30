@@ -1,10 +1,13 @@
 package com.wuzhufolio.data.market
 
+import com.wuzhufolio.data.accounts.ActiveSession
+import com.wuzhufolio.data.accounts.ActiveSessionStore
 import com.wuzhufolio.data.catalog.SqlCoinCatalog
 import com.wuzhufolio.data.db.DbGate
 import com.wuzhufolio.data.db.WzDatabase
 import com.wuzhufolio.data.randomDbKey
 import com.wuzhufolio.data.settings.SettingsRepository
+import com.wuzhufolio.domain.accounts.AccountSummary
 import com.wuzhufolio.domain.catalog.CoinDirectoryEntry
 import java.nio.file.Files
 
@@ -22,6 +25,16 @@ internal class MarketTestEnv(seed: Boolean = true) : AutoCloseable {
     val snapshots: PriceSnapshotRepository = PriceSnapshotRepository(gate)
     val settings: SettingsRepository = SettingsRepository(gate)
     val deviceStore: DeviceSecretStore = DeviceSecretStore(testDeviceKey(), settings)
+
+    /**
+     * D41：会话持有器（自选为账户级）。测试用假账户（settings.account_id 为文本列、无外键约束）。
+     * [accountId] 缺省 1；传 null 表示**未登录**（自选应不可见/不可写）。
+     */
+    fun sessionStore(accountId: Int? = 1): ActiveSessionStore = ActiveSessionStore().apply {
+        if (accountId != null) {
+            set(ActiveSession(AccountSummary(accountId, "user$accountId"), ByteArray(32)))
+        }
+    }
 
     init {
         db.migrateToLatest()

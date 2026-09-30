@@ -266,6 +266,7 @@ object AppBootstrap {
             logger,
             proxyRuntime.selector,
             defaultCoins = { defaultRefreshCoins() },
+            sessions = sessions,
         )
         val exchange = ExchangeServicesBundle.run(
             gate,
@@ -491,6 +492,8 @@ object AppBootstrap {
                 proxySelector: java.net.ProxySelector? = null,
                 /** P5：默认币集（持仓 ∪ 自选）晚绑定提供者——聚合页服务在行情束之后装配。 */
                 defaultCoins: suspend () -> List<String> = { emptyList() },
+                /** D41：会话持有器（自选为**账户级**，需按当前账户读写）。 */
+                sessions: ActiveSessionStore,
             ): MarketServicesBundle {
                 val deviceKeyring: MasterKeyStore =
                     KeychainMasterKeyStore(KeychainAccounts.SERVICE, KeychainAccounts.DEVICE_KEY)
@@ -518,7 +521,7 @@ object AppBootstrap {
                     logger = logger,
                 )
                 val marketSettingsService: MarketSettingsService = DefaultMarketSettingsService(deviceStore, settings)
-                val marketWatchService: MarketWatchService = SettingsMarketWatchService(settings, catalog)
+                val marketWatchService: MarketWatchService = SettingsMarketWatchService(settings, catalog, sessions)
                 val marketQuotesService: MarketQuotesService = SnapshotMarketQuotesService(
                     PriceSnapshotRepository(gate),
                 )
@@ -571,7 +574,7 @@ object AppBootstrap {
                 val syncLogRepository = SyncLogRepository(gate)
                 // D35：同步新增的成交币 → 行情自选（SettingsMarketWatchService 无状态：读/写 settings 全局行，
                 // 与行情页实例行为等价；此处独立实例避免为「展示偏好」反向穿透服务边界）
-                val watchAutoAdd: MarketWatchService = SettingsMarketWatchService(settings, catalog)
+                val watchAutoAdd: MarketWatchService = SettingsMarketWatchService(settings, catalog, sessions)
                 val syncService: ExchangeSyncService = DefaultExchangeSyncService(
                     sessions = sessions,
                     crypto = CryptoService(),
@@ -634,7 +637,7 @@ object AppBootstrap {
                 val eventBuilder = TransactionEventBuilder(catalog, snapshots)
                 val assembler = LedgerEventAssembler(catalog, eventBuilder)
                 // D35：手动记录/编辑/CSV 导入的成交币 → 行情自选（同交易所侧口径，见上）
-                val watchAutoAdd: MarketWatchService = SettingsMarketWatchService(settings, catalog)
+                val watchAutoAdd: MarketWatchService = SettingsMarketWatchService(settings, catalog, sessions)
                 val service: TransactionLedgerService = DefaultTransactionLedgerService(
                     sessions = sessions,
                     repository = txRepository,

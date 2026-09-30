@@ -606,8 +606,8 @@ private fun LogsModal(
                     .fillMaxWidth()
                     .heightIn(max = 380.dp)
                     .verticalScroll(rememberScrollState())
-                    .background(colors.bg, RoundedCornerShape(7.dp))
-                    .border(1.dp, colors.line, RoundedCornerShape(7.dp))
+                    .background(colors.bg, RoundedCornerShape(8.dp))
+                    .border(1.dp, colors.line, RoundedCornerShape(8.dp))
                     .padding(10.dp)
                     .testTag("logs-modal-body"),
             ) {

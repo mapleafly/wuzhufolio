@@ -27,7 +27,18 @@ import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '../../../..');
 const SKILL = path.join(REPO, '.agents/skills/huashu-design');
-const { chromium } = createRequire(path.join(SKILL, 'package.json'))('playwright');
+/**
+ * playwright 解析（2026-09-30 可移植性加固）：优先 skill 自带 node_modules，缺失时回退 NODE_PATH / 全局安装
+ * （`npm i playwright-core` 即可，**无需下载 Chromium**）。
+ */
+function loadPlaywright() {
+  try { return createRequire(path.join(SKILL, 'package.json'))('playwright'); } catch { /* 回退 */ }
+  for (const mod of ['playwright', 'playwright-core']) {
+    try { return createRequire(path.join(REPO, 'package.json'))(mod); } catch { /* 回退 */ }
+  }
+  throw new Error('未找到 playwright / playwright-core：请 `npm i playwright-core` 或设 NODE_PATH');
+}
+const { chromium } = loadPlaywright();
 
 function arg(name, def) {
   const p = process.argv.find(a => a.startsWith('--' + name + '='));
@@ -55,11 +66,19 @@ const TMP = path.join(path.dirname(path.resolve(HTML)), '.seek-tmp-' + Date.now(
 
 function findChromium() {
   const cache = path.join(process.env.HOME ?? '', '.cache/ms-playwright');
-  if (!fs.existsSync(cache)) return undefined;
   const c = [];
-  for (const d of fs.readdirSync(cache))
-    for (const r of ['chrome-linux64/chrome', 'chrome-linux/chrome'])
-      if (fs.existsSync(path.join(cache, d, r))) c.push(path.join(cache, d, r));
+  if (fs.existsSync(cache)) {
+    for (const d of fs.readdirSync(cache))
+      for (const r of ['chrome-linux64/chrome', 'chrome-linux/chrome'])
+        if (fs.existsSync(path.join(cache, d, r))) c.push(path.join(cache, d, r));
+  }
+  // 2026-09-30：回退到**系统已装的 Chrome/Chromium**（免下载浏览器，渲染结果等价）
+  for (const sys of [
+    '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium', '/usr/bin/chromium-browser', '/snap/bin/chromium',
+  ]) {
+    if (fs.existsSync(sys)) c.push(sys);
+  }
   return c.sort((a, b) => (Number(b.match(/(\d{4})/)?.[1]) || 0) - (Number(a.match(/(\d{4})/)?.[1]) || 0))[0];
 }
 

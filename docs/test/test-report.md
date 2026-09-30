@@ -298,3 +298,56 @@ WUZHUFOLIO_DATA_DIR=/tmp/wzf-p6-gui JAVA_TOOL_OPTIONS="-Dskiko.renderApi=SOFTWAR
 | 安全与隐私 | `AGENTS.md §1.1` 五条硬约束、PRD §1.1/§5.1/§5.2/§6、共享规范 §8 |
 | 缺陷处置 | P5 交接项（`integration-report.md` §6/§8）、M13 清单 §7、P6 勘查发现 |
 | DoD | `AGENTS.md §4 P6`（P0/P1 清零、P2 有结论、安全清单通过） |
+
+---
+
+## 8. M14 / 0.2.0 复测（2026-09-30）
+
+> **触发**：里程碑 M14「界面体系统一 + 反馈收口」全部任务完成（T14.1–T14.11），人工验收通过 ⇒ 按 P6 口径**复跑全量**。
+> **范围**：M14 的 7 项决策（D38 M3 视觉规范 / D39 Linux 原生托盘 / D40 登录前不刷行情 / D41 自选账户级 /
+> D42 视觉基准 / D43 托盘同步同样要求登录 / T14.3 组件收口）及其回归影响面。
+
+### 8.1 全量自动化（权威跑法，禁用构建缓存）
+
+```
+./gradlew clean build detekt --no-build-cache --console=plain
+→ BUILD SUCCESSFUL in 2m 9s
+→ 785 用例 / 781 执行 / 0 失败 / 0 错误 / 4 跳过
+   app=57 · data=305 · domain=222 · ui=201
+→ detekt 0 · 编译告警 0
+```
+
+| 对比 | P6 终态（2026-09-14） | **0.2.0 复测（2026-09-30）** | 差 |
+|---|---|---|---|
+| 用例总数 | 718 | **785** | **+67**（M14 新增：M3 映射/令牌、账户级自选隔离、托盘门禁、视觉回归、Snackbar 守护等） |
+| 失败/错误 | 0 | **0** | — |
+| 跳过 | 8（钥匙串真实后端 ×4 + live smoke ×3 + 首启真实网络 ×1） | **4** | 环境门控项未变（CI 上跑钥匙串后端） |
+| detekt / 告警 | 0 / 0 | **0 / 0** | — |
+
+### 8.2 M14 变更的运行期实证（Agent 侧）
+
+| 变更 | 实证方式 | 结果 |
+|---|---|---|
+| **D39 Linux 原生托盘** | 真实 GNOME/X11 会话：右键顶栏图标 → 系统渲染四项菜单；经 D-Bus `com.canonical.dbusmenu.Event` 触发菜单项 | ✅ 菜单弹出、中文正常；点「立即刷新行情」→ 日志 `tray sni menu event \| id=3 event=clicked` → 真实执行（DEF-57 结案） |
+| **D40 登录前不刷行情** | 未登录启动 55s + D-Bus 触发托盘刷新 | ✅ `market refresh started` = **0**，`market refresh skipped \| session locked` = 1 |
+| **D43 托盘同步同样要求登录** | 未登录 + D-Bus 触发托盘同步（id=2） | ✅ `tray sync ignored \| session locked` = 1，无任何同步调用 |
+| **D38 M3 视觉规范** | T14.5 视觉回归：4 页 × 2 主题 × 3 尺寸 = **24 张真实分辨率渲染**（`runSkikoComposeUiTest(size=…)`），逐张断言页面根与关键元素 | ✅ 24/24 通过；明/暗与紧凑/宽屏抽查无错位、截断、对比度异常 |
+| **D41 自选账户级** | 单测：A/B 账户互不可见、未登录空集且不可写、迁移只认领一次、D35 只落当前账户 | ✅ 4/4 通过；真实库核对：`settings[watch.coins]` 仅存在于被认领账户，`watch.migrated=1` |
+| **D42 视觉基准** | 基准截图入库 + 原型退役标注 | ✅ `docs/design/baseline/*.png` 6 张 + `visual-baseline.md`；原型加退役横幅 |
+| **T14.3 组件收口** | `SnackbarPointerProbeTest` 锁定「M3 Snackbar 吞点击」结论 | ✅ 通过（守护该有意偏离） |
+
+### 8.3 打包产物实证（P7 前置）
+
+| 产物 | 结果 |
+|---|---|
+| `wuzhufolio_0.2.0-1_amd64.deb` | ✅ 构建成功（138 MB） |
+| `WuZhuFolio-portable-linux-x64.tar.gz` | ✅ 构建成功（157 MB） |
+| `wuzhufolio-0.2.0-x86_64.AppImage` | ✅ 构建成功（150 MB）+ 自带 `.sha256` |
+| `wuzhufolio-0.2.0-1.x86_64.rpm` | ⚠️ **本机无 `rpmbuild`**（环境限制，非产品问题）⇒ 由 CI 产出（release-plan §4.1 注） |
+| **打包产物冒烟** | ✅ 便携版二进制以 `WUZHUFOLIO_DATA_DIR` 隔离目录启动：`bootstrap ok \| build=0.2.0+4fb8bb5`、schema 迁移至 12、数据目录隔离生效（未触碰用户真实数据） |
+| `SHA256SUMS` | ✅ 已生成（`app/build/SHA256SUMS`，3 项） |
+
+### 8.4 结论
+
+**0.2.0 达到发布标准**：全量回归绿（785 / 0 失败）、detekt 与编译告警 0、五条硬约束复核通过（见 `security-checklist.md §0.1`）、
+M14 七项决策的运行期实证齐全、打包产物可构建且冒烟通过。**P6 复测通过，转 P7 发布**。

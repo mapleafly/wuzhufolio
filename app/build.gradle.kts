@@ -4,6 +4,9 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.compose.compiler)
     alias(libs.plugins.compose.multiplatform)
+    // 开发期 UI 热重载（ADR-007 §2.4）：`./gradlew :app:hotRun`（JVM 项目任务名 = hotRun）。
+    // 仅创建开发任务，不改动 build/createDistributable/打包链路，发布产物不含任何相关配置。
+    alias(libs.plugins.compose.hot.reload)
 }
 
 // ---------------------------------------------------------------------------
@@ -23,7 +26,7 @@ val packagingFormats: List<TargetFormat> = when {
 }
 
 /** 应用版本单一真源（M13 T13.2）：同时注入 jpackage packageVersion 与运行期 BuildInfo.VERSION。 */
-val appVersion = "0.1.1"
+val appVersion = "0.2.0"
 
 /**
  * 开发期 UI 开关（DEF-47，2026-09-24 人工拍板「方案甲：加构建期开关」）。
@@ -105,13 +108,17 @@ dependencies {
     implementation(project(":domain"))
 
     implementation(compose.desktop.currentOs)
-    implementation(compose.material3)
+    implementation(libs.compose.material3)
     implementation(libs.koin.core)
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.kotlinx.coroutines.swing)
     implementation(libs.slf4j.api)
     implementation(libs.ktor.client.core) // M5：MarketHttp 返回类型的直接引用（应用组装层）
     implementation(libs.logback.classic)
+
+    // D39：Linux 原生托盘（StatusNotifierItem + com.canonical.dbusmenu）。仅 Linux 生效。
+    implementation(libs.dbus.java.core)
+    implementation(libs.dbus.java.transport)
 
     testImplementation(kotlin("test-junit5"))
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

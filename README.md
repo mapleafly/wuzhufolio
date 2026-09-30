@@ -7,7 +7,7 @@
 - **加密**：SQLCipher 整库加密 + 分层密钥（DEK/KEK）+ AES-256-GCM + Argon2id（M1 起，ADR-002）。
 - **开源**：AGPL-3.0（决策 D1），GitHub Releases 分发。
 
-> 当前阶段：**P7 发布 —— v0.1.0 已发布（Windows + Linux，2026-09-22）**，处于发布后验收与 0.1.1 修复轮。
+> 当前阶段：**P8 迭代 —— v0.1.0 / v0.1.1 已发布**；**0.2.0（里程碑 M14：Material 3 界面体系统一 + 使用反馈收口）已完成开发与发布准备**，待 P6 复测与 P7 批准发布。
 > 技术栈 Kotlin + Compose Desktop（ADR-001）。
 > 需求基线见 `docs/prd/`，技术方案见 `docs/tech/`，流水线与状态看板见 `AGENTS.md` / `docs/dev/STATUS.md`。
 

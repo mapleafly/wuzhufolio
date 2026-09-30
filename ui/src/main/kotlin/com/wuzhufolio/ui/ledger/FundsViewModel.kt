@@ -17,6 +17,7 @@ import com.wuzhufolio.domain.ledger.FundPage
 import com.wuzhufolio.domain.ledger.FundService
 import com.wuzhufolio.domain.ledger.LedgerValidationException
 import com.wuzhufolio.ui.components.WzToast
+import com.wuzhufolio.ui.components.AmountSanitizer
 import com.wuzhufolio.ui.components.WzToastKind
 import java.math.BigDecimal
 import java.time.Instant
@@ -280,7 +281,7 @@ class FundsViewModel(
     private fun refreshPreview() {
         val form = _state.value.form ?: return
         val coin = form.coinSymbol.trim()
-        val quantity = form.quantity.toBigDecimalOrNull()
+        val quantity = AmountSanitizer.parseAmountOrNull(form.quantity)
         if (coin.isEmpty() || quantity == null || quantity.signum() <= 0) {
             patchForm { it.copy(fiatPreview = null) }
             return
@@ -313,7 +314,7 @@ class FundsViewModel(
             toast(WzToastKind.Failure, FundsCopy.VALIDATION_FAILED)
             return
         }
-        val quantity = form.quantity.toBigDecimalOrNull() ?: return
+        val quantity = AmountSanitizer.parseAmountOrNull(form.quantity) ?: return
         val time = parseLocalTime(form.timeText)
         if (time == null) {
             patchForm { it.copy(errors = it.errors + (FundField.TIME.key to FundsCopy.V6_TIME_REQUIRED)) }
@@ -529,7 +530,7 @@ class FundsViewModel(
     private fun validateForm(form: FundFormState): Map<String, String> {
         val errors = LinkedHashMap<String, String>()
         if (form.coinSymbol.isBlank()) errors[FundField.COIN.key] = FundsCopy.V6_COIN_REQUIRED
-        val qty = form.quantity.toBigDecimalOrNull()
+        val qty = AmountSanitizer.parseAmountOrNull(form.quantity)
         if (qty == null || qty.signum() <= 0) errors[FundField.QTY.key] = FundsCopy.V6_QTY
         if (form.timeText.isBlank()) errors[FundField.TIME.key] = FundsCopy.V6_TIME_REQUIRED
         return errors

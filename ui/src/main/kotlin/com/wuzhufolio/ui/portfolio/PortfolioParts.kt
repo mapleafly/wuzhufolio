@@ -222,8 +222,8 @@ private fun DonutDetailCard(slice: DistributionSlice, total: BigDecimal, onClose
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.surface2, RoundedCornerShape(9.dp))
-            .border(1.dp, colors.line, RoundedCornerShape(9.dp))
+            .background(colors.surface2, RoundedCornerShape(8.dp))
+            .border(1.dp, colors.line, RoundedCornerShape(8.dp))
             .padding(horizontal = 12.dp, vertical = 10.dp)
             .testTag("donut-pop"),
     ) {
@@ -285,7 +285,7 @@ private fun DonutLegendRow(
             .testTag("donut-legend-" + slice.cgId),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(modifier = Modifier.size(10.dp).background(color.copy(alpha = alpha), RoundedCornerShape(3.dp)))
+        Box(modifier = Modifier.size(10.dp).background(color.copy(alpha = alpha), RoundedCornerShape(4.dp)))
         SingleLineText(
             text = slice.label,
             style = WzTheme.typography.body,
@@ -400,7 +400,7 @@ fun Badge(text: String, color: Color, modifier: Modifier = Modifier, testTag: St
         maxLines = 1,
         softWrap = false,
         modifier = modifier
-            .background(color.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
+            .background(color.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
             .padding(horizontal = 6.dp, vertical = 2.dp)
             .testTag(testTag),
     )

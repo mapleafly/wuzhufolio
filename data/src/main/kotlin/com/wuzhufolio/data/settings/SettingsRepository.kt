@@ -45,6 +45,36 @@ class SettingsRepository(private val gate: DbGate) {
             ?.get(SettingsTable.value)
     }
 
+    /** 读取单个**账户级**设置（D41：自选等账户偏好；不存在返回 null）。 */
+    fun getAccount(accountId: Int, key: String): String? = gate.readBlocking {
+        SettingsTable.selectAll()
+            .where { (SettingsTable.key eq key) and (SettingsTable.accountId eq accountId.toString()) }
+            .singleOrNull()
+            ?.get(SettingsTable.value)
+    }
+
+    /** 写入/更新单个**账户级**设置（D41；经单写队列）。 */
+    fun putAccount(accountId: Int, key: String, value: String) = gate.writeBlocking {
+        val id = accountId.toString()
+        val existing = SettingsTable.selectAll()
+            .where { (SettingsTable.key eq key) and (SettingsTable.accountId eq id) }
+            .singleOrNull()
+        val now = Instant.now().toString()
+        if (existing == null) {
+            SettingsTable.insert {
+                it[SettingsTable.key] = key
+                it[SettingsTable.accountId] = id
+                it[SettingsTable.value] = value
+                it[updatedAt] = now
+            }
+        } else {
+            SettingsTable.update({ (SettingsTable.key eq key) and (SettingsTable.accountId eq id) }) {
+                it[SettingsTable.value] = value
+                it[updatedAt] = now
+            }
+        }
+    }
+
     /** 写入/更新单个全局设置（先查后写，保持 COALESCE 唯一索引语义）；经单写队列。 */
     fun putGlobal(key: String, value: String) = gate.writeBlocking {
         val existing = SettingsTable.selectAll()

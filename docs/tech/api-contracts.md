@@ -164,7 +164,9 @@ interface SettingsService {
 > 供「成交币自动进入行情自选」三路调用（手动交易/编辑、CSV 导入、交易所同步）；
 > **候选检索排序口径（DEF-51）**：`CoinCatalog.search` = 相关性 → ACTIVE → **市值排名**（未入前 1000 名排后）→ 符号 → 名称；
 > 资金/交易两条服务路径共用 `PinnedCoinSearch`（命中查询时默认币 USD→USDT / 其他法币→USDC 置顶）。
-> `MarketWatchService`（`listWatch`/`add`/**`addCoins`**/`remove`/`seed`——settings 全局行 `watch.coins` JSON [cg_id]，**无数量上限**（D35 取消原 50 条上限），
+> `MarketWatchService`（`listWatch`/`add`/**`addCoins`**/`remove`/`seed`——**D41 起为账户级** settings 行
+> `settings(account_id=<当前账户>, key=watch.coins)` JSON [cg_id]（数组序=展示序），**无数量上限**（D35 取消原 50 条上限），
+> **账户间互不可见**、**未登录返回空集**；升级迁移见 D41 §3.2（旧全局行由首个访问账户一次性认领），
 > 未写入=默认种子=稳定币白名单；目录解析读时清理不改写存储、损坏自愈回默认）+ `MarketQuotesService`（行 = coins 目录
 > + `price_snapshots.latest(coin, fiat)`，缺行 = 「无行情」）+ `MarketSettingsService.baseFiat()`（行情页计价）。
 > 消费方 `MarketWatchPage`（第六页 QUOTES），复用 `MarketRefreshService.refresh`（币集 = 当前列表）。回溯：D21、ia.md §2.19。

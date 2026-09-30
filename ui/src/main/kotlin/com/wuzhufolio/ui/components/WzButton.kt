@@ -1,32 +1,30 @@
 package com.wuzhufolio.ui.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.wuzhufolio.ui.theme.WzTheme
 
-/** 按钮变体（design-tokens §4.2）：主按钮 accent 实底 / 次按钮描边 / 危险按钮 loss 实底。 */
+/** 按钮变体（design-tokens §4.2）：主按钮 accent 实底 / 次按钮 accent 描边 / 危险按钮 loss 实底。 */
 enum class WzButtonVariant { Primary, Secondary, Danger }
 
 /**
- * 基础按钮：高度 32-36dp、圆角 7dp、焦点态 accent 2px 描边（原型 :focus-visible 口径，a11y 基线）。
+ * 基础按钮（**ADR-007 §2.3：内部改用官方 Material 3 `Button`，对外 API 与视觉口径不变**）。
+ *
+ * 改造前是 Foundation 手绘（`Box` + `background` + `border` + `clickable` + `Text`），只有「常规/禁用」两态；
+ * 换成 M3 后免费获得 **hover / pressed / focused 状态层**、涟漪指示、正确的 `Role.Button` 语义与禁用态处理。
+ *
+ * 视觉口径**刻意保持不变**（「换框架 ≠ 换外观」的示范）：
+ * 高度 34dp（design-tokens §4.2 的 32–36dp 档）· 圆角 7dp（与 `Shapes.small` 同值）·
+ * 内边距 14/6dp · 字号字重取 `typography.bodyStrong` · **无阴影**（`elevation = null`，保持扁平）。
  */
 @Composable
 fun WzButton(
@@ -38,48 +36,43 @@ fun WzButton(
     testTag: String? = null,
 ) {
     val colors = WzTheme.colors
-    var focused by remember { mutableStateOf(false) }
-
-    val containerColor = when (variant) {
+    val container = when (variant) {
         WzButtonVariant.Primary -> colors.accent
         WzButtonVariant.Secondary -> colors.surface
         WzButtonVariant.Danger -> colors.loss
     }
-    val contentColor = when (variant) {
+    val content = when (variant) {
         WzButtonVariant.Primary -> colors.accentInk
         WzButtonVariant.Secondary -> colors.accent
         WzButtonVariant.Danger -> colors.accentInk
     }
-    val borderColor = when {
-        focused -> colors.accent
-        variant == WzButtonVariant.Secondary -> colors.accent
-        else -> colors.line
-    }
-    val borderWidth = if (focused || variant == WzButtonVariant.Secondary) 2.dp else 1.dp
-
-    val shape = RoundedCornerShape(7.dp)
-    Box(
+    Button(
+        onClick = onClick,
         modifier = modifier
-            .heightIn(min = 32.dp)
-            .clip(shape)
-            .background(if (enabled) containerColor else colors.surface2)
-            .border(borderWidth, borderColor, shape)
-            // P6 人工门 DEF-13：clickable 本身即焦点目标——此前追加的显式 .focusable() 造成
-            // **同一节点两个焦点目标**，Tab 会落在没有语义/没有焦点环的隐形目标上（表现为「焦点进不了页面」
-            // 「按键无反应」）。此处只保留 clickable（禁用态自然不可聚焦）。
-            .clickable(enabled = enabled, onClick = onClick)
-            .onFocusChanged { focused = it.isFocused }
-            .alpha(if (enabled) 1f else 0.55f)
-            .padding(horizontal = 14.dp, vertical = 6.dp)
+            .height(BUTTON_HEIGHT)
             .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
-        contentAlignment = Alignment.Center,
+        enabled = enabled,
+        shape = RoundedCornerShape(8.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = container,
+            contentColor = content,
+            disabledContainerColor = colors.surface2,
+            disabledContentColor = colors.ink3,
+        ),
+        // 次按钮 = accent 描边（与改造前 2dp 口径一致）；其余无描边
+        border = if (variant == WzButtonVariant.Secondary) BorderStroke(2.dp, colors.accent) else null,
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+        // 扁平风格：不使用 M3 默认的容器高度色阶/阴影
+        elevation = null,
     ) {
         Text(
             text = text,
             maxLines = 1,
             softWrap = false,
-            color = if (enabled) contentColor else colors.ink3,
             style = WzTheme.typography.bodyStrong,
         )
     }
 }
+
+/** 按钮固定高度（design-tokens §4.2：32–36dp；与改造前 `heightIn(min = 32.dp)` 的实测渲染高度一致）。 */
+private val BUTTON_HEIGHT = 34.dp

@@ -56,12 +56,16 @@ import com.wuzhufolio.domain.settings.PrecisionPreset
 import com.wuzhufolio.domain.settings.ThemeMode
 import com.wuzhufolio.ui.i18n.I18n
 import com.wuzhufolio.ui.i18n.WzFormat
+import com.wuzhufolio.ui.regression.VisualRegression
 import com.wuzhufolio.ui.theme.WuzhuTheme
 import java.math.BigDecimal
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import com.wuzhufolio.ui.shell.MainShell
+import com.wuzhufolio.ui.shell.ShellPage
+import com.wuzhufolio.ui.shell.ShellViewModel
 
 /**
  * 聚合页（仪表盘 / 资产列表 / 币种详情）单测 + Compose 离屏走查（M12 T12.1）。
@@ -242,6 +246,16 @@ class PortfolioPagesUiTest {
                 .classifySources(sources),
         )
     }
+
+    /**
+     * 影片专用行集（P7 宣传动画）：与 `threeRows()` 数值一致，但 **USDT 不是异常币**——
+     * 异常/无行情会在仪表盘顶部渲染两条 ⚠️ 横幅，在宣传片里像数据错误。
+     */
+    private fun filmRows(): List<PortfolioRow> = listOf(
+        row("bitcoin", "BTC", "Bitcoin", "0.5", "40000", "50000", realized = "4915"),
+        row("ethereum", "ETH", "Ethereum", "4", "2000", "1800", realized = "-100"),
+        row("tether", "USDT", "Tether", "1000", "1", "1"),
+    )
 
     private fun threeRows(): List<PortfolioRow> = listOf(
         row("bitcoin", "BTC", "Bitcoin", "0.5", "40000", "50000", realized = "4915"),
@@ -664,5 +678,97 @@ class PortfolioPagesUiTest {
 
         /** 供断言引用，避免未用导入告警。 */
         val unusedRef: Class<*> = TradeEvent::class.java
+    }
+
+    // ---------- T14.5 视觉回归（3 档尺寸 × 2 主题） ----------
+
+    @Test
+    fun `visual regression - dashboard across sizes and themes`() = runComposeUiTest {
+        val files = VisualRegression.capture(
+            page = "dashboard",
+            rootTag = "page-DASHBOARD",
+            alsoAssert = listOf("card-net-value", "card-24h", "card-roi", "asset-donut"),
+        ) {
+            DashboardPage(
+                portfolioService = FakePortfolio(threeRows()),
+                refreshService = FakeRefresh(),
+                generalSettings = FakeGeneralSettings(),
+                accountName = "Alex",
+            )
+        }
+        assertEquals(6, files.size, "3 档尺寸 × 2 主题")
+    }
+
+    @Test
+    fun `visual regression - assets table across sizes and themes`() = runComposeUiTest {
+        val files = VisualRegression.capture(
+            page = "assets",
+            rootTag = "page-ASSETS",
+            alsoAssert = listOf("assets-table"),
+        ) {
+            AssetsPage(
+                portfolioService = FakePortfolio(threeRows()),
+                refreshService = FakeRefresh(),
+                generalSettings = FakeGeneralSettings(),
+                onOpenCoin = {},
+            )
+        }
+        assertEquals(6, files.size)
+    }
+    @Test
+    fun `film assets - dashboard and assets pages for the promo video`() {
+        // P7 宣传动画素材：**整窗**渲染（MainShell + 页面槽，2× 密度 → 2480×1640）。
+        // 必须整窗：模板的图版合成按「含侧边栏/顶栏的应用窗口」几何设计，单页渲染会导致图版叠加压字
+        // （2026-09-30 验片发现，见 docs/release/promo/README.md「0.2.0 迭代状态」）。
+        VisualRegression.captureFilmAsset("dashboard-light.png", "main-shell") {
+            MainShell(
+                viewModel = ShellViewModel(ThemeMode.LIGHT, PnlColorScheme.GREEN_UP, ShellPage.DASHBOARD),
+                accountName = "Alex",
+                dashboardPageContent = { name ->
+                    // 影片用填充数据：指标来自交易重放，夹具无交易 ⇒ 默认全 0（宣传片里显得空）。
+                    // 这里给一组**与资产表自洽**的黄金用例数值：BTC 0.5@40k→50k（+5,000）、
+                    // ETH 4@2k→1.8k（−800）、USDT 1,000（异常币，按 D29 不计入净值）。
+                    DashboardPage(
+                        portfolioService = FakePortfolio(
+                            filmRows(),
+                            change24h = TwentyFourHour.Result(BigDecimal("501.60"), BigDecimal("0.42"), 0, 0, false),
+                            metricsOverride = PortfolioMetrics(
+                                netValueFiat = BigDecimal("32200"),
+                                availableCashFiat = BigDecimal("0"),
+                                investedNetFiat = BigDecimal("28000"),
+                                cumulativeDepositsFiat = BigDecimal("28000"),
+                                cumulativeWithdrawalsFiat = BigDecimal.ZERO,
+                                totalReturnFiat = BigDecimal("4200"),
+                                roiPercent = BigDecimal("15.00"),
+                                realizedPnlFiat = BigDecimal("4815"),
+                                unrealizedPnlFiat = BigDecimal("4200"),
+                                totalCostFiat = BigDecimal("28000"),
+                                holdings = emptyMap(),
+                                missingPricedCoins = emptyList(),
+                                estimated = false,
+                                anomalousExcludedFiat = BigDecimal.ZERO,
+                            ),
+                        ),
+                        refreshService = FakeRefresh(),
+                        generalSettings = FakeGeneralSettings(),
+                        accountName = name,
+                    )
+                },
+            )
+        }
+        VisualRegression.captureFilmAsset("portfolio-light.png", "main-shell") {
+            MainShell(
+                viewModel = ShellViewModel(ThemeMode.LIGHT, PnlColorScheme.GREEN_UP, ShellPage.ASSETS),
+                accountName = "Alex",
+                assetsPageContent = { onOpenCoin ->
+                    AssetsPage(
+                        portfolioService = FakePortfolio(filmRows()),
+                        refreshService = FakeRefresh(),
+                        generalSettings = FakeGeneralSettings(),
+                        onOpenCoin = onOpenCoin,
+                    )
+                },
+            )
+        }
     }
 }

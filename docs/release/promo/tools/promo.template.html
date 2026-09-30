@@ -21,8 +21,15 @@
 -->
 <style>
   :root{
-    --paper:#EDE8DF; --surface:#FFFFFF; --ink:#1E2A24; --ink2:#5A635C;
-    --brass:#B08A3E; --gain:#2E7D5B; --loss:#A8453F;
+    /* 0.2.0（D38/D42）：色板取产品**真实 M3 token**（docs/design/design-tokens.md），
+       弃用 0.1.x 那版已退役的暖纸原型色（#EDE8DF/#B08A3E）。变量名保持原样，模板结构不动。 */
+    --paper:#F5FBF6;      /* M3 surface */
+    --surface:#FFFFFF;    /* M3 surfaceContainerLowest */
+    --ink:#171D1A;        /* M3 onSurface */
+    --ink2:#404944;       /* M3 onSurfaceVariant */
+    --brass:#166B54;      /* M3 primary（品牌种子色） */
+    --gain:#1E6B45;       /* 产品 gain token */
+    --loss:#A63835;       /* 产品 loss token */
     --sans:'Noto Sans SC',sans-serif;
     --serif:'Noto Serif SC',Georgia,serif;
     --mono:'JetBrains Mono','Noto Sans SC',monospace;

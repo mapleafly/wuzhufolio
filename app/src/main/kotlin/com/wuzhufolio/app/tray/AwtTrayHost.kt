@@ -44,6 +44,9 @@ class AwtTrayHost(
 
     private var trayIcon: TrayIcon? = null
 
+    /** 最近一次菜单请求时间戳：同一次右键手势会在 pressed/released 各触发一次，去抖避免重复建窗（DEF-57）。 */
+    private var lastMenuRequestAt: Long = 0L
+
     /** 注册托盘图标；不支持/失败返回 false（调用方据此降级，绝不抛异常到界面层）。 */
     fun install(): Boolean {
         if (!TraySupport.isSupported()) return false
@@ -58,16 +61,20 @@ class AwtTrayHost(
                         }
 
                         // 右键：请求 Compose 菜单（不使用 AWT PopupMenu —— 其文本渲染在 Windows 上乱码）
-                        override fun mousePressed(e: MouseEvent) {
-                            if (e.isPopupTrigger || e.button == MouseEvent.BUTTON3) {
-                                onMenuRequest(e.xOnScreen, e.yOnScreen)
-                            }
+                        // **只在鼠标释放时弹**（DEF-57 二轮）：按下即弹会让窗口在「鼠标仍被 shell 捕获」期间创建，
+                        // 部分平台下该窗口随后收不到指针事件（表现为「菜单看得见、鼠标移上去无反应、点不动」）；
+                        // 右键菜单在 button-up 弹出也是 Windows 的惯例（WM_CONTEXTMENU 语义）。
+                        override fun mouseReleased(e: MouseEvent) {
+                            requestMenuIfDue(e)
                         }
 
-                        override fun mouseReleased(e: MouseEvent) {
-                            if (e.isPopupTrigger || e.button == MouseEvent.BUTTON3) {
-                                onMenuRequest(e.xOnScreen, e.yOnScreen)
-                            }
+                        /** 右键手势去抖：250ms 内的重复请求忽略（同一次手势的 pressed+released）。 */
+                        private fun requestMenuIfDue(e: MouseEvent) {
+                            if (!e.isPopupTrigger && e.button != MouseEvent.BUTTON3) return
+                            val now = System.currentTimeMillis()
+                            if (now - lastMenuRequestAt < MENU_REQUEST_DEBOUNCE_MS) return
+                            lastMenuRequestAt = now
+                            onMenuRequest(e.xOnScreen, e.yOnScreen)
                         }
                     },
                 )
@@ -108,3 +115,6 @@ class AwtTrayHost(
         const val TOOLTIP = "WuZhuFolio"
     }
 }
+
+/** 右键菜单请求去抖窗口（毫秒）。 */
+private const val MENU_REQUEST_DEBOUNCE_MS = 250L

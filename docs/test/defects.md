@@ -30,7 +30,8 @@
 | **P2（P7 发布后 · 0.1.0 正式版人工验收 · Windows）** | **1** | ✅ **已修复 + 人工复验通过（2026-09-25 Windows 走查）**：**DEF-47** 组件走查（DEV）页泄漏到正式发布版侧边栏（人工拍板 **C0 + 方案甲「加构建期开关」** → `BuildInfo.DEV_UI`，默认 false） |
 | **P2（P7 发布后 · 0.1.0 Linux 真机验收 2026-09-24）** | **5** | ✅ **均已修复 + 人工复验通过（2026-09-25：「托盘功能通过，windows走查通过」）**：：**DEF-48** 托盘图标显示不全（**C1** · D36）、**DEF-49** 托盘缺「刷新行情」+ 同步无可见反馈（**C1** · D36）、**DEF-50** 「打开主界面」不置前（**C0**）、**DEF-51** 候选排序/上限/滚动不一致（**C1** · D36，合并人工第 4/8/9/10 条）、**DEF-52** Ubuntu 图标为通用齿轮（**C1** · D36）；另 **1 项增量提案已立项实施**（成交币自动进行情自选 → **D35**）与 **1 项文档口径**（JDK 17/21 与 mise，非缺陷，已按指令修订） |
 | **P3 / 观察项** | 7 | 登记（DEF-07…DEF-12 + **DEF-53** ✅ 已收口），详见 §3 |
-| 合计 | **53** | 编号连续至 **DEF-53**（**本轮 7 项（DEF-47…DEF-53）已全部收口，且经人工复验通过（2026-09-25）**；其余均闭环/已登记）（其中 DEF-44/45/46 为测试文档/口径类，C0）。P0 曾出现 1 项（DEF-17）· P1 曾出现 6 项（DEF-13/15/20/22/25/27）——**均已修复闭环**（人工门实测暴露）；**P1 全部闭环（DEF-43 人工实机复验通过；DEF-42 经第十一轮 TC-MAN-02/TC-MAN-11 复验通过；上游限制仍按裁决登记 P8）**；P2 全部有明确结论 ✅ |
+| **P1（影响面）· P2（P7 发布后 · 0.1.1 使用反馈 2026-09-28）** | **3** | ✅ **均已修复/实现（2026-09-28 人工「按推荐执行」，见 §2.4 各条「修复留痕」）**：**DEF-56** 弹窗遮罩被空格/回车激活 → 任意弹窗内输入空格即关闭（**影响面 = 14 文件/15 处 WzModal，其中 11 个含输入框**；根因与修法**已因果验证**，建议 **C0**）、**DEF-54** 粘贴数字带空格 → BigDecimal 解析失败/总价不计算（9 个解析点未归一化，建议 **C0** 止血 / 根治 **C1**）、**DEF-55** 日期时间只能手打（M3 1.9.0 已含选择器、零新增依赖，建议 **C1**）；**另有 1 条「界面手工感」总体感受 → 组件体系问题，已立项为 C2 界面体系统一（D37 / ADR-007 / M14）** |
+| 合计 | **57** | 编号连续至 **DEF-57**（**DEF-47…DEF-53 已全部收口并经人工复验通过（2026-09-25）**；**DEF-54/55/56 = 0.1.1 发布后使用反馈，待人工定级**；其余均闭环/已登记）（其中 DEF-44/45/46 为测试文档/口径类，C0）。P0 曾出现 1 项（DEF-17）· P1 曾出现 6 项（DEF-13/15/20/22/25/27）——**均已修复闭环**（人工门实测暴露）；**P1 全部闭环（DEF-43 人工实机复验通过；DEF-42 经第十一轮 TC-MAN-02/TC-MAN-11 复验通过；上游限制仍按裁决登记 P8）**；P2 全部有明确结论 ✅ |
 
 > 结论：**P0 = 0**；**P1 三项（DEF-13/DEF-15/DEF-20）由人工门实测暴露并已修复闭环**（修复即回归，见 §1.5/§1.7），
 > P2 各项在人工 P6 门全部裁决完毕或已登记（见 §0.1），**无遗留未决项**；**P1 已全部闭环**（见下）。
@@ -697,6 +698,81 @@ C0 三项按 §8.1 不建档、不进台账（索引见 D36 §5）。
 
 **结论**：**0.1.1 修复轮的全部验收项通过**（D36 §6 B1–B8 与 D35 §6 A1–A7 的可人工判定部分均通过），
 无新增缺陷、无回退项。**下一步 = 人工批准发布 0.1.1**（版本号 bump → 提交推送 → CI 出包 → 打 tag → 建 Release）。
+
+### 2.4 0.1.1 发布后使用反馈（2026-09-28 · 人工实际使用 0.1.1 后提出 3 条 + 1 条总体感受）
+
+> **来源**：人工原话（逐字见 `docs/dev/0.1.1-使用反馈.md §1`）：
+> 「1. 添加交易窗口的价格和数量输入框，如果从其他地方（比如csv文件）复制数据过来…复制过来后数字后面有空格，导致不能计算总价。
+> 2. 几乎所有窗口中的日期和时间组件需要键盘输入，没有那种弹出窗选择日期和时间的方式吗？有现成的组件可用吗？
+> 3. 在添加交易窗口的价格和数量输入框中，输入空格，会退出添加窗口。总体使用感受：界面笨拙，各个界面组件都像手工制作，
+> 没有总体风格和特点。」
+> **分级状态**：以下 **DEF-54 / DEF-55 / DEF-56 为 Agent 只读定位后的分级建议，等人工拍板**
+> （`AGENTS.md §8.4`：Agent 不自定级、不自行实现）；第 4 条「总体感受」= **组件体系问题**，已单独出调研报告
+> [`docs/tech/UI框架与组件统一调研.md`](../tech/UI框架与组件统一调研.md)，属选型决策，不在缺陷清单内。
+> **本轮未改任何产品代码**（取证用临时测试与临时 `testTag` 均已 `git checkout` 还原）。
+
+#### DEF-56 ✅ **已修复（2026-09-28，人工「按推荐执行」→ 按建议 C0 落地）**（**P1 级影响面** · 0.1.1 发布后使用反馈第 3 条）· 弹窗遮罩被空格键激活 → 任意弹窗内输入空格即关闭弹窗
+
+| 项 | 内容 |
+|----|------|
+| **现象** | 「在添加交易窗口的价格和数量输入框中，输入空格，会退出添加窗口」 |
+| **复现（Agent 实测，非推测）** | Compose UI 测试：打开「添加交易」→ 焦点注入到 `tx-qty-input` → 注入**真实按键** `Key.Spacebar` → **弹窗关闭**（`tx-modal` 不再显示、聚焦节点数归 0）。**对照**：用 `performTextInput(" ")` 注入文本**不会**关闭 → 差别在「真实按键事件」而非「值变化」，这也解释了既有 P6 用例为何未抓到（§7.3 强制项用的是 `performTextInput`，它绕过按键事件） |
+| **根因（已因果验证）** | `ui/src/main/kotlin/com/wuzhufolio/ui/components/WzModal.kt:107-118`：**遮罩层**（全屏 Box）用 `Modifier.clickable(interactionSource, indication = null, onClick = onDismiss)`。Compose 的 `clickable` 节点把 **Space/Enter 当作「激活点击」**；而遮罩是弹窗内所有输入框的**祖先节点**，空格在输入框插入字符后**继续冒泡到它** → 触发 `onClick` = `onDismiss()`。<br>**因果验证**：把遮罩改为 `Modifier.pointerInput(Unit) { detectTapGestures { onDismiss() } }`（与卡片吞点击同手法）后，**同样操作不再关闭**，焦点仍留在输入框（实测输出见 `docs/dev/0.1.1-使用反馈.md §6`） |
+| **影响面** | `WzModal` 全应用 **14 个文件 / 15 处**；其中 **11 个文件同时含文本输入框**（交易/资金/校准/CSV 导入/API 密钥/行情 Key/设置页/数据管理与恢复密码/币种详情）→ **任何弹窗内敲空格都可能被关掉**（备注、密码、搜索词、自定义手续费币种…），属**全应用级弹窗缺陷** |
+| **同源问题** | 遮罩是 `clickable` ⇒ 它本身是**可聚焦目标** ⇒ ① 焦点可从弹窗内容**逃逸到遮罩**；② 焦点在遮罩上时回车/空格即关闭（纯键盘用户误触关闭风险）。修法一次覆盖两处 |
+| **建议分级** | **C0**（实现偏差纠正：遮罩不该是「可聚焦 + 可被空格/回车激活」的点击目标；不改产品语义、不改数据/接口） |
+| **建议修法** | ① 遮罩改 `pointerInput { detectTapGestures { onDismiss() } }`（**已验证有效**，同时消除遮罩焦点目标）；② Esc 关闭仍由卡片 `focusable()` + `onPreviewKeyEvent` 承担（不变）；③ **补真实按键回归用例**（`performKeyInput { pressKey(Key.Spacebar) }` 断言弹窗仍在 + 焦点仍在输入框），并把「输入框内敲空格不关闭弹窗」补进 `AGENTS.md §7.3` 验收强制项（现有强制项只覆盖 `performTextInput`，**结构性抓不到这类缺陷**）；④ 核对同源实现：`ui/src/main/kotlin/com/wuzhufolio/ui/auth/GateWidgets.kt`（认证弹层同结构遮罩） |
+| **✅ 修复留痕（2026-09-28）** | ① `WzModal` 遮罩 `clickable` → `pointerInput { detectTapGestures { onDismiss() } }`（不再参与焦点、不响应键盘）；② **同源修复**：`GateWidgets.kt`（认证弹层）遮罩同改；③ 新增回归 `ui/src/test/.../components/WzModalKeyboardUiTest`（2 例：**真实按键** `performKeyInput` 空格/回车不关弹窗且焦点仍在输入框；Esc 仍关、Tab 不关）；④ `AGENTS.md §7.3` 已补第 7 条（弹层遮罩禁令 + 真实按键验收强制项） |
+
+#### DEF-54 ✅ **已修复（2026-09-28，人工「按推荐执行」→ 按建议 C0 止血 + C1 根治一并落地）**（**P2** · 0.1.1 发布后使用反馈第 1 条）· 粘贴的数字带空格 → `BigDecimal` 解析失败、总价不计算
+
+| 项 | 内容 |
+|----|------|
+| **现象** | 「从其他地方（比如csv文件）复制数据过来…复制过来后数字后面有空格，导致不能计算总价」 |
+| **根因（只读定位）** | 输入值原样进入 ViewModel，**中间无任何清洗**：`ui/.../ledger/TransactionsViewModel.kt:619-624`（`computeTotal`）、`:605-609`（`validateForm`）、`:577-580`（提交）三处均直接 `toBigDecimalOrNull()`；`BigDecimal("1234.56 ")` 抛 `NumberFormatException` → 返回 `null` → **总价回落 `"0.00"`** 并报「价格必须大于 0」。`WzTextField`（`components/WzTextField.kt`）用的是 `OutlinedTextField(value, onValueChange)` 重载，**没有** `InputTransformation` 或任何归一化 |
+| **影响面（同类点）** | 已做 `.trim()` 的：`GeneralSettingsViewModel.kt:116`、`FeeRuleSettingsSection.kt:120/121/145/146`。**未归一化**：`TransactionsViewModel.kt`（price/quantity/fee ×3 处共 6 点）+ `FundsViewModel.kt:283/316/532`（quantity）→ **2 文件 9 个解析点** |
+| **建议分级** | **C0**（止血：输入归一化本就是「解析」应含步骤，不改产品语义）；若连带改 `WzTextField` 实现（根治方案）→ **C1** |
+| **建议修法** | **止血**：统一归一化后再解析——去 `[ \t\u00A0\u202F]`（CSV 粘贴常见的**普通空格 / NBSP / 窄 NBSP**）、全角→半角（NFKC）、去货币符号；**三处共用同一个 `parseAmount()`** 避免再次漂移。<br>**根治（可选）**：数值框迁到 `OutlinedTextField(state = rememberTextFieldState(), inputTransformation = …)`——官方文档明确 transformation **对粘贴/拖放同样生效**，无需拦截剪贴板；显示层用 `outputTransformation` 做千分位（**不再需要 `OffsetMapping`**）。⚠️ 程序化赋值（`.cpro` 恢复、表单预填）**不经过** transformation，必须自行再清洗；⚠️ 该重载与现有 `value/onValueChange` **不能混用**，属公共 API 变更。<br>⚠️ **locale 歧义**：`1,234.56`（en-US）与 `1.234,56`（de-DE）语义相反，「`,` 一律当千分位删」在欧陆格式下会**静默产生 100 倍误差** → 建议定义唯一规范输入，歧义串**报错而不是猜** |
+| **不建议** | ❌ 用 `visualTransformation` 清洗（改不了实际 value，`BigDecimal` 拿到的仍是脏串——正是本缺陷形态）；❌ 引入第三方「金额输入框」库（候选全是 0.x alpha / 0 star / Android-only，已逐个核实） |
+| **✅ 修复留痕（2026-09-28）** | ① 新增 `ui/src/main/kotlin/com/wuzhufolio/ui/components/AmountSanitizer.kt`：NFKC 全角→半角 / 去各类空白（含 NBSP·窄 NBSP·全角空格）/ 去货币符号 / 统一 Unicode 减号；解析口径 = 小数点 `.` + 千分位 `,`；**`1.234,56`·`1,5`·`12,34` 等歧义格式一律拒绝（不猜测，避免静默 100 倍误差）**；② **9 个解析点全部改走统一入口**（`TransactionsViewModel` 6 处 + `FundsViewModel` 3 处，`toBigDecimalOrNull` 归零）；③ `WzTextField` 新增 `numeric` 参数（输入即清洗），交易表单价格/数量/手续费与资金表单数量已启用（**双侧清洗**：字段层 + 解析层）；④ 回归：`AmountSanitizerTest`（6 例，含 CSV 空格·NBSP·全角·千分位·歧义拒绝）；⑤ 口径写入 `interaction.md §1.5` |
+
+#### DEF-55 ✅ **已实现（2026-09-28，人工「按推荐执行」→ 按建议 C1 落地）**（**P2** · 0.1.1 发布后使用反馈第 2 条）· 日期时间只能键盘手打，无弹出选择器
+
+| 项 | 内容 |
+|----|------|
+| **现象** | 「几乎所有窗口中的日期和时间组件需要键盘输入，没有那种弹出窗选择日期和时间的方式吗？有现成的组件可用吗？」 |
+| **根因（只读定位）** | 日期时间 = **纯文本输入框**，格式 `yyyy-MM-dd'T'HH:mm`：交易表单 `TransactionFormModal.kt`（`state.timeText` → `TxField.TIME`）、资金表单 `FundFormModal.kt:116`（→ `FundField.TIME`）；解析在 `TransactionsViewModel.parseLocalTime` / `FundsViewModel.kt:546-553`（两种格式 `runCatching`，失败即报错）。**全仓无任何 `DatePicker`/`TimePicker` 使用** |
+| **可行性（✅ 一手实测）** | **零新增依赖**：本项目已依赖的 `material3-desktop:1.9.0` 内即含 `DatePicker` / `DateRangePicker` / `TimePicker` / `TimeInput` / `DatePickerDialog` / `TimePickerDialog` / `DateInput`（jar 反查）。opt-in 口径（javap 实测 **1.9.0**）：`DatePicker`/`DateRangePicker`/`TimePickerDialog` **不需要**；`TimePicker`/`TimeInput`/`rememberTimePickerState`/`DatePickerDialog` **需要** `@OptIn(ExperimentalMaterial3Api::class)` |
+| **建议分级** | **C1**（新增交互组件 + 改两个表单的输入方式 → 设计基线增量；不触 §8.1 红线） |
+| **建议修法** | **用无壳的 `DatePicker`/`TimePicker` 内容套进现有 `WzModal`**（不要用官方 `DatePickerDialog`）：① 守住 `AGENTS.md §7.3-①`「弹层一律同窗口就地叠加」；② 外观/按钮/间距与全应用一致；③ 绕开仍需 opt-in 的 API。保留手打入口（熟练用户更快），文本与选择器双向同步，解析失败给明确文案 |
+| **落地前必测（官方已知缺陷，✅ 经 YouTrack 公开 API 复核）** | ① **UTC 以西时区月份下拉标签错一月**（[CMP-10038](https://youtrack.jetbrains.com/issue/CMP-10038)，仍 **Open**）；② **TimePicker 在 OpenGL 渲染后端下配色/数字渲染错误**（[CMP-10319](https://youtrack.jetbrains.com/issue/CMP-10319)，**Submitted**）。⇒ 需在 `TZ=America/Denver` 与 `Asia/Shanghai` 各跑一遍，并覆盖本项目两个渲染后端（WSL2 `SOFTWARE_FAST` / Windows 默认） |
+| **验收（§7.3-③ 强制）** | Compose UI 测试（选择器交互 + `assertIsFocused` 路径）+ 人工 GUI 键盘逐字录入复验 |
+| **✅ 实现留痕（2026-09-28）** | ① 新增组件 `ui/src/main/kotlin/com/wuzhufolio/ui/components/WzDateTimeField.kt`：文本手打入口**保留** + 「选择…」在**既有的 `WzModal` 就地叠加层**内弹出官方 `DatePicker`/`TimePicker`（页签切换 + 「现在」快捷；**未使用**官方 `DatePickerDialog`，守住 §7.3-①）；② 时区口径：`selectedDateMillis` 按 UTC 取日期、与时间在本地时区组合，避免「差一天」；③ **零新增依赖**（M3 1.9.0 已在依赖树）；④ 接入交易表单（`tx-time-input`）与资金表单（`fund-time-input`），**testTag 不变**（既有用例不受影响）；⑤ 回归：`WzDateTimeFieldUiTest`（4 例：日历/时钟页签切换、取消不写回、确定写回可解析、`composeLocalDateTime` UTC 语义）；⑥ 文案 zh/en 双档（`CommonStrings` 新增 5 项）；⑦ 口径写入 `interaction.md §1.5` |
+
+#### DEF-57 ⏳ **已修复，待人工复验（Windows）**（**P2** · 0.1.1 使用反馈第 4 条 · 2026-09-28）· 托盘菜单点不动 / 点哪都打开主窗口
+
+| 项 | 内容 |
+|----|------|
+| **现象（人工原话）** | 「托盘上的菜单不能选择，不管点击哪里都是打开主窗口」 |
+| **代码事实（只读定位）** | ① **菜单窗口定位跨了两个坐标空间**：托盘鼠标事件给的是 **AWT 屏幕坐标**，而 `WindowPosition(x.dp, y.dp)` 是 **Compose dp（逻辑像素）**；现有实现按「屏幕缩放」再除一次（`xPx / scale`）。而「AWT 报的是逻辑像素还是物理像素」取决于平台与 JVM 是否 DPI 感知——**除错方向时菜单会偏到离托盘很远的位置**，用户按位置去点，点到的是托盘图标 ⇒ 左键 = 打开主界面 ⇒ 表现为「点哪都开主窗口、菜单选不了」。<br>② **同一次右键手势触发两次菜单请求**：`AwtTrayHost` 的 `mousePressed` 与 `mouseReleased` **都**判 `isPopupTrigger \|\| BUTTON3`（各平台 popup 语义落在 pressed 或 released 上），一次右键会请求两次；若两次坐标差 1px 就会重建窗口，而旧窗口失焦即 `onDismiss()` ⇒ 菜单**一闪即没**。<br>③ **首次点击可能只用于激活窗口**（Windows 上未激活的窗口第一次点击被吞），进一步加重「点不动」的观感。 |
+| **已修复（2026-09-28）** | ① `TrayMenuWindow` 新增 `menuX/menuY`（AWT 坐标）并在窗口创建后 **`window.setLocation` 精确定位**——与托盘事件**同一坐标空间**，不再依赖 dp/px 换算是否正确；同时**夹取到屏幕可视区**（贴边/任务栏附近不会跑出屏幕）并 `toFront()+requestFocus()`（避免首击被吞）。<br>② `AwtTrayHost` 右键请求**去抖 250ms**（一次手势只弹一次）。<br>③ 加诊断日志：`tray menu requested at XxY`（AppHost）与 `tray menu placed at XxY (requested …)`（窗口），便于无法本地复现的 Windows 侧定位。 |
+| **回归** | `TrayMenuContentUiTest`（既有）：四个菜单项**各自触发对应动作并关闭**、Esc 关闭 —— 该项早已绿，说明 Compose 侧菜单逻辑本身正确，故障点在**窗口定位/焦点**这一层（离屏测试覆盖不到，故本轮以代码事实 + 日志定位）。 |
+| **⚠️ 二轮人工反馈（2026-09-28）** | 「托盘菜单还是不行，当右键点出菜单时，鼠标在菜单上移动，**不会显示选中某个菜单项**。好像鼠标不是在菜单上移动似的」→ **现象收敛为「窗口可见但收不到鼠标输入」**（不是位置问题：菜单能出现在光标处）。据此追加三项修复与一套诊断（见下）。 |
+| **✅ 二轮修复（2026-09-28）** | ① **改为鼠标释放时弹菜单**（`mouseReleased`）：按下即弹会让窗口在「鼠标仍被 shell 捕获」期间创建，部分平台下该窗口随后收不到指针事件；右键菜单在 button-up 弹出也是 Windows 惯例（`WM_CONTEXTMENU` 语义）。<br>② **新增键盘通路**：`↑/↓` 移动选中、`Enter/Space` 执行、`Esc` 关闭（托盘菜单常规能力；同时是「鼠标进不来」时的可用通路与判定手段）。<br>③ **强制置前**：定位后 `isAlwaysOnTop=false→true` + `toFront()` + `requestFocus()`（Windows 经典手法）。<br>④ **诊断日志**（无法本地复现的平台问题靠它定位）：`tray menu window created/disposed`、`gained/lost focus`、`placed at XxY (… showing=? active=? focused=?)`、以及菜单内**输入事件**（`tray menu input: hover tray-menu-sync=true` / `key Down -> 1` / `activate index=1`）。 |
+| **待人工复验（二轮）** | Windows 上重跑后请回报三件事：① 悬停是否出现高亮；② **方向键/回车/Esc 是否有效**（键盘有效 = 窗口收到了输入，问题只在鼠标命中）；③ 日志 `~/.wuzhufolio/logs/wuzhufolio.log` 中 `tray menu` 开头的行（尤其 `placed … showing/active/focused` 与 `input:` 是否有记录）。**判定表**：键盘有效 + 鼠标无效 ⇒ 鼠标命中/坐标问题；两者都无效 ⇒ 窗口未真正获得输入（下一步改为 Swing/Java2D 弹层实现，见下）。 |
+| **⚠️ 三轮实测（2026-09-29，人工在 Ubuntu 24.04 桌面复测）** | 平台澄清：**故障平台是 Ubuntu 桌面（不是 Windows）**。人工回报：① 鼠标悬停**不出现高亮**；② **方向键可移动高亮、Enter 可执行、Esc 可关闭**；③ 日志中**没有**二轮加的诊断行。<br>**结论**：窗口**拿到了键盘与焦点**，但**收不到指针事件** ⇒ 不是「窗口不可交互」，而是**鼠标命中/指针事件投递**问题；日志缺行原因 = 二轮诊断用了 `debug` 级，而文件 appender 是 `INFO`（已修正）。 |
+| **✅ 三轮修复与埋点（2026-09-29）** | ① 诊断全部升为 **INFO**（`tray menu window created/disposed`、`gained/lost focus`、`tray menu placed \| window=WxH+X+Y requested=… pointer=… showing/active/focused`、`tray menu input: pointer <type> at XxY` / `hover …` / `key …` / `activate …`）；② `TrayMenuContent` 增**指针事件埋点**（`PointerEventPass.Final` 观察，不消费事件、不影响点击，前 20 条）；③ 新增「**窗口屏幕矩形 vs 指针实际位置**」对照日志——指针在矩形内却无 `pointer` 事件即可判定为输入命中问题。 |
+| **待人工复验（三轮）** | 重新构建后复测并回报日志中 `tray menu` 行（尤其 `placed … pointer=…` 与有无 `input: pointer …`）。**判定**：`pointer` 在窗口矩形内 + 无 pointer 事件 ⇒ X11 指针投递/输入形状问题（下一步：改用 Swing `JPopupMenu`/`JWindow` 或改用 X11 原生菜单）；`pointer` 在矩形外 ⇒ 定位问题（继续修坐标）。 |
+| **⚠️ 四轮：本地受控复现（2026-09-29，Agent 在 WSLg/X11 用 `java.awt.Robot` 代手）** | 加了 DEV-ONLY 钩子（环境变量 `WUZHUFOLIO_DEBUG_TRAY_MENU="x,y"` 自动弹菜单，正式构建不触发）后做**对照实验**：<br>① **非重叠位置**（菜单在 `(1350,100)`，主窗口 `(48,80)1280×819` 之外）：`AWT mouseEntered=1`、`AWT mouseMoved=5`、`input: pointer=20`、`hover tray-menu-open=true=18` ⇒ **鼠标事件完全正常**；<br>② **重叠位置**（菜单 `(300,100)`，被主窗口罩住）：同样 `mouseEntered=1 / mouseMoved=5 / pointer=20 / hover=true=15` ⇒ **也正常**。<br>**结论**：含第 4 轮「映射后置前」修复的构建，在两种位置下都能收到鼠标事件；**人工上一轮测的是第 3 轮构建（日志里没有 `shown -> raise` 行）**，尚未验证第 4 轮修复。<br>**排查过程中的一个坑（已记录）**：应用 AWT 处于 2× 缩放（`uiScale=2`），`Robot`/`jshell` 用物理坐标、应用日志用逻辑坐标——首次用物理坐标去点逻辑矩形，得出过"复现成功"的**错误结论**，已用坐标换算修正。 |
+| **待人工复验（四轮）** | 用**含第 4 轮修复**的构建复测：① 悬停是否出现高亮；② 若仍无效，请提供 `echo $XDG_SESSION_TYPE`（`x11` / `wayland`）——**这是关键环境变量**：Wayland+XWayland 下 `alwaysOnTop/toFront` 的置前语义与 X11 不同，若为 wayland 则直接走兜底方案（下述 JWindow 有主窗口归属版）。 |
+| **⚠️ 五轮：本机完整复现（2026-09-29，Agent 用 `java.awt.Robot` 走"真实托盘右键"路径）** | 关键：此前 Agent 的"复现"是用 DEV 钩子**程序化**弹菜单（屏幕中部），与人工的**托盘图标右键**路径不同。改为模拟真实路径后**完整复现**（菜单落在 `(744,32)`，与人工日志一致）且证据链闭合：<br>① **菜单确实画在最上层**（`Robot` 截图为证：四个菜单项、M3 样式、中文正常，完整压在主窗口之上）；<br>② 但 AWT/Compose **收不到任何鼠标事件**（`AWT mouseEntered=0`、`input: pointer=0`、无 hover），而**键盘 ↑/↓/Enter/Esc 正常**；<br>③ `XQueryPointer` 查询 X 服务器：**指针下最顶层窗口就是我们的菜单窗**（`0x2c0005f`），且其 AWT 画布子窗口尺寸/位置正确；<br>④ 外部 `XGrabPointer` 返回 **Success ⇒ 不存在任何 X 层指针抓取**；<br>⑤ 菜单打开时**拖动主窗口标题栏仍可移动窗口** ⇒ 输入未被全局冻结；<br>⑥ **同一窗口、同一位置**，用 DEV 钩子程序化弹出时**鼠标事件完全正常**（`hover=true`）⇒ **决定因素是"触发路径"（真实托盘点击），不是位置/栈序**；<br>⑦ 应用内自持指针抓取（`XGrabPointer`，owner_events 真/假各测一次）**均无效**（已回退，不留风险代码）；<br>⑧ 延迟 1.2s 弹出**无效** ⇒ 不是 Shell 的瞬时状态。<br>**结论**：真实点击 GNOME Shell 的托盘图标后，**Shell 在合成器层面吞掉了指针事件**（X 工具链看不见：无 X 抓取、X 查询显示菜单在最上层），自绘 X11 弹窗在此桌面上**无法获得鼠标**；键盘通路仍可用。这是 **GNOME Shell + XEmbed 托盘图标的交互机制限制**，不是本应用代码缺陷。 |
+| **✅ 结案（2026-09-29，A 方案落地）** | 人工拍板 **A 方案**（登记 `D39`，C1）：Linux 改用 **StatusNotifierItem + `com.canonical.dbusmenu`**，菜单由桌面 Shell 渲染。实施中由 GNOME Shell 日志定位到两处**属性类型**错误（`Menu` 必须 `o` 而非 `s`；SNI 的 `IconThemePath` 必须 `s` 而非 `as`），修正后**端到端通过**：右键图标弹出系统渲染的四项菜单（中文正常）、点选「立即刷新行情」真实执行（`market refresh started manual=true`）、菜单正常关闭。**Windows/macOS 路径未改动**；SNI 注册失败自动回退 AWT 托盘。详见 `docs/dev/decisions/D39-Linux原生托盘菜单（SNI+dbusmenu）.md`。 |
+| **可选修法（按 `AGENTS.md §8.4` 提报人工定级，Agent 不自行实施）** | **A（推荐，正解）**：Linux 改用 **StatusNotifierItem + `com.canonical.dbusmenu`**（dbus-java 已在依赖中）——菜单由 **Shell 自己渲染**，天然不受抓取影响，且中文由 Shell 绘制（DEF-15 的 AWT 菜单乱码问题也不存在）；Windows/macOS 保持现有 Compose 菜单。**成本：中**（约 300–400 行 + 测试，新增 D 档，属 C1/C2 待定）。<br>**B（折中，成本低）**：主窗口可见时，托盘菜单改为**应用内叠加层**（复用 `PageOverlayHost` + 同一 `TrayMenuContent`，画在窗口右上角）；主窗口已隐藏到托盘时仍用独立窗口（该场景 0.1.1 人工走查通过）。**成本：小**（约 100 行）；UX 变化：菜单出现在应用窗口内而非托盘处。<br>**C（零改动）**：保持现状并**以键盘为主**（↑/↓/Enter/Esc 已可用），在用户指南注明「GNOME 下托盘菜单请用键盘操作」。 |
+| **兜底方案（若四轮仍无效）** | ① **改用「有归属的弹层」**：`JWindow(owner = 主窗口)` + `ComposePanel`（Compose 的 Swing 互操作）承载菜单内容——**被拥有的窗口在窗口管理器语义下永远位于拥有者之上**，这是弹层最标准、最可靠的做法（Compose 的 `Window` 组合项未暴露 owner，故需自建 AWT 窗口）。<br>② 或改 Swing `JPopupMenu`（Java2D 文本渲染，不受 DEF-15 的 AWT **原生**菜单乱码影响）。<br>③ 或菜单改为**应用内弹层**（主窗口可见时用 Compose `Popup`/叠加层画在窗口内，主窗口隐藏时才用独立窗口）。 |
+| **兜底方案（原，若三轮仍无效）** | 改用 **Swing `JPopupMenu` + `JWindow`** 承载托盘菜单：Swing 走 Java2D 文本渲染（DEF-15 的乱码根因是 AWT **原生**菜单文本路径，Swing 不受影响），弹层由 AWT 自己管理焦点与命中，是 Windows 托盘菜单的成熟做法；代价是配色/字体需手工套用 design-tokens（可接受）。 |
+| **建议分级** | **C0**（实现偏差纠正：坐标空间用错 + 重复建窗；不改产品语义） |
+
+---
 
 ## 3. P3 / 观察项（登记，不影响发布）
 

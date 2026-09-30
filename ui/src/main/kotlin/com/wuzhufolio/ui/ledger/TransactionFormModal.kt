@@ -26,6 +26,7 @@ import com.wuzhufolio.domain.catalog.CatalogCoin
 import com.wuzhufolio.domain.engine.Side
 import com.wuzhufolio.ui.components.CoinSuggestionList
 import com.wuzhufolio.ui.components.WzButton
+import com.wuzhufolio.ui.components.WzDateTimeField
 import com.wuzhufolio.ui.components.WzButtonVariant
 import com.wuzhufolio.ui.components.WzModal
 import com.wuzhufolio.ui.components.modalContentMaxHeight
@@ -167,6 +168,7 @@ fun TransactionFormModal(
                         onValueChange = { vm.onFieldChange(TxField.PRICE, it) },
                         label = TransactionCopy.LABEL_PRICE,
                         placeholder = "0.00",
+                        numeric = true,
                         error = state.errors[TxField.PRICE.key],
                         modifier = Modifier.weight(1f),
                         testTag = "tx-price-input",
@@ -177,6 +179,7 @@ fun TransactionFormModal(
                         onValueChange = { vm.onFieldChange(TxField.QUANTITY, it) },
                         label = TransactionCopy.LABEL_QTY,
                         placeholder = "0.00",
+                        numeric = true,
                         error = state.errors[TxField.QUANTITY.key],
                         modifier = Modifier.weight(1f),
                         testTag = "tx-qty-input",
@@ -193,6 +196,7 @@ fun TransactionFormModal(
                         onValueChange = { vm.onFieldChange(TxField.FEE, it) },
                         label = TransactionCopy.LABEL_FEE + TransactionCopy.LABEL_FEE_OPTIONAL,
                         placeholder = "0",
+                        numeric = true,
                         error = state.errors[TxField.FEE.key],
                         modifier = Modifier.weight(1f),
                         testTag = "tx-fee-input",
@@ -295,11 +299,11 @@ fun TransactionFormModal(
                     modifier = Modifier.padding(top = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    WzTextField(
-                        value = state.timeText,
-                        onValueChange = { vm.onFieldChange(TxField.TIME, it) },
+                    // DEF-55：文本入口保留 + 「选择…」弹出官方 DatePicker/TimePicker（内联于 WzModal）
+                    WzDateTimeField(
                         label = TransactionCopy.LABEL_TIME,
-                        placeholder = "yyyy-MM-ddTHH:mm",
+                        value = state.timeText,
+                        onChange = { vm.onFieldChange(TxField.TIME, it) },
                         error = state.errors[TxField.TIME.key],
                         modifier = Modifier.weight(1.1f),
                         testTag = "tx-time-input",

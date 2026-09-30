@@ -85,7 +85,10 @@ src/ 或各端代码目录   # P3 脚手架起产生
   - `prototype/`：**桌面端高保真 HTML 原型图**（新增步骤）——用 huashu-design 产出单文件、可点击、可交互的桌面端原型，落 `docs/design/prototype/*.html`；流程：先信息架构文字稿 → 原型 1 主版 + 变体（三方向初稿**可简化**，见 §7.2）→ 人工选择（`direction-approved.md`）→ 深化 → Playwright 验证；窗框用 `macos_window`/`browser_window`，只用脱敏假数据。
 - **人工门**：审核设计稿——是否与 PRD 一致、体验是否合理、异常态是否齐全、原型是否覆盖核心页面。
 - **DoD**：每个核心流程有图/文字说明；每个页面有清单；异常态清单覆盖 PRD 全部异常条款；**原型图输出为 HTML、覆盖全部核心页面、可点击可交互**。
-- **衔接**：`ia.md` 页面清单 → P2 任务拆解来源；`interaction.md` 异常态 → P6 测试用例来源；`prototype/*.html` → P4 模块 UI 视觉基准。
+- **衔接**：`ia.md` 页面清单 → P2 任务拆解来源；`interaction.md` 异常态 → P6 测试用例来源。
+  **视觉基准（D42，2026-09-29 人工拍板「甲」）**：`prototype/*.html` **已退役**（保留作历史交付物，加退役标注）；
+  P4/P6 的视觉基准改为 **`design-tokens.md`（M3 token 规范源）+ `docs/design/baseline/*.png`（真实渲染截图）**，
+  说明与再生成方式见 `docs/design/visual-baseline.md`。
 
 ### P2 技术方案
 
@@ -223,7 +226,7 @@ src/ 或各端代码目录   # P3 脚手架起产生
 | P1 产品与交互设计 | 🔴 必用 | 桌面端 HTML 原型（交互原型）、设计方向、5 维评审 | SKILL.md「标准流程 Step 1–8 + 反AI slop」；`references/app-prototype.md`（架构选型/单文件 inline/Playwright 点击测试）、`references/design-styles.md`（网页 20 种，Dashboard 走网页区）、`references/typography.md`（字体配对）、`references/verification.md` + `scripts/verify.py`；`assets/macos_window.jsx` / `browser_window.jsx`（桌面窗框） | ① 三方向初稿**可简化**（PRD 已定稿、方向明确）：先出信息架构文字稿、原型出 1 主版 + 变体；简化须记入 `direction-approved.md` ② 只用脱敏假数据 |
 | P2 技术方案 | 🟡 推荐 | 架构图 / ER 图 / 任务依赖图（信息图/可视化） | `references/design-styles.md`（信息图 20 种）、`references/scene-templates.md`、`scripts/verify.py` | **图例二选一**：写在 md 内 → 优先 Mermaid；独立文件 → 优先 huashu-design HTML（表达力更丰富） |
 | P3 工程脚手架 | 🟢 可选 | README 架构示意图 | `references/design-styles.md`（信息图分区） | 文字+目录通常够，不强求 |
-| P4 分模块开发 | 🟢 可选 | 模块 UI 走查对比 | 引用 P1 `prototype/*.html` 截图 | 不生成新设计，仅引用原型截图 |
+| P4 分模块开发 | 🟢 可选 | 模块 UI 走查对比 | 引用 `design-tokens.md` + `docs/design/baseline/*.png`（D42：原型已退役） | 不生成新设计，仅引用基准截图 |
 | P5 集成与联调 | 🟢 可选 | 主流程链路图 | `references/design-styles.md`（信息图） | 配图可选 |
 | P6 系统测试与质量 | 🟢 可选 | 测试报告/缺陷分布可视化 | `references/design-styles.md`（信息图/PPT 20）、`assets/deck_index.html`（做 deck 时） | 配图可选 |
 | P7 发布 | 🔴 必用（宣传动画）+ 🟡 推荐（指南/材料） | ① 产品宣传动画（MP4/GIF，**必做**）② 用户指南（HTML deck）③ 发布说明 | 动画：SKILL.md Step 9 + `references/storyboard-basics.md`（分镜卡）+ `references/camera-language.md` + `references/gsap-recipes.md` + `references/animation-pitfalls.md` + `references/audio-design-rules.md` + `references/sfx-library.md` + `assets/animations.jsx`（Stage/Sprite）+ `assets/cursor.jsx` + `assets/bgm-*.mp3` + `assets/sfx/` + `scripts/render-video.js`/`render-video-seek.js` + `scripts/convert-formats.sh` + `scripts/add-music.sh`；指南：`references/slide-decks.md` + `assets/deck_index.html` + `scripts/export_deck_pdf.mjs`/`export_deck_pptx.mjs` | **P7 做产品宣传动画（人工拍板，必做）**；动画默认带 BGM+SFX（除非用户明示不要） |
@@ -262,6 +265,17 @@ src/ 或各端代码目录   # P3 脚手架起产生
 6. **保存类操作的状态与视觉必须一致**（DEF-25）：任何「先落库、后联网」的保存动作（如添加 API 密钥 = 保存 +
    首次同步），落库之后的失败**不得**表现为「保存失败且弹窗不关」——弹窗照常关闭、列表照常刷新，
    失败以「已保存，但…（可重试）」文案提示；数据层不得在落库后以异常上抛该失败。
+7. **弹层遮罩一律不得用 `clickable`；交互验收必须覆盖「真实按键」**（2026-09-28 DEF-56 确立）：
+   ① 遮罩（scrim）若用 `Modifier.clickable(onClick = onDismiss)`，它既是**焦点目标**（焦点会从弹窗内容逃逸到遮罩），
+   又会把 **空格/回车当成「激活点击」**；而遮罩是弹窗内所有输入框的**祖先节点**，按键冒泡到它即关闭弹窗——
+   实测表现为「**在任何弹窗的输入框里敲空格都会关掉弹窗**」（DEF-56，全应用 14 文件/15 处 `WzModal` 受影响）。
+   统一做法：遮罩用 `Modifier.pointerInput(Unit) { detectTapGestures { onDismiss() } }`（与卡片吞点击同手法，
+   不参与焦点、不响应键盘），Esc 仍由卡片 `focusable()` + `onPreviewKeyEvent` 承担。
+   ② **验收强制项扩容**：`performTextInput` **绕过真实键盘事件**，结构性抓不到此类缺陷——凡含输入框的弹层，
+   验收清单**必须**同时包含 `performKeyInput { pressKey(Key.Spacebar) }` / `pressKey(Key.Enter)` 断言
+   「弹窗仍在 + 焦点仍在该输入框」（范例：`ui/src/test/.../components/WzModalKeyboardUiTest`）。
+   ③ 数值输入一律走统一入口：字段层 `WzTextField(numeric = true)`（无争议字符归一）+ 解析层
+   `AmountSanitizer.parseAmountOrNull`（**双侧清洗**，因为程序化赋值不经过字段层），歧义格式**报错不猜测**。
 
 ---
 

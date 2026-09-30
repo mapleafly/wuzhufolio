@@ -59,13 +59,15 @@ fun ComponentGallery(viewModel: ShellViewModel, modifier: Modifier = Modifier) {
                 ModalSection()
                 ToastSection(viewModel)
                 SemanticColorsSection(viewModel)
+                M3FrameworkSection()
             }
         }
     }
 }
 
 @Composable
-private fun GallerySection(title: String, content: @Composable () -> Unit) {
+/** 区块容器（组件走查页与 M3 对照区共用；2026-09-28 由 private 提升为 internal）。 */
+internal fun GallerySection(title: String, content: @Composable () -> Unit) {
     val colors = WzTheme.colors
     Column {
         Text(text = title, color = colors.ink2, style = WzTheme.typography.tableHeader)
@@ -73,7 +75,7 @@ private fun GallerySection(title: String, content: @Composable () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp)
-                .background(colors.surface, RoundedCornerShape(10.dp))
+                .background(colors.surface, RoundedCornerShape(12.dp))
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -244,7 +246,7 @@ private fun SemanticColorsSection(viewModel: ShellViewModel) {
                 "accent" to colors.accent,
             ).forEach { (name, color) ->
                 Column {
-                    Box(modifier = Modifier.size(40.dp).background(color, RoundedCornerShape(7.dp)))
+                    Box(modifier = Modifier.size(40.dp).background(color, RoundedCornerShape(8.dp)))
                     Text(text = name, color = colors.ink3, style = WzTheme.typography.caption)
                 }
             }

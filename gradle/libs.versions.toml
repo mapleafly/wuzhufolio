@@ -4,6 +4,8 @@
 [versions]
 kotlin = "2.4.10"
 compose-plugin = "1.12.0"
+# Material 3 独立版本线（与 compose 插件版本不同步；1.9.0 = 当前解析版本）
+compose-material3 = "1.9.0"
 coroutines = "1.11.0"
 serialization = "1.11.0"
 exposed = "1.5.0"
@@ -17,9 +19,16 @@ logback = "1.6.3"
 slf4j = "2.0.17"
 lifecycle = "2.11.0"
 detekt = "1.23.8"
+# Compose Hot Reload（ADR-007 §2.4）：开发期 UI 热重载；版本与 CMP 1.12 捆绑版本一致（1.2.0），
+# **只影响开发任务（:app:hotRun），不进发布产物**
+compose-hot-reload = "1.2.0"
 junit4 = "4.13.2"
 
 [libraries]
+# D-Bus（D39：Linux 原生托盘 SNI + dbusmenu；版本与 java-keyring 传递依赖一致 4.2.1）
+dbus-java-core = { group = "com.github.hypfvieh", name = "dbus-java-core", version = "4.2.1" }
+dbus-java-transport = { group = "com.github.hypfvieh", name = "dbus-java-transport-native-unixsocket", version = "4.2.1" }
+
 # Kotlinx
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-swing = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-swing", version.ref = "coroutines" }
@@ -42,6 +51,10 @@ okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhtt
 # DI 与架构（ADR-001）
 koin-core = { group = "io.insert-koin", name = "koin-core", version.ref = "koin" }
 lifecycle-viewmodel-compose = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+# Compose Material 3（T14.1 起为界面唯一真源；直接声明坐标以消除 compose.material3 访问器的 Gradle 弃用告警）
+compose-material3 = { group = "org.jetbrains.compose.material3", name = "material3", version.ref = "compose-material3" }
+# Compose UI 测试（JUnit4 运行器；直接声明坐标以消除 compose.uiTestJUnit4 访问器的 Gradle 弃用告警）
+compose-ui-test-junit4 = { group = "org.jetbrains.compose.ui", name = "ui-test-junit4", version.ref = "compose-plugin" }
 # 日志（PRD §6 脱敏/轮转，M0 hello 链路起用）
 slf4j-api = { group = "org.slf4j", name = "slf4j-api", version.ref = "slf4j" }
 logback-classic = { group = "ch.qos.logback", name = "logback-classic", version.ref = "logback" }
@@ -54,3 +67,4 @@ kotlin-compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "compose-plugin" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
+compose-hot-reload = { id = "org.jetbrains.compose.hot-reload", version.ref = "compose-hot-reload" }

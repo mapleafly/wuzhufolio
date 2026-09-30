@@ -45,7 +45,7 @@ fun WzTable(
     val colors = WzTheme.colors
     androidx.compose.foundation.layout.Column(
         modifier = modifier
-            .border(1.dp, colors.line, androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+            .border(1.dp, colors.line, androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
             .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
     ) {
         // 表头

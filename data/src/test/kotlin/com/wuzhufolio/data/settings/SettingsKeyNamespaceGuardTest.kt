@@ -30,12 +30,22 @@ class SettingsKeyNamespaceGuardTest {
         "theme", "fiat", "locale", "pnl_scheme", // M002 种子（theme/pnl_scheme 无常量，只有字面量）
         "display.precision", "login.username.enum", "cash.coins", "small.threshold", "network.proxy.enabled",
         "market.coingecko_key", "market.cmc_key", "market.refresh_minutes", "market.quota",
-        "market.directory.last", "watch.coins", "sync.interval_minutes",
+        "market.directory.last", "sync.interval_minutes",
+        // D41：`watch.migrated` = 旧全局自选清单的一次性认领标记（全局）；
+        // `watch.coins` 已改为**账户级**，但迁移期仍需**只读**旧全局行 ⇒ 两侧同时登记（见 legacyGlobalKeys）
+        "watch.migrated", "watch.coins",
         "tray.minimize_on_close", "autostart.enabled", "tray.sync_notification", "backup.reminder",
     )
 
-    /** 账户级键登记表（`account_id = <id>`）——生产键共 2 个。 */
-    private val accountKeys = setOf("backup.last_at", "restore.last_at")
+    /** 账户级键登记表（`account_id = <id>`）——生产键共 3 个（D41：`watch.coins` 由全局迁至账户级）。 */
+    private val accountKeys = setOf("backup.last_at", "restore.last_at", "watch.coins")
+
+    /**
+     * **历史全局键**（受控例外，2026-09-29 D41）：键已改为账户级，但升级迁移需要**只读**旧全局行
+     * （首个登录账户一次性认领，见 `D41 §3.2`）。这类键允许同时出现在全局与账户级两侧，
+     * 前提是：**全局侧只允许读、不得再写**，且必须在此登记（新增须走 `§8` 变更控制）。
+     */
+    private val legacyGlobalKeys = setOf("watch.coins")
 
     /**
      * 已知的动态键调用点（该行键不可解析，但键在别处以字面量出现，已由其他规则收进集合）：
@@ -207,10 +217,11 @@ class SettingsKeyNamespaceGuardTest {
             "存在无法解析的 settings 键表达式（fail-closed，请登记常量或加入白名单）：\n" +
                 scan.unresolved.joinToString("\n"),
         )
-        val overlap = scan.global intersect scan.account
+        val overlap = (scan.global intersect scan.account) - legacyGlobalKeys
         assertTrue(
             overlap.isEmpty(),
-            "账户级键与全局键同名（命名空间冲突）：$overlap —— 新增账户级键不得与全局键同名",
+            "账户级键与全局键同名（命名空间冲突）：$overlap —— 新增账户级键不得与全局键同名" +
+                "（历史迁移键请登记到 legacyGlobalKeys 并说明只读理由）",
         )
     }
 
@@ -255,9 +266,15 @@ class SettingsKeyNamespaceGuardTest {
         /** 全局读写：`getGlobal("k")` / `putGlobal(Sym.K)` / `deleteGlobal(…)`。 */
         val GLOBAL_CALL = Regex("""(?:getGlobal|putGlobal|deleteGlobal)\(\s*(?:"([^"]+)"|([A-Za-z_][A-Za-z0-9_.]*))""")
 
-        /** 账户级读写：`getAccountSetting(id, "k")` / `putAccountSetting(id, Sym.K)`。 */
+        /**
+         * 账户级读写：`getAccountSetting(id, "k")` / `putAccountSetting(id, Sym.K)`（备份专用存储），
+         * 以及 **D41** 起 `SettingsRepository` 的账户级 API `getAccount(id, "k")` / `putAccount(id, Sym.K)`。
+         */
         val ACCOUNT_CALL =
-            Regex("""(?:getAccountSetting|putAccountSetting)\([^,()]+,\s*(?:"([^"]+)"|([A-Za-z_][A-Za-z0-9_.]*))""")
+            Regex(
+                """(?:getAccountSetting|putAccountSetting|getAccount|putAccount)\([^,()]+,\s*""" +
+                    """(?:"([^"]+)"|([A-Za-z_][A-Za-z0-9_.]*))""",
+            )
 
         /** M002 种子：`"theme" to "light",`。 */
         val SEED_KEY = Regex("""^\s*"([a-z][a-z0-9._]*)"\s+to\s+"""")

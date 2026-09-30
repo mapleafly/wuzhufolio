@@ -244,9 +244,21 @@ class BackgroundSchedulerTest {
         }
         assertEquals(0, sources.syncCalls, "无会话不得调用用例层 syncNow")
         assertTrue(seen.none { it is SchedulerEvent.SyncFinished }, "跳过时不应发同步完成事件")
-        // 行情刷新不受影响（行情走设备级 Key，与账户会话无关）
-        s.refreshMarketNow(manual = false)
-        assertEquals(1, sources.marketCalls, "登出后行情循环照常")
+        // D40（2026-09-29 人工拍板 C2）：**行情刷新同样以会话已解锁为前提**——此前此处断言「登出后行情照常」，
+        // 属已反转行为，故按新口径更新（守护点：无会话时不得发出任何行情请求）。
+        val market = s.refreshMarketNow(manual = false)
+        assertEquals(0, sources.marketCalls, "无会话不得发起行情刷新请求")
+        assertEquals(0, market.refreshedCoins)
+    }
+
+    /** D40 正例：有会话时行情刷新行为不变（回归守护）。 */
+    @Test
+    fun `market refresh runs normally with an active session`() = runBlocking {
+        val sources = FakeSources().apply { activeSession = true }
+        val s = scheduler(sources)
+        s.refreshMarketNow(manual = true)
+        assertEquals(1, sources.marketCalls, "有会话应正常发起行情刷新")
+        assertEquals(true, sources.lastManual, "手动标记应透传")
     }
 
     /** P6 §7-6 正例：有会话时行为不变（回归守护）。 */

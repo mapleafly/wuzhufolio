@@ -45,6 +45,13 @@ fun WzTextField(
     /** 弹窗内自动聚焦（GUI 共性约束 7.3-②：首输入框打开即聚焦，键盘立即可用）。 */
     fieldFocusRequester: FocusRequester? = null,
     /**
+     * 数值输入（DEF-54，2026-09-28）：为 true 时对每次变更做**温和清洗**——
+     * NFKC 全角→半角、去各类空白（普通空格 / NBSP / 窄 NBSP / 全角空格）、去货币符号、统一减号。
+     * 用途：从 CSV/网页复制过来的 `1234.56 ` / `１２３４．５６` / `¥1,234.56` 不会再把解析打挂。
+     * 分隔符语义与歧义拒绝在解析层（[AmountSanitizer.parseAmountOrNull]），此处只做无争议的字符归一。
+     */
+    numeric: Boolean = false,
+    /**
      * 回车提交（DEF-14，P6 人工门：登录页填完密码按回车无反应，须 Tab 到按钮再回车）。
      * 桌面端物理回车走 [onPreviewKeyEvent]（不依赖 IME action），并同时声明 ImeAction.Done
      * 的 [KeyboardActions]，保证软键盘/无障碍路径一致。
@@ -56,7 +63,7 @@ fun WzTextField(
         Text(text = label, color = colors.ink2, style = WzTheme.typography.caption)
         OutlinedTextField(
             value = value,
-            onValueChange = onValueChange,
+            onValueChange = { raw -> onValueChange(if (numeric) AmountSanitizer.sanitize(raw) else raw) },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 4.dp)
@@ -94,7 +101,7 @@ fun WzTextField(
             } else {
                 KeyboardActions.Default
             },
-            shape = RoundedCornerShape(7.dp),
+            shape = RoundedCornerShape(8.dp),
             textStyle = WzTheme.typography.body,
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = colors.accent,

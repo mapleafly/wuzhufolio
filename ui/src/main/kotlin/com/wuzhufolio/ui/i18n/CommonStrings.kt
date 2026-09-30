@@ -26,6 +26,18 @@ interface CommonStrings {
     val remove: String
     val add: String
     val retry: String
+
+    // 日期时间选择器（DEF-55 / ADR-007：官方 DatePicker/TimePicker 内联于 WzModal，含手打入口）
+    /** 触发按钮文案（「选择…」）。 */
+    val pickOpen: String
+    /** 选择器标题（「选择日期时间」）。 */
+    val pickTitle: String
+    /** 日期页签。 */
+    val pickDate: String
+    /** 时间页签。 */
+    val pickTime: String
+    /** 「现在」快捷。 */
+    val pickNow: String
 }
 
 object CommonStringsZh : CommonStrings {
@@ -43,6 +55,11 @@ object CommonStringsZh : CommonStrings {
     override val remove = "移除"
     override val add = "添加"
     override val retry = "重试"
+    override val pickOpen = "选择…"
+    override val pickTitle = "选择日期时间"
+    override val pickDate = "日期"
+    override val pickTime = "时间"
+    override val pickNow = "现在"
 }
 
 object CommonStringsEn : CommonStrings {
@@ -60,6 +77,11 @@ object CommonStringsEn : CommonStrings {
     override val remove = "Remove"
     override val add = "Add"
     override val retry = "Retry"
+    override val pickOpen = "Pick…"
+    override val pickTitle = "Select date & time"
+    override val pickDate = "Date"
+    override val pickTime = "Time"
+    override val pickNow = "Now"
 }
 
 val commonStrings: CommonStrings get() = if (I18n.isZh) CommonStringsZh else CommonStringsEn

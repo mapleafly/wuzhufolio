@@ -12,6 +12,7 @@ import com.wuzhufolio.domain.ledger.TransactionLedgerService
 import com.wuzhufolio.domain.ledger.TransactionRow
 import com.wuzhufolio.domain.ledger.TxFilter
 import com.wuzhufolio.ui.components.WzToast
+import com.wuzhufolio.ui.components.AmountSanitizer
 import com.wuzhufolio.ui.components.WzToastKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -298,8 +299,8 @@ class TransactionsViewModel(
     @Suppress("ReturnCount") // 价格/数量/手续费币种三前置早退
     fun autoCalcFee() {
         val form = _state.value.form ?: return
-        val price = form.price.toBigDecimalOrNull()
-        val quantity = form.quantity.toBigDecimalOrNull()
+        val price = AmountSanitizer.parseAmountOrNull(form.price)
+        val quantity = AmountSanitizer.parseAmountOrNull(form.quantity)
         if (price == null || price.signum() <= 0) {
             toast(WzToastKind.Failure, TransactionCopy.V1_PRICE)
             return
@@ -574,10 +575,10 @@ class TransactionsViewModel(
             patchForm { it.copy(errors = errors) }
             return null
         }
-        val price = form.price.toBigDecimalOrNull()
-        val quantity = form.quantity.toBigDecimalOrNull()
+        val price = AmountSanitizer.parseAmountOrNull(form.price)
+        val quantity = AmountSanitizer.parseAmountOrNull(form.quantity)
         if (price == null || quantity == null) return null
-        val fee = form.fee.toBigDecimalOrNull() ?: BigDecimal.ZERO
+        val fee = AmountSanitizer.parseAmountOrNull(form.fee) ?: BigDecimal.ZERO
         val time = parseLocalTime(form.timeText)
         if (time == null) {
             patchForm { it.copy(errors = it.errors + (TxField.TIME.key to TransactionCopy.V4_REQUIRED)) }
@@ -602,11 +603,11 @@ class TransactionsViewModel(
         if (form.baseSymbol.isBlank() || form.quoteSymbol.isBlank()) {
             errors[TxField.PAIR.key] = TransactionCopy.V4_REQUIRED
         }
-        val price = form.price.toBigDecimalOrNull()
+        val price = AmountSanitizer.parseAmountOrNull(form.price)
         if (price == null || price.signum() <= 0) errors[TxField.PRICE.key] = TransactionCopy.V1_PRICE
-        val qty = form.quantity.toBigDecimalOrNull()
+        val qty = AmountSanitizer.parseAmountOrNull(form.quantity)
         if (qty == null || qty.signum() <= 0) errors[TxField.QUANTITY.key] = TransactionCopy.V1_QTY
-        val fee = form.fee.toBigDecimalOrNull()
+        val fee = AmountSanitizer.parseAmountOrNull(form.fee)
         if (form.fee.isNotBlank() && (fee == null || fee.signum() < 0)) {
             errors[TxField.FEE.key] = TransactionCopy.V2_FEE
         }
@@ -617,8 +618,8 @@ class TransactionsViewModel(
     }
 
     private fun computeTotal(price: String, qty: String): String {
-        val p = price.toBigDecimalOrNull()
-        val q = qty.toBigDecimalOrNull()
+        val p = AmountSanitizer.parseAmountOrNull(price)
+        val q = AmountSanitizer.parseAmountOrNull(qty)
         return if (p == null || q == null) {
             "0.00"
         } else {

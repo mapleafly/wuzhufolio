@@ -1,11 +1,8 @@
 package com.wuzhufolio.ui.tray
 
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.foundation.focusable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Box
@@ -16,11 +13,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -34,15 +35,12 @@ import com.wuzhufolio.ui.theme.WzTheme
 /**
  * 托盘菜单内容（Compose 自绘；P6 人工门 **DEF-15 二次修复**）。
  *
- * 为什么不用系统菜单：
- * 1. 第一版实现沿用 Compose `Tray` 的 `PopupMenu` → 菜单文字由 **AWT/宿主系统**绘制，在 Windows 上中文乱码；
- * 2. 第二版改为自建 AWT 菜单并显式挂内嵌 Noto Sans SC 字体 → **仍然乱码**（说明问题不在字形覆盖，
- *    而在 AWT 菜单文本的渲染/转码路径本身）；
- * 3. 因此第三版**彻底绕开 AWT 文本**：托盘只保留 AWT 图标（图像 + 点击事件），菜单内容由
- *    **Compose/Skia 自绘**——与应用界面同一条字体渲染链（界面中文显示正常，即此路径可信）。
+ * 为什么不用系统菜单：AWT `PopupMenu` 的菜单文本在 Windows 上乱码，且显式挂内嵌字体后**仍乱码**，
+ * 因此托盘只保留 AWT 图标，菜单内容由 Compose/Skia 自绘（与应用界面同一条字体渲染链）。
  *
- * 交互：鼠标点击项执行动作；Esc 关闭；失焦关闭由宿主窗口负责（见 `TrayMenuWindow`）。
- * 纯 UI、无平台依赖，可在离屏 Compose 测试中验证。
+ * **输入方式**：
+ * - 鼠标：悬停高亮 + 点击执行（`clickable`）；
+ * - 键盘：↑/↓ 移动选中项、Enter/Space 执行、Esc 关闭（原生菜单的常规能力）。
  */
 @Composable
 fun TrayMenuContent(
@@ -58,9 +56,25 @@ fun TrayMenuContent(
     modifier: Modifier = Modifier,
 ) {
     val colors = WzTheme.colors
-    // 菜单容器自身可聚焦并主动取焦：保证 Esc 一定被本层收到（菜单窗口内可能没有其它可聚焦子项）
+    // 菜单容器自身可聚焦并主动取焦：保证 Esc/方向键一定被本层收到
     val menuFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { menuFocus.requestFocus() } }
+
+    // 可执行项（分隔线不计入键盘导航）
+    val actions = listOf(
+        Triple(open, "tray-menu-open", onOpen),
+        Triple(syncNow, "tray-menu-sync", onSync),
+        Triple(refreshQuotes, "tray-menu-refresh", onRefresh),
+        Triple(quit, "tray-menu-quit", onQuit),
+    )
+    // -1 = 无选中（原生菜单口径：仅在方向键导航或悬停时高亮）
+    var selected by remember { mutableIntStateOf(-1) }
+
+    fun run(index: Int) {
+        actions[index].third()
+        onDismiss()
+    }
+
     Column(
         modifier = modifier
             .focusRequester(menuFocus)
@@ -69,35 +83,65 @@ fun TrayMenuContent(
             .background(colors.surface, RoundedCornerShape(8.dp))
             .padding(vertical = 6.dp)
             .onPreviewKeyEvent { event ->
-                if (event.key == Key.Escape && event.type == KeyEventType.KeyDown) {
-                    onDismiss()
-                    true
-                } else {
+                if (event.type != KeyEventType.KeyDown) {
                     false
+                } else {
+                    when (event.key) {
+                        Key.Escape -> {
+                            onDismiss()
+                            true
+                        }
+                        Key.DirectionDown -> {
+                            selected = if (selected < 0) 0 else (selected + 1) % actions.size
+                            true
+                        }
+                        Key.DirectionUp -> {
+                            selected = if (selected < 0) {
+                                actions.size - 1
+                            } else {
+                                (selected - 1 + actions.size) % actions.size
+                            }
+                            true
+                        }
+                        Key.Enter, Key.NumPadEnter, Key.Spacebar -> {
+                            run(if (selected < 0) 0 else selected)
+                            true
+                        }
+                        else -> false
+                    }
                 }
             },
     ) {
-        TrayMenuItem(open, "tray-menu-open", colors.ink) { onOpen(); onDismiss() }
-        TrayMenuItem(syncNow, "tray-menu-sync", colors.ink) { onSync(); onDismiss() }
-        // DEF-49：行情刷新与交易同步**分列**（PRD §1.1-4 两类 API 独立）——此前菜单没有刷新入口，
-        // 人工实测「点了『立即同步』像什么都没发生」也有这一层：想刷行情却没有可点的项。
-        TrayMenuItem(refreshQuotes, "tray-menu-refresh", colors.ink) { onRefresh(); onDismiss() }
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp, horizontal = 8.dp)
-                .height(1.dp)
-                .background(colors.line),
-        )
-        TrayMenuItem(quit, "tray-menu-quit", colors.ink) { onQuit(); onDismiss() }
+        actions.forEachIndexed { index, (label, tag, _) ->
+            if (index == QUIT_INDEX) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp, horizontal = 8.dp)
+                        .height(1.dp)
+                        .background(colors.line),
+                )
+            }
+            TrayMenuItem(
+                label = label,
+                testTag = tag,
+                textColor = colors.ink,
+                selected = selected == index,
+                onClick = { run(index) },
+            )
+        }
     }
 }
+
+/** 「退出」项在列表中的下标（其前有分隔线）。 */
+private const val QUIT_INDEX = 3
 
 @Composable
 private fun TrayMenuItem(
     label: String,
     testTag: String,
     textColor: Color,
+    selected: Boolean,
     onClick: () -> Unit,
 ) {
     val colors = WzTheme.colors
@@ -107,7 +151,7 @@ private fun TrayMenuItem(
         modifier = Modifier
             .fillMaxWidth()
             .height(30.dp)
-            .background(if (hovered) colors.surface2 else Color.Transparent)
+            .background(if (hovered || selected) colors.surface2 else Color.Transparent)
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
             .testTag(testTag)
             .padding(horizontal = 14.dp),

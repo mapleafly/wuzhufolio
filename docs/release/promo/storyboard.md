@@ -4,7 +4,9 @@
 > **格式**：`storyboard-basics.md §5` 八字段/镜 + 独立 `[CAMERA]` 列 + 每镜验收帧号
 > **规格**：1920×1080 · 30.0 s · 60 fps（1800 帧）· H.264 · 带 BGM + SFX 双轨
 > **技能链**：`huashu-design` Step 9 · `storyboard-basics.md` · `camera-language.md` · `gsap-recipes.md §9` · `animation-pitfalls.md` · `audio-design-rules.md`
-> **素材**：`assets/ui/*.png`（真实应用截图，2480×1640 @2x，`tools/capture-ui.mjs` 采集）——画面主角是真实界面，不手画 UI
+> **素材（0.2.0）**：`assets/ui/*.png`（**真实应用整窗** 2× 离屏渲染，2480×1640——含侧边栏/顶栏/状态栏；
+> 由 `ui` 模块 `VisualRegression.captureFilmAsset` + `MainShell` 采集）——画面主角是真实界面，不手画 UI。
+> 色板 = 产品真实 **M3 token**。**注意**：素材必须是**整窗**（模板图版按窗口几何合成，单页素材会压字）。
 
 ---
 

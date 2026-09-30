@@ -391,7 +391,7 @@ private fun SidebarNavItem(
                 .height(20.dp)
                 .background(
                     if (active) colors.accent else colors.surface,
-                    RoundedCornerShape(2.dp),
+                    RoundedCornerShape(4.dp),
                 ),
         )
         Text(

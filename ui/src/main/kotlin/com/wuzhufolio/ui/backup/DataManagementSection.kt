@@ -156,9 +156,9 @@ private fun SectionCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 16.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(12.dp))
             .background(colors.surface)
-            .border(1.dp, colors.line, RoundedCornerShape(10.dp))
+            .border(1.dp, colors.line, RoundedCornerShape(12.dp))
             .padding(16.dp)
             .testTag(testTag),
     ) {
@@ -212,9 +212,9 @@ private fun BackupExportModal(
             style = WzTheme.typography.body,
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(7.dp))
+                .clip(RoundedCornerShape(8.dp))
                 .background(colors.surface2)
-                .border(1.dp, colors.line, RoundedCornerShape(7.dp))
+                .border(1.dp, colors.line, RoundedCornerShape(8.dp))
                 .padding(12.dp)
                 .testTag("backup-sensitive-warning"),
         )
@@ -492,9 +492,9 @@ private fun HeaderSummary(header: BackupPreview) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(7.dp))
+            .clip(RoundedCornerShape(8.dp))
             .background(colors.surface2)
-            .border(1.dp, colors.line, RoundedCornerShape(7.dp))
+            .border(1.dp, colors.line, RoundedCornerShape(8.dp))
             .padding(12.dp)
             .testTag("restore-summary"),
     ) {
@@ -539,12 +539,12 @@ private fun ModeOption(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 10.dp)
-            .clip(RoundedCornerShape(7.dp))
+            .clip(RoundedCornerShape(8.dp))
             .background(colors.surface2)
             .border(
                 1.dp,
                 if (selected) colors.accent else colors.line,
-                RoundedCornerShape(7.dp),
+                RoundedCornerShape(8.dp),
             )
             .clickable(onClick = onClick)
             .padding(12.dp)

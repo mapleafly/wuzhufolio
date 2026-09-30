@@ -1,8 +1,6 @@
 package com.wuzhufolio.ui.theme
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
@@ -16,7 +14,7 @@ import com.wuzhufolio.ui.i18n.I18n
 import com.wuzhufolio.ui.i18n.WzFormat
 
 val LocalWzColors = compositionLocalOf { lightWzColors() }
-val LocalWzTypography = compositionLocalOf { wzTypography() }
+val LocalWzTypography = compositionLocalOf { wzTypography(wzM3Typography()) }
 
 /** 当前界面语言（Composable 内需要按语言分支时的读取入口；文案本身经 I18n 动态取值）。 */
 val LocalWzLanguage = compositionLocalOf { AppLanguage.ZH }
@@ -49,37 +47,13 @@ fun WuzhuTheme(
     val precision by WzFormat.precisionFlow.collectAsState()
     val base = if (themeMode == ThemeMode.DARK) darkWzColors() else lightWzColors()
     val colors = base.withPnlScheme(pnlScheme)
-    val typography = wzTypography()
-
-    val m3Colors = if (themeMode == ThemeMode.DARK) {
-        darkColorScheme(
-            primary = colors.accent,
-            onPrimary = colors.accentInk,
-            background = colors.bg,
-            onBackground = colors.ink,
-            surface = colors.surface,
-            onSurface = colors.ink,
-            surfaceVariant = colors.surface2,
-            onSurfaceVariant = colors.ink2,
-            outline = colors.line,
-            error = colors.loss,
-            onError = colors.accentInk,
-        )
-    } else {
-        lightColorScheme(
-            primary = colors.accent,
-            onPrimary = colors.accentInk,
-            background = colors.bg,
-            onBackground = colors.ink,
-            surface = colors.surface,
-            onSurface = colors.ink,
-            surfaceVariant = colors.surface2,
-            onSurfaceVariant = colors.ink2,
-            outline = colors.line,
-            error = colors.loss,
-            onError = colors.accentInk,
-        )
-    }
+    val dark = themeMode == ThemeMode.DARK
+    // D38：M3 字体层级（规范值 + 产品字族）→ 业务语义槽位投影
+    val m3Typography = wzM3Typography()
+    val typography = wzTypography(m3Typography)
+    // M3 配色（官方算法从品牌种子色生成）+ 圆角阶梯 + 动效方案（expressive）
+    val m3Colors = wzColorScheme(colors, dark)
+    val m3Shapes = wzShapes()
 
     CompositionLocalProvider(
         LocalWzColors provides colors,
@@ -88,7 +62,13 @@ fun WuzhuTheme(
     ) {
         // 语言/精度档变化 → 整棵子树重建（文案与数值格式均为动态读取，见函数头注）
         key(language.code, precision.storageValue) {
-            MaterialTheme(colorScheme = m3Colors, content = content)
+            // typography/shapes 一并下发：此前未传 → M3 组件用 16sp 正文与 12dp 圆角，与自绘组件两套并存
+            MaterialTheme(
+                colorScheme = m3Colors,
+                typography = m3Typography,
+                shapes = m3Shapes,
+                content = content,
+            )
         }
     }
 }

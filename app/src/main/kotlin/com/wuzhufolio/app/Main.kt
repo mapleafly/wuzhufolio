@@ -111,7 +111,7 @@ internal fun MainWindowContent(
     trayAvailable: Boolean,
 ) {
     // 顶栏手动同步（PRD 故事 4.3）：VM 持有同步状态与结果 toast
-    val syncViewModel = remember { TopBarSyncViewModel(runtime.exchangeSyncService) }
+    val syncViewModel = remember { TopBarSyncViewModel { runtime.scheduler.syncNow() } }
     // M12：状态栏数据源（同步状态/数据源徽章/额度提示/备份提醒）+ 顶栏手动刷新行情
     val statusViewModel = remember {
         ShellStatusViewModel(

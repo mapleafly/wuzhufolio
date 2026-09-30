@@ -20,6 +20,7 @@ data class DesktopNotice(val title: String, val message: String, val level: Noti
  *   硬约束「日志脱敏」同口径），并截断到 [MESSAGE_LIMIT] 字符；
  * - 无 API 密钥（results 为空）不发通知——用户尚未配置交易所，不该收到空同步提示。
  */
+@Suppress("TooManyFunctions") // 通知文案按事件类型逐条列出（可读性优先）
 object DesktopNoticeText {
 
     /** 正文截断长度（托盘气泡宽度有限；防超长消息被系统裁掉关键信息）。 */
@@ -42,6 +43,10 @@ object DesktopNoticeText {
     // ---- DEF-49：托盘手动动作的即时反馈（点完必须「有反应」，且与背景同步通知同源文案）----
 
     /** 手动同步：开始（点击后立刻显示，消除「点了没反应」的观感）。 */
+    /** D40：未登录时的手动动作提示（不发起任何网络请求）。 */
+    fun loginRequired(action: String): DesktopNotice =
+        DesktopNotice("请先登录", "登录后才能$action。", NoticeLevel.INFO)
+
     fun manualSyncStarted(): DesktopNotice =
         DesktopNotice("正在同步交易数据", "正在向已配置的交易所拉取成交记录…", NoticeLevel.INFO)
 

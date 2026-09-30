@@ -1,6 +1,10 @@
 # WuZhuFolio 产品宣传动画（P7 必做项）
 
 > **方向**：A · 账簿 The Ledger（人工拍板 2026-09-22，Gate 记录见 `direction-approved.md`）
+> **本版迭代**：**0.2.0（2026-09-30）**——方向不变（属 `direction-approved.md` 的「已选定方向后的迭代」，不重过三方向门）：
+> ① UI 素材改为**真实应用整窗 2× 渲染**（`MainShell` + 页面槽离屏渲染，2480×1640；不再取自已退役的 P1 原型）；
+> ② 色板改为产品**真实 M3 token**（`design-tokens.md`，D38/D42）；③ 渲染器可移植性加固（系统 Chrome 回退 + 静态 ffmpeg）；
+> ④ 新增一键脚本 `tools/render-0.2.0.sh` / `tools/mix-0.2.0.sh`。**分镜结构、hero、能量骨架、镜头预算全部沿用方向 A**。
 > **规格**：1920×1080 · 30.0 s · 60 fps · H.264 + AAC（BGM + 14 个 SFX cue）
 > **技能链**：`huashu-design` Step 9 + `storyboard-basics.md` + `camera-language.md` + `gsap-recipes.md §9` + `animation-pitfalls.md` + `audio-design-rules.md` + `sfx-library.md`
 
@@ -8,13 +12,40 @@
 
 | 文件 | 说明 |
 |------|------|
-| `wuzhufolio-promo-30s.mp4` | **成品**：1920×1080 · 30.00 s · 60 fps · H.264 High · AAC 48 kHz 立体声（17.2 MB） |
-| `wuzhufolio-promo-30s.gif` | 派生 GIF：560×315 · 12.5 fps · 96 色 palette 优化（7.0 MB） |
+| `wuzhufolio-promo-30s.mp4` | **成品（0.2.0 版）**：1920×1080 · 30.00 s · **60 fps** · H.264 · **AAC 48 kHz 立体声**（15.5 MB） |
+| `wuzhufolio-promo-30s.gif` | 派生 GIF：560×315 · 12 fps · 96 色 palette 优化（6.3 MB） |
 | `wuzhufolio-promo.html` | 动画源码（自包含单文件，真实 UI 截图 base64 内联） |
 | `storyboard.md` | **分镜卡**（11 镜 · hero element · 能量骨架 · hold/rest 预算 · 镜头预算 · 12 项音频 cue · 逐帧复核清单） |
 | `boards/direction-{a,b,c}.png` | 三方向方向板（A 中标；B/C 归档备用） |
-| `assets/ui/*.png` | 12 张真实 UI 截图（2× 采集，明/暗双主题） |
+| `assets/ui/*.png` | 影片用 4 张**整窗** UI 图（真实应用 2× 离屏渲染，2480×1640；`MainShell` + 页面槽采集） |
+| `tools/render-0.2.0.sh` · `tools/mix-0.2.0.sh` | **一键复现**：重建 → 自检 → 逐帧渲染；BGM + 14 SFX 混音 → MP4 + GIF |
 | `assets/icon/*.png` | 应用图标评审预览（1024 / 16px×8 / 32px×8） |
+
+## 0.2.0 迭代状态（2026-09-30）——✅ **已出片**
+
+0.2.0 需要更新本片（旧片的界面是 M3 之前的 ✗）。**方向不变**（属 `direction-approved.md` 的「已选定方向后的迭代」，不重过三方向门）。
+本轮已完成与已发现：
+
+| 项 | 状态 |
+|---|---|
+| 色板 → 产品真实 M3 token（`design-tokens.md`：底 `#F5FBF6` / 强调 `#166B54` / 盈 `#1E6B45` / 亏 `#A63835`） | ✅ 已改（模板，随下轮重渲一并生效） |
+| UI 素材 → 真实应用 2× 离屏渲染（`ui` 模块 `VisualRegression.captureFilmAsset`，2480×1640） | ⚠️ **几何不匹配，已回退** |
+| 渲染器可移植性（skill 无 node_modules / 无 Playwright 自带 Chromium 时回退**系统 Chrome**；ffmpeg 用静态构建） | ✅ 已加固（`tools/render-promo-seek.mjs`） |
+| 一键复现脚本 | ✅ `tools/render-0.2.0.sh`（重建→自检→渲染）+ `tools/mix-0.2.0.sh`（BGM+14 SFX→MP4+GIF） |
+| 出片 | ✅ **已出片**：`wuzhufolio-promo-30s.mp4`（15.5 MB · 60 fps · AAC 立体声 · 30.00 s）+ `.gif`（6.3 MB）；抽帧验片通过（2.5 / 6.5 / 10 / 13.5 / 23 s） |
+
+### 过程留痕：素材几何与模板合成不匹配（**2026-09-30 验片发现 → 已修正**）
+
+- **现象**：用「单页渲染」素材重渲后，13.5 s 等帧出现**多图版叠加、文字互相压印**（对照 0.1.0 成片同帧：整窗截图、构图干净）。
+- **根因**：模板的图版合成按 **整窗截图**（含侧边栏/顶栏的应用窗口，旧素材即如此）的几何设计；
+  新素材只渲染了**页面本体**（无外壳）⇒ 内容铺满整幅 ⇒ 多图版叠加时文字互相压印。
+- **正确修法**：素材改采**整窗**渲染——用 `MainShell(viewModel, dashboardPageContent=…, assetsPageContent=…, transactionsPageContent=…, watchPageContent=…)`
+  在测试中装配外壳 + 真实页面（需为页面服务提供最小 fakes），2× 密度截图（1240×820 逻辑 → 2480×1640）；
+  随后 `build-promo.mjs` → `render-0.2.0.sh` → `mix-0.2.0.sh` → **验片**（抽帧目视，`storyboard.md §7` 逐帧复核清单）。
+- **修正结果**：改用 `MainShell` + 页面槽采**整窗**素材后，构图恢复正常（同一帧位对比 0.1.0 成片：构图风格一致）；
+  期间还修掉两处：素材密度参数（`runSkikoComposeUiTest` 的 `size` 是**像素**，需 2480×1640 + density 2 才得 2× 图）、
+  影片夹具（仪表盘指标来自交易重放，需 `metricsOverride` 填充，且避免异常币 ⚠️ 横幅出现在宣传片里）。
+- **当前仓库状态**：✅ 影片产物与素材均为 **0.2.0 版**（真实 M3 界面 + M3 色板）。
 
 ## 设计约束（方向 A）
 

@@ -127,9 +127,9 @@ fun BannerBox(title: String, body: String, testTag: String) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 14.dp)
-            .clip(RoundedCornerShape(7.dp))
+            .clip(RoundedCornerShape(8.dp))
             .background(colors.surface2)
-            .border(1.dp, colors.line, RoundedCornerShape(7.dp))
+            .border(1.dp, colors.line, RoundedCornerShape(8.dp))
             .padding(14.dp)
             .testTag(testTag),
     ) {
@@ -198,7 +198,7 @@ fun StrengthMeter(strength: com.wuzhufolio.domain.accounts.AccountPolicy.Strengt
                     modifier = Modifier
                         .width(36.dp)
                         .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
+                        .clip(RoundedCornerShape(4.dp))
                         .background(if (i < segments) color else colors.surface2),
                 )
             }
@@ -234,19 +234,16 @@ fun InPlaceModal(
         modifier = Modifier
             .fillMaxSize()
             .background(colors.ink.copy(alpha = 0.28f))
-            .clickable(
-                interactionSource = androidx.compose.foundation.interaction.MutableInteractionSource(),
-                indication = null,
-                onClick = onDismiss,
-            ),
+            // DEF-56 同源修复（2026-09-28）：遮罩不得用 clickable（可聚焦 + 空格/回车激活 → 弹窗误关）
+            .pointerInput(Unit) { detectTapGestures { onDismiss() } },
         contentAlignment = Alignment.Center,
     ) {
         Column(
             modifier = modifier
                 .width(width)
-                .clip(RoundedCornerShape(10.dp))
+                .clip(RoundedCornerShape(12.dp))
                 .background(colors.surface)
-                .border(1.dp, colors.line, RoundedCornerShape(10.dp))
+                .border(1.dp, colors.line, RoundedCornerShape(12.dp))
                 .focusRequester(focusRequester)
                 .focusable()
                 .onPreviewKeyEvent { event ->

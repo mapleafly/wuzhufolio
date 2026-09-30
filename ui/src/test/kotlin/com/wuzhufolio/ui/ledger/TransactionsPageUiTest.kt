@@ -38,6 +38,12 @@ import java.time.format.DateTimeFormatter
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import com.wuzhufolio.ui.regression.VisualRegression
+import com.wuzhufolio.domain.settings.PnlColorScheme
+import com.wuzhufolio.ui.shell.MainShell
+import com.wuzhufolio.ui.shell.ShellPage
+import com.wuzhufolio.ui.shell.ShellViewModel
+import com.wuzhufolio.domain.settings.ThemeMode
 
 /**
  * 交易管理页 UI 走查（M7 · T7.4 · 共性约束 7.3）：空态/列表渲染/添加弹窗首输入框聚焦 +
@@ -518,5 +524,29 @@ class TransactionsPageUiTest {
         assertEquals(false, pickerOnEdt, "模板保存路径选择不得在 EDT 上调用 invokeAndWait")
         assertEquals(svc.csvTemplateCsv(), java.nio.file.Files.readString(target))
         waitUntil(timeoutMillis = 2_000) { textCount("标准模板已下载", substring = true) >= 1 }
+    }
+
+    // ---------- T14.5 视觉回归（3 档尺寸 × 2 主题） ----------
+
+    @Test
+    fun `visual regression - transactions page across sizes and themes`() {
+        val files = VisualRegression.capture(
+            page = "transactions",
+            rootTag = "transactions-page",
+            alsoAssert = listOf("tx-add", "tx-import"),
+        ) {
+            TransactionsPage(FakeLedgerService(), { null }, { null })
+        }
+        assertEquals(6, files.size, "3 档尺寸 × 2 主题")
+    }
+    @Test
+    fun `film asset - transactions page for the promo video`() {
+        // P7 影片素材：整窗渲染（模板图版按「含侧边栏/顶栏的窗口」几何设计）
+        VisualRegression.captureFilmAsset("transactions-light.png", "main-shell") {
+            MainShell(
+                viewModel = ShellViewModel(ThemeMode.LIGHT, PnlColorScheme.GREEN_UP, ShellPage.TRANSACTIONS),
+                transactionsPageContent = { TransactionsPage(FakeLedgerService(), { null }, { null }) },
+            )
+        }
     }
 }

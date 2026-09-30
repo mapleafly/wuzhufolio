@@ -3,10 +3,8 @@ package com.wuzhufolio.ui.components
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -108,19 +106,20 @@ fun WzModal(
         modifier = Modifier
             .fillMaxSize()
             .background(colors.ink.copy(alpha = SCRIM_ALPHA))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onDismiss,
-            ),
+            // DEF-56（2026-09-28 修复）：遮罩**不得**用 clickable ——
+            // clickable 既是**焦点目标**、又会把**空格/回车**当成「激活点击」，而遮罩是弹窗内所有输入框的
+            // **祖先节点**：输入框插入字符后按键继续冒泡到遮罩 → 触发 onClick = onDismiss ⇒
+            // 「在任何弹窗的输入框里敲空格都会关闭弹窗」（全应用 14 文件/15 处 WzModal 受影响）。
+            // 改用 pointerInput 吞点击（与本文件卡片同一手法）：既不参与焦点、也不响应键盘。
+            .pointerInput(Unit) { detectTapGestures { onDismiss() } },
         contentAlignment = Alignment.Center,
     ) {
         // 卡片：焦点容器（Esc）+ 吞点击（不透传到遮罩）
         Box(
             modifier = modifier
                 .width(width)
-                .background(colors.surface, RoundedCornerShape(10.dp))
-                .border(1.dp, colors.line, RoundedCornerShape(10.dp))
+                .background(colors.surface, RoundedCornerShape(12.dp))
+                .border(1.dp, colors.line, RoundedCornerShape(12.dp))
                 .focusRequester(focusRequester)
                 .focusable()
                 .onPreviewKeyEvent { event ->

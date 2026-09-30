@@ -23,10 +23,14 @@ import com.wuzhufolio.app.tray.CloseAction
 import com.wuzhufolio.app.tray.DesktopNotice
 import com.wuzhufolio.app.tray.DesktopNoticeText
 import com.wuzhufolio.app.tray.DesktopToastWindow
+import com.wuzhufolio.app.tray.linux.StatusNotifierService
+import com.wuzhufolio.ui.tray.trayLabels
 import com.wuzhufolio.app.tray.NoticeDelivery
 import com.wuzhufolio.app.tray.NoticeLevel
 import com.wuzhufolio.app.tray.NoticePolicy
 import com.wuzhufolio.app.tray.TrayIcon
+import com.wuzhufolio.app.tray.TrayActionGate
+import com.wuzhufolio.app.tray.TrayMenuActions
 import com.wuzhufolio.app.tray.TrayMenuWindow
 import com.wuzhufolio.app.tray.TraySupport
 import com.wuzhufolio.app.tray.WindowCloseBehavior
@@ -117,6 +121,13 @@ fun ApplicationScope.AppHost(runtime: AppBootstrap.Runtime, onExit: () -> Unit) 
 
     /** 托盘「立即同步交易」（PRD 故事 4.3 / 两类 API 独立中的交易侧）。 */
     fun syncFromTray() {
+        // D43（2026-09-29 人工拍板 C1，amends D40）：交易所 Key **归属账户**，未登录无账户可同步——
+        // 与「立即刷新行情」同口径：入口先判，只提示「请先登录」，不进入任何同步路径。
+        TrayActionGate.lockedNotice(runtime.session.sessions.get() != null, "同步交易数据")?.let {
+            runtime.logger.info("tray sync ignored | session locked")
+            showNotice(it)
+            return
+        }
         showNotice(DesktopNoticeText.manualSyncStarted())
         scope.launch {
             val results = runCatching { runtime.scheduler.syncNow() }
@@ -130,6 +141,12 @@ fun ApplicationScope.AppHost(runtime: AppBootstrap.Runtime, onExit: () -> Unit) 
 
     /** 托盘「立即刷新行情」（两类 API 独立中的行情侧）。 */
     fun refreshFromTray() {
+        // D40（2026-09-29 人工拍板 C2）：登录前不发行情刷新请求——只提示，不联网。
+        TrayActionGate.lockedNotice(runtime.session.sessions.get() != null, "刷新行情")?.let {
+            runtime.logger.info("tray refresh ignored | session locked")
+            showNotice(it)
+            return
+        }
         showNotice(DesktopNoticeText.manualRefreshStarted())
         scope.launch {
             val done = runCatching { runtime.scheduler.refreshMarketNow(manual = true) }.fold(
@@ -146,7 +163,34 @@ fun ApplicationScope.AppHost(runtime: AppBootstrap.Runtime, onExit: () -> Unit) 
         onDispose { runtime.scheduler.stop() }
     }
 
+    // Linux 原生托盘（D39 / DEF-57 A 方案）：SNI + dbusmenu，菜单由桌面 Shell 渲染。
+    // 注册失败（无会话总线/无 watcher）时自动回退到下面的 AWT 托盘 + Compose 自绘菜单。
+    val sniService = remember { mutableStateOf<StatusNotifierService?>(null) }
     DisposableEffect(trayCapable) {
+        val isLinux = System.getProperty("os.name").orEmpty().lowercase().contains("linux")
+        val sni = if (trayCapable && isLinux) {
+            StatusNotifierService.start(
+                icon = TrayIcon.awtImage(trayPolicy.sizePx),
+                labels = { trayLabels(uiPreferences.language) },
+                actions = TrayMenuActions(
+                    onDismiss = {},
+                    onOpen = { showWindow() },
+                    onSync = { syncFromTray() },
+                    onRefresh = { refreshFromTray() },
+                    onQuit = { onExit() },
+                ),
+                logger = runtime.logger,
+            )
+        } else {
+            null
+        }
+        if (sni != null) {
+            sniService.value = sni
+            onDispose {
+                sni.close()
+                sniService.value = null
+            }
+        } else {
         val host = if (trayCapable) {
             AwtTrayHost(
                 // DEF-48 二轮：交**实体 BufferedImage**（不能交惰性 PainterImage —— AWT 会按自己的密度
@@ -165,8 +209,9 @@ fun ApplicationScope.AppHost(runtime: AppBootstrap.Runtime, onExit: () -> Unit) 
             host?.close()
             trayHost = null
         }
+        }
     }
-    val traySupported = trayCapable && trayHost != null
+    val traySupported = trayCapable && (trayHost != null || sniService.value != null)
 
     // 托盘能力与关窗行为留痕（走查/冒烟可核；托盘不可用时关窗即退出，见头注降级口径）
     LaunchedEffect(traySupported) {
@@ -195,8 +240,10 @@ fun ApplicationScope.AppHost(runtime: AppBootstrap.Runtime, onExit: () -> Unit) 
         }
     }
 
-    // 托盘菜单（Compose 自绘，DEF-15）：定位到右键位置；失焦/Esc/点选后关闭
-    trayMenuAt?.let { (xPx, yPx) ->
+
+    // 托盘菜单（Compose 自绘，DEF-15）：定位到右键位置；失焦/Esc/点选后关闭。
+    // D39：Linux 走 SNI（菜单由 Shell 渲染）时，本路径不参与。
+    if (sniService.value == null) trayMenuAt?.let { (xPx, yPx) ->
         val scale = remember {
             runCatching {
                 java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment()
@@ -204,6 +251,7 @@ fun ApplicationScope.AppHost(runtime: AppBootstrap.Runtime, onExit: () -> Unit) 
             }.getOrDefault(1.0)
         }
         TrayMenuWindow(
+            // dp 粗定位（初值，避免创建瞬间闪到原点）；精确位置由窗口内 AWT setLocation 校正（DEF-57）
             position = androidx.compose.ui.window.WindowPosition((xPx / scale).dp, (yPx / scale).dp),
             themeMode = uiPreferences.theme,
             language = uiPreferences.language,

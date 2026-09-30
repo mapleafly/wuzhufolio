@@ -245,6 +245,22 @@ class BackgroundScheduler(
     // ---- 内部 ----
 
     private suspend fun refreshMarketOnce(manual: Boolean): MarketRefreshResult {
+        // D40（2026-09-29 人工拍板 C2）：**登录前不发行情刷新请求**。
+        // 与同步 tick 同一设施（`hasActiveSession`）与同一收口点风格：收口在 refreshMarketOnce
+        // （而非循环），以便同时覆盖启动首刷、周期刷新、托盘/顶栏「立即刷新行情」共用路径。
+        if (!sources.hasActiveSession()) {
+            logger.info("market refresh skipped | session locked")
+            return MarketRefreshResult(
+                at = null,
+                source = null,
+                refreshedCoins = 0,
+                untracked = emptyList(),
+                quotaPercentUsed = null,
+                error = null,
+                cgConfigured = false,
+                cmcConfigured = false,
+            )
+        }
         lastMarketAttemptAt = now()
         val result = sources.refreshMarket(manual)
         val limited = result.error is MarketRefreshError.RateLimited

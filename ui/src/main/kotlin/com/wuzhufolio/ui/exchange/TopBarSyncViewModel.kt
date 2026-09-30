@@ -1,7 +1,7 @@
 package com.wuzhufolio.ui.exchange
 
 import androidx.lifecycle.ViewModel
-import com.wuzhufolio.domain.exchange.ExchangeSyncService
+import com.wuzhufolio.domain.exchange.ApiKeySyncResult
 import com.wuzhufolio.domain.exchange.SyncStatus
 import com.wuzhufolio.ui.components.WzToast
 import com.wuzhufolio.ui.components.WzToastKind
@@ -18,10 +18,18 @@ import kotlinx.coroutines.launch
  * 顶栏手动同步（PRD 故事 4.3「提供手动同步按钮」+ ia.md §1 顶栏「手动同步交易按钮 + 同步中指示」；
  * 2026-09-08 走查补口）：任何页面常驻可达，同步全部已保存的交易所 API 密钥。
  *
+ * **D43（2026-09-29）**：执行体经调度器注入（含「会话已解锁」门禁），与托盘/后台同口径；
  * 与 API 管理页的同步入口共用 ExchangeSyncService（单飞由服务内部 Mutex 保证）；
  * 无密钥 -> 引导提示；有密钥 -> 汇总「新增 N / 失败 M」。
  */
-class TopBarSyncViewModel(private val service: ExchangeSyncService) : ViewModel() {
+class TopBarSyncViewModel(
+    /**
+     * 「同步全部密钥」的执行体（**D43**：由组合根注入**经调度器**的路径 `scheduler.syncNow()`，
+     * 使托盘 / 顶栏 / 后台三条入口共用**唯一会话门禁**——此前顶栏直连用例层，绕过门禁，
+     * 无会话时会命中 `requireActive` 抛异常）。
+     */
+    private val syncAll: suspend () -> List<ApiKeySyncResult>,
+) : ViewModel() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -37,7 +45,7 @@ class TopBarSyncViewModel(private val service: ExchangeSyncService) : ViewModel(
         _syncing.value = true
         scope.launch {
             try {
-                val results = service.syncNow(null)
+                val results = syncAll()
                 _toast.value = if (results.isEmpty()) {
                     WzToast(WzToastKind.Failure, ApiCopy.SYNC_ALL_EMPTY)
                 } else {

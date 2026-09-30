@@ -1,9 +1,16 @@
 <!DOCTYPE html>
+<!--
+  ⚠️ 已退役（RETIRED）· 2026-09-29 · 决策 D42（人工拍板「甲」）
+  本文件是 P1 交付的暖纸手绘视觉基准，**自 D38 起已不再作为视觉基准**：
+  界面改以 Material 3 视觉规范为准（配色由品牌种子色经官方算法生成、M3 字号层级/圆角阶梯/动效 token）。
+  现行视觉基准 = docs/design/design-tokens.md（规范源）+ docs/design/baseline/*.png（真实渲染截图），
+  说明见 docs/design/visual-baseline.md。本文件仅作历史留痕，请勿据此实现或评审。
+-->
 <html lang="zh-CN" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WuZhuFolio - 本地加密资产账本（原型 · 主版 · 单一真源 · 内置明暗双主题）</title>
+<title>【已退役】WuZhuFolio 原型（历史留痕 · 视觉基准见 design-tokens.md）</title>
 <style>
 :root{ --bg:#F6F4EF; --surface:#FFFFFF; --surface2:#EDE9E1; --ink:#1E2622; --ink2:#5C655F; --ink3:#68716A; --accent:#1F5A48; --accent-ink:#F6F4EF; --gain:#17663F; --loss:#A93A37; --warn:#8A6416; --line:#D9D4CA; --hover:rgba(31,90,72,0.06); --sel:rgba(31,90,72,0.10); --shadow:0 1px 2px rgba(30,38,34,0.06),0 8px 24px rgba(30,38,34,0.07); --btn-ghost:#FFFFFF; }
 :root[data-theme="dark"]{ --bg:#151A18; --surface:#1D2421; --surface2:#27302C; --ink:#E8EAE6; --ink2:#9AA69F; --ink3:#8A938C; --accent:#D0A85C; --accent-ink:#151A18; --gain:#4CBF82; --loss:#E07873; --warn:#D0A85C; --line:#2E3733; --hover:rgba(208,168,92,0.08); --sel:rgba(208,168,92,0.14); --shadow:0 1px 2px rgba(0,0,0,0.4),0 10px 30px rgba(0,0,0,0.45); --btn-ghost:#1D2421; }
@@ -189,6 +196,13 @@ body[data-theme="dark"] .pill.cmc{ background:rgba(208,168,92,0.14); }
 </style>
 </head>
 <body>
+<div style="position:fixed;inset:0 0 auto 0;z-index:99999;background:#8A6416;color:#fff;
+            font:600 13px/1.6 -apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+            padding:6px 12px;text-align:center">
+  ⚠️ 本原型已退役（D42，2026-09-29）：界面现以 Material 3 规范为准。
+  视觉基准见 <code>docs/design/design-tokens.md</code> + <code>docs/design/baseline/*.png</code>
+  （说明：<code>docs/design/visual-baseline.md</code>）。此文件仅作历史留痕。
+</div>
 <div class="window gated" id="win">
   <div class="titlebar"><div class="tlights"><i></i><i></i><i></i></div><div class="tbtitle" id="tbtitle"><b>WuZhuFolio</b> · 本地加密资产账本 - 登录</div></div>
   <div class="app">

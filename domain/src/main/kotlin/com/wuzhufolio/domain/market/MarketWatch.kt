@@ -7,20 +7,25 @@ import java.time.Instant
 /**
  * D21 行情浏览页契约（决策：docs/dev/decisions/D21-行情浏览页-范围增量.md）。
  *
- * 自选为展示偏好：settings 全局行 `watch.coins`（JSON 数组 [cg_id]，**无数量上限**）持久化；
- * **未写入过**时返回默认种子（= 仅 USDT，与现金白名单默认值 D28 对齐；用户可自行添加其他币种）；
- * 已写入（可为空数组）按存储返回。币展示信息（symbol/name）每次经 coins 目录解析——目录缺行显示时跳过
+ * **D41 修订（2026-09-29 人工拍板，C2 / 账户隔离 `§1.1-5`）**：自选为**账户级**偏好——
+ * `settings(key='watch.coins', account_id=<当前账户>)`（JSON 数组 [cg_id]，**无数量上限**，数组序即展示序）。
+ * 账户之间互不可见；**未登录返回空集**（不展示任何账户的自选，也不可写）。
+ *
+ * 取值口径：账户**未写入过** → 默认种子（= 仅 USDT，与现金白名单默认值 D28 对齐）；
+ * 已写入（可为空数组）→ 按存储返回。币展示信息（symbol/name）每次经 coins 目录解析——目录缺行显示时跳过
  * （解析期清理，不静默改写存储；目录恢复后重新出现）。
+ *
+ * 升级迁移：旧全局行 `watch.coins` 由**首个访问自选的账户一次性认领**（`D41 §3.2`）。
  */
 interface MarketWatchService {
 
-    /** 当前展示币集（目录解析后的 CatalogCoin 行，顺序 = 存储序）。 */
+    /** 当前**账户**的展示币集（目录解析后的 CatalogCoin 行，顺序 = 存储序；未登录 = 空集）。 */
     suspend fun watchCoins(): List<CatalogCoin>
 
-    /** 是否已写入过自选（未写入 = 默认种子态；UI 提示种子来源用）。 */
+    /** 当前账户是否已写入过自选（未写入 = 默认种子态；未登录 = false）。 */
     suspend fun hasCustomList(): Boolean
 
-    /** 加入自选（已存在幂等）。 */
+    /** 加入**当前账户**的自选（已存在幂等；未登录 = 无操作）。 */
     suspend fun addCoin(cgId: String)
 
     /**
@@ -33,12 +38,17 @@ interface MarketWatchService {
      */
     suspend fun addCoins(cgIds: Collection<String>)
 
+    /** 从**当前账户**自选移除（未登录 = 无操作）。 */
     suspend fun removeCoin(cgId: String)
 
     /** coins 目录搜索候选（大小写归一，复用 CoinCatalog.search 消歧口径）。 */
     suspend fun searchCandidates(query: String, limit: Int = 8): List<CatalogCoin>
 
     companion object {
+        /**
+         * 自选存储键。**D41 起为账户级行**（`account_id` 非空）；同名的**历史全局行**仅在迁移期被
+         * 一次性认领时**只读**（见 `D41 §3.2` 与 `SettingsKeyNamespaceGuardTest.legacyGlobalKeys`）。
+         */
         const val SETTINGS_KEY = "watch.coins"
     }
 }

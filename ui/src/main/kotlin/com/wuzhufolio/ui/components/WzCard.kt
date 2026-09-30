@@ -49,9 +49,9 @@ fun WzCard(
     val colors = WzTheme.colors
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(12.dp))
             .background(colors.surface)
-            .border(1.dp, colors.line, RoundedCornerShape(10.dp))
+            .border(1.dp, colors.line, RoundedCornerShape(12.dp))
             .padding(horizontal = if (compact) 12.dp else 16.dp, vertical = if (compact) 10.dp else 14.dp)
             .then(if (testTag.isNotEmpty()) Modifier.testTag(testTag) else Modifier),
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -160,9 +160,9 @@ fun HoverTooltip(text: String) {
         color = colors.ink,
         style = WzTheme.typography.caption,
         modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(4.dp))
             .background(colors.surface2)
-            .border(1.dp, colors.line, RoundedCornerShape(6.dp))
+            .border(1.dp, colors.line, RoundedCornerShape(4.dp))
             .padding(horizontal = 8.dp, vertical = 4.dp)
             .testTag("hover-tooltip"),
     )

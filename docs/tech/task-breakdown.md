@@ -27,6 +27,7 @@
 | M11 桌面集成 | T11.1–T11.3 | 托盘/通知/自启/代理指示 | T0 |
 | M12 UI 整合收尾 | T12.1–T12.4 | 主壳整合/聚合页（仪表盘/资产/币种详情）/a11y/i18n | M2–M11 |
 | M13 发布准备 | T13.1–T13.2 | 安全自查/签名公证打包 | M12 |
+| **M14 UI 体系统一（0.2.0）** | **T14.1–T14.10** | 主题层全量映射 / Hot Reload / 组件层收口（含 DEF-56）/ 日期时间选择器（DEF-55）+ 数值输入（DEF-54）/ 逐页回归与文档同步 / 0.2.0 发布准备 | M12、**ADR-007**、**D38** |
 
 ## 2. 依赖图
 
@@ -246,6 +247,96 @@ flowchart LR
   `TransactionsPageUiTest` 候选可滚动、`TrayMenuContentUiTest` 四项、`TrayIconTest` 安全边距、
   `NoticeDeliveryTest` 投递通道、核心旅程集成用例的自选断言）。回溯：人工验收回执（`defects.md §2.2`）、D35、D36、PRD §9.7/§9.8/§12。
 
+### M14 · UI 体系统一（0.2.0 · ADR-007，2026-09-28 人工「按建议顺序执行」启动）
+
+> **背景**：0.1.1 发布后人工反馈「界面笨拙，各组件像手工制作、没有总体风格」→ 调研 16 个候选
+> （`docs/tech/UI框架与组件统一调研.md`）→ 人工拍板 **路线 A：M3 打底 + token 全量映射 + 组件收口**（ADR-007）。
+> **顺序原则（人工明确）**：**先改大问题、再改小问题**——DEF-54/55/56 三条反馈**随本里程碑一并吸收**，不单独出 0.1.2。
+
+- **T14.1 主题层：token → M3 全量映射** ✅ **已完成（2026-09-28）**
+  内容：`ColorSchemeMapping`（12 token → 全量 color role，`surfaceContainer*` 由 surface↔surface2 插值）+
+  `TypographyMapping`（15 槽位，正文维持 14sp）+ `Shapes`（4/7/10/14/20dp）+ 自建 `WzSpacing`（2–32dp 九档）与
+  `WzMotion`（120/200/320ms + 三曲线）；`WuzhuTheme` 改为向 `MaterialTheme` 同时下发 colorScheme/typography/shapes。
+  **验收**：`ThemeMappingTest`（5 例：关键 role 取自 token、不得回落 M3 默认紫、容器色阶插值、盈亏方案传导、
+  Typography/Shapes/Spacing/Motion 口径）+ 全量构建 **0 警告** + 双主题对比度不回归（`ContrastTest` 继续绿）。
+  **回溯**：PRD §6、`design-tokens.md §4.5/§4.6`、ADR-007 §2.2。
+
+- **T14.2 开发效率：Compose Hot Reload 接入** ✅ **已完成（2026-09-28）**
+  内容：`libs.versions.toml` 增 `compose-hot-reload = "1.2.0"`（与 CMP 1.12 捆绑版本一致）+ 根脚本 `apply false` + `:app` 应用；
+  开发期 `./gradlew :app:hotRun`（JVM 任务名）。**不创建发布相关任务、不改打包链路**。
+  **验收**：`:app:tasks` 实测出现 `hotRun`/`hotRunAsync`/`hotReloadMain`/`hotMcpServer`；`./gradlew build detekt` 仍绿。
+  **回溯**：ADR-007 §2.4、`docs/tech/dev-setup.md`。
+
+- **T14.3 组件层收口（含 DEF-56）** ✅ **主体已完成（2026-09-28）**（尾项：`WzSelect` 触发框换 `ExposedDropdownMenu`、`WzToast` 评估换 `Snackbar`）
+  内容：`WzButton`→M3 `Button`/`FilledTonalButton`/`OutlinedButton`/`TextButton`（保留变体枚举，调用点不变）；
+  `WzTextField`→M3 `OutlinedTextField`；`WzSelect`→`ExposedDropdownMenu`；**`WzModal` 遮罩改 `pointerInput`**（关闭 DEF-56：
+  全应用 15 处弹窗「输入空格即关闭」）；`WzToast` 评估换 `Snackbar`。`AdaptiveTable`（D33）**保留自研**并 token 化。
+  **验收**：调用点 API 不变（`WzButton` 104 处调用零改动）；`AGENTS.md §7.3-③` 强制项 + **真实按键用例**
+  （`WzModalKeyboardUiTest` 2 例已入库；`performTextInput` 抓不到 DEF-56）；`ContrastTest` 扩展至全量 color role（待 T14.5）。
+  **✅ 完成留痕**：`WzModal`/`GateWidgets` 遮罩改 `pointerInput`；`WzButton` 换 M3 `Button`（34dp/7dp/无阴影，外观不变）；
+  `WzTextField` 增 `numeric`；DEV 走查页 M3 对照区；全量 767 用例 0 失败 + detekt 0 + 警告 0。
+  **回溯**：ADR-007 §2.3/§3、`defects.md` DEF-56、D33、`AGENTS.md §7.3-7`。
+
+- **T14.4 日期时间选择器（DEF-55）+ 数值输入（DEF-54）** ✅ **已完成（2026-09-28）**
+  内容：新增日期/时间选择组件（M3 `DatePicker`/`TimePicker` **内联**塞进 `WzModal`，**禁用** `DatePickerDialog`），
+  交易表单与资金表单接入，保留手打入口并双向同步；`AmountSanitizer` 接入 **9 个解析点**
+  （`TransactionsViewModel` 6 + `FundsViewModel` 3），数值框迁 `TextFieldState` + `InputTransformation`。
+  **✅ 完成留痕**：`AmountSanitizer` 接入 9 个解析点 + 字段层 `numeric` 清洗；`WzDateTimeField` 接入交易/资金表单；
+  `AmountSanitizerTest` 6 例 + `WzDateTimeFieldUiTest` 4 例均绿。
+  **验收**：`AmountSanitizerTest`（已建，6 例）；新增选择器 UI 测试 + **人工键盘/IME 逐字复验（待人工门）**；
+  **时区**（`TZ=America/Denver` 与 `Asia/Shanghai`）× **渲染后端**（WSL2 `SOFTWARE_FAST` / Windows 默认）实测
+  官方缺陷 `CMP-10038`/`CMP-10319` 是否影响本应用。
+  **回溯**：ADR-007 §2.5、`defects.md` DEF-54/DEF-55、`interaction.md`（表单异常态）。
+
+- **T14.5 逐页视觉回归 + 原型/文档同步** ⏳ 待办
+  内容：三档分辨率（1024×768 / 1280×800 / 2560×1600）× 双主题逐页走查；同步
+  `prototype/wuzhufolio-light.html`（视觉基准）、`design-tokens.md`、`interaction.md`、`ia.md`；模块记录与 STATUS 回写。
+  **验收**：各页 UI 测试绿 + 人工走查回执 + 原型与实现一致（截图对比）。
+  **回溯**：P1 DoD（原型为视觉基准）、D33、ADR-007 §3。
+
+- **T14.6 0.2.0 发布准备** ✅ **已完成（2026-09-29）**
+  内容：版本号单一真源 `appVersion` → **0.2.0**；`CHANGELOG` 0.2.0 段定稿（范围/变更/修复/安全）；新增
+  **`release-notes-0.2.0.md`**（含「升级须知」三条行为变化）；用户指南升 **v1.2**（适用版本 0.2.0 + 新增 §3.5 升级须知 + 安装命令/校验命令版本号）；
+  `release-plan.md` 新增 §1.3「0.2.0 发布口径」（范围/版本/兼容性/发布物/放行前置）；`rollback.md` 新增 §4.1.1「0.2.0 → 0.1.1 降级数据口径」（逐项核对，结论：可安全降级）。
+  **验收**：版本号一致（代码/文档/发布说明）；升级须知覆盖 D40/D41 行为变化；回滚路径逐项可执行；**发布仍待 P6 复测 + P7 批准**（人工门）。
+  内容：`CHANGELOG` 0.2.0 节、`user-guide` 增量（日期时间选择器、数值输入口径）、`release-plan`/`rollback` 增量、
+  版本号 single-source bump（`appVersion`）。
+  **验收**：P6 全量用例绿 + detekt 0 + 警告 0；人工批准后在 P7 发布。
+  **回溯**：`docs/release/*`、ADR-006。
+
+
+- **T14.7 全面对齐 M3 视觉规范（D38，2026-09-28 人工指令）** ✅ **已完成（2026-09-28）**
+  内容：① **配色**改为 Google 官方算法从品牌种子色 `#1F5A48` 生成（`scripts/generate-m3-color-scheme.mjs` →
+  `theme/M3ColorRoles.kt`，浅/深共用种子；`SchemeTonalSpot`；生成期内置 WCAG 自检），`ColorTokens`/`ColorSchemeMapping`
+  改为 role 投影/直用；② **字体**改为 M3 15 档 type scale 规范值（`TypographyMapping`）+ 业务槽位投影（`Typography`，
+  数字衬线、表格等宽、正文 bodyMedium 14 桌面密集档）；③ **圆角**改 M3 阶梯 4/8/12/16/28 并**归一全仓 13 文件 60+ 处硬编码**；
+  ④ **动效**改 M3 motion tokens（16 档时长 + 6 曲线）；⑤ 原则确立：凡 M3 有对应组件一律用官方（例外见 D38 §3）。
+  **验收**：`ThemeMappingTest`（M3 role 直用 / 色阶单调 / 字体与圆角规范值 / motion 阶梯）+ `ContrastTest` 全绿 +
+  `SettingsPageUiTest`（一级 > 二级层级）+ `PortfolioPagesUiTest`（窄窗表格密度）；全量 **768 用例 / 764 执行 / 0 失败 / 4 跳过** + detekt 0 + 警告 0。
+  **回溯**：D38（amends D37）、ADR-007 §2.2/§2.6、`design-tokens §1–§3`、M3 官方 token 源（TypeScaleTokens/ShapeTokens/MotionTokens）。
+
+
+- **T14.8 Linux 原生托盘菜单（SNI + dbusmenu，D39 / DEF-57）** ✅ **已完成（2026-09-29）**
+  内容：Linux 改用 `org.kde.StatusNotifierItem` + `com.canonical.dbusmenu`，**菜单由 Shell 渲染**（左键=打开主界面、右键=四项菜单，点选经 `Event(id,"clicked")` 派发到既有回调）；Windows/macOS 不变；SNI 注册失败回退 AWT 托盘 + Compose 菜单。
+  **已落地**：`tray/linux/DbusMenuLayout.kt`（布局模型 + `Struct`/`Tuple`/`UInt32` 映射）· `StatusNotifierInterfaces.kt`（三个 D-Bus 接口）· `DbusMenuLayoutTest`（菜单项一致性 / 递归结构 / 分隔线）· dbus-java 显式依赖。
+  **已完成**：`StatusNotifierService`（导出对象 + 注册 watcher + 动作派发 + 图标 PNG）· AppHost 平台分支与降级 · 总线实测（属性/`GetLayout`/`Event` 派发）· **端到端验收**（右键 → 系统渲染菜单 → 点选「立即刷新行情」真实执行）。**根因留痕**：`Menu` 属性必须是对象路径 `o`、SNI 的 `IconThemePath` 必须是 `s`。
+  **验收**：GNOME 顶栏出现图标；左键打开主界面；右键四项菜单由系统渲染且中文正常；四项动作各自生效；无 watcher 环境回退可用。
+
+- **T14.9 登录前不发行情刷新请求（D40，C2）** ✅ **已完成（2026-09-29）**
+  内容：`AccountService` 增补 `sessionState: StateFlow<Session?>`（只读，additive）；三处行情触发点（`Main.kt` 启动补刷、`BackgroundScheduler` 周期、`AppHost.refreshFromTray`）统一以「会话已解锁」为前提；登录成功立即补刷一次；登出/切户即停。
+  **验收**：登录页冷启动无任何行情请求（**实测** `started=0 / skipped=1`）✓；登录后立即补刷一次（既有路径）✓；
+  登录页点托盘「立即刷新行情」不发请求并提示「请先登录」✓；登出后停止 ✓；既有回归全绿（含按新口径更新的既有断言）✓。
+
+- **T14.10 自选清单改账户级（D41，C2）** ✅ **已完成（2026-09-29）**
+  内容：**账户级 settings 行**（`settings(account_id=<当前账户>, key='watch.coins')`，JSON 数组保序）——**零 schema / 零备份格式变更**；`SettingsRepository` 新增 `getAccount/putAccount`；自选读写、`hasCustomList`、D35 自动入自选全部落**当前账户**；未登录返回空集且不可写；迁移＝首个访问账户一次性认领旧全局行 + `watch.migrated`（旧行保留只读）；`SettingsKeyNamespaceGuardTest` 扩展（`watch.coins` 登记为账户级键 + `legacyGlobalKeys` 只读例外 + 扫描识别 `getAccount/putAccount`）。
+  **验收**：A/B 账户自选互不可见 ✓；D35 只入当前账户 ✓；排序持久 ✓；迁移只认领一次 ✓；未登录空集且不可写 ✓；既有回归与守卫测试全绿 ✓。
+
+- **T14.11 托盘「立即同步交易」同样要求登录（D43，C1，`amends D40`）** ✅ **已完成（2026-09-29）**
+  内容：入口前置判定（新增可测助手 `TrayActionGate.lockedNotice`，行情/同步共用）；托盘同步未登录时只提示「请先登录」；
+  顶栏「立即同步」由直连用例层改为经调度器执行（`TopBarSyncViewModel` 构造改执行体，组合根注入 `{ scheduler.syncNow() }`）⇒ 三条入口共用唯一门禁。
+  **验收**：未登录点托盘同步**不出现**「正在同步…」、提示「请先登录」✓；日志 `tray sync ignored | session locked` 且无同步调用 ✓；
+  已登录行为不变 ✓；既有数据层「无会话跳过同步」用例继续守护 ✓；新增 `TrayActionGateTest` 锁定/放行两态 ✓。
+
 ## 4. 里程碑验收门槛
 
 | 里程碑 | 门槛（DoD 前置） |
@@ -258,6 +349,7 @@ flowchart LR
 | M10–M11 | 设置/日志/托盘/代理验收通过 |
 | M12 | 十九页全可达（含 D21 行情页）+ 聚合页走查 + 异常态 + a11y + i18n 全量走查 |
 | M13 | 安全自查全通过、签名公证合规 |
+| **M14** | 主题全量映射（0 警告 + 对比度不回归）· 组件层替换后各页 UI 测试绿 · **§7.3 强制项 + 真实按键用例**全过 · DEF-54/55/56 关闭 · 全量用例 0 失败 |
 
 ## 5. 衔接下一阶段
 
@@ -265,4 +357,6 @@ flowchart LR
 - M1–M13 = P4 分模块开发，严格按依赖顺序，每模块落 `docs/dev/modules/<模块名>.md` 并停人工门（AGENTS.md P4）。
 - M4（计算引擎）是 M7/M8/M9 前置，必须先行并全绿黄金用例。
 - **F3 垂直切片**：T0.6（UI 基座）是 M2/M5/M6/M7/M8/M9/M10 页面任务的前置；各模块页面随模块验收，P4 人工门按「单测绿 + 页面截图走查」双轨执行。
+- **M14（0.2.0 UI 体系统一）不改变模块边界与数据契约**，属「同一模块内的表现层返工」：按 ADR-007 §2.3 分批替换、
+  逐批走对应模块人工门；不重跑 P4 全模块流程。
 - 全部模块完成 → P5 集成联调；P6 测试以 interaction.md 异常态清单 + PRD 验收标准为输入。

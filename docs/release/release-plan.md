@@ -66,6 +66,40 @@
 | 发布后校验 | 8 附件公开 URL 全部 **HTTP 200**、大小与本地一致；公开下载 `.deb` / `.msi` 后 `sha256sum -c` **成功** |
 | 踩坑留痕 | `gh release create` 一次性上传多枚大文件会 **HTTP 400**，失败清理又遇 TLS 超时 → 残留 0 附件 draft；**改为「先建 draft → 逐个 upload（带重试）→ `--draft=false --latest` 发布」**（下次发布直接按此顺序） |
 
+### 1.3 0.2.0 发布口径（2026-09-30 **P6 复测通过 + 人工验收通过，待 P7 批准发布**）
+
+- **范围**：里程碑 **M14「界面体系统一 + 反馈收口」**（T14.1–T14.10）——M3 视觉规范全面落地（D38）、
+  Linux 原生托盘（D39）、登录前不刷行情（D40）、自选账户级（D41）、视觉基准同步（D42）、
+  以及 DEF-54/55/56/57 全部修复；
+- **版本号**：`0.2.0`（**minor**：新增能力 + 两处行为口径变更；单一真源 `app/build.gradle.kts` 的 `appVersion`）；
+- **兼容性**：**数据库 schema 未变、`.cpro` 备份格式未变** ⇒ 可覆盖安装、数据目录不变、旧备份可恢复；
+- **发布物**：沿用 §1.1 清单（Windows msi/exe + 便携版；Linux deb/rpm/AppImage + 便携版；`SHA256SUMS`）；
+- **发布说明**：`docs/release/release-notes-0.2.0.md`（含「升级须知」三条行为变化）；
+- **用户文档**：`user-guide.md` 已升至 v1.2（适用版本 0.2.0，新增 §3.5 升级须知）；
+- **放行前置**：① ~~P6 复测~~ ✅ **已通过（2026-09-30，785 用例 / 0 失败，见 `test-report.md §8`）**；
+  ② ~~人工门~~ ✅ **人工验收通过（2026-09-30）**；③ P7 宣传动画（§7.1 必做项）——本轮产出。
+
+#### 1.3.1 本机实测记录（2026-09-30，Linux x64 / JDK 21）
+
+| 步骤 | 结果 |
+|---|---|
+| `./gradlew clean build detekt --no-build-cache` | ✅ BUILD SUCCESSFUL（2m 9s）· **785 用例 / 781 执行 / 0 失败 / 4 跳过** · detekt 0 · 告警 0 |
+| `:app:packageDeb` | ✅ `wuzhufolio_0.2.0-1_amd64.deb`（138 MB） |
+| `:app:packageRpm` | ⚠️ 本机缺 `rpmbuild`（jpackage 报「类型 [rpm] 无效或不受支持」）⇒ **由 CI 产出**（§4.2），本机不作为放行判据 |
+| `:app:createDistributable` + 便携版打包 | ✅ `WuZhuFolio-portable-linux-x64.tar.gz`（157 MB） |
+| `scripts/package-appimage.sh` | ✅ `wuzhufolio-0.2.0-x86_64.AppImage`（150 MB）+ 自带 `.sha256` |
+| **打包产物冒烟** | ✅ 便携版二进制以 `WUZHUFOLIO_DATA_DIR` 隔离目录启动 → `bootstrap ok \| build=0.2.0+4fb8bb5`、schema=12、数据目录隔离生效 |
+
+**SHA256SUMS（本机三产物）**：
+
+```
+3f93f226434ea02510541978b6fc5cb6fb0574c6c4c8fbddb7ff74ae0ed6a411  wuzhufolio_0.2.0-1_amd64.deb
+b28faf0bbf0df73e358f725ebd3121982a2b44c319f3cf1b0aea81df90193eea  WuZhuFolio-portable-linux-x64.tar.gz
+64ece3f238694311214135ad36ebd7e3ba5526b702d4a1b64a22e7f28ee74004  wuzhufolio-0.2.0-x86_64.AppImage
+```
+
+> 正式发布件的唯一来源仍是 **CI 三平台出包**（§4.2）；上表为本机可复现性证据。
+
 ## 2. 版本号与产物命名口径
 
 - **应用版本 = 0.1.0**：`.cpro` 备份头部 `app_version`、应用内「关于」页、诊断报告三处同源（构建期由 `BuildInfo` 注入），不得手改。
@@ -119,6 +153,9 @@
 - [ ] 用户指南含两条强制提示：**安装/解压路径请用纯英文**、**备份文件密码强度 = 凭证保护强度**。
 - [ ] 隐私声明已写明：不收集任何数据；出站仅三白名单主机；行情请求仅发送币种标识、不含金额与交易数量。
 - [ ] 产品宣传动画已出片（MP4/GIF）并归档 `docs/release/promo/`。
+  - **0.2.0 状态**：✅ **已出片**——`wuzhufolio-promo-30s.mp4`（1920×1080 · 30.00 s · 60 fps · AAC 48 kHz 立体声 · 15.5 MB）
+    + `.gif`（6.3 MB）。方向 A 沿用；素材 = 真实应用**整窗** 2× 离屏渲染；色板 = 产品真实 **M3 token**；
+    一键脚本 `tools/render-0.2.0.sh` / `tools/mix-0.2.0.sh`；抽帧验片通过（含一次「单页素材导致压字」的拦截与修正，留痕见 promo README）。
 - [x] 应用图标为正式资产：`app/icons/wuzhufolio.{png,ico,icns}` 已接入三平台 `iconFile`（生成器 `scripts/generate-icons.mjs`，与托盘图标同一枚标记）；托盘图标由同一标记在运行期程序化绘制（设计如此，非占位）。
 
 ---

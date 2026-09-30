@@ -6,6 +6,137 @@
 
 ## 当前阶段
 
+- **本轮 ⏳ 待人工审核（2026-09-28 · 人工「按推荐执行」）**：**P7 关闭 → 进入 P8 → 0.2.0 界面体系统一（M14）第一批已实施**。
+  **阶段切换（依人工「按推荐执行」）**：**P7 ✅ 已通过（2026-09-28 关闭）**——v0.1.0 / v0.1.1 均已发布，0.1.1 于
+  2026-09-25 人工复验通过（D36 §6 B1–B8 / D35 §6 A1–A7 可人工判定部分全通过），P7 携带项除「证书采购（人工已拍板不签名）」
+  与「jlink 裁剪/字体子集化维持现状（人工已勾选）」外均已闭环；**P8 ⏳ 进行中** → 复盘已产出
+  [`docs/dev/retrospective.md`](docs/dev/retrospective.md)（目标达成 / 问题 / 经验 / 下一迭代范围），等人工确认 + 拍板。
+  **本轮产物**：
+  ① 决策档 **[`D37-界面体系统一（0.2.0）`](docs/dev/decisions/D37-界面体系统一（0.2.0）.md)**（C2，mini 闭环）
+  ＋ **[`D38-全面采用M3视觉规范`](docs/dev/decisions/D38-全面采用M3视觉规范.md)**（**C2，amends D37**；台账追加修订行、索引已登记）；
+  ② 技术决策 **[`ADR-007-UI设计系统与组件收口`](docs/tech/adr/ADR-007-UI设计系统与组件收口.md)** + 任务 **M14 / T14.1–T14.6**；
+  ③ 模块记录 **[`docs/dev/modules/M14.md`](docs/dev/modules/M14.md)**；④ 复盘 **[`docs/dev/retrospective.md`](docs/dev/retrospective.md)**；
+  ⑤ 设计增量 **`design-tokens §4.5/§4.6`** + **`interaction.md §1.5`**；⑥ 工程规约新增 **`AGENTS.md §7.3-7`**（遮罩禁令 + 真实按键验收）；
+  ⑦ 调研报告 + 使用反馈记录（上一轮已交付）；⑧ `CHANGELOG [0.2.0] - 未发布` 已起草。
+  **已实施（代码，全部通过测试）**：
+  - **T14.1 主题层全量映射**：`ColorScheme` 由 11 个 role → **全量**（`surfaceContainer*` 用 surface↔surface2 插值）+
+    `Typography`（15 槽位，正文维持 14sp）+ `Shapes`（4/7/10/14/20dp）+ 自建 `WzSpacing`（2–32dp）/`WzMotion`（120/200/320ms）。
+  - **T14.2 Compose Hot Reload**：`./gradlew :app:hotRun`（JVM 任务名；任务实测存在），**不影响打包与发布产物**。
+  - **T14.3 组件层**：**DEF-56 已修复**（`WzModal` 与 `GateWidgets` 遮罩 `clickable` → `pointerInput`；新增**真实按键**回归
+    `WzModalKeyboardUiTest` 2 例）· `WzButton` 内部换官方 M3 `Button`（**外观与 104 个调用点 API 不变**，获得 hover/pressed/focus 状态）·
+    `WzTextField` 增 `numeric` 即时清洗 · DEV 走查页新增 **M3 框架对照区**。
+  - **T14.4 日期时间 + 数值输入**：**DEF-55 已实现**（新增 `WzDateTimeField`：手打 + 「选择…」弹出官方 `DatePicker`/`TimePicker`，
+    内联于 `WzModal`，页签切换 + 「现在」；交易/资金表单已接入，testTag 不变）· **DEF-54 已修复**
+    （新增 `AmountSanitizer`：NFKC/去空白（NBSP）/去货币符号；**9 个解析点统一入口** + 字段层清洗；歧义格式拒绝不猜测）。
+  - **T14.7 全面对齐 M3 视觉规范（D38，人工 2026-09-28 指令）**：**配色**改由 **Google 官方算法**从品牌种子色 `#1F5A48`
+    生成（`SchemeTonalSpot`；生成器 `scripts/generate-m3-color-scheme.mjs` 内置 **WCAG 自检**，产物 `theme/M3ColorRoles.kt` 标记"勿手改"）——
+    主色/容器色/**表面色阶**/描边/反色容器全部落在 M3 色调板上，浅深共用同一种子；**字体**改 **M3 15 档 type scale 规范值**
+    （业务槽位由其投影：正文取 bodyMedium 14 桌面密集档、卡内标题 titleSmall 14 Medium）；**圆角**改 **M3 阶梯 4/8/12/16/28**
+    并**归一全仓 13 个文件 60+ 处硬编码**；**动效**改 **M3 motion tokens**（16 档时长 + 6 条曲线）；
+    顺带修正语义错误：**`error` 不再随「红涨绿跌」翻转**（此前会让表单校验红字变绿）。
+    M3 Expressive 的 `MotionScheme` 经实测在 material3 **1.9.0 仍为 internal**，故暂不接线（上游公开后补一行）。
+  - **DEF-57 托盘菜单不可点选（人工 2026-09-28 追加反馈「托盘上的菜单不能选择，不管点击哪里都是打开主窗口」）**：
+    **代码事实定位**——① 菜单窗口定位跨了两个坐标空间（托盘事件 = AWT 屏幕坐标；`WindowPosition(dp)` = Compose 逻辑像素），
+    按屏幕缩放再除一次在「AWT 报逻辑像素」的平台/DPI 组合下会**把菜单放到离托盘很远的地方**，用户按位置点到的其实是托盘图标
+    ⇒ 左键 = 打开主界面（现象吻合）；② `AwtTrayHost` 的 `mousePressed`/`mouseReleased` **都**判 popup，一次右键请求两次菜单
+    （坐标差 1px 即重建窗口，旧窗失焦 `onDismiss()` ⇒ 菜单一闪即没）；③ Windows 上未激活窗口的**首次点击被吞**。
+    **已修复**：窗口创建后用 **AWT `setLocation` 按同一坐标空间精确定位** + 夹取屏幕可视区 + `toFront()/requestFocus()`；
+    右键请求**去抖 250ms**；新增 `tray menu requested/placed` 诊断日志（Windows 侧无法本地复现时靠它定位）。
+    **二轮人工反馈（同日）**：「右键点出菜单后，鼠标在菜单上移动不显示选中项，好像鼠标不是在菜单上」⇒ 现象收敛为
+    **窗口可见但收不到鼠标输入**（不是位置问题）。**二轮修复**：① 改为**鼠标释放时弹菜单**（按下即弹会让窗口在鼠标被 shell
+    捕获期间创建，部分平台下随后收不到指针事件）；② **新增键盘通路**（↑/↓ 选择、Enter/空格执行、Esc 关闭）；
+    ③ 定位后 `isAlwaysOnTop=false→true` + `toFront()/requestFocus()` 强制置前；④ **诊断日志**：窗口 created/disposed、
+    gained/lost focus、`placed … showing/active/focused`、菜单内**输入事件**（hover/key/activate）。
+    **三轮实测（2026-09-29 人工在 Ubuntu 24.04 复测）**：平台澄清 = **Ubuntu 桌面**；① 悬停无高亮；② **方向键/Enter/Esc 均有效**；
+    ③ 日志无诊断行（原因：二轮诊断用 `debug`，文件 appender 只收 `INFO`）。**结论**：窗口拿到了键盘与焦点，**收不到指针事件**
+    ⇒ 鼠标命中/指针投递问题。**三轮动作**：诊断升 **INFO**、`TrayMenuContent` 加**指针事件埋点**（Final pass 观察、不消费）、
+    并输出「**窗口矩形 vs 指针实际位置**」对照日志。**待人工复验（三轮）**：回报 `placed … pointer=…` 与有无 `input: pointer …`；
+    指针在矩形内却无事件 ⇒ 改 **Swing `JPopupMenu`/`JWindow`** 兜底（Swing 走 Java2D 文本渲染，不受 DEF-15 的 AWT 原生菜单乱码影响）。
+  - **口径问题提报（2026-09-29 人工提问，待人工定级）**：人工问「未登录时托盘『立即刷新行情』也提示更新完毕，理论上还不知道更新哪些币种？」
+    **代码事实**：自选清单是**全局设置行** `settings.watch.coins`（非账户数据，`MarketWatch.kt:42`），调度器**启动即工作**（不依赖登录），
+    故「更新完毕」是真实结果（日志 `coins=5` 与 `watch.coins` 5 枚一致）。**⇒ 按现状设计，非缺陷**；但引出两个待定级口径：
+    ① **未登录是否应联网刷新行情**（建议 **C1**）；② **自选是否应改账户级**（当前全局 ⇒ A 账户交易币会出现在 B 账户行情页，
+    建议 **C1**，若认定属账户隔离问题则升 **C2**）。详见 `docs/dev/0.1.1-使用反馈.md §7`。
+  - **DEF-57 五轮（2026-09-29，Agent 本机完整复现 + 证据链闭合）**：用 `java.awt.Robot` 走**真实托盘右键**路径后完整复现人工现象。证据链：① `Robot` 截图证明**菜单画在最上层**（四项/M3 样式/中文正常）；② AWT/Compose **零鼠标事件**而**键盘正常**；③ `XQueryPointer` 证明**指针下最顶层窗口就是菜单窗**；④ 外部 `XGrabPointer` 返回 Success ⇒ **无任何 X 抓取**；⑤ 菜单打开时**主窗口仍可拖动** ⇒ 输入未冻结；⑥ **同一窗口同一位置**，程序化（DEV 钩子）弹出时鼠标完全正常 ⇒ 决定因素是**触发路径**；⑦ 应用内自持抓取（owner_events 真/假）**均无效**（代码已回退）；⑧ 延迟弹出**无效**。
+    **结论**：真实点击 GNOME Shell 托盘图标后，**Shell 在合成器层面吞掉指针事件**（X 工具链不可见），自绘 X11 弹窗在该桌面**无法获得鼠标**——属 **GNOME Shell + XEmbed 托盘机制限制**，非本应用代码缺陷。
+    **待人工定级的三条修法**（`§8.4`，Agent 不自行实施）：**A** SNI + dbusmenu（正解，Shell 渲染菜单，成本中）· **B** 主窗口可见时改用应用内叠加层菜单（成本小，UX 略变）· **C** 保持现状 + 键盘操作（零改动）。
+  - **DEF-57 处置：人工拍板「A 方案」→ 登记为 `D39`（C1）**：Linux 改用 **StatusNotifierItem + `com.canonical.dbusmenu`**，
+    菜单**由桌面 Shell 渲染**（输入归 Shell），从根上绕开「GNOME 在合成器层吞掉指针事件」；Windows/macOS 保持 Compose 自绘菜单；
+    SNI 注册失败自动回退 AWT 托盘。**已落地**：`tray/linux/DbusMenuLayout.kt`（布局模型 + dbus-java 类型映射）·
+    `StatusNotifierInterfaces.kt`（三个 D-Bus 接口）· `DbusMenuLayoutTest`（3 条）· dbus-java 显式依赖（版本与传递依赖一致 4.2.1）·
+    决策档 `D39` + 台账 + 索引 + `task-breakdown **T14.8**`。**已完成**：`StatusNotifierService`（导出对象/注册 watcher/动作派发/图标 PNG）· AppHost 平台分支与降级 · **本机 session bus 实测全部通过**——
+    图标已上屏（截图 + 杀进程即消失双重确认）、`GetAll` 属性类型正确、`GetLayout` 返回协议结构（根 0 + 四项 + 分隔线 + 中文标签）、
+    模拟点选 `Event(3,"clicked")` **真实执行了行情刷新**；新增 `StatusNotifierExportTest`（导出可内省）与布局单测。
+    **✅ 已完成并端到端验证（2026-09-29 13:00）**：Shell 重启后仍不弹菜单，GNOME 日志直接点名两处**属性类型**错误——
+    `Menu` 的 D-Bus 类型必须是**对象路径 `o`**（发成 `s` 被拒 ⇒ 指示器根本没有菜单），SNI 的 `IconThemePath` 必须是**单字符串 `s`**（`as` 属 dbusmenu）；
+    用 `Variant(value, "o")` 显式签名修正后**全链路通过**：右键 → 系统渲染的四项菜单（中文正常）→ 点选「立即刷新行情」→
+    日志 `id=3 event=clicked` → **真实执行** `market refresh started manual=true` → 菜单 `closed`。
+  - **D40 登录前不发行情刷新请求（C2，2026-09-29 人工拍板）** ✅ **已实施并实测**：行情刷新统一以「会话已解锁」为前提——
+    收口在 `BackgroundScheduler.refreshMarketOnce`（覆盖启动首刷/周期/手动三处），未登录时日志 `market refresh skipped | session locked`
+    且**不发任何请求**；托盘「立即刷新行情」在登录页只提示「请先登录」（`DesktopNoticeText.loginRequired`）；
+    登录后由既有 `onSessionActive` 路径立即补刷。**实测**：未登录启动 55s 内 `started=0 / skipped=1` ✓。
+    既有用例中「登出后行情照常」的断言按新口径更新（被反转行为），并新增 D40 正/反两条用例。
+  - **D41 自选清单改账户级（C2，同日拍板）** ✅ **已实施**：**实施收敛为「账户级 settings 行」**
+    （`settings(account_id, key='watch.coins')`，JSON 数组保序）——比初稿的新表方案更优：**零 schema 变更、零备份格式变更**
+    （settings 表本就有 account_id 与 `COALESCE(account_id,0)` 唯一索引；账户级 settings 已在 `.cpro` 范围内），
+    仅新增 `SettingsRepository.getAccount/putAccount`。自选读写 / `hasCustomList` / **D35 成交币自动入自选** 全部落当前账户；
+    **未登录返回空集且不可写**；升级迁移＝首个访问账户一次性认领旧全局行 + `watch.migrated`（旧行保留只读）。
+    **测试**：4 条账户隔离专项单测（互不可见 / 未登录只读 / 迁移只认领一次 / D35 落当前账户）+ 既有用例按新口径更新；
+    `SettingsKeyNamespaceGuardTest` 同步扩展（`watch.coins` 登记为**账户级键**、新增 `legacyGlobalKeys` 只读例外、扫描识别新 API）。
+    **文档同步**：`data-model.md`（表归属/迁移/备份口径 + 修订 D21 备份口径）、`api-contracts.md`、`interaction.md`（未登录空态）、
+    用户指南（自选账户级 + 迁移说明）、领域契约 KDoc、D41 档（§3.0 方案收敛对比表 + 验收结果）。
+  - **T14.3 尾项（组件收口）** ✅：`WzSelect` 触发框改 **M3 `OutlinedButton`**（形状/状态层/最小交互尺寸交回 M3，API 与 testTag 口径不变，调用点零改动）；
+    `WzToast` **对齐 M3 Snackbar 视觉 token**（`inverseSurface`/`onInverseSurface`/`Shapes.small`/6dp 阴影）但**有意不使用 M3 `Snackbar` 组合项**——
+    T14.3 实测确认其仍**吞点击**（守护测试 `SnackbarPointerProbeTest`，M11 §6 同源问题），该偏离记入 D38 例外清单。
+  - **T14.5 逐页回归（自动化部分）** ✅：新增测试内工具 `VisualRegression` + 4 主页面 × 2 主题 × 3 档尺寸 = **24 张真实分辨率渲染与断言**
+    （`runSkikoComposeUiTest(size=…)` 非裁剪；产物 `ui/build/visual-regression/`；复现 `./gradlew :ui:test --tests "*visual regression*"`），
+    记录见 `docs/test/visual-regression-M14.md`（含人工走查清单）。
+  - **T14.5 收尾：视觉基准同步（人工拍板「甲」→ 登记 D42，C1）** ✅：P1 原型 `prototype/wuzhufolio-light.html` **标注退役**（不删除，历史留痕）；
+    视觉基准改为「**`design-tokens.md`（M3 token 规范源）+ `docs/design/baseline/*.png`（真实渲染截图，已入库 6 张）**」，
+    新增 `docs/design/visual-baseline.md`（基准构成 / 再生成命令 / 人工走查清单）；`AGENTS.md` §4 衔接行与 §7.1 P4 行同步改写。
+  - **T14.6 0.2.0 发布准备** ✅：`appVersion` → **0.2.0**（单一真源，注入 jpackage 与 `BuildInfo.VERSION`）；
+    `CHANGELOG` 0.2.0 段定稿（范围＝M14 全景，含「变更」段说明 M3 全面采用与 D40 隐私收紧）；
+    新增 **`release-notes-0.2.0.md`**（含「⚠️ 升级须知」三条行为变化表）；用户指南升 **v1.2**（适用版本 0.2.0、新增 §3.5 升级须知、安装/校验命令版本号同步）；
+    `release-plan.md` 新增 **§1.3「0.2.0 发布口径」**（范围/版本/兼容性/发布物/放行前置）；`rollback.md` 新增 **§4.1.1「0.2.0 → 0.1.1 降级数据口径」**
+    （逐项核对：schema 未变、备份格式未变 ⇒ **可安全降级**；唯一影响是自选回到升级前的全局那份）。
+    **M14 全部任务（T14.1–T14.10）已完成**；下一步是 **P6 复测 + P7 批准发布**（人工门）。
+  - **D43 托盘「立即同步交易」同样要求登录（C1，`amends D40`，2026-09-29 人工拍板）** ✅ **已实施**：
+    人工提出后先做**核查**（四条路径逐一验）——**请求层本就符合**（`BackgroundScheduler.syncOnce` 既有会话门禁 + 用例层
+    `requireActive`；`api_keys.account_id` 为账户级 ⇒ 未登录物理上无法同步）；**不符合的是交互层与结构**：
+    ① 未登录点托盘同步会先弹「正在同步交易数据…」、随后误报「没有可同步的密钥」（归因错误）；
+    ② 顶栏「立即同步」直连用例层，**绕过唯一门禁**。
+    改法：入口前置判定（新增可测助手 `app/tray/TrayActionGate.kt`，行情/同步共用）+ 顶栏改经调度器执行
+    （`TopBarSyncViewModel` 构造改为执行体，组合根注入 `{ scheduler.syncNow() }`）。新增 `TrayActionGateTest` 守护两态。
+  - **P6 复测（2026-09-30）** ✅ **通过**：`./gradlew clean build detekt --no-build-cache` →
+    **785 用例 / 781 执行 / 0 失败 / 0 错误 / 4 跳过**（app=57 · data=305 · domain=222 · ui=201）、detekt 0、编译告警 0；
+    五条硬约束复核通过（`security-checklist.md §0.1`，其中 1/5 两条较 0.1.1 **更严**）；M14 七项决策运行期实证齐全
+    （托盘 SNI 实测、D40/D43 未登录零请求实测、24 张视觉回归、账户隔离单测）；打包产物可构建且**冒烟通过**
+    （`build=0.2.0+4fb8bb5`）。详见 `test-report.md §8`。
+  - **P7 发布准备（2026-09-30）**：`appVersion` = **0.2.0**；`CHANGELOG` 0.2.0 定稿（日期 2026-09-30）；
+    `release-notes-0.2.0.md`（含升级须知）；用户指南 **v1.2**（§3.5 升级须知 + §10.10 账户/数据 FAQ）；
+    `release-plan.md` §1.3.1 本机实测 + **SHA256SUMS**（deb/便携版/AppImage 三产物）；
+    `rollback.md` §4.1.1 降级口径（可安全降级）。
+    **宣传动画（0.2.0）**：✅ **已出片**——`wuzhufolio-promo-30s.mp4`（1920×1080 · 30.00 s · 60 fps · **AAC 48 kHz 立体声** · 15.5 MB）
+    + `.gif`（6.3 MB）；方向 A 沿用（`direction-approved.md` 迭代记录），素材＝真实应用**整窗** 2× 离屏渲染，
+    色板＝产品真实 **M3 token**；一键脚本 `render-0.2.0.sh` / `mix-0.2.0.sh`；**抽帧验片通过**。
+    过程留痕：首轮因「单页素材 vs 模板整窗几何」压字，**验片拦下并修正**（改用 `MainShell` 整窗渲染），
+    另修掉素材密度参数与影片夹具（仪表盘填充数据、去异常币横幅）。
+    **P7 剩余**：① 正式发布件由 CI 三平台出包（本机已出 deb/便携版/AppImage + SHA256SUMS）② git tag 与 Release 发布（需人工执行）。
+  - **本轮实测**：`./gradlew build detekt` **BUILD SUCCESSFUL** → **768 用例 / 764 执行 / 0 失败 / 0 错误 / 4 跳过**
+    （4 条 = env 门控 live 网络冒烟）+ **detekt 0** + **编译警告 0**；本迭代新增用例 **21 条**
+    （`ThemeMappingTest` 5 · `AmountSanitizerTest` 6 · `WzModalKeyboardUiTest` 2 · `WzDateTimeFieldUiTest` 4 · `M3FrameworkSectionUiTest` 2 · 上轮 2）。
+  **怎么验收（人工）**：
+  ① **P8 复盘**：通读 `docs/dev/retrospective.md`，确认下一迭代范围（0.2.0 / M14）并拍板；
+  ② **GUI 走查（本次重点）**：`./gradlew :app:run -Pwuzhufolio.devUi=true` →
+     「组件走查」页底部 **M3 框架对照区**（风格方向已按推荐定：官方组件路线）→ 再走 **交易/资金表单**：
+     **价格框粘贴 `1,234.56 `（带空格）应正常算出总价**（DEF-54）、**日期时间点「选择…」应弹出日历/时钟**（DEF-55）、
+     **在任意弹窗输入框里敲空格/回车应不关窗**（DEF-56）；建议同时验键盘/IME 逐字录入、双主题、三档分辨率；
+  ③ 抽查证据：`./gradlew :ui:test --tests "*WzModalKeyboardUiTest" --tests "*WzDateTimeFieldUiTest" --tests "*AmountSanitizerTest"`。
+  **下一步（等人工）**：**确认 P8 复盘并拍板 0.2.0 范围** → Agent 续做 **T14.3 尾项**（`WzSelect`→`ExposedDropdownMenu`、`WzToast`→`Snackbar`）
+  → **T14.5 逐页回归 + `prototype` 同步** → **T14.6 0.2.0 发布准备**（版本号 bump、`user-guide` 增量、P6 复测后走 P7 发布）。
+  **遗留问题**：① `WzSelect` 触发框与 `WzToast` 尚未统一；② `prototype/wuzhufolio-light.html` 同步**显式延期**（到期检查点 = M14 收尾轮）；
+  ③ M3 官方缺陷待实测（`CMP-10038` UTC 以西月份标签、`CMP-10319` OpenGL 下 TimePicker 配色）；
+  ④ `compose.material3` DSL 在 CMP 1.12 已弃用（配置期既有 deprecation 警告），后续按 C0 改**显式坐标** `…material3:1.9.0`。
 - **当前状态（2026-09-25 更新）**：🎉 **0.1.1 已发布**（[GitHub Release v0.1.1](https://github.com/mapleafly/wuzhufolio/releases/tag/v0.1.1)，
   提交 `d0991a6`，tag `v0.1.1`，8 附件 + `SHA256SUMS`，发布后校验通过）——**P7 收尾完成，等待人工决定是否进入 P8（复盘与下一迭代范围）**。
   人工原话（2026-09-25）：「**托盘功能通过，windows走查通过**」→ D36 §6 B1–B8 与 D35 §6 A1–A7 的可人工判定部分全部通过，
@@ -123,10 +254,17 @@
   **仍未执行 1 项 + 未覆盖平台**：**TC-MAN-09** 出站抓包 + 权限实证（Ubuntu 侧）与 **TC-MAN-01 的 Linux / macOS 托盘**
   —— 均按人工拍板显式延期 → 见下「P7 携带项」（到期检查点 = P7 发布前）。
 - **推进顺序**：先桌面端，后移动端。**P1–P8 只针对桌面端或两端共同部分；移动端相关工作放到下一个版本。**（移动端相关技能/技术方案/开发待桌面端主线稳定后再启用。）
-- **下一人工门**：**P7 发布后验收收口门**——发布本身已获批并执行（2026-09-22，v0.1.0 上线）；当前门 = **人工验收结果汇总 → 0.1.1 修复轮**。
-  输入 = `docs/test/test-report.md`（P6 结论）+ `docs/release/`（release-plan / rollback / CHANGELOG / user-guide / 签名公证说明）
-  + **P7 产品宣传动画** + **发布后人工验收回执**（DEF-47…+ Linux 真机 10 条）；DoD 见 `AGENTS.md §4 P7`
-  （发布与回滚步骤可执行、产物签名合规、用户文档与版本一致）。**P7 维持「进行中」，待人工关闭阶段。**
+- **下一人工门（2026-09-28 更新）**：**① 确认 P8 复盘**（`docs/dev/retrospective.md`：目标达成 / 问题 / 经验 / 下一迭代范围）
+  并**拍板 0.2.0 范围**（M14 剩余：`WzSelect`/`WzToast` 统一 → 逐页回归与原型同步 → 发布准备）；
+  **② GUI 走查回执（本轮重点 = M3 观感）**——`./gradlew :app:run -Pwuzhufolio.devUi=true`：先看整体是否接受
+  **M3 观感**（配色由品牌墨绿种子生成 · 字号层级 · 圆角 4/8/12/16/28 · 动效节奏），再验三条已修缺陷：价格框**粘贴带空格**的数字仍能算出总价（DEF-54）·
+  日期时间点「**选择…**」弹出日历/时钟（DEF-55）· **任意弹窗输入框内敲空格/回车不关窗**（DEF-56）；
+  建议同时覆盖键盘/IME 逐字录入、明暗双主题、三档分辨率（1024×768 / 1280×800 / 2560×1600）。
+  **版本口径（D37 §5 / D38 §7）**：界面体系统一进 **0.2.0**；**DEF-54/55/56 已随本改造吸收，不单独出 0.1.2**。
+  **「0.2.0 是新里程碑还是现有维护？」的答复**：**是新迭代（新里程碑 M14）**，不是 0.1.x 维护线——
+  ① 里程碑：P4 的 M0–M13 已交付，本轮新增 **M14**（P8 下一迭代内容），任务号 T14.1–T14.7；
+  ② 代码：**不重写**，复用四模块与全部数据/领域层，**零数据模型/接口/加密/备份改动**，改动集中在主题、组件与取色取字处；
+  ③ 版本：**0.1.x = 维护线（patch）**，**0.2.0 = 本次迭代（minor，含视觉/交互基线变更）**；路径仍是 P6 复测 → 人工门 → P7 发布。
 - **P7 携带项（含 P6 显式延期两项，到期检查点 = P7 发布前，未到点前不得视为已完成）**：
   ① **TC-MAN-01 托盘走查正式判定**（Windows 三项菜单动作 + 关窗两种行为 + 后台同步通知；DoD = `M11 §5-3` §4 步骤 4 之 ⑤）
   ／ macOS·Linux 托盘实测；② **TC-MAN-09 出站抓包 + 权限实证**（Ubuntu：`scripts/outbound-capture-proxy.py` 主机集合 ⊆
@@ -155,8 +293,8 @@
 | P4 | 分模块开发 | ✅ 已通过 | 代码 + `docs/dev/modules/`（M1–M13）+ `docs/test/security-checklist.md` | M1 ✅…M12 ✅（2026-09-12）、**M13 ✅（2026-09-12 人工「M13 通过」）**；**M1–M13 全部通过**；CI 三平台 build + package 六 job 全绿（run 34698502287）；GitHub 仓库 https://github.com/mapleafly/wuzhufolio |
 | P5 | 集成与联调 | ✅ 已通过（2026-09-13 人工「P5通过」关闭） | `docs/test/integration-report.md` + `app/src/test/.../integration/*`（10 项）+ `data/src/test/.../smoke/LiveNetworkSmokeTest`（2，门控） | 核心旅程真实组合根端到端打通；契约核对缺口已补；D25 原型补行闭环；**人工验收暴露 P0 恢复丢行 + 2 项 P1 已修复**；人工裁决 5 项（D27 稳定币 1:1 / cause 保留 / 启动即同步 / **D28 白名单收敛** / **D29 负持仓不计入**）已实施；**664 用例 0 失败（657 执行 + 7 跳过）**+ detekt 0 + 警告 0 |
 | P6 | 系统测试与质量 | ✅ **已通过（2026-09-21 人工拍板关闭）** | `docs/test/`（test-plan / test-cases 300 条 / security-checklist P6 复跑版 / defects DEF-01…46 / test-report） | **718 用例（710 执行 0 失败 + 8 跳过）+ detekt 0 + 警告 0**；**P0/P1 = 0**；P2 全部有明确结论；安全清单五条硬约束逐条通过；运行期抓包仅三白名单主机；人工门用例通过 **10/11**（**TC-MAN-01 托盘走查 Windows 11 侧 ✅ 2026-09-21**；剩余 TC-MAN-09 抓包+权限实证与 TC-MAN-01 的 Linux/macOS 托盘 → 按人工拍板**转 P7 携带**，到期检查点 = P7 发布前） |
-| P7 | 发布 | ⏳ **v0.1.0 已发布；0.1.1 修复轮已实施完成，停人工门待复验/发布** | `docs/release/`（6 份材料 + `promo/` 30 s 宣传动画成品）+ **GitHub Release v0.1.0**（7 产物 + SHA256SUMS） | CI 六 job 全绿；**未签名**（人工拍板 不签名 / 预算 0）；**macOS 本轮不发布**；TC-MAN-09 抓包与权限 ✅ 闭环、Linux 便携版/托盘降级 ✅ 实证、GPG 签名脚本 ✅ 实测、应用图标 ✅ 接入打包；**验收回执**：Windows 1 项（**DEF-47**）+ Linux 10 条（**DEF-48…DEF-52** + 1 增量提案）；**分级已拍板（按建议）→ 0.1.1 修复轮已实施**（`D35`/`D36` + T12.9，746 用例 0 失败 / 警告 0 / `.deb` 桌面集成补丁已实测、CI 已接线）；**待人工**：复验（D36 §6 B1–B8 / D35 §6 A1–A7）→ 批准发布 0.1.1 + Windows 走查回执 |
-| P8 | 上线后运营与迭代 | 未开始 | `docs/dev/retrospective.md` | |
+| P7 | 发布 | ✅ **已通过（2026-09-28 人工「按推荐执行」→ 关闭）** | `docs/release/`（6 份材料 + `promo/` 30 s 宣传动画成品）+ **GitHub Release v0.1.0**（7 产物 + SHA256SUMS） | CI 六 job 全绿；**未签名**（人工拍板 不签名 / 预算 0）；**macOS 本轮不发布**；TC-MAN-09 抓包与权限 ✅ 闭环、Linux 便携版/托盘降级 ✅ 实证、GPG 签名脚本 ✅ 实测、应用图标 ✅ 接入打包；**验收回执**：Windows 1 项（**DEF-47**）+ Linux 10 条（**DEF-48…DEF-52** + 1 增量提案）；**分级已拍板（按建议）→ 0.1.1 修复轮已实施**（`D35`/`D36` + T12.9，746 用例 0 失败 / 警告 0 / `.deb` 桌面集成补丁已实测、CI 已接线）；**待人工**：复验（D36 §6 B1–B8 / D35 §6 A1–A7）→ 批准发布 0.1.1 + Windows 走查回执；**（2026-09-28 更新）0.1.1 已发布且复验通过，本阶段仅剩「人工关闭 P7」这一步**（D37 §5 口径） |
+| P8 | 上线后运营与迭代 | ⏳ **进行中（2026-09-28 启动）** | `docs/dev/retrospective.md`（已产出）+ **下一迭代 = 0.2.0 界面体系统一（D37 / ADR-007 / M14）** | 人工「先改大问题，再改小问题」；**T14.1/T14.2 完成 · T14.3/T14.4 主体完成（DEF-54/55/56 已关闭）· T14.7 完成（D38 全面采用 M3 视觉规范）**；待人工确认复盘 + 拍板范围 |
 
 ## P1 产品与交互设计（✅ 已通过--2026-08-31 人工终审）
 

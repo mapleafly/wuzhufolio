@@ -1,11 +1,11 @@
 package com.wuzhufolio.ui.components
 
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -23,7 +24,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -32,8 +34,12 @@ import androidx.compose.ui.unit.dp
 import com.wuzhufolio.ui.theme.WzTheme
 
 /**
- * 下拉选择（M10 设置页统一组件；原型 select 口径 + M5 §5-6-②「统一组件化时换下拉」落点）：
- * 描边框 + 当前值 + DropdownMenu 候选；testTag 作用于触发框，候选项 testTag = tag + "-opt-" + 序号。
+ * 下拉选择（M10 设置页统一组件；原型 select 口径 + M5 §5-6-②「统一组件化时换下拉」落点）。
+ *
+ * **T14.3 尾项（D38 收口）**：触发框由手绘 Box（自定描边/圆角/状态）改为 **M3 `OutlinedButton`**——
+ * 形状、配色、悬停/按下/聚焦状态层、最小交互尺寸全部交回 M3；候选浮层沿用 M3 `DropdownMenu` /
+ * `DropdownMenuItem`。**API 与 testTag 口径不变**（触发框 = `tag`，候选项 = `tag + "-opt-" + 序号`），
+ * 故全部调用点无需改动。
  */
 @Composable
 fun <T> WzSelect(
@@ -46,32 +52,22 @@ fun <T> WzSelect(
 ) {
     val colors = WzTheme.colors
     var expanded by remember { mutableStateOf(false) }
-    var focused by remember { mutableStateOf(false) }
     val triggerFocus = remember { FocusRequester() }
-    val shape = RoundedCornerShape(7.dp)
-    Box(
-        modifier = modifier
-            .widthIn(min = 132.dp)
-            .clip(shape)
-            .background(colors.surface)
-            .border(
-                width = if (focused) 2.dp else 1.dp,
-                color = if (focused) colors.accent else colors.line,
-                shape = shape,
+    Box(modifier = modifier) {
+        OutlinedButton(
+            onClick = { expanded = true },
+            modifier = Modifier
+                .widthIn(min = 132.dp)
+                // DEF-13：焦点目标由按钮自身提供（不再额外 .focusable()，避免隐形焦点目标）
+                .focusRequester(triggerFocus)
+                .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+        ) {
+            Text(
+                text = labelOf(selected) + "  ▾",
+                style = WzTheme.typography.body,
             )
-            // DEF-13：仅保留 clickable（自带焦点目标）——重复 .focusable() 会产生隐形焦点目标
-            .focusRequester(triggerFocus)
-            .clickable { expanded = true }
-            .onFocusChanged { focused = it.isFocused }
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-            .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
-        contentAlignment = Alignment.CenterStart,
-    ) {
-        Text(
-            text = labelOf(selected) + "  ▾",
-            color = colors.ink,
-            style = WzTheme.typography.body,
-        )
+        }
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
@@ -129,7 +125,7 @@ fun WzSwitch(
                 .padding(2.dp)
                 .width(20.dp)
                 .height(20.dp)
-                .clip(RoundedCornerShape(10.dp))
+                .clip(RoundedCornerShape(12.dp))
                 .background(colors.surface),
         )
     }
@@ -145,7 +141,7 @@ fun <T> WzSegmented(
     modifier: Modifier = Modifier,
     testTag: String? = null,
 ) {
-    Row(modifier = modifier, horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)) {
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         options.forEachIndexed { index, option ->
             val active = option == selected
             WzButton(

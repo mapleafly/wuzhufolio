@@ -71,6 +71,53 @@ export JAVA_HOME=/path/to/jdk-17        # 或 jdk-21，两者均可
 
 见根 `README.md`「构建 / 运行 / 测试」。
 
+## 5.1 UI 热重载（Compose Hot Reload，ADR-007 §2.4，2026-09-28 接入）
+
+界面改造期（M14）反复微调样式时**不必重启应用**：
+
+```bash
+# 一次性：JetBrains Runtime（JBR）自动下载（实验特性，仅首次）
+./gradlew :app:hotRun -Pcompose.reload.jbr.autoProvisioningEnabled=true
+
+# 日常：改 UI 代码 → 保存 → 界面即时刷新
+./gradlew :app:hotRun            # 显式模式（按需触发 reload）
+./gradlew :app:hotRunAsync       # 异步启动
+# 其他任务：hotReloadMain / hotMcpServer（供 AI Agent 直连运行中的应用）
+```
+
+**边界（重要）**：
+
+- 任务名是 **`hotRun`**（本项目 `:app` 是**纯 Kotlin/JVM** 模块；KMP 模块才叫 `hotRunJvm`）；
+- 要求 **Java 21 或更低**（本项目 JVM target = 17 ✅）；JBR 未安装时命令会提示，按上面加属性自动获取；
+- **只创建开发任务**：`build` / `createDistributable` / 打包链路与发布产物**完全不受影响**（版本目录新增 `compose-hot-reload = "1.2.0"`，与 CMP 1.12 捆绑版本一致）；
+- 已知限制见官方 `docs/Known_limitations.md`（如 `@Composable` 签名变更、结构变更后需重启）。
+
+## 5.2 组件走查与 M3 对照区（ADR-007 §2.3）
+
+```bash
+# 开发构建才会出现「组件走查」入口（DEF-47 的 DEV_UI 开关）
+./gradlew :app:run -Pwuzhufolio.devUi=true
+```
+
+页面底部 **「Material 3 框架对照区」**：官方按钮/输入框（含粘贴自动清洗的数值框）/选择控件/容器/反馈/
+日期时间选择器，与现有自绘组件**同主题并排**，用于目视拍板风格方向（T14.3 的前置人工门）。
+
+## 5.3 换品牌色 / 重新生成 M3 配色（D38）
+
+M3 配色是**算法产物**，不手改 hex：
+
+```bash
+mkdir -p /tmp/mcu && cd /tmp/mcu
+npm i @material/material-color-utilities && npm i -D esbuild
+cp <repo>/scripts/generate-m3-color-scheme.mjs .
+npx esbuild generate-m3-color-scheme.mjs --bundle --platform=node --format=cjs --outfile=gen.cjs
+node gen.cjs > <repo>/ui/src/main/kotlin/com/wuzhufolio/ui/theme/M3ColorRoles.kt
+```
+
+- 换色：改脚本里的 `SEED`（默认 `#1F5A48` 墨绿）后重跑；**浅色与深色共用同一个种子**（M3 规范口径）。
+- 脚本内置 **WCAG 对比度自检**：任一正文/语义色对底色低于 4.5:1 会**直接报错退出**，不会生成不可读的配色。
+- 依赖仅生成期使用（Google 官方包，Apache-2.0），**不进构建产物**。
+
 ## 6. 故障排查
 
 | 症状 | 处理 |

@@ -30,6 +30,12 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import kotlin.test.assertEquals
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import com.wuzhufolio.ui.regression.VisualRegression
+import com.wuzhufolio.domain.settings.PnlColorScheme
+import com.wuzhufolio.ui.shell.MainShell
+import com.wuzhufolio.ui.shell.ShellPage
+import com.wuzhufolio.ui.shell.ShellViewModel
+import com.wuzhufolio.domain.settings.ThemeMode
 
 /**
  * D21 行情页 UI 走查：默认种子行渲染、无行情 "--"、搜索添加（自选持久化服务联动）、移除。
@@ -222,10 +228,35 @@ class MarketWatchPageUiTest {
         //    真「挤占」的位移量级是浮层高度（≥150dp），不会落进容差
         val headerAfter = onNodeWithTag("watch-quote-header").getBoundsInRoot().top
         assertEquals(headerBefore.value, headerAfter.value, 4f, "浮层出现不应推动下方列表")
+
+    }
+
+    // ---------- T14.5 视觉回归（3 档尺寸 × 2 主题） ----------
+
+    @Test
+    fun `visual regression - market watch page across sizes and themes`() {
+        val files = VisualRegression.capture(
+            page = "market",
+            rootTag = "market-watch",
+        ) {
+            MarketWatchPage(FakeWatch(), FakeQuotes(), FakeRefresh(), FakeSettings())
+        }
+        assertEquals(6, files.size, "3 档尺寸 × 2 主题")
+    }
+
+    // ---------- P7 影片素材（2× 密度，落 docs/release/promo/assets/ui/） ----------
+
+    @Test
+    fun `film asset - market watch page for the promo video`() {
+        // P7 影片素材：整窗渲染（模板图版按「含侧边栏/顶栏的窗口」几何设计）
+        VisualRegression.captureFilmAsset("quotes-light.png", "main-shell") {
+            MainShell(
+                viewModel = ShellViewModel(ThemeMode.LIGHT, PnlColorScheme.GREEN_UP, ShellPage.QUOTES),
+                watchPageContent = { MarketWatchPage(FakeWatch(), FakeQuotes(), FakeRefresh(), FakeSettings()) },
+            )
+        }
     }
 }
-
-
 
 private fun String.bd(): BigDecimal = BigDecimal(this)
 
@@ -245,3 +276,4 @@ private fun symbolOf(cgId: String): String = when (cgId) {
 }
 
 private fun String.capitalizeName(): String = replaceFirstChar { it.uppercase() }
+

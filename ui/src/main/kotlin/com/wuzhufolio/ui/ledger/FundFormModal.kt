@@ -26,6 +26,7 @@ import com.wuzhufolio.domain.catalog.CatalogCoin
 import com.wuzhufolio.domain.engine.FlowKind
 import com.wuzhufolio.ui.components.CoinSuggestionList
 import com.wuzhufolio.ui.components.WzButton
+import com.wuzhufolio.ui.components.WzDateTimeField
 import com.wuzhufolio.ui.components.WzButtonVariant
 import com.wuzhufolio.ui.components.WzModal
 import com.wuzhufolio.ui.components.modalContentMaxHeight
@@ -107,16 +108,17 @@ fun FundFormModal(
                         onValueChange = vm::onQuantityChange,
                         label = FundsCopy.LABEL_QTY,
                         placeholder = "0.00",
+                        numeric = true,
                         error = state.errors[FundField.QTY.key],
                         modifier = Modifier.weight(1f),
                         testTag = "fund-qty-input",
                         fieldFocusRequester = qtyFocus,
                     )
-                    WzTextField(
-                        value = state.timeText,
-                        onValueChange = { vm.onFieldChange(FundField.TIME, it) },
+                    // DEF-55：文本入口保留 + 「选择…」弹出官方 DatePicker/TimePicker（内联于 WzModal）
+                    WzDateTimeField(
                         label = FundsCopy.LABEL_TIME,
-                        placeholder = "yyyy-MM-ddTHH:mm",
+                        value = state.timeText,
+                        onChange = { vm.onFieldChange(FundField.TIME, it) },
                         error = state.errors[FundField.TIME.key],
                         modifier = Modifier.weight(1.3f),
                         testTag = "fund-time-input",
