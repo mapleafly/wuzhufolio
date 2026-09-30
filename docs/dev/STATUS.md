@@ -121,7 +121,10 @@
     色板＝产品真实 **M3 token**；一键脚本 `render-0.2.0.sh` / `mix-0.2.0.sh`；**抽帧验片通过**。
     过程留痕：首轮因「单页素材 vs 模板整窗几何」压字，**验片拦下并修正**（改用 `MainShell` 整窗渲染），
     另修掉素材密度参数与影片夹具（仪表盘填充数据、去异常币横幅）。
-    **P7 剩余**：① 正式发布件由 CI 三平台出包（本机已出 deb/便携版/AppImage + SHA256SUMS）② git tag 与 Release 发布（需人工执行）。
+    **P7 完成（2026-09-30）**：✅ **已发布** —— commit `c157ab6` 推送 main、tag **v0.2.0** 已推；
+    **CI 三平台全绿**（run 36702447843：ubuntu / windows / macos）；**GitHub Release 已发布**：
+    <https://github.com/mapleafly/wuzhufolio/releases/tag/v0.2.0>，**10 个资产**（Windows msi/exe/便携版 ·
+    Linux deb/rpm/AppImage/便携版 · SHA256SUMS · 宣传动画 MP4 14 MB + GIF 6 MB）；macOS 产物按发布口径**不入 Release**。
   - **本轮实测**：`./gradlew build detekt` **BUILD SUCCESSFUL** → **768 用例 / 764 执行 / 0 失败 / 0 错误 / 4 跳过**
     （4 条 = env 门控 live 网络冒烟）+ **detekt 0** + **编译警告 0**；本迭代新增用例 **21 条**
     （`ThemeMappingTest` 5 · `AmountSanitizerTest` 6 · `WzModalKeyboardUiTest` 2 · `WzDateTimeFieldUiTest` 4 · `M3FrameworkSectionUiTest` 2 · 上轮 2）。
