@@ -39,14 +39,23 @@ class AuthFlowUiTest {
         }
     }
 
-    private fun ComposeUiTest.waitFor(tag: String, timeout: Long = 4000) {
+    /**
+     * 等待节点出现。
+     *
+     * **超时口径（DEF-59，2026-10-11）**：原为 4000 ms，在 CI Windows 慢机（Skiko 离屏渲染 + 多轮门禁迁移）
+     * 实测越界——`account menu switch requires password and logout roundtrip works` 的**登出回登录页**一步
+     * （`waitFor:login-title`）在 run `38094654750` 超时失败（同一用例在 B2/B1/B5 三次 Windows CI 均通过
+     * ⇒ 环境性超时，非逻辑缺陷）。放宽到 15000 ms：仅放宽容忍度，不改变断言语义（失败时多等 11 s）。
+     */
+    private fun ComposeUiTest.waitFor(tag: String, timeout: Long = 15000) {
         waitUntil(conditionDescription = "waitFor:" + tag, timeoutMillis = timeout) {
             onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() ||
                 onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
         }
     }
 
-    private fun ComposeUiTest.waitForText(text: String, timeout: Long = 4000) {
+    /** 等待文本出现（超时口径同 [waitFor]，DEF-59）。 */
+    private fun ComposeUiTest.waitForText(text: String, timeout: Long = 15000) {
         waitUntil(conditionDescription = "waitForText:" + text, timeoutMillis = timeout) {
             onAllNodesWithText(text, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
         }
@@ -172,6 +181,8 @@ class AuthFlowUiTest {
         waitFor("main-shell")
         onNodeWithTag("acct-chip").performClick()
         waitFor("acct-menu")
+        // DEF-59：点击前先等菜单项就位（慢机上菜单节点存在但尚未完成布局时点击会丢事件）
+        waitFor("acct-logout")
         onNodeWithTag("acct-logout", useUnmergedTree = true).performClick()
         waitFor("login-title")
         onNodeWithTag("lg-btn").assertIsDisplayed()

@@ -385,6 +385,12 @@
   ③ **B3 口径确认**：来源账户「未写入过自选」按**默认种子（仅 USDT）**处理（与行情页 `watchCoins()` 同口径），保持现状。
   **下一步**：继续**桌面端打磨（其它项）**——按 [`项目全面评审报告.md §7.3`](项目全面评审报告.md) 开放项清单推进
   （#7 托盘降级路径提示 / **#8 影片素材换真实演示数据**〔B1 示例数据已解锁〕/ F3 0.2.0 批准发布留痕追认等）。
+  **CI 留痕（2026-10-11）**：`c0cfd68`（B 收尾 + 开放项 #8）的 CI run `38094654750` **Windows 作业失败**——
+  `AuthFlowUiTest > account menu switch requires password and logout roundtrip works` 在**登出回登录页**等待
+  `login-title` 超时（`Condition (waitFor:login-title) still not satisfied after 4000 ms`；ubuntu / macOS 绿）；
+  判为**慢机环境性超时**（同用例在 B2/B1/B5 三次 Windows CI 均通过，且 `FakeAuthService` 全内存、登出无外部依赖），
+  按 `§8.1` 登记 **DEF-59（C0，仅测试侧）**：该文件等待超时 4000 → 15000 ms + 登出点击前显式等待菜单项；
+  本机 `:ui:test --tests "*AuthFlowUiTest*"` → **6 例 0 失败**；**修复提交的 CI 复跑结果见下条留痕**。
 
 ## 阶段总览
 
