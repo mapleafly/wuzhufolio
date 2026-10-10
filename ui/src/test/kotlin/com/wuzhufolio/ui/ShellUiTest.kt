@@ -146,4 +146,18 @@ class ShellUiTest {
         setContent { MainShell(newViewModel()) }
         onNodeWithTag("topbar-sync").assertDoesNotExist()
     }
+
+    // ---- B2（D45，2026-10-10）：顶栏常驻「当前账户」标识（复盘问题 #4「数据不见了」误报） ----
+
+    @Test
+    fun `top bar shows current account name`() = runComposeUiTest {
+        setContent { MainShell(newViewModel(), accountName = "lifexue") }
+        onNodeWithTag("topbar-account").assertTextEquals("账户 · lifexue")
+    }
+
+    @Test
+    fun `top bar account chip hidden when account name absent`() = runComposeUiTest {
+        setContent { MainShell(newViewModel()) }
+        onNodeWithTag("topbar-account").assertDoesNotExist()
+    }
 }

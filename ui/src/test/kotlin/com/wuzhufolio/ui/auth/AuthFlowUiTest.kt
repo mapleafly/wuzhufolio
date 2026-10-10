@@ -142,6 +142,8 @@ class AuthFlowUiTest {
         waitFor("acct-menu")
         onNodeWithTag("acct-item-2", useUnmergedTree = true).performClick()
         waitFor("switch-modal")
+        // B2（D45）：切换确认须显示「当前账户」（避免误判自己在哪个账户）
+        waitForText("当前账户：Alex")
         onNodeWithTag("switch-pw", useUnmergedTree = true).performTextInput("wrong1A")
         onNodeWithTag("switch-confirm", useUnmergedTree = true).performClick()
         waitForText("密码错误")

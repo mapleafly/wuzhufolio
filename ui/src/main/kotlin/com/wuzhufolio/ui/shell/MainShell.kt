@@ -157,6 +157,7 @@ fun MainShell(
                     Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
                         TopBar(
                             title = page.label,
+                            accountName = accountName,
                             themeMode = themeMode,
                             onToggleTheme = viewModel::toggleTheme,
                             onManualSync = onManualSync,
@@ -406,6 +407,8 @@ private fun SidebarNavItem(
 @Composable
 private fun TopBar(
     title: String,
+    /** **B2（D45）**：当前账户名（顶栏常驻标识；空串 = 未注入，不渲染）。 */
+    accountName: String,
     themeMode: ThemeMode,
     onToggleTheme: () -> Unit,
     onManualSync: (() -> Unit)?,
@@ -426,6 +429,15 @@ private fun TopBar(
     ) {
         Text(text = title, color = colors.ink, style = WzTheme.typography.pageTitle)
         Box(modifier = Modifier.weight(1f))
+        // B2（D45）：当前账户常驻标识——复盘问题 #4「数据不见了」误报 ⇒ 任何页面都能看到自己在哪个账户
+        if (accountName.isNotEmpty()) {
+            Text(
+                text = shellStrings.accountChipPrefix + " · " + accountName,
+                color = colors.ink2,
+                style = WzTheme.typography.bodyStrong,
+                modifier = Modifier.padding(end = 12.dp).testTag("topbar-account"),
+            )
+        }
         // 行情数据源徽章（ia.md §1.1 顶栏：CoinGecko/CoinMarketCap/上次成功时间戳）
         Text(
             text = status.dataSourceText(),

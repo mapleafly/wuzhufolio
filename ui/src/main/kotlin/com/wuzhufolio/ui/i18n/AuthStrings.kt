@@ -96,6 +96,9 @@ interface AuthStrings {
     val accountMenuChangePw: String
     val accountMenuLogout: String
     val accountCurrentFormat: String
+
+    /** **B2（D45）**：切换确认里的「当前账户」行（`%s` = 当前账户名）。 */
+    val switchCurrentFormat: String
     val switchTitleFormat: String
     val switchLabel: String
     val switchHint: String
@@ -114,6 +117,9 @@ interface AuthStrings {
     val logoutToast: String
 
     fun accountCurrent(username: String): String = accountCurrentFormat.replace("%s", username)
+
+    /** **B2（D45）**：`%s` = 当前账户名。 */
+    fun switchCurrent(username: String): String = switchCurrentFormat.replace("%s", username)
 
     fun switchTitle(username: String): String = switchTitleFormat.replace("%s", username)
 
@@ -208,6 +214,7 @@ object AuthStringsZh : AuthStrings {
     override val accountMenuChangePw = "修改密码"
     override val accountMenuLogout = "登出"
     override val accountCurrentFormat = "✓ %s（当前）"
+    override val switchCurrentFormat = "当前账户：%s"
     override val switchTitleFormat = "切换到账户「%s」"
     override val switchLabel = "输入目标账户密码（严格模式）"
     override val switchHint = "切换将锁定当前账户并解密新账户数据，无需重启"
@@ -322,6 +329,7 @@ object AuthStringsEn : AuthStrings {
     override val accountMenuChangePw = "Change password"
     override val accountMenuLogout = "Sign out"
     override val accountCurrentFormat = "✓ %s (current)"
+    override val switchCurrentFormat = "Current account: %s"
     override val switchTitleFormat = "Switch to account “%s”"
     override val switchLabel = "Enter the target account password (strict mode)"
     override val switchHint = "Switching locks the current account and decrypts the new one — no restart required"

@@ -128,6 +128,8 @@ fun AccountMenuModal(
 /** 切换账户（严格模式，Modal 380px：目标密码验证通过才切换）。 */
 @Composable
 fun SwitchAccountModal(
+    /** **B2（D45）**：当前账户名（切换确认显示「当前 → 目标」，避免误判自己在哪个账户）。 */
+    current: String,
     target: AccountSummary,
     busy: Boolean,
     error: String?,
@@ -142,6 +144,14 @@ fun SwitchAccountModal(
         testTag = "switch-modal",
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
+            if (current.isNotEmpty()) {
+                Text(
+                    text = authStrings.switchCurrent(current),
+                    color = WzTheme.colors.ink2,
+                    style = WzTheme.typography.body,
+                    modifier = Modifier.padding(bottom = 8.dp).testTag("switch-current"),
+                )
+            }
             WzTextField(
                 value = password,
                 onValueChange = { password = it },

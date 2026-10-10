@@ -542,9 +542,14 @@ class PortfolioPagesUiTest {
 
     @Test
     fun `coin detail filters transactions by time range`() = runComposeUiTest {
+        // DEF-58（2026-10-10）：产品按**真实时钟**筛选（`CoinDetailViewModel` 用 `Instant.now()` 传 `FundDateRange.contains`），
+        // 故本用例的时间基准必须**相对当前时刻**构造——此前硬编码 `NOW = 2026-09-10T07:24:00Z`，
+        // 在 2026-10-10T07:24Z（NOW+30 天）之后「近期」那笔跌出 LAST_30 窗口，用例永久失败。
+        val base = java.time.Instant.now()
         val recent = txRow(1L, "BTC/USDT", Side.BUY, null)
+            .copy(time = base.minus(1, java.time.temporal.ChronoUnit.DAYS))
         val old = txRow(2L, "BTC/USDT", Side.BUY, null)
-            .copy(time = NOW.minus(200, java.time.temporal.ChronoUnit.DAYS))
+            .copy(time = base.minus(200, java.time.temporal.ChronoUnit.DAYS))
         val ledger = FakeLedger(listOf(recent, old))
         setContent {
             WuzhuTheme(themeMode = ThemeMode.LIGHT) {

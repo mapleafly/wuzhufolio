@@ -224,6 +224,7 @@ fun AuthGate(
                     val target = state.dialogTarget
                     if (target != null) {
                         SwitchAccountModal(
+                            current = state.session?.account?.username ?: "",
                             target = target,
                             busy = state.dialogBusy,
                             error = state.dialogError,

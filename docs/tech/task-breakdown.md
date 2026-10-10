@@ -350,6 +350,15 @@ flowchart LR
   解锁后页面级**必走注入执行体**且不直连服务（守护用例）✓；`:ui:test` 该类 **15 例 0 失败** ✓；全量 build + detekt 见 `M15.md §3`。
   **回溯**：PRD 故事 4.3 / 统一异常处理；`AGENTS.md §1.1-5`；**D40 / D43**；`interaction.md §1.6`。
 
+- **T15.2 多账户可见性优化（B2 / D45，C1）** ✅ **已完成（2026-10-10）**
+  内容：**顶栏常驻账户标识**「账户 · <名>」（`topbar-account`，任何页面可见；空账户名不渲染）——
+  随行 **C0**：`ia.md §1/§4` 早已要求「顶栏常驻当前账户名」，此前实现缺失；
+  **切换确认显示「当前 → 目标」**（`SwitchAccountModal` 增 `current` 参数 + `switch-current` 行）；
+  文案新增 `shellStrings.accountChipPrefix` 与 `authStrings.switchCurrentFormat`（zh/en）。
+  **验收**：`ShellUiTest` **10 例 0 失败**（+2：顶栏显示账户名 / 无账户名不渲染）✓；
+  `AuthFlowUiTest` **6 例 0 失败**（切换用例 +1 断言「当前账户：Alex」）✓；全量 build + detekt 见 `M15.md §3`。
+  **回溯**：PRD §6「账户隔离清晰」；`ia.md §1/§2.17/§4`；复盘二轮 §2 问题 #4；`interaction.md §1.7`。
+
 ## 4. 里程碑验收门槛
 
 | 里程碑 | 门槛（DoD 前置） |

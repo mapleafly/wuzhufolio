@@ -30,6 +30,9 @@ interface ShellStrings {
     // 顶栏
     val manualSync: String
 
+    /** **B2（D45）**：顶栏当前账户标识前缀（渲染为「<前缀> · <账户名>」）。 */
+    val accountChipPrefix: String
+
     /** 托盘菜单（P6 DEF-15：自建 AWT 托盘，文案随界面语言——此前硬编码中文）。 */
     val trayOpen: String
     val traySyncNow: String
@@ -77,6 +80,7 @@ object ShellStringsZh : ShellStrings {
     override val navSettings = "设置"
     override val navGallery = "组件走查"
     override val manualSync = "立即同步"
+    override val accountChipPrefix = "账户"
     override val trayOpen = "打开主界面"
     override val traySyncNow = "立即同步交易"
     override val trayRefreshQuotes = "立即刷新行情"
@@ -133,6 +137,7 @@ object ShellStringsEn : ShellStrings {
     override val navSettings = "Settings"
     override val navGallery = "Components"
     override val manualSync = "Sync now"
+    override val accountChipPrefix = "Account"
     override val trayOpen = "Open WuZhuFolio"
     override val traySyncNow = "Sync trades now"
     override val trayRefreshQuotes = "Refresh quotes now"
