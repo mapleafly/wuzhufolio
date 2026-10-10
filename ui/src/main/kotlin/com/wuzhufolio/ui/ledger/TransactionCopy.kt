@@ -54,6 +54,36 @@ object TransactionCopy {
     /** 删除确认框确认按钮。 */
     val CONFIRM_DELETE: String get() = ledgerStrings.confirmDelete
 
+    // 示例数据与首次引导（B1 / D46）
+    /** 空态引导（一句话说明如何开始）。 */
+    val DEMO_EMPTY_GUIDE: String get() = ledgerStrings.demoEmptyGuide
+    val BTN_LOAD_DEMO: String get() = ledgerStrings.btnLoadDemoData
+
+    /** 示例数据显式标识（徽标）。 */
+    val DEMO_BADGE: String get() = ledgerStrings.demoBadge
+    val DEMO_BANNER_HINT: String get() = ledgerStrings.demoBannerHint
+    val BTN_CLEAR_DEMO: String get() = ledgerStrings.btnClearDemoData
+    val DEMO_CLEAR_TITLE: String get() = ledgerStrings.demoClearTitle
+    val DEMO_CLEAR_CONFIRM: String get() = ledgerStrings.demoClearConfirm
+
+    /** 加载成功 toast（N = 新增记录总数）。 */
+    fun demoLoadSuccess(count: Int): String = ledgerStrings.demoLoadSuccessTemplate.replace("N", count.toString())
+    val DEMO_LOAD_ALREADY: String get() = ledgerStrings.demoLoadAlready
+    val DEMO_LOAD_REJECTED: String get() = ledgerStrings.demoLoadRejected
+
+    /** 清除成功 toast（N = 已删除条数）。 */
+    fun demoCleared(count: Int): String = ledgerStrings.demoClearedTemplate.replace("N", count.toString())
+
+    /** 部分清除 toast（N = 已删除条数；剩余示例增资被真实记录依赖）。 */
+    fun demoClearPartial(count: Int): String =
+        ledgerStrings.demoClearPartialTemplate.replace("N", count.toString())
+
+    val DEMO_CLEAR_BLOCKED: String get() = ledgerStrings.demoClearBlocked
+
+    /** 加载失败原因 -> 可操作文案（领域层类型化原因）。 */
+    fun demoLoadFailed(reason: com.wuzhufolio.domain.demo.DemoFailReason): String =
+        ledgerStrings.demoLoadFailed(reason)
+
     // 交易表单（PRD §9.7）
     val FORM_TITLE_ADD: String get() = ledgerStrings.formTitleAddTx
     val FORM_TITLE_EDIT: String get() = ledgerStrings.formTitleEditTx

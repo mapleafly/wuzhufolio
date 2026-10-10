@@ -34,6 +34,7 @@ import com.wuzhufolio.domain.settings.DesktopSettingsService
 import kotlinx.coroutines.runBlocking
 import java.time.Instant
 import com.wuzhufolio.data.catalog.SqlCoinCatalog
+import com.wuzhufolio.data.demo.DefaultDemoDataService
 import com.wuzhufolio.data.logging.FileLogAccess
 import com.wuzhufolio.data.logging.LogRotator
 import com.wuzhufolio.data.market.CmcMarketClient
@@ -67,6 +68,7 @@ import com.wuzhufolio.data.ledger.LedgerTransactionRepository
 import com.wuzhufolio.data.ledger.ReconciliationRepository
 import com.wuzhufolio.data.ledger.TransactionEventBuilder
 import com.wuzhufolio.domain.exchange.ExchangeSyncService
+import com.wuzhufolio.domain.demo.DemoDataService
 import com.wuzhufolio.domain.ledger.CalibrationUseCase
 import com.wuzhufolio.domain.ledger.FeeRuleService
 import com.wuzhufolio.domain.ledger.FundService
@@ -154,6 +156,8 @@ object AppBootstrap {
         val fundService: FundService,
         /** M8：持仓校准用例（单一来源门 + 差额规划 + 锚点入库 + 日志留痕）。 */
         val calibrationService: CalibrationUseCase,
+        /** B1（D46）：示例数据用例（空账户一键加载示例组合 / 显式标识 / 一键清除；复用账本用例落库）。 */
+        val demoDataService: DemoDataService,
         /** M12 T12.1：聚合页只读数据源（仪表盘/资产列表/币种详情）。 */
         val portfolioService: PortfolioService,
         /** M12：币种目录（币种详情校准需 coins 行主键，配合 cg_id 精确消歧）。 */
@@ -395,6 +399,12 @@ object AppBootstrap {
             feeRuleService = ledger.feeRuleService,
             fundService = ledger.fundService,
             calibrationService = ledger.calibrationService,
+            // B1（D46）：示例数据用例——只经既有账本用例落库/清除（零 schema、零备份格式变更）
+            demoDataService = DefaultDemoDataService(
+                sessions = sessions,
+                transactions = ledger.transactionLedgerService,
+                funds = ledger.fundService,
+            ),
             portfolioService = ledger.portfolioService,
             coinCatalog = market.catalog,
             backupReminderDaysProvider = { backupReminderDays(gate, accountRepository, sessions) },

@@ -4,6 +4,7 @@ import com.wuzhufolio.domain.ledger.CalibrationBlockedException
 import com.wuzhufolio.domain.ledger.CoinResolutionKind
 import com.wuzhufolio.domain.ledger.FeeRulePolicy
 
+import com.wuzhufolio.domain.demo.DemoFailReason
 import com.wuzhufolio.domain.engine.Side
 import com.wuzhufolio.domain.ledger.LedgerErrorCode
 import com.wuzhufolio.domain.ledger.LedgerValidationException
@@ -65,6 +66,36 @@ interface LedgerStrings {
 
     /** 删除确认框确认按钮。 */
     val confirmDelete: String
+
+    // ---------- 示例数据与首次引导（B1 / D46） ----------
+
+    /** 空态引导（一句话说明如何开始 + 标记与清除口径）。 */
+    val demoEmptyGuide: String
+    val btnLoadDemoData: String
+
+    /** 示例数据显式标识（徽标文案；数据侧标记恒为 `[示例] ` 前缀，见 `DemoData.MARKER`）。 */
+    val demoBadge: String
+    val demoBannerHint: String
+    val btnClearDemoData: String
+    val demoClearTitle: String
+    val demoClearConfirm: String
+
+    /** 加载成功 toast（N = 新增记录总数）。 */
+    val demoLoadSuccessTemplate: String
+    val demoLoadAlready: String
+    val demoLoadRejected: String
+
+    /** 清除成功 toast（N = 已删除条数）。 */
+    val demoClearedTemplate: String
+
+    /** 部分清除 toast（N = 已删除条数；剩余示例增资被真实记录依赖）。 */
+    val demoClearPartialTemplate: String
+
+    /** 完全未能清除（示例行被真实记录依赖）。 */
+    val demoClearBlocked: String
+
+    /** 加载失败原因 -> 可操作文案（入参 = 领域层类型化原因，不消费数据层中文正文）。 */
+    fun demoLoadFailed(reason: DemoFailReason): String
 
     // ---------- 交易表单（PRD §9.7） ----------
 
@@ -398,6 +429,32 @@ object LedgerStringsZh : LedgerStrings {
     override val estimating = "估算中"
     override val confirmDelete = "确认删除"
 
+    // ---------- 示例数据与首次引导 ----------
+    override val demoEmptyGuide =
+        "还没有记录？可以先「加载示例数据」体验看板与盈亏计算" +
+            "（1 笔增资 + 3 笔买入 + 1 笔卖出，覆盖 BTC / ETH / SOL）；" +
+            "示例记录的备注带「[示例]」标记，可随时一键清除。"
+    override val btnLoadDemoData = "加载示例数据"
+    override val demoBadge = "示例数据"
+    override val demoBannerHint = "以下记录为示例数据（备注带「[示例]」标记），不是你的真实账本"
+    override val btnClearDemoData = "清除示例数据"
+    override val demoClearTitle = "清除示例数据"
+    override val demoClearConfirm = "将删除全部带「[示例]」标记的示例记录；你的真实记录不受影响。是否继续？"
+    override val demoLoadSuccessTemplate = "已加载示例数据 · 新增 N 条记录（1 笔增资 + 3 笔买入 + 1 笔卖出）"
+    override val demoLoadAlready = "示例数据已存在，未重复加载"
+    override val demoLoadRejected = "当前账户已有真实记录：示例数据只能加载到空账户"
+    override val demoClearedTemplate = "已清除 N 条示例记录"
+    override val demoClearPartialTemplate =
+        "已清除 N 条示例记录；剩余示例增资被你的真实记录依赖，请先调整相关真实记录后再清除"
+    override val demoClearBlocked = "示例记录被你的真实记录依赖，未能清除；请先调整相关真实记录"
+    override fun demoLoadFailed(reason: DemoFailReason): String = when (reason) {
+        DemoFailReason.NO_SESSION -> "请先登录后再加载示例数据"
+        DemoFailReason.COIN_UNAVAILABLE ->
+            "币种目录暂缺示例数据所需币种（BTC / ETH / SOL / USDT）：请联网刷新一次行情后重试"
+        DemoFailReason.DATASET_INCONSISTENT -> "示例数据与当前账本冲突，未能加载（详见日志）"
+        DemoFailReason.LOAD_FAILED -> "加载示例数据失败（详见日志）"
+    }
+
     // ---------- 交易表单 ----------
     override val formTitleAddTx = "添加交易"
     override val formTitleEditTx = "编辑交易"
@@ -706,6 +763,42 @@ object LedgerStringsEn : LedgerStrings {
     override val emptyFiltered = "No matching records"
     override val estimating = "Estimated"
     override val confirmDelete = "Delete"
+
+    // ---------- Sample data & first-run guidance ----------
+    // 注：数据侧标记恒为 `[示例] `（`DemoData.MARKER`，数据契约不随语言变化）；
+    // en 档按 `I18nCatalogTest`「英文档不得残留 CJK」的守护口径**不引用该标记字面量**，
+    // 改以「notes 列 / sample record」表述（标记的可见语义由 demoBadge / demoBannerHint 承载）。
+    override val demoEmptyGuide =
+        "No records yet? Load the sample portfolio to try the dashboard and P&L maths " +
+            "(1 deposit + 3 buys + 1 sell over BTC / ETH / SOL). " +
+            "Sample rows are listed in the notes column and can be cleared in one click."
+    override val btnLoadDemoData = "Load sample data"
+    override val demoBadge = "Sample data"
+    override val demoBannerHint =
+        "These records are sample data (see the notes column) — not your real ledger"
+    override val btnClearDemoData = "Clear sample data"
+    override val demoClearTitle = "Clear sample data"
+    override val demoClearConfirm =
+        "Every sample record will be deleted; your real records are not affected. Continue?"
+    override val demoLoadSuccessTemplate = "Sample data loaded · N records added (1 deposit + 3 buys + 1 sell)"
+    override val demoLoadAlready = "Sample data is already present — nothing was loaded"
+    override val demoLoadRejected =
+        "This account already has real records: sample data can only be loaded into an empty account"
+    override val demoClearedTemplate = "Cleared N sample records"
+    override val demoClearPartialTemplate =
+        "Cleared N sample records; the remaining sample deposit is used by your real records — " +
+            "adjust those first and clear again"
+    override val demoClearBlocked =
+        "Sample records are used by your real records and could not be cleared; adjust the related real records first"
+    override fun demoLoadFailed(reason: DemoFailReason): String = when (reason) {
+        DemoFailReason.NO_SESSION -> "Sign in before loading sample data"
+        DemoFailReason.COIN_UNAVAILABLE ->
+            "The coin catalogue is missing the coins the sample data needs (BTC / ETH / SOL / USDT): " +
+                "refresh market data once while online, then retry"
+        DemoFailReason.DATASET_INCONSISTENT ->
+            "The sample data conflicts with the current ledger and was not loaded (see logs)"
+        DemoFailReason.LOAD_FAILED -> "Loading sample data failed (see logs)"
+    }
 
     // ---------- Transaction form ----------
     override val formTitleAddTx = "Add transaction"

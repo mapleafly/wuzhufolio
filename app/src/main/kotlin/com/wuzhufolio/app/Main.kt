@@ -254,6 +254,8 @@ internal fun MainWindowContent(
                 service = runtime.transactionLedgerService,
                 pickCsvFile = { FilePicker.pickLoad("选择 CSV 文件") },
                 pickTemplatePath = { FilePicker.pickSave("保存 CSV 模板") },
+                // B1（D46）：空态引导「加载示例数据」+ 示例数据标识 / 一键清除
+                demoService = runtime.demoDataService,
             )
         },
         fundsPageContent = {

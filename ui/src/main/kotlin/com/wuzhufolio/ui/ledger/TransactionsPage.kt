@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.wuzhufolio.domain.demo.DemoDataService
 import com.wuzhufolio.domain.engine.Side
 import com.wuzhufolio.domain.ledger.TransactionLedgerService
 import com.wuzhufolio.domain.ledger.TransactionRow
@@ -53,15 +54,19 @@ import com.wuzhufolio.ui.theme.WzTheme
  * 命令区（添加/修改/删除/导入 + 搜索 + 类型筛选）+ 交易列表（选择框/交易对/类型/价格/数量/
  * 手续费/总价/交易所/时间/已实现盈亏 + 行内编辑/删除）；卖出记录行显示该笔已实现盈亏。
  * 表单与 CSV 向导为同窗口就地叠加弹窗（共性约束 7.3）。
+ *
+ * B1（D46）追加：空态引导 + 「加载示例数据」；存在示例数据时显式「示例数据」标识 + 一键清除
+ * （[demoService] 可空 —— 不注入时页面行为与改造前完全一致）。
  */
 @Composable
 fun TransactionsPage(
     service: TransactionLedgerService,
     pickCsvFile: () -> String?,
     pickTemplatePath: () -> String?,
+    demoService: DemoDataService? = null,
     modifier: Modifier = Modifier,
 ) {
-    val vm = remember { TransactionsViewModel(service, pickCsvFile, pickTemplatePath) }
+    val vm = remember { TransactionsViewModel(service, pickCsvFile, pickTemplatePath, demoService) }
     DisposableEffect(vm) {
         onDispose { vm.dispose() }
     }
@@ -97,19 +102,42 @@ fun TransactionsPage(
                 onImport = vm::openCsv,
             )
 
+            // B1（D46）：示例数据显式标识 + 一键清除（仅存在示例数据时渲染）
+            if (state.demoPresent) {
+                DemoBanner(onClear = vm::requestClearDemo)
+            }
+
             // 交易列表（仅本区域滚动）
             if (state.rows.isEmpty()) {
                 Box(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = if (state.query.isBlank() && state.sideFilter == null) {
-                            TransactionCopy.EMPTY
-                        } else {
-                            TransactionCopy.EMPTY_FILTERED
-                        },
-                        color = colors.ink2,
-                        style = WzTheme.typography.body,
-                        modifier = Modifier.padding(top = 24.dp).testTag("tx-empty"),
-                    )
+                    Column(modifier = Modifier.padding(top = 24.dp)) {
+                        Text(
+                            text = if (state.query.isBlank() && state.sideFilter == null) {
+                                TransactionCopy.EMPTY
+                            } else {
+                                TransactionCopy.EMPTY_FILTERED
+                            },
+                            color = colors.ink2,
+                            style = WzTheme.typography.body,
+                            modifier = Modifier.testTag("tx-empty"),
+                        )
+                        // B1（D46）：空态引导 + 「加载示例数据」（未注入 demoService / 已筛选时不渲染）
+                        if (demoService != null && state.query.isBlank() && state.sideFilter == null) {
+                            Text(
+                                text = TransactionCopy.DEMO_EMPTY_GUIDE,
+                                color = colors.ink3,
+                                style = WzTheme.typography.caption,
+                                modifier = Modifier.padding(top = 8.dp).testTag("tx-demo-guide"),
+                            )
+                            WzButton(
+                                text = TransactionCopy.BTN_LOAD_DEMO,
+                                onClick = vm::loadDemoData,
+                                variant = WzButtonVariant.Secondary,
+                                modifier = Modifier.padding(top = 12.dp),
+                                testTag = "tx-demo-load",
+                            )
+                        }
+                    }
                 }
             } else {
                 val listScroll = rememberScrollState()
@@ -155,6 +183,9 @@ fun TransactionsPage(
         }
         if (state.deleteIds.isNotEmpty()) {
             DeleteConfirmModal(count = state.deleteIds.size, onCancel = vm::cancelDelete, onConfirm = vm::confirmDelete)
+        }
+        if (state.demoClearConfirm) {
+            DemoClearConfirmModal(onCancel = vm::cancelClearDemo, onConfirm = vm::confirmClearDemo)
         }
         WzToastHost(toast = state.toast, onDismiss = vm::dismissToast)
     }
@@ -223,6 +254,68 @@ private fun Toolbar(
             FilterButton(TransactionCopy.FILTER_SELL, sideFilter == Side.SELL, "tx-filter-sell") {
                 onSideFilterChange(if (sideFilter == Side.SELL) null else Side.SELL)
             }
+        }
+    }
+}
+
+/** 示例数据显式标识 + 一键清除入口（B1 · D46：示例数据必须可识别、可清除，不与真实账本混淆）。 */
+@Composable
+private fun DemoBanner(onClear: () -> Unit) {
+    val colors = WzTheme.colors
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp).testTag("tx-demo-banner"),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Badge(text = TransactionCopy.DEMO_BADGE, color = colors.warn, testTag = "tx-demo-badge")
+        Text(
+            text = TransactionCopy.DEMO_BANNER_HINT,
+            color = colors.ink3,
+            style = WzTheme.typography.caption,
+            modifier = Modifier.weight(1f),
+        )
+        WzButton(
+            text = TransactionCopy.BTN_CLEAR_DEMO,
+            onClick = onClear,
+            variant = WzButtonVariant.Secondary,
+            testTag = "tx-demo-clear",
+        )
+    }
+}
+
+/** 清除示例数据确认框（B1 · D46：破坏性动作二次确认；只删带标记行，真实记录不受影响）。 */
+@Composable
+private fun DemoClearConfirmModal(onCancel: () -> Unit, onConfirm: () -> Unit) {
+    val colors = WzTheme.colors
+    WzModal(
+        title = TransactionCopy.DEMO_CLEAR_TITLE,
+        onDismiss = onCancel,
+        testTag = "tx-demo-clear-confirm",
+    ) {
+        Text(
+            text = TransactionCopy.DEMO_CLEAR_CONFIRM,
+            color = colors.ink2,
+            style = WzTheme.typography.body,
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 16.dp),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            WzButton(
+                text = TransactionCopy.BTN_CANCEL,
+                onClick = onCancel,
+                variant = WzButtonVariant.Secondary,
+                testTag = "tx-demo-clear-cancel",
+            )
+            WzButton(
+                text = TransactionCopy.BTN_CLEAR_DEMO,
+                onClick = onConfirm,
+                variant = WzButtonVariant.Danger,
+                modifier = Modifier.padding(start = 8.dp),
+                testTag = "tx-demo-clear-confirm-btn",
+            )
         }
     }
 }

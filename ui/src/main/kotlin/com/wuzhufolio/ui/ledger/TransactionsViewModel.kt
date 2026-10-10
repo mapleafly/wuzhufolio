@@ -2,6 +2,9 @@ package com.wuzhufolio.ui.ledger
 
 import androidx.lifecycle.ViewModel
 import com.wuzhufolio.domain.catalog.CatalogCoin
+import com.wuzhufolio.domain.demo.DemoDataService
+import com.wuzhufolio.domain.demo.DemoFailReason
+import com.wuzhufolio.domain.demo.DemoLoadResult
 import com.wuzhufolio.domain.engine.Side
 import com.wuzhufolio.domain.ledger.CoinResolutionException
 import com.wuzhufolio.domain.ledger.CsvPreview
@@ -89,18 +92,26 @@ data class TxUiState(
     val deleteIds: List<Long> = emptyList(),
     val busy: Boolean = false,
     val toast: WzToast? = null,
+    /** 当前账户是否存在示例数据（B1：显式标识 + 清除入口的渲染判据）。 */
+    val demoPresent: Boolean = false,
+    /** 示例数据清除确认框（B1：清除需二次确认）。 */
+    val demoClearConfirm: Boolean = false,
 )
 
 /**
  * 交易管理页 VM（M7 · T7.1–T7.4）：列表/筛选/选择 -> 表单（实时总价、手续费三态、自动计算、
  * 重放校验违例映射 V1–V5/V9）-> CSV 导入向导（模板下载、解析预览、消歧选择、确认导入）。
  * 文件选择（CSV 上传/模板保存）经注入 lambda（Main 接线 AWT FileDialog；测试用 stub）。
+ *
+ * B1（D46）追加：空态「加载示例数据」与「示例数据」标识 / 一键清除（[demoService] 可空 ——
+ * 不注入时页面行为与改造前完全一致，独立预览与既有 UI 测试零改动）。
  */
-@Suppress("TooManyFunctions") // 页面动作面（列表/筛选/选择/表单×N/CSV×N/toast），小而直白
+@Suppress("TooManyFunctions") // 页面动作面（列表/筛选/选择/表单×N/CSV×N/示例数据/toast），小而直白
 class TransactionsViewModel(
     private val service: TransactionLedgerService,
     private val pickCsvFile: () -> String?,
     private val pickTemplatePath: () -> String?,
+    private val demoService: DemoDataService? = null,
 ) : ViewModel() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -109,6 +120,8 @@ class TransactionsViewModel(
 
     init {
         reload()
+        // B1（D46）：进入页面查一次示例数据存在性（标识条 / 清除入口的渲染判据）
+        refreshDemoPresence()
     }
 
     // ---- 列表/筛选 ----
@@ -125,6 +138,73 @@ class TransactionsViewModel(
                 )
             }.getOrDefault(emptyList())
             _state.update { it.copy(rows = rows, busy = false) }
+        }
+    }
+
+    // ---- 示例数据与首次引导（B1 · D46 · T15.3） ----
+
+    /**
+     * 刷新「当前账户是否存在示例数据」（标识条与清除入口的渲染判据）。
+     * **只在进入页面与加载/清除后调用**——不随搜索/筛选的每次键入重查（`hasDemoData()` 会整表读账本）。
+     */
+    private fun refreshDemoPresence() {
+        val demo = demoService ?: return
+        scope.launch {
+            val present = runCatching { demo.hasDemoData() }.getOrDefault(false)
+            _state.update { it.copy(demoPresent = present) }
+        }
+    }
+
+    /** 加载示例数据（成功 -> toast + 列表刷新；拒绝/失败 -> 逐态可操作文案）。 */
+    fun loadDemoData() {
+        val demo = demoService ?: return
+        if (_state.value.busy) return
+        _state.update { it.copy(busy = true) }
+        scope.launch {
+            val result = runCatching { demo.load() }.getOrElse {
+                DemoLoadResult.Failed(DemoFailReason.LOAD_FAILED, it.javaClass.simpleName)
+            }
+            val loaded = result is DemoLoadResult.Loaded
+            val message = when (result) {
+                is DemoLoadResult.Loaded -> TransactionCopy.demoLoadSuccess(result.transactions + result.funds)
+                DemoLoadResult.AlreadyLoaded -> TransactionCopy.DEMO_LOAD_ALREADY
+                is DemoLoadResult.Rejected -> TransactionCopy.DEMO_LOAD_REJECTED
+                is DemoLoadResult.Failed -> TransactionCopy.demoLoadFailed(result.reason)
+            }
+            _state.update {
+                it.copy(
+                    busy = false,
+                    toast = WzToast(if (loaded) WzToastKind.Success else WzToastKind.Failure, message),
+                )
+            }
+            reload()
+            refreshDemoPresence()
+        }
+    }
+
+    /** 打开「清除示例数据」确认框（B1：清除为破坏性动作，须二次确认）。 */
+    fun requestClearDemo() {
+        _state.update { it.copy(demoClearConfirm = true) }
+    }
+
+    fun cancelClearDemo() {
+        _state.update { it.copy(demoClearConfirm = false) }
+    }
+
+    /** 确认清除：只删带标记行；仍有剩余（被真实记录依赖）时给部分清除提示。 */
+    fun confirmClearDemo() {
+        val demo = demoService ?: return
+        _state.update { it.copy(demoClearConfirm = false) }
+        scope.launch {
+            val removed = runCatching { demo.clear() }.getOrDefault(0)
+            val remaining = runCatching { demo.hasDemoData() }.getOrDefault(false)
+            val (kind, message) = when {
+                !remaining -> WzToastKind.Success to TransactionCopy.demoCleared(removed)
+                removed > 0 -> WzToastKind.Failure to TransactionCopy.demoClearPartial(removed)
+                else -> WzToastKind.Failure to TransactionCopy.DEMO_CLEAR_BLOCKED
+            }
+            _state.update { it.copy(toast = WzToast(kind, message), demoPresent = remaining) }
+            reload()
         }
     }
 

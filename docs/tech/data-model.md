@@ -124,7 +124,7 @@ erDiagram
 | fee | TEXT（十进制串） | 手续费（以 fee_currency 计价），同上 |
 | fee_currency | String | 手续费币种 |
 | transaction_time | Timestamp | 交易时间（UTC） |
-| notes | String | 备注 |
+| notes | String | 备注。**示例数据标记（B1 / D46，2026-10-10）**：行首前缀 **`[示例] `**（常量 `DemoData.MARKER`）= 该行为「加载示例数据」写入的示例记录；据此实现**幂等**（存在带标记行 ⇒ 不重复加载）与**清除**（只删带标记行，真实记录永不删除）。标记随本列经 `.cpro` 原样往返 ⇒ 恢复后仍可识别。**零 schema 变更**（复用既有列，无新增列/表/settings 键） |
 | created_at | Timestamp | — |
 | source | String | Manual / CSV / BINANCE API |
 | uuid | String | UUID v4，备份去重 |
@@ -160,7 +160,7 @@ erDiagram
 | coin_id | Integer | FK coins.id，保存时冻结 |
 | flow_time | Timestamp | 流水时间（UTC） |
 | source_dest | String | 来源/去向 |
-| notes | String | 备注 |
+| notes | String | 备注。**示例数据标记（B1 / D46）**：行首前缀 **`[示例] `** = 示例增资行（同 §2.5 notes 口径：幂等与清除的唯一依据，零 schema 变更） |
 | created_at | Timestamp | — |
 | uuid | String | UUID v4 |
 | price_status | String | OK / PENDING |

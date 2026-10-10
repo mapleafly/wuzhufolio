@@ -28,7 +28,7 @@
 | M12 UI 整合收尾 | T12.1–T12.4 | 主壳整合/聚合页（仪表盘/资产/币种详情）/a11y/i18n | M2–M11 |
 | M13 发布准备 | T13.1–T13.2 | 安全自查/签名公证打包 | M12 |
 | **M14 UI 体系统一（0.2.0）** | **T14.1–T14.11** | 主题层全量映射 / Hot Reload / 组件层收口（含 DEF-56）/ 日期时间选择器（DEF-55）+ 数值输入（DEF-54）/ 逐页视觉回归与基准同步 / 0.2.0 发布准备；**追加：T14.7 M3 全面对齐 · T14.8 Linux SNI 托盘 · T14.9/T14.11 会话门禁 · T14.10 自选账户级** | M12、**ADR-007**、**D38**、D39–D43 |
-| **M15 B 迭代（桌面端体验深化）** | **T15.1 …（逐项随决策档追加）** | **T15.1 设置页同步入口统一会话门禁（D44，已实施）** · B2 多账户可见性 · B1 演示数据/首次引导 · B5 工程项 · B3 自选跨账户导入（C2，mini 闭环） | M12、M14、**D44**（B1/B2/B3/B5 任务号随各自决策档登记） |
+| **M15 B 迭代（桌面端体验深化）** | **T15.1 …（逐项随决策档追加）** | **T15.1 设置页同步入口统一会话门禁（D44，已实施）** · B2 多账户可见性 · **B1 示例数据/首次引导（T15.3，已实施）** · B5 工程项 · B3 自选跨账户导入（C2，mini 闭环） | M12、M14、**D44/D45/D46**（B5/B3 任务号随各自决策档登记） |
 
 ## 2. 依赖图
 
@@ -358,6 +358,34 @@ flowchart LR
   **验收**：`ShellUiTest` **10 例 0 失败**（+2：顶栏显示账户名 / 无账户名不渲染）✓；
   `AuthFlowUiTest` **6 例 0 失败**（切换用例 +1 断言「当前账户：Alex」）✓；全量 build + detekt 见 `M15.md §3`。
   **回溯**：PRD §6「账户隔离清晰」；`ia.md §1/§2.17/§4`；复盘二轮 §2 问题 #4；`interaction.md §1.7`。
+
+- **T15.3 示例数据与首次引导（B1 / D46，C1）** ✅ **已完成（2026-10-10）**
+  内容：**空账户一键「加载示例组合」+ 空态引导 + 显式标记 + 一键清除**。示例数据集
+  （`DemoPortfolio`：1 笔增资 100,000 USDT + 3 笔买入 BTC/ETH/SOL + 1 笔卖出 BTC 0.2，金额全 `BigDecimal`，
+  时间轴 = 相对加载时刻的固定天数偏移）经**既有** `TransactionLedgerService.saveTransaction` /
+  `FundService.saveFund` 落库（**零 schema / 零新表 / 零 `.cpro` 格式变更 / 零新增 settings 键**）；
+  示例行以 `notes` 行首 **`[示例] `**（`DemoData.MARKER`）标记，作为**幂等与清除的唯一依据**；
+  新增 domain 契约 `DemoDataService`（`load(): DemoLoadResult` / `clear(): Int` / `hasDemoData(): Boolean`，
+  **新增接口，未改既有签名**）+ data 实现 `DefaultDemoDataService` + `AppBootstrap.Runtime.demoDataService`
+  装配 + `Main.kt` 注入；UI 落在**交易管理页**：空态 `tx-demo-guide` + `tx-demo-load`；
+  存在示例数据时命令区下方 `tx-demo-banner`（徽标 `tx-demo-badge`「示例数据」+ `tx-demo-clear`），
+  清除走 `WzModal` 二次确认（`tx-demo-clear-confirm`，§7.3 就地叠加 + 页面根 + 遮罩不参与焦点）；
+  文案 13 条走 `ui/i18n/LedgerStrings`（zh/en 双档，经 `TransactionCopy` 消费）。
+  **验收**：
+  ① **仅在无真实数据的空账户可加载**——已有非示例记录时返回 `Rejected(ACCOUNT_NOT_EMPTY)` 且**零写入** ✓；
+  ② **幂等**——重复加载返回 `AlreadyLoaded`，行数不变 ✓；
+  ③ **清除只删标记行**——真实交易/真实增资在清除后**原样保留**，`clear()` 计数 = 5（4 交易 + 1 资金）✓；
+  ④ **账户隔离**——A 账户加载后切到 B：`hasDemoData()=false`、列表空、`clear()=0`；切回 A 仍在 ✓；
+  ⑤ **未登录**——`Failed(NO_SESSION)` / `hasDemoData()=false` / `clear()=0`（不抛未类型化异常）✓；
+  ⑥ **数据集自洽**——domain 纯函数用例按 `NegativePolicy.STRICT` 全量重放**无负边界**，期末持仓
+     40,952.5 USDT / 0.8 BTC / 5 ETH / 40 SOL、累计增资 100,000、卖出已实现 +1,983 ✓；
+  ⑦ **UI**——空态引导与按钮存在；点击**走注入的 `DemoDataService`**（fake 计数）并刷新出列表数据；
+     拒绝态文案；清除需二次确认（确认前零调用）；部分清除保留标识并提示 ✓；
+  ⑧ 用例数 **+17**（domain 5 · data 6 · ui 6），全量 `build detekt` **BUILD SUCCESSFUL** + detekt 0
+     （详见 `M15.md §3`）。
+  **回溯**：`docs/dev/B迭代-分级建议与影响面扫描.md §1 B1`（含「必须显式标记 + 可一键清除」）；
+  PRD §9.6/§9.7/§9.8、故事 2.1/6.1、全局说明「重放校验规则」；硬约束 `§1.1-1/2/5`；
+  `ia.md §2.7`；`interaction.md §1.8 / §2.2`；`data-model.md §2.5/§2.6`。
 
 ## 4. 里程碑验收门槛
 
