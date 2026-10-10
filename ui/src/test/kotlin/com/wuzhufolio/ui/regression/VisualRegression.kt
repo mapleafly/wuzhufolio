@@ -31,6 +31,11 @@ import javax.imageio.ImageIO
  * VisualRegression.capture("dashboard", "page-DASHBOARD") { DashboardPage(...) }
  * ```
  * 产物命名：`<page>-<light|dark>-<width>x<height>.png`。
+ *
+ * **B5①（2026-10-10，`D47`）**：`capture` 结束时会调 [VisualDiff.report] 出**基线比对摘要**
+ * （`diff-<page>.md`，报告型不阻断；CI 归档 `ui/build/visual-regression/` 全部产物）。
+ * **B5⑤（2026-10-10，`D47 §2.5`）**：[captureFilmAsset] 默认**不写仓库**（落 `build/promo-assets/`），
+ * 仅 `WUZHUFOLIO_FILM_ASSETS=1` / `-Pwuzhufolio.filmAssets=true` 才写回 `docs/release/promo/assets/ui/`。
  */
 @OptIn(ExperimentalTestApi::class)
 internal object VisualRegression {
@@ -46,8 +51,43 @@ internal object VisualRegression {
 
     private fun outputDir(): File = File("build/visual-regression").apply { mkdirs() }
 
-    /** 影片素材目录（P7 宣传动画真源：`docs/release/promo/assets/ui/`）。 */
-    private fun filmAssetDir(): File = File("../docs/release/promo/assets/ui").apply { mkdirs() }
+    /** 影片素材写回仓库的目标目录（P7 宣传动画真源：`docs/release/promo/assets/ui/`）。 */
+    private fun filmAssetRepoDir(): File = File("../docs/release/promo/assets/ui")
+
+    /** 门控关闭时的素材产物目录（`build/` 下，**不污染工作树**）。 */
+    private fun filmAssetBuildDir(): File = File("build/promo-assets")
+
+    /**
+     * **B5⑤ 影片素材写回门控**（2026-10-10，`D47 §2.5`；全面评审 **F6**）。
+     *
+     * 默认 **关闭**：全量测试不再改写仓库内 `docs/release/promo/assets/ui/` 的 PNG（此前每次 `:ui:test`
+     * 都重写 4 张，且**跨平台字节不同** ⇒ 工作树污染 + 「发布素材 ↔ 发布影片」失去一一对应）。
+     * 仅显式开启时才写回仓库，供 P7 出片链路使用：
+     * - 环境变量 `WUZHUFOLIO_FILM_ASSETS=1|true|yes|on`；或
+     * - Gradle 属性 `-Pwuzhufolio.filmAssets=true`（由 `ui/build.gradle.kts` 转成同名系统属性）。
+     *
+     * 关闭时素材仍会渲染（用例断言不变），只是落到 `ui/build/promo-assets/` 并打印提示。
+     */
+    private fun filmAssetsEnabled(): Boolean {
+        val env = System.getenv("WUZHUFOLIO_FILM_ASSETS")?.trim()?.lowercase()
+        if (env != null && env in VisualDiff.TRUTHY) return true
+        val prop = System.getProperty("wuzhufolio.filmAssets")?.trim()?.lowercase()
+        return prop != null && prop in VisualDiff.TRUTHY
+    }
+
+    /** 影片素材目录（门控：默认 `build/promo-assets/`，显式开启才写仓库）。 */
+    private fun filmAssetDir(): File {
+        val enabled = filmAssetsEnabled()
+        val dir = if (enabled) filmAssetRepoDir() else filmAssetBuildDir()
+        if (!enabled) {
+            println(
+                "[film-assets] 写回仓库已关闭（B5⑤ 门控）：素材落 ${dir.path}；" +
+                    "需更新 docs/release/promo/assets/ui/ 时用 WUZHUFOLIO_FILM_ASSETS=1 " +
+                    "或 -Pwuzhufolio.filmAssets=true 开启",
+            )
+        }
+        return dir.apply { mkdirs() }
+    }
 
     /**
      * **P7 影片素材采集**（2026-09-30 起，替代早期「从 P1 原型截图」的做法）：
@@ -55,6 +95,9 @@ internal object VisualRegression {
      *
      * 为什么用密度 2：影片把 UI 图版放大到接近全屏，1× 会糊；2×（1240×820 逻辑 → 2480×1640 像素）
      * 与 0.1.0 那版素材规格一致，可直接替换而不改模板尺寸。
+     *
+     * **写回门控（B5⑤）**：默认写 `ui/build/promo-assets/`；仅显式开启（见 [filmAssetsEnabled]）
+     * 才写回仓库 `docs/release/promo/assets/ui/`——出片链路 `tools/render-0.2.0.sh` 已自动开启。
      */
     fun captureFilmAsset(
         fileName: String,
@@ -110,6 +153,9 @@ internal object VisualRegression {
                 }
             }
         }
+        // B5① 基线比对（报告型，不阻断）：与 docs/design/baseline/ 同名基线逐像素比对，
+        // 写 build/visual-regression/diff-<page>.md 并打到测试日志；缺基线的图如实记 NO_BASELINE。
+        VisualDiff.report(page, files, outputDir())
         return files
     }
 }

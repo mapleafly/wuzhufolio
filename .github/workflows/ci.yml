@@ -41,6 +41,34 @@ jobs:
         shell: bash
         run: ./gradlew test --console=plain --stacktrace
 
+      # B5①（D47 §2.1）：视觉回归 24 张（4 页面 × 2 主题 × 3 尺寸）由上面的 `./gradlew test` 真实渲染，
+      # 产物落 `ui/build/visual-regression/`；此处只做**摘要打印 + 归档**，不重复跑一遍测试。
+      # 基线比对（截图 diff）为**报告型、不阻断**——漂移只告警（日志 + artifact 留痕），不让 job 红。
+      - name: 视觉回归摘要（B5①：24 张渲染 + 基线比对报告 · 报告型不阻断）
+        if: always()
+        shell: bash
+        run: |
+          set -uo pipefail
+          dir=ui/build/visual-regression
+          count=$(find "$dir" -name '*.png' 2>/dev/null | wc -l | tr -d ' ')
+          echo "VISUAL_REGRESSION_PNGS=${count:-0}（预期 24 = 4 页面 × 2 主题 × 3 尺寸）"
+          shopt -s nullglob
+          reports=("$dir"/diff-*.md)
+          if [ ${#reports[@]} -eq 0 ]; then
+            echo '（未生成基线比对报告：本次未跑到视觉回归用例）'
+          else
+            for f in "${reports[@]}"; do echo "===== $f ====="; cat "$f"; done
+          fi
+
+      - name: 上传视觉回归产物与基线比对报告（B5①，14 天）
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: visual-regression-${{ matrix.os }}
+          path: ui/build/visual-regression/**
+          retention-days: 14
+          if-no-files-found: warn
+
       - name: 上传测试报告（M13：4 项钥匙串真实后端用例在 win/mac 的执行结果可逐项核验）
         if: always()
         uses: actions/upload-artifact@v6
@@ -308,11 +336,15 @@ jobs:
       # 本步骤在**产物上传之后**实跑打包产物本身（jpackage app-image，含捆绑私有运行时）：
       #   变体 1 = 常规路径（默认 TEMP）；变体 2 = **非 ASCII 路径**（复现「中文用户名/中文安装目录」场景，
       #            用以实证 Windows 启动器的路径编码敏感性）。
-      # 观察期口径：continue-on-error（不阻断作业与产物上传），日志串 PACKAGED_LAUNCH_SMOKE[_CJK]=PASS/FAIL；
-      # 连续数轮稳定后可按人工拍板改为阻断式。
-      - name: 打包版启动冒烟（Windows app-image 实跑 + 非 ASCII 路径变体 · 观察期非阻断）
+      # 门禁口径（**B5② / D47 §2.2，2026-10-10 收敛为门禁**）：
+      #   · **常规 ASCII 路径启动 = 阻断式**（本步骤失败 ⇒ job 失败；近几轮 CI 实测稳定 PASS，例 run 38028372159）
+      #   · **非 ASCII / latin1 变体 = 信息性**（jpackage 上游限制：路径字符无法用系统 ANSI 代码页表示时
+      #     启动器崩溃 —— defects.md DEF-42 / D34；不作为产品缺陷阻断）
+      #   · **辅助技术变体（DEF-43 回归）= 信息性告警**（不计入本步骤退出码）
+      # 日志口径不变：PACKAGED_LAUNCH_SMOKE[_LATIN1|_CJK|_AT]=PASS/FAIL。
+      # 回滚方式：给本步骤加回 `continue-on-error: true`（一行改回观察期）。
+      - name: 打包版启动冒烟（Windows app-image · 常规路径**阻断式** + 非 ASCII 变体信息性）
         if: runner.os == 'Windows' && always()
-        continue-on-error: true
         shell: pwsh
         run: |
           $appImage = 'app/build/compose/binaries/main/app/WuZhuFolio'
@@ -327,7 +359,7 @@ jobs:
           # 探针实现见 scripts/probe-packaged-launch.ps1（同一脚本可供人工在本机复跑）
           & pwsh -File scripts/probe-packaged-launch.ps1 -Label 'ascii' -ExePath "$appImage/WuZhuFolio.exe"
           $asciiOk = ($LASTEXITCODE -eq 0)
-          if ($asciiOk) { Write-Host 'PACKAGED_LAUNCH_SMOKE=PASS' } else { Write-Host 'PACKAGED_LAUNCH_SMOKE=FAIL（观察期非阻断，但请核验打包版可启动性）' }
+          if ($asciiOk) { Write-Host 'PACKAGED_LAUNCH_SMOKE=PASS' } else { Write-Host 'PACKAGED_LAUNCH_SMOKE=FAIL（门禁阻断：打包版在常规路径下无法启动）' }
 
           # 变体 2/3：整目录复制到含非 ASCII 的路径再跑，用于区分两类假设：
           #   latin1 = 该字符在系统 ANSI 代码页（CI runner = CP1252）**可表示**（é）→ 实测 PASS
@@ -362,6 +394,14 @@ jobs:
 
       # DEF-42 / D34 验收：**安装版**布局实跑（app-image 冒烟覆盖不到安装后的目录与安装范围）。
       # 静默安装 MSI → 断言 exe 落在 C:\Program Files\WuZhuFolio（per-machine、纯 ASCII）→ 实跑 → 卸载。
+      # 门禁口径（**B5② / D47 §2.2**）：**维持观察期非阻断**（`continue-on-error: true`），理由与转阻断前置：
+      #   · 与 app-image 冒烟不同，本步骤依赖两个外部进程（msiexec 安装/卸载）与**机器级共享状态**
+      #     （`C:\Program Files\WuZhuFolio` 固定路径 + 注册表卸载项）：前次残留/文件占用会给出与产品无关的失败；
+      #   · 「产物可启动性」已由上面的 app-image 常规路径**阻断式**冒烟覆盖，本步骤是**安装布局**的补充证据；
+      #   · 观察样本仍不足（需连续多轮稳定）。
+      # **转阻断前置条件**（全部满足再删 `continue-on-error`）：① 连续 ≥3 轮 CI 本步骤 PASS 且非 SKIP；
+      #   ② 步骤内新增「卸载后安装目录消失 / msiexec /x exitCode=0」的幂等断言；
+      #   ③ 对 msiexec 非 0 退出码区分「环境占用」与「产物缺陷」。**回滚 = 一行加回 continue-on-error**。
       - name: 安装版实跑冒烟（MSI 静默安装 → 跑已安装 exe → 卸载 · 观察期非阻断）
         if: runner.os == 'Windows' && always()
         continue-on-error: true

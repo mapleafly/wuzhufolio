@@ -17,7 +17,7 @@
 | `wuzhufolio-promo.html` | 动画源码（自包含单文件，真实 UI 截图 base64 内联） |
 | `storyboard.md` | **分镜卡**（11 镜 · hero element · 能量骨架 · hold/rest 预算 · 镜头预算 · 12 项音频 cue · 逐帧复核清单） |
 | `boards/direction-{a,b,c}.png` | 三方向方向板（A 中标；B/C 归档备用） |
-| `assets/ui/*.png` | 影片用 4 张**整窗** UI 图（真实应用 2× 离屏渲染，2480×1640；`MainShell` + 页面槽采集） |
+| `assets/ui/*.png` | 影片用**整窗** UI 图（真实应用 2× 离屏渲染，2480×1640；`MainShell` + 页面槽采集）。其中 4 张（`dashboard-light` / `portfolio-light` / `quotes-light` / `transactions-light`）由 `VisualRegression.captureFilmAsset` 生成 —— **写回受 B5⑤ 门控**（默认不写仓库，见下「素材写回门控」） |
 | `tools/render-0.2.0.sh` · `tools/mix-0.2.0.sh` | **一键复现**：重建 → 自检 → 逐帧渲染；BGM + 14 SFX 混音 → MP4 + GIF |
 | `assets/icon/*.png` | 应用图标评审预览（1024 / 16px×8 / 32px×8） |
 
@@ -47,11 +47,41 @@
   影片夹具（仪表盘指标来自交易重放，需 `metricsOverride` 填充，且避免异常币 ⚠️ 横幅出现在宣传片里）。
 - **当前仓库状态**：✅ 影片产物与素材均为 **0.2.0 版**（真实 M3 界面 + M3 色板）。
 
+## 素材写回门控（B5⑤，2026-10-10 · 全面评审 F6）
+
+**问题**：`ui` 模块的 `VisualRegression.captureFilmAsset` 原先**直接写仓库** `docs/release/promo/assets/ui/`，
+于是**每次全量测试**都会重写其中 4 张 PNG（`dashboard-light` / `portfolio-light` / `quotes-light` /
+`transactions-light`），且**跨平台渲染字节不同** ⇒ 工作树被污染、易被误提交，并使「发布素材 ↔ 发布影片」失去一一对应。
+
+**口径（`D47 §2.5`）**：
+
+| 场景 | 素材落点 |
+|------|----------|
+| **默认**（普通 `./gradlew test` / `:ui:test`） | `ui/build/promo-assets/`（**不写仓库**；用例照常渲染与断言，并打印一行提示） |
+| **显式开启**（P7 出片链路） | `docs/release/promo/assets/ui/`（仓库内，供 `build-promo.mjs` 内联） |
+
+开启方式（二选一，两者都支持）：
+```bash
+WUZHUFOLIO_FILM_ASSETS=1 ./gradlew :ui:test --tests "*film asset*" --console=plain
+./gradlew :ui:test --tests "*film asset*" -Pwuzhufolio.filmAssets=true --console=plain
+```
+> Windows PowerShell 下 `-P…` 必须**加引号**（PowerShell 会把 `-Pfoo.bar=true` 拆成两个参数）：
+> `.\gradlew.bat :ui:test --tests "*film asset*" "-Pwuzhufolio.filmAssets=true"`。
+
+**出片链路已自动开启**：`tools/render-0.2.0.sh` 的**步骤 0** 会 `export WUZHUFOLIO_FILM_ASSETS=1` 后采集素材
+（按本 README 执行出片流程即会更新 `assets/ui/`，不会读到旧素材）。
+
+> 历史说明：0.1.0 版素材取自 P1 原型（工具 `tools/capture-ui.mjs`，**已随 D42 原型退役转为历史归档**）；
+> 0.2.0 起素材真源 = 真实应用整窗 2× 离屏渲染。
+
 ## 设计约束（方向 A）
 
 - **色板只用产品真实 design token**：纸底 `#EDE8DF` · 面 `#FFFFFF` · 墨 `#1E2A24` · 次级墨 `#5A635C` · 黄铜 `#B08A3E` · 盈 `#2E7D5B` · 亏 `#A8453F`。
 - **字体**：正文 Noto Sans SC / Display Noto Serif SC / 数字 JetBrains Mono（取自 `ui/src/main/resources/fonts/`，OFL-1.1）。
-- **画面主角是真实界面**：UI 一律取自 P1 唯一原型真源 `docs/design/prototype/wuzhufolio-light.html` 的 2× 截图，**不手画 UI**；数值与 PRD 附录 A 黄金用例一致。
+- **画面主角是真实界面**：UI 一律取自**真实应用整窗 2× 离屏渲染**（`VisualRegression.captureFilmAsset`，
+  2480×1640；见上「素材写回门控」）——**不手画 UI**，数值与 PRD 附录 A 黄金用例一致。
+  （0.1.0 版曾取自 P1 原型 `docs/design/prototype/wuzhufolio-light.html`；该原型已按 **D42** 退役，工具
+  `tools/capture-ui.mjs` 转为历史归档。）
 - **一条连续的运动叙事**：hero element（那扇应用窗口）全程在场，段与段之间靠位移/缩放/翻页接续，**无整页 opacity 切换**。
 - 动画产出带「Created by Huashu-Design」水印（技能默认）。
 
@@ -63,8 +93,10 @@ export PATH=$HOME/.local/bin:$PATH        # 完整 ffmpeg（libx264 / gif / aac 
 python3 -m http.server 8791 --bind 127.0.0.1 &   # 字体需经 HTTP 供给（file:// 会被跨源拦截）
 export LD_LIBRARY_PATH=$HOME/.local/plibs/root/usr/lib/x86_64-linux-gnu
 
-# 0) 采集 UI 素材（素材真源变更时重跑；产出 assets/ui/*.png）
-node docs/release/promo/tools/capture-ui.mjs
+# 0) 采集 UI 素材（0.2.0 起 = 真实应用整窗 2× 离屏渲染；**写回受 B5⑤ 门控**——此处必须开启）
+WUZHUFOLIO_FILM_ASSETS=1 ./gradlew :ui:test --tests "*film asset*" --console=plain
+#    默认（不开开关）素材落 ui/build/promo-assets/，仓库 assets/ui/ 不被改写；详见「素材写回门控」节
+#    （一键脚本 tools/render-0.2.0.sh 的步骤 0 已包含本步，通常无需手工执行）
 
 # 1) 由模板 + 素材构建自包含动画 HTML
 node docs/release/promo/tools/build-promo.mjs

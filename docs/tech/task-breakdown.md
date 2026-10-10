@@ -28,7 +28,7 @@
 | M12 UI 整合收尾 | T12.1–T12.4 | 主壳整合/聚合页（仪表盘/资产/币种详情）/a11y/i18n | M2–M11 |
 | M13 发布准备 | T13.1–T13.2 | 安全自查/签名公证打包 | M12 |
 | **M14 UI 体系统一（0.2.0）** | **T14.1–T14.11** | 主题层全量映射 / Hot Reload / 组件层收口（含 DEF-56）/ 日期时间选择器（DEF-55）+ 数值输入（DEF-54）/ 逐页视觉回归与基准同步 / 0.2.0 发布准备；**追加：T14.7 M3 全面对齐 · T14.8 Linux SNI 托盘 · T14.9/T14.11 会话门禁 · T14.10 自选账户级** | M12、**ADR-007**、**D38**、D39–D43 |
-| **M15 B 迭代（桌面端体验深化）** | **T15.1 …（逐项随决策档追加）** | **T15.1 设置页同步入口统一会话门禁（D44，已实施）** · B2 多账户可见性 · **B1 示例数据/首次引导（T15.3，已实施）** · B5 工程项 · B3 自选跨账户导入（C2，mini 闭环） | M12、M14、**D44/D45/D46**（B5/B3 任务号随各自决策档登记） |
+| **M15 B 迭代（桌面端体验深化）** | **T15.1–T15.4（逐项随决策档追加）** | **T15.1 设置页同步入口统一会话门禁（D44，已实施）** · **T15.2 多账户可见性（D45，已实施）** · **T15.3 示例数据/首次引导（D46，已实施）** · **T15.4 B5 工程项（D47，已实施：视觉回归进 CI + 截图 diff / 打包冒烟门禁收敛 / 埋点卫生 + 状态对齐 checklist + 时间敏感断言三条规约 / 素材写回门控）** · B3 自选跨账户导入（C2，mini 闭环，待做） | M12、M14、**D44/D45/D46/D47**（B3 任务号随其决策档登记） |
 
 ## 2. 依赖图
 
@@ -386,6 +386,37 @@ flowchart LR
   **回溯**：`docs/dev/B迭代-分级建议与影响面扫描.md §1 B1`（含「必须显式标记 + 可一键清除」）；
   PRD §9.6/§9.7/§9.8、故事 2.1/6.1、全局说明「重放校验规则」；硬约束 `§1.1-1/2/5`；
   `ia.md §2.7`；`interaction.md §1.8 / §2.2`；`data-model.md §2.5/§2.6`。
+
+- **T15.4 B5 工程项（6 子项）（D47，C1；③④⑥ 机制类按 C0 落 `AGENTS.md`）** ✅ **已完成（2026-10-10）**
+  内容：① **视觉回归进 CI + 基线比对**——24 张（4 页面 × 2 主题 × 3 尺寸）由 `./gradlew test` 真实渲染，
+  CI 新增「摘要打印（`VISUAL_REGRESSION_PNGS=<n>` + `diff-*.md`）」与「归档 `ui/build/visual-regression/`」两步
+  （不重复跑测试）；新增测试侧 `VisualDiff`（**零新增依赖**：JDK `ImageIO` + `BufferedImage`）按**文件名精确匹配**
+  `docs/design/baseline/`，出 `diff-<page>.md`（状态 `MATCH`/`DIFF`/`NO_BASELINE`/`SIZE_MISMATCH`/`UNREADABLE` +
+  最大/平均通道差 + 差异像素占比 + **AA 级/结构级**量级），**报告型不阻断**；
+  ② **打包冒烟收敛为门禁**——app-image **常规 ASCII 路径**移除 `continue-on-error`（**失败即 job 失败**），
+  非 ASCII / latin1 与辅助技术变体**保持信息性**，**MSI 安装版维持观察期**（理由与转阻断前置见 `D47 §2.2`），
+  日志串口径不变；
+  ③ **埋点卫生**入 `AGENTS.md §7.3-9`（加入即标注清理条件 / 收尾轮逐条清理留痕）；④ **F1 状态对齐 checklist**
+  入 `AGENTS.md §3.1`（9 项，收尾轮逐项打勾）；⑤ **测试素材写回门控**（F6）——`captureFilmAsset` 默认落
+  `ui/build/promo-assets/`，仅 `WUZHUFOLIO_FILM_ASSETS=1` 或 `-Pwuzhufolio.filmAssets=true` 才写回
+  `docs/release/promo/assets/ui/`，P7 出片链路 `tools/render-0.2.0.sh` **步骤 0 已自动开启**；
+  ⑥ **时间敏感断言规范**入 `AGENTS.md §7.3-8`（相对 `Instant.now()` 或注入 `Clock`，禁绝对基准混真实时钟）。
+  **验收**：
+  ① **全量** `clean build detekt --no-build-cache` → **BUILD SUCCESSFUL** + **detekt 0**；
+     用例 **810 → 815**（+5 = `VisualDiffTest`；app 57 · data 311 · domain 227 · **ui 220**）/ 0 失败 / 0 错误 / 4 跳过 ✓
+  ② **视觉回归产物**：`ui/build/visual-regression/` **24 张 PNG + 4 份 `diff-*.md`**；**有基线 6/24、DIFF 6/6、全部 AA 级**
+     （差异像素占比 0.34%–1.15%、平均通道差 0.22–0.41）⇒ 实测证明**跨平台基线不能直接用于阻断** ✓
+  ③ **素材门控双向**：默认全量构建后 `git status --porcelain -- docs/release/promo/assets` **为空**（素材落 `ui/build/promo-assets/`）✓；
+     env 开启 → **4 张 PNG 被写入**（`git status` 4 个 `M`）✓；`-P` 开启（**PowerShell 须加引号**）→ 同样 4 个 `M` ✓；
+     `git checkout -- docs/release/promo/assets/ui` 回滚后**为空** ✓
+  ④ **CI 配置自查**：`git diff .github/workflows/ci.yml` 逐行核对缩进/键名/步骤顺序（本地不跑 CI）✓；
+     app-image 冒烟**已无** `continue-on-error`、MSI 冒烟**保留** ✓
+  ⑤ **守护用例** `VisualDiffTest` **5 例 0 失败**（相同图 `MATCH`/单像素漂移精确计数/容差内抖动不计/
+     尺寸不符与缺基线显式成状态/报告覆盖式写入）✓
+  **回溯**：`B迭代-分级建议与影响面扫描.md §1 B5`；`项目全面评审报告.md` **F1/F4/F6**；
+  `retrospective.md` 二轮 §2 问题 #5；`defects.md` **DEF-58** / **DEF-42·D34**；`AGENTS.md §3.1 / §7.3-8/-9`；`D47`。
+  **未完成/延后（如实登记）**：① 的「转阻断」未做（**本轮按人工口径为报告型**；前置 = 基线覆盖 24 张 + 按平台存基线 +
+  同平台标定容差）；② 的 MSI 冒烟仍观察期（Agent 判断，理由在 `D47 §2.2`）；CI 门禁**线上生效性待下一次 CI 实跑确认**。
 
 ## 4. 里程碑验收门槛
 

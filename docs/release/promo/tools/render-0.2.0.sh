@@ -4,7 +4,9 @@
 # 与 0.1.0 那版渲染的差异：
 #   ① 素材改为**真实应用 2× 渲染**（`ui` 模块的 VisualRegression.captureFilmAsset 采集），不再取自已退役原型；
 #   ② 色板改为产品**真实 M3 token**（design-tokens.md，D38/D42）；
-#   ③ ffmpeg 用静态构建（~/.local/bin/ffmpeg），不再需要 LD_LIBRARY_PATH 指向解包的系统库。
+#   ③ ffmpeg 用静态构建（~/.local/bin/ffmpeg），不再需要 LD_LIBRARY_PATH 指向解包的系统库；
+#   ④ **B5⑤ 素材写回门控（D47 §2.5）**：素材采集已并入本脚本（步骤 0），并显式 `export WUZHUFOLIO_FILM_ASSETS=1`
+#      —— 默认（不设该变量）测试**不会**改写仓库素材，只有走本脚本才更新 `docs/release/promo/assets/ui/`。
 #
 # 前置：
 #   - node + playwright（chromium）：`npm i playwright && npx playwright install chromium`
@@ -19,24 +21,31 @@ export PATH="$HOME/.local/bin:$PATH"
 : "${NODE_PATH:=/tmp/promo-tools/node_modules}"
 export NODE_PATH
 
-echo "== 0) 重建自包含动画源（素材 → base64）"
+echo "== 0) 采集影片素材（真实应用整窗 2× 离屏渲染）"
+# B5⑤ / D47 §2.5：`VisualRegression.captureFilmAsset` 默认**不写仓库**（落 ui/build/promo-assets/），
+# 仅显式开启才写回 docs/release/promo/assets/ui/ —— **出片链路必须开启**，否则 build-promo.mjs 读到旧素材。
+export WUZHUFOLIO_FILM_ASSETS=1
+./gradlew :ui:test --tests "*film asset*" --console=plain
+ls -l "$PROMO/assets/ui/"
+
+echo "== 1) 重建自包含动画源（素材 → base64）"
 node "$PROMO/tools/build-promo.mjs"
 
-echo "== 1) 起本地 HTTP（字体需经 HTTP 供给，file:// 会被跨源拦截）"
+echo "== 2) 起本地 HTTP（字体需经 HTTP 供给，file:// 会被跨源拦截）"
 python3 -m http.server 8791 --bind 127.0.0.1 >/tmp/promo-http.log 2>&1 &
 HTTP_PID=$!
 trap 'kill $HTTP_PID 2>/dev/null || true' EXIT
 sleep 1
 
-echo "== 2) 自检（pageerror / 控制台错误 / 字体 / 豆腐块 / NaN）"
+echo "== 3) 自检（pageerror / 控制台错误 / 字体 / 豆腐块 / NaN）"
 node "$PROMO/tools/render-promo-seek.mjs" "$PROMO/wuzhufolio-promo.html" \
   --duration=30 --fps=60 --width=1920 --height=1080 --check
 
-echo "== 3) 逐帧 seek 渲染（1800 帧，约 15 分钟）"
+echo "== 4) 逐帧 seek 渲染（1800 帧，约 15 分钟）"
 node "$PROMO/tools/render-promo-seek.mjs" "$PROMO/wuzhufolio-promo.html" \
   --duration=30 --fps=60 --width=1920 --height=1080 --out=/tmp/promo-silent.mp4
 
-echo "== 4) 混音（BGM + SFX 双轨；cue 表见 storyboard.md §5）"
+echo "== 5) 混音（BGM + SFX 双轨；cue 表见 storyboard.md §5）"
 # 音频素材来自 huashu-design skill 的 assets/；缺失时跳过混音并显式告警（不静默出无声片）
 SKILL=.agents/skills/huashu-design/assets
 if [ -f "$SKILL/bgm-educational.mp3" ]; then

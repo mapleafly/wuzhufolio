@@ -206,9 +206,19 @@ dpkg-deb --fsys-tarfile <deb> | tar -xO ./opt/*/lib/*.desktop | grep -E '^(Icon|
 ### 4.2 CI 三平台出包（正式发布件的唯一来源）
 
 - 触发：推送 `main` 或 `workflow_dispatch`（`.github/workflows/ci.yml`）。
-- `build` job（三平台矩阵）：`test` → 报告归档 → `detekt` → uber jar 冒烟 → 构件上传。
-- `package` job（三平台矩阵）：安装打包依赖 → `packageDistributionForCurrentOS` → AppImage（Linux）→ 便携版（三平台）→ 签名/公证（凭据存在时）→ **上传原生产物 + `artifacts.txt`（含 SHA256）** → 打包产物启动冒烟（Windows 三路径 + 辅助技术；DEF-42/DEF-43 回归）。
+- `build` job（三平台矩阵）：`test` → **视觉回归摘要 + 产物归档** → 报告归档 → `detekt` → uber jar 冒烟 → 构件上传。
+  - **视觉回归（B5① / D47，2026-10-10）**：24 张（4 页面 × 2 主题 × 3 尺寸）由 `test` 真实渲染；
+    新增步骤打印 `VISUAL_REGRESSION_PNGS=<n>` 与 `diff-*.md` 基线比对摘要，并归档
+    `ui/build/visual-regression/`（artifact `visual-regression-<os>`，14 天）。**基线比对为报告型、不阻断**
+    （转阻断前置条件见 `D47 §2.1`：基线覆盖 24 张 + 按平台存基线 + 同平台标定容差）。
+- `package` job（三平台矩阵）：安装打包依赖 → `packageDistributionForCurrentOS` → AppImage（Linux）→ 便携版（三平台）→ 签名/公证（凭据存在时）→ **上传原生产物 + `artifacts.txt`（含 SHA256）** → 打包产物启动冒烟（Windows：**app-image 常规路径已转阻断式** + 非 ASCII 变体信息性 + 辅助技术回归；DEF-42/DEF-43 回归）。
+  - **门禁口径（B5② / D47 §2.2）**：app-image 常规 ASCII 路径启动**失败即 job 失败**（回滚 = 一行 `continue-on-error`）；
+    非 ASCII / latin1 变体与辅助技术变体保持**信息性**（jpackage 上游限制，DEF-42/D34）；
+    **安装版 MSI 冒烟维持观察期非阻断**（理由与转阻断前置见 `D47 §2.2`）。日志串口径不变。
 - 产物保留 14 天；**正式发布须在 Release 附件中长期留存**（CI 构件会过期）。
+- **出片素材（P7 宣传动画，B5⑤ / D47 §2.5）**：素材写回**默认关闭**（全量测试不再改写仓库 PNG）；
+  出片须走 `docs/release/promo/tools/render-0.2.0.sh`（其**步骤 0** 自动 `export WUZHUFOLIO_FILM_ASSETS=1`
+  后采集素材），详见 `docs/release/promo/README.md`「素材写回门控」。
 
 ### 4.3 凭据注入（GitHub Secrets，仓库与本地不含凭据）
 
