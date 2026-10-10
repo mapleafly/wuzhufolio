@@ -375,6 +375,23 @@ interface SettingsService {
 > 此前仅在模块记录声明「已补录」而本文未回写——属文档回写缺口，非契约行为不一致）；比对结论与
 > 差异清单见 `docs/test/integration-report.md` §3。
 
+> **D48 补录（自选跨账户导入 · B 迭代 B3，2026-10-10，决策 `docs/dev/decisions/D48-自选跨账户导入（C2）.md`）**：
+> **新增**独立契约 `WatchImportService`（domain/market，**未改任何既有接口签名**）——
+> `listOtherAccounts(): List<AccountWatchSummary>`（**只读**：其它账户 + 其自选数量/币种摘要；
+> `AccountWatchSummary(accountId, username, cgIds, displayNames, defaultSeed)`，`cgIds` = 该账户**有效**自选
+> 〔原始存储序；未写入过 ⇒ 默认种子〕，`displayNames` 与 `cgIds` 同序同长〔目录可解析 = symbol，缺行回退 cg_id〕；
+> **未登录 ⇒ 空列表**）与 `importFrom(sourceAccountId): WatchImportResult`（**显式一次性复制**）。
+> `WatchImportResult` = `Imported(added, skipped, sourceAccountId, sourceUsername)` / `AlreadyComplete(…)`
+> （全量重复，**幂等零写入**）/ `NoSource(…)`（来源为空，**零写入**）/ `Failed(reason, detail?)`；
+> `WatchImportFailReason` = `NO_SESSION` / `SOURCE_NOT_FOUND` / `WRITE_FAILED`（**失败一律零写入**）。
+> **合并语义** = 保序去重追加（同 `addCoins` 口径）：当前账户清单为基（未写入 ⇒ 默认种子），来源中尚不存在的
+> cg_id 按来源序追加末尾，已存在的跳过且不打乱既有排列。**实现边界**：来源侧**裸读** `settings.getAccount`
+> + 解码，**刻意不触发** D41 的旧全局清单一次性认领（认领会写来源账户 ⇒ 违反「来源一字不改」）；
+> 目标侧复用既有 `SettingsMarketWatchService`（新增两个 `internal` 方法 `currentStoredIdsOrNull()` /
+> `persistCurrent(ids)`，**只增不改**）⇒ 与行情页 D41 语义完全同源。**零 schema / 零新增表 / 零新增 settings 键 /
+> 零 `.cpro` 格式变更**（`watch.coins` 仍是 D41 的账户级行）。消费方 `MarketWatchPage`（`watch-import-open`）+
+> `MarketWatchViewModel`。回溯：D48、D41、`ia.md §2.19`、`interaction.md §1.9`、`data-model.md §2.3`、`T15.5`。
+
 ## 4. 错误码与提示文案映射（统一异常处理）
 
 | code | 场景 | UI 文案（PRD 统一异常处理） |

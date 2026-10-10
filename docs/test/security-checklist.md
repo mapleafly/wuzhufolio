@@ -264,6 +264,25 @@ WZF_LIVE_SMOKE=1 https_proxy=http://127.0.0.1:8899 ./gradlew --no-daemon :data:t
 - **有效性验证**：临时把 `SETTING_LAST_BACKUP` 改成全局键名 `backup.reminder` → 两条断言**立即变红**，改回即绿（fail-closed 成立）；
 - **不加前缀、不做迁移**的理由：重命名既有账户级键需 M013 迁移 + 旧 `.cpro` 兼容 → 命中 C2 红线（§8.1-2/5），收益不抵成本。
 
+### 5.4 跨账户**显式**导入不破坏隔离判定（B3 / D48 新增 ✅，2026-10-10）
+
+> 背景：**D48（B3）**新增「自选清单跨账户**显式**导入」通路（行情页自选区 → 选择来源账户 → 二次确认 →
+> 一次性复制到当前账户）。该通路命中 `§8.1` 红线 1（触及 `§1.1-5`），故必须在此逐条复核**隔离判定未被削弱**。
+
+| 核验点 | 判定 | 证据（守护测试名） |
+|--------|------|--------------------|
+| 账户之间**默认仍互不可见**（不打开入口就没有任何跨账户通路） | ✅ | `MarketWatchServicesTest`：`watch list is account scoped and invisible across accounts` / `watch list is empty and read only when no session`（既有用例复跑绿）；`WatchImportServiceTest`：`list other accounts is empty without a session` |
+| 跨账户可见性**只来自用户显式动作**（选择来源 + 二次确认），**确认前零服务调用 / 零写入** | ✅ | `WatchImportUiTest`：`import requires an explicit source selection and a second confirmation`（断言二次确认前 `importCalls == 0`）/ `escape closes the import modal without importing` |
+| **只复制自选清单本身**——交易、资金流水、API 密钥、账户资料等**一概不涉** | ✅ | `WatchImportServiceTest`：`import copies only the watch list and leaves every other table untouched`（来源与目标的交易/资金/密钥行数与自选行均逐项断言）/ `import touches exactly one settings key and no other table`（全局设置键集合不变） |
+| **单向**：只写当前账户；**来源账户一字不改** | ✅ | `WatchImportServiceTest`：`import writes only the current account and keeps every other account row byte identical`（来源与第三方账户 `watch.coins` 行**逐字节**断言相等） |
+| **不触发来源账户的 D41 一次性认领**（认领会写来源账户 ⇒ 破坏单向性） | ✅ | `WatchImportServiceTest`：`import does not claim the legacy global list for the source account`（导入后来源 `watch.coins` 行仍为 `NULL` 且全局 `watch.migrated` 仍为 `NULL`） |
+| 未登录 / 无其它账户 / 来源为空 / 全量重复 ⇒ **类型化结果 + 零写入** | ✅ | `WatchImportServiceTest`：`import without a session is a typed failure and writes nothing` / `import with no other account reports source not found and writes nothing` / `import from an empty source writes nothing` / `import of an already complete list is idempotent and writes nothing` |
+| **无聚合视图 / 无隐式可见**（越界警示项未夹带） | ✅ | 代码面：`WatchImportService` 仅两方法（`listOtherAccounts` 只读摘要 / `importFrom` 显式一次性复制）；`MarketWatchService` 读接口签名与 D41 **完全一致**（未新增跨账户读路径） |
+| **零 schema / 零 `.cpro` 格式变更**（`watch.coins` 仍是 D41 的账户级 settings 行） | ✅ | 无迁移文件变更（schema 维持 12）；`SettingsKeyNamespaceGuardTest` 无需扩表即复跑绿；备份边界 `BackupBoundaryGuardTest` 复跑绿 |
+
+**结论**：`§1.1-5` 的隔离语义**未被削弱**——「用户显式选择 + 二次确认的**一次性复制**」**不等于**「账户间隐式可见」；
+默认态、读接口与备份口径三者均与 D41 一致，本项是 D41 的**显式例外补充**（`D48 §4`）。
+
 ---
 
 ## 6. M13 修复项回归状态（P6 复跑）

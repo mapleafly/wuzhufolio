@@ -88,6 +88,24 @@ class SettingsMarketWatchService(
     /** 当前账户 id（未登录 = null ⇒ 自选不可见、不可写）。 */
     private fun currentAccountId(): Int? = sessions.get()?.account?.id
 
+    /**
+     * **D48（B3）新增**：当前账户自选的**原始存储序**（经 D41 的一次性认领；**未写入过 = null**）。
+     *
+     * 仅供同模块的跨账户导入用例取「合并基线」——与行情页读取路径**完全同源**（认领/解码口径一致），
+     * 故导入不会绕过 D41 语义。**只读**，不改动任何行。
+     */
+    internal fun currentStoredIdsOrNull(): List<String>? = currentAccountId()?.let(::readStoredIds)
+
+    /**
+     * **D48（B3）新增**：把当前账户自选**整体写回**（存储序 = [ids]；未登录 = 无操作）。
+     *
+     * 仅供同模块的跨账户导入用例使用；编码口径与既有 [addCoins] / [removeCoin] 一致
+     * （`watch.coins` 账户级行 + JSON 数组保序）⇒ **只增不改**，既有方法体与语义不变。
+     */
+    internal fun persistCurrent(ids: List<String>) {
+        currentAccountId()?.let { persist(it, ids) }
+    }
+
     /** 读取账户自选；升级用户首访时先做一次性认领（见类头注「迁移」）。 */
     private fun readStoredIds(accountId: Int): List<String>? {
         val existing = settings.getAccount(accountId, MarketWatchService.SETTINGS_KEY)

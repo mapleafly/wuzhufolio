@@ -45,6 +45,7 @@ import com.wuzhufolio.data.market.DeviceSecretStore
 import com.wuzhufolio.data.market.PriceSnapshotRepository
 import com.wuzhufolio.data.market.RefreshableRankProvider
 import com.wuzhufolio.data.market.SettingsMarketWatchService
+import com.wuzhufolio.data.market.SettingsWatchImportService
 import com.wuzhufolio.data.market.TradedCoinSink
 import com.wuzhufolio.data.market.SettingsQuotaLedger
 import com.wuzhufolio.data.market.SnapshotMarketQuotesService
@@ -78,6 +79,7 @@ import com.wuzhufolio.domain.market.MarketQuotesService
 import com.wuzhufolio.domain.market.MarketRefreshService
 import com.wuzhufolio.domain.market.MarketSettingsService
 import com.wuzhufolio.domain.market.MarketWatchService
+import com.wuzhufolio.domain.market.WatchImportService
 import com.wuzhufolio.domain.accounts.AccountService
 import com.wuzhufolio.domain.redaction.LogRedactor
 import com.wuzhufolio.domain.portfolio.PortfolioService
@@ -145,6 +147,11 @@ object AppBootstrap {
         val marketRefreshService: MarketRefreshService,
         /** D21：行情浏览页——自选（持久化）与报价组装。 */
         val marketWatchService: MarketWatchService,
+        /**
+         * B3（D48）：自选**跨账户显式导入**用例（只读摘要 + 一次性复制；只写当前账户、来源一字不改）。
+         * 零 schema / 零 `.cpro` 格式变更（复用 D41 的账户级 settings 行）。
+         */
+        val watchImportService: WatchImportService,
         val marketQuotesService: MarketQuotesService,
         /** M6：交易所同步用例（API 管理页 + 增量同步 + sync_logs/状态）。 */
         val exchangeSyncService: ExchangeSyncService,
@@ -393,6 +400,7 @@ object AppBootstrap {
             marketSettingsService = market.marketSettingsService,
             marketRefreshService = market.marketRefreshService,
             marketWatchService = market.marketWatchService,
+            watchImportService = market.marketImportService,
             marketQuotesService = market.marketQuotesService,
             exchangeSyncService = exchange.exchangeSyncService,
             transactionLedgerService = ledger.transactionLedgerService,
@@ -486,6 +494,8 @@ object AppBootstrap {
         val marketSettingsService: MarketSettingsService,
         val marketRefreshService: MarketRefreshService,
         val marketWatchService: MarketWatchService,
+        /** B3（D48）：自选跨账户显式导入用例（只读摘要 + 一次性复制；零 schema / 零备份格式变更）。 */
+        val marketImportService: WatchImportService,
         val marketQuotesService: MarketQuotesService,
         /** M6 二轮：共享市值排名缓存的币种目录（交易所同步消歧规则③依赖——M3 遗留 4）。 */
         val catalog: SqlCoinCatalog,
@@ -531,7 +541,18 @@ object AppBootstrap {
                     logger = logger,
                 )
                 val marketSettingsService: MarketSettingsService = DefaultMarketSettingsService(deviceStore, settings)
-                val marketWatchService: MarketWatchService = SettingsMarketWatchService(settings, catalog, sessions)
+                val watchService = SettingsMarketWatchService(settings, catalog, sessions)
+                val marketWatchService: MarketWatchService = watchService
+                // B3（D48）：自选跨账户显式导入——目标侧复用上面同一个 watchService（D41 语义同源），
+                // 来源侧裸读账户级行（不触发来源账户的 D41 认领 ⇒ 来源一字不改）；零 schema/备份格式变更。
+                val marketImportService: WatchImportService = SettingsWatchImportService(
+                    settings = settings,
+                    catalog = catalog,
+                    sessions = sessions,
+                    accounts = AccountRepository(gate),
+                    watch = watchService,
+                    logger = logger,
+                )
                 val marketQuotesService: MarketQuotesService = SnapshotMarketQuotesService(
                     PriceSnapshotRepository(gate),
                 )
@@ -539,6 +560,7 @@ object AppBootstrap {
                     marketSettingsService = marketSettingsService,
                     marketRefreshService = marketRefreshService,
                     marketWatchService = marketWatchService,
+                    marketImportService = marketImportService,
                     marketQuotesService = marketQuotesService,
                     catalog = catalog,
                     deviceStore = deviceStore,

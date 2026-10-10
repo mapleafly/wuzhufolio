@@ -193,7 +193,11 @@ graph TD
   COINMARKETCAP / 无行情 "--"）、更新时间；顶部「立即刷新行情」与数据源指示；「我的自选」搜索添加（coins 目录检索，
   候选点选加入）与移除；页面可见期间按行情刷新频率自动轮询。
 - **数据来源**：coins 目录（symbol/name/搜索）、price_snapshots.latest(coin, fiat)（现价/来源/时刻）、
-  settings 全局行（fiat、watch.coins 自选 JSON）、行情刷新服务（MarketRefreshService）。
+  **账户级** settings 行（fiat 全局行；`watch.coins` 自选 JSON **按当前账户**，D41）、行情刷新服务（MarketRefreshService）。
 > **D35 补充（2026-09-24）**：自选列表 = 手动维护 ∪ **成交币自动加入**（手动交易 / CSV 导入 / 交易所同步），
 > 用户移除后再次触达会自动加回；**无数量上限**。候选检索四处统一（详见 `interaction.md §2.7`）。
+> **B3 补充（D48，2026-10-10）**：自选区命令区新增「**从其它账户导入…**」（`watch-import-open`）——
+> **仅当存在其它账户时渲染**（未登录 / 无其它账户 ⇒ 不渲染）；点击后就地叠加 `WzModal`：
+> **选择来源账户（只读摘要：数量 + 币种）→ 二次确认（显示将导入的数量/列表）→ 确认导入**；
+> **只复制自选清单本身**、**只写当前账户**、来源账户一字不改；流程与异常态见 `interaction.md §1.9`。
 

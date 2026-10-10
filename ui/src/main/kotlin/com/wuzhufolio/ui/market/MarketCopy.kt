@@ -164,4 +164,69 @@ object MarketCopy {
 
     /** 行情页自动轮询说明（M12 T12.1）。 */
     val WATCH_AUTO_HINT: String get() = marketStrings.watchAutoHint
+
+    // ---- 自选跨账户导入（B3 / D48，2026-10-10；interaction.md §1.9） ----
+
+    /** 入口按钮（仅存在其它账户时渲染）。 */
+    val WATCH_IMPORT_OPEN: String get() = marketStrings.watchImportOpen
+
+    /** 弹层标题。 */
+    val WATCH_IMPORT_TITLE: String get() = marketStrings.watchImportTitle
+
+    /** 第一步说明。 */
+    val WATCH_IMPORT_HINT: String get() = marketStrings.watchImportHint
+
+    /** 来源账户尚未自定义自选（默认种子）标注。 */
+    val WATCH_IMPORT_DEFAULT_SEED: String get() = marketStrings.watchImportDefaultSeed
+
+    /** 来源账户自选为空标注。 */
+    val WATCH_IMPORT_EMPTY_SOURCE: String get() = marketStrings.watchImportEmptySource
+
+    /** 第一步主按钮。 */
+    val WATCH_IMPORT_NEXT: String get() = marketStrings.watchImportNext
+
+    /** 第二步返回第一步的按钮（取消二次确认）。 */
+    val WATCH_IMPORT_BACK: String get() = marketStrings.watchImportBack
+
+    /** 币种展示名列表（按当前语言的分隔符拼接：zh「、」/ en「, 」）。 */
+    fun watchImportNames(names: List<String>): String =
+        names.joinToString(marketStrings.watchImportNameSeparator)
+
+    /** 第二步（二次确认）标题。 */
+    val WATCH_IMPORT_CONFIRM_TITLE: String get() = marketStrings.watchImportConfirmTitle
+
+    /** 第二步主按钮（确认导入）。 */
+    val WATCH_IMPORT_CONFIRM_ACTION: String get() = marketStrings.watchImportConfirmAction
+
+    /** 结果：未登录。 */
+    val WATCH_IMPORT_LOGIN_REQUIRED: String get() = marketStrings.watchImportLoginRequired
+
+    /** 结果：来源账户不存在。 */
+    val WATCH_IMPORT_SOURCE_GONE: String get() = marketStrings.watchImportSourceGone
+
+    /** 结果：写入失败。 */
+    val WATCH_IMPORT_FAILED: String get() = marketStrings.watchImportFailed
+
+    /** 来源账户行摘要（`3 个币种：BTC、ETH、USDT`）。 */
+    fun watchImportSourceSummary(count: Int, names: String): String =
+        marketStrings.watchImportSourceSummary(count, names)
+
+    /** 第二步摘要（`将从账户「X」导入 N 个币种…`）。 */
+    fun watchImportConfirmSummary(username: String, count: Int): String =
+        marketStrings.watchImportConfirmSummary(username, count)
+
+    /** 结果：导入成功（无跳过）。 */
+    fun watchImportDone(username: String, added: Int): String =
+        marketStrings.watchImportDone(username, added)
+
+    /** 结果：导入成功（部分重复，跳过 M 个）。 */
+    fun watchImportDoneSkipped(username: String, added: Int, skipped: Int): String =
+        marketStrings.watchImportDoneSkipped(username, added, skipped)
+
+    /** 结果：全量重复（幂等，未做改动）。 */
+    fun watchImportAlreadyComplete(username: String): String =
+        marketStrings.watchImportAlreadyComplete(username)
+
+    /** 结果：来源为空（未导入任何币种）。 */
+    fun watchImportNoSource(username: String): String = marketStrings.watchImportNoSource(username)
 }

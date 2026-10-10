@@ -136,6 +136,65 @@ interface MarketStrings {
 
     /** 行情页自动轮询说明（interaction.md §2.7）。 */
     val watchAutoHint: String
+
+    // ---- 自选跨账户导入（B3 / D48，2026-10-10；interaction.md §1.9） ----
+
+    /** 入口按钮（仅存在其它账户时渲染）。 */
+    val watchImportOpen: String
+
+    /** 弹层标题。 */
+    val watchImportTitle: String
+
+    /** 第一步说明（只复制自选、不动其它数据）。 */
+    val watchImportHint: String
+
+    /** 来源账户行摘要（`3 个币种：BTC、ETH、USDT`）。 */
+    fun watchImportSourceSummary(count: Int, names: String): String
+
+    /** 来源账户尚未自定义自选（默认种子）的标注。 */
+    val watchImportDefaultSeed: String
+
+    /** 来源账户自选为空的标注。 */
+    val watchImportEmptySource: String
+
+    /** 第一步主按钮。 */
+    val watchImportNext: String
+
+    /** 第二步返回第一步的按钮（取消二次确认）。 */
+    val watchImportBack: String
+
+    /** 币种展示名之间的分隔符（zh = 「、」，en = 「, 」）。 */
+    val watchImportNameSeparator: String
+
+    /** 第二步（二次确认）标题。 */
+    val watchImportConfirmTitle: String
+
+    /** 第二步摘要（`将从账户「X」导入 N 个币种（已存在的会自动跳过）：`）。 */
+    fun watchImportConfirmSummary(username: String, count: Int): String
+
+    /** 第二步主按钮（确认导入）。 */
+    val watchImportConfirmAction: String
+
+    /** 结果：导入成功（无跳过）。 */
+    fun watchImportDone(username: String, added: Int): String
+
+    /** 结果：导入成功（部分重复，跳过 M 个）。 */
+    fun watchImportDoneSkipped(username: String, added: Int, skipped: Int): String
+
+    /** 结果：全量重复（幂等，未做改动）。 */
+    fun watchImportAlreadyComplete(username: String): String
+
+    /** 结果：来源为空（未导入任何币种）。 */
+    fun watchImportNoSource(username: String): String
+
+    /** 结果：未登录。 */
+    val watchImportLoginRequired: String
+
+    /** 结果：来源账户不存在。 */
+    val watchImportSourceGone: String
+
+    /** 结果：写入失败。 */
+    val watchImportFailed: String
 }
 
 object MarketStringsZh : MarketStrings {
@@ -214,7 +273,7 @@ object MarketStringsZh : MarketStrings {
 
     override val watchTitle = "行情"
     override val watchSubDefault = "默认显示稳定币白名单（现金类）· 搜索可添加更多自选（重启保留）"
-    override val watchSubCustom = "我的自选（settings 全局行持久化）· 搜索可添加 · 页面可见时按刷新频率自动更新"
+    override val watchSubCustom = "我的自选（当前账户）· 搜索可添加 · 页面可见时按刷新频率自动更新"
     override val watchEmpty = "暂无自选，搜索添加币种"
     override val watchSearchLabel = "搜索币种（coins 目录）"
     override val watchSearchPlaceholder = "如 BTC / usdt / ethereum…"
@@ -234,9 +293,36 @@ object MarketStringsZh : MarketStrings {
         "数据源：CoinGecko" + if (configured) " · 专属额度" else " · 无 Key 公共 API"
 
     override val watchAutoHint =
-        "页面可见期间按行情刷新频率自动轮询（离开页面即停）· 自选为全局展示偏好，多账户共享"
+        "页面可见期间按行情刷新频率自动轮询（离开页面即停）· 自选属当前账户，账户之间互不可见"
 
     override val sourceNoQuote = "无行情"
+
+    // ---- 自选跨账户导入（B3 / D48） ----
+
+    override val watchImportOpen = "从其它账户导入…"
+    override val watchImportTitle = "从其它账户导入自选"
+    override val watchImportHint = "选择来源账户；只会复制该账户的自选清单，交易、资金、密钥等其它数据一概不动。"
+    override fun watchImportSourceSummary(count: Int, names: String) = count.toString() + " 个币种：" + names
+    override val watchImportDefaultSeed = "该账户尚未自定义自选（当前为默认种子）"
+    override val watchImportEmptySource = "该账户自选为空"
+    override val watchImportNext = "下一步"
+    override val watchImportBack = "上一步"
+    override val watchImportNameSeparator = "、"
+    override val watchImportConfirmTitle = "确认导入"
+    override fun watchImportConfirmSummary(username: String, count: Int) =
+        "将从账户「" + username + "」导入 " + count + " 个币种到当前账户（已存在的会自动跳过）："
+    override val watchImportConfirmAction = "确认导入"
+    override fun watchImportDone(username: String, added: Int) =
+        "已从账户「" + username + "」导入 " + added + " 个币种"
+    override fun watchImportDoneSkipped(username: String, added: Int, skipped: Int) =
+        "已从账户「" + username + "」导入 " + added + " 个币种（跳过 " + skipped + " 个已存在）"
+    override fun watchImportAlreadyComplete(username: String) =
+        "账户「" + username + "」的自选已全部在当前自选中，未做改动"
+    override fun watchImportNoSource(username: String) =
+        "账户「" + username + "」的自选为空，未导入任何币种"
+    override val watchImportLoginRequired = "请先登录后再导入自选"
+    override val watchImportSourceGone = "来源账户不存在（可能已被删除），未做改动"
+    override val watchImportFailed = "导入自选失败，未做改动（详见日志）"
 }
 
 object MarketStringsEn : MarketStrings {
@@ -329,8 +415,8 @@ object MarketStringsEn : MarketStrings {
         "Showing the stablecoin whitelist by default (cash-like) · search to add more to your " +
             "watchlist (kept after restart)"
     override val watchSubCustom =
-        "My watchlist (persisted in the global settings row) · search to add · auto-refreshes at " +
-            "the configured frequency while the page is visible"
+        "My watchlist (this account) · search to add · auto-refreshes at the configured frequency " +
+            "while the page is visible"
     override val watchEmpty = "No watchlist coins yet — search above to add"
     override val watchSearchLabel = "Search coins (coins catalog)"
     override val watchSearchPlaceholder = "e.g. BTC / usdt / ethereum…"
@@ -351,9 +437,41 @@ object MarketStringsEn : MarketStrings {
 
     override val watchAutoHint =
         "Prices poll automatically at the configured refresh rate while this page is open " +
-            "(stops when you leave) · the watchlist is a global display preference shared by all accounts"
+            "(stops when you leave) · the watchlist belongs to the current account and is not " +
+            "visible to other accounts"
 
     override val sourceNoQuote = "No quote"
+
+    // ---- Cross-account watchlist import (B3 / D48) ----
+
+    override val watchImportOpen = "Import from another account…"
+    override val watchImportTitle = "Import watchlist from another account"
+    override val watchImportHint =
+        "Pick a source account; only its watchlist is copied — transactions, funds, API keys and " +
+            "any other data are left untouched."
+    override fun watchImportSourceSummary(count: Int, names: String) =
+        count.toString() + " coins: " + names
+    override val watchImportDefaultSeed = "This account has no custom watchlist yet (default seed)"
+    override val watchImportEmptySource = "This account's watchlist is empty"
+    override val watchImportNext = "Next"
+    override val watchImportBack = "Back"
+    override val watchImportNameSeparator = ", "
+    override val watchImportConfirmTitle = "Confirm import"
+    override fun watchImportConfirmSummary(username: String, count: Int) =
+        "Will import " + count + " coins from “" + username + "” into the current account " +
+            "(coins already present are skipped):"
+    override val watchImportConfirmAction = "Confirm import"
+    override fun watchImportDone(username: String, added: Int) =
+        "Imported " + added + " coins from “" + username + "”"
+    override fun watchImportDoneSkipped(username: String, added: Int, skipped: Int) =
+        "Imported " + added + " coins from “" + username + "” (skipped " + skipped + " already present)"
+    override fun watchImportAlreadyComplete(username: String) =
+        "All of “" + username + "”'s watchlist coins are already in the current watchlist — nothing changed"
+    override fun watchImportNoSource(username: String) =
+        "“" + username + "”'s watchlist is empty — nothing was imported"
+    override val watchImportLoginRequired = "Please sign in before importing a watchlist"
+    override val watchImportSourceGone = "The source account no longer exists (it may have been deleted) — nothing changed"
+    override val watchImportFailed = "Watchlist import failed — nothing changed (see logs for details)"
 }
 
 val marketStrings: MarketStrings get() = if (I18n.isZh) MarketStringsZh else MarketStringsEn

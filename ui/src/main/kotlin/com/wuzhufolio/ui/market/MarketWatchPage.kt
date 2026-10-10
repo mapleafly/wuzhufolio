@@ -3,6 +3,7 @@ package com.wuzhufolio.ui.market
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import kotlin.math.roundToInt
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,13 +43,16 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.wuzhufolio.domain.catalog.CatalogCoin
+import com.wuzhufolio.domain.market.AccountWatchSummary
 import com.wuzhufolio.domain.market.MarketQuotesService
 import com.wuzhufolio.domain.market.MarketRefreshService
 import com.wuzhufolio.domain.market.MarketSettingsService
 import com.wuzhufolio.domain.market.MarketWatchService
+import com.wuzhufolio.domain.market.WatchImportService
 import com.wuzhufolio.domain.market.WatchQuoteRow
 import com.wuzhufolio.ui.components.WzButton
 import com.wuzhufolio.ui.components.WzButtonVariant
+import com.wuzhufolio.ui.components.WzModal
 import com.wuzhufolio.ui.components.WzTextField
 import com.wuzhufolio.ui.components.WzToastHost
 import com.wuzhufolio.ui.components.rowDivider
@@ -71,10 +75,15 @@ fun MarketWatchPage(
     quotesService: MarketQuotesService,
     refreshService: MarketRefreshService,
     settingsService: MarketSettingsService,
+    /**
+     * B3（D48）：自选跨账户显式导入（可空——不注入 ⇒ 无导入入口，页面行为与改造前完全一致；
+     * 既有调用点与 UI 测试零改动）。
+     */
+    importService: WatchImportService? = null,
     modifier: Modifier = Modifier,
 ) {
     val vm = remember {
-        MarketWatchViewModel(watchService, quotesService, refreshService, settingsService)
+        MarketWatchViewModel(watchService, quotesService, refreshService, settingsService, importService)
     }
     DisposableEffect(vm) {
         onDispose { vm.dispose() }
@@ -125,6 +134,17 @@ fun MarketWatchPage(
                     style = WzTheme.typography.caption,
                     modifier = Modifier.padding(start = 12.dp).testTag("watch-source-badge"),
                 )
+                // B3（D48）：从其它账户导入自选——**仅当存在其它账户时渲染**
+                // （未登录 / 无其它账户 / 未注入服务 ⇒ importSources 为空 ⇒ 入口不出现）
+                if (state.importSources.isNotEmpty()) {
+                    WzButton(
+                        text = MarketCopy.WATCH_IMPORT_OPEN,
+                        onClick = vm::openImport,
+                        variant = WzButtonVariant.Secondary,
+                        modifier = Modifier.padding(start = 12.dp),
+                        testTag = "watch-import-open",
+                    )
+                }
             }
 
             // 自动轮询说明（原型 hint 行；interaction.md §2.7）
@@ -175,7 +195,193 @@ fun MarketWatchPage(
                 }
             }
         }
+        // B3（D48）：导入弹层挂在**页面根**（根 Box 为 fillMaxSize ⇒ 有限约束、铺满页面，§7.3-5 口径；
+        // 与 WzToastHost 同为根 Box 子节点，不落在滚动容器内）
+        if (state.importOpen) {
+            WatchImportModal(
+                sources = state.importSources,
+                selected = state.importSelected,
+                confirming = state.importConfirming,
+                busy = state.importBusy,
+                onSelect = vm::selectImportSource,
+                onNext = vm::requestImportConfirm,
+                onBack = vm::backToImportPick,
+                onConfirm = vm::confirmImport,
+                onDismiss = vm::closeImport,
+            )
+        }
         WzToastHost(toast = state.toast, onDismiss = vm::dismissToast)
+    }
+}
+
+/**
+ * 自选跨账户导入弹层（B3 / D48 · `interaction.md §1.9`）：**选择来源账户 → 二次确认**两步同一 `WzModal`。
+ *
+ * 显式性由三步保证：① 点入口 → ② 选来源（只读摘要）→ ③ 看摘要后点「确认导入」；
+ * **确认前不调用任何服务**（唯一写入点在 VM `confirmImport`）。弹层内**无输入框**，故不涉 §7.3-2 首焦点约束；
+ * Esc / 关闭按钮 / 遮罩点击均可关（遮罩为 `WzModal` 内的 `pointerInput`，不参与焦点、不响应键盘，§7.3-7）。
+ */
+@Composable
+private fun WatchImportModal(
+    sources: List<AccountWatchSummary>,
+    selected: AccountWatchSummary?,
+    confirming: Boolean,
+    busy: Boolean,
+    onSelect: (Int) -> Unit,
+    onNext: () -> Unit,
+    onBack: () -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = WzTheme.colors
+    WzModal(
+        title = MarketCopy.WATCH_IMPORT_TITLE,
+        onDismiss = onDismiss,
+        width = 560.dp,
+        testTag = "watch-import-modal",
+    ) {
+        if (!confirming) {
+            Text(
+                text = MarketCopy.WATCH_IMPORT_HINT,
+                color = colors.ink3,
+                style = WzTheme.typography.caption,
+                modifier = Modifier.testTag("watch-import-hint"),
+            )
+            Column(modifier = Modifier.padding(top = 12.dp)) {
+                sources.forEachIndexed { index, source ->
+                    if (index > 0) rowDivider()
+                    ImportSourceRow(
+                        source = source,
+                        selected = source.accountId == selected?.accountId,
+                        onSelect = { onSelect(source.accountId) },
+                    )
+                }
+            }
+            selected?.let { source ->
+                ImportSummaryBlock(source = source, testTag = "watch-import-summary")
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                WzButton(
+                    text = MarketCopy.BTN_CANCEL,
+                    onClick = onDismiss,
+                    variant = WzButtonVariant.Secondary,
+                    testTag = "watch-import-cancel",
+                )
+                WzButton(
+                    text = MarketCopy.WATCH_IMPORT_NEXT,
+                    onClick = onNext,
+                    enabled = selected != null && !busy,
+                    modifier = Modifier.padding(start = 8.dp),
+                    testTag = "watch-import-next",
+                )
+            }
+        } else {
+            Text(
+                text = MarketCopy.WATCH_IMPORT_CONFIRM_TITLE,
+                color = colors.ink,
+                style = WzTheme.typography.body,
+                modifier = Modifier.testTag("watch-import-confirm"),
+            )
+            Text(
+                text = MarketCopy.watchImportConfirmSummary(
+                    selected?.username.orEmpty(),
+                    selected?.coinCount ?: 0,
+                ),
+                color = colors.ink2,
+                style = WzTheme.typography.caption,
+                modifier = Modifier.padding(top = 8.dp).testTag("watch-import-confirm-summary"),
+            )
+            selected?.let { source ->
+                Text(
+                    text = MarketCopy.watchImportNames(source.displayNames),
+                    color = colors.ink3,
+                    style = WzTheme.typography.caption,
+                    modifier = Modifier.padding(top = 6.dp).testTag("watch-import-confirm-list"),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                WzButton(
+                    text = MarketCopy.BTN_CANCEL,
+                    onClick = onDismiss,
+                    variant = WzButtonVariant.Secondary,
+                    testTag = "watch-import-cancel",
+                )
+                WzButton(
+                    text = MarketCopy.WATCH_IMPORT_BACK,
+                    onClick = onBack,
+                    variant = WzButtonVariant.Secondary,
+                    modifier = Modifier.padding(start = 8.dp),
+                    testTag = "watch-import-back",
+                )
+                WzButton(
+                    text = MarketCopy.WATCH_IMPORT_CONFIRM_ACTION,
+                    onClick = onConfirm,
+                    enabled = !busy,
+                    modifier = Modifier.padding(start = 8.dp),
+                    testTag = "watch-import-confirm-btn",
+                )
+            }
+        }
+    }
+}
+
+/** 来源账户行：账户名（可点选）+ 只读自选摘要。 */
+@Composable
+private fun ImportSourceRow(source: AccountWatchSummary, selected: Boolean, onSelect: () -> Unit) {
+    val colors = WzTheme.colors
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).testTag("watch-import-row-" + source.accountId),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        WzButton(
+            text = source.username,
+            onClick = onSelect,
+            variant = if (selected) WzButtonVariant.Primary else WzButtonVariant.Secondary,
+            testTag = "watch-import-source-" + source.accountId,
+        )
+        Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
+            Text(
+                text = if (source.empty) {
+                    MarketCopy.WATCH_IMPORT_EMPTY_SOURCE
+                } else {
+                    MarketCopy.watchImportSourceSummary(
+                        source.coinCount,
+                        MarketCopy.watchImportNames(source.displayNames),
+                    )
+                },
+                color = colors.ink2,
+                style = WzTheme.typography.caption,
+            )
+            if (source.defaultSeed) {
+                Text(
+                    text = MarketCopy.WATCH_IMPORT_DEFAULT_SEED,
+                    color = colors.ink3,
+                    style = WzTheme.typography.caption,
+                )
+            }
+        }
+    }
+}
+
+/** 选中来源后的摘要块（第一步内显示，供用户在进入二次确认前核对）。 */
+@Composable
+private fun ImportSummaryBlock(source: AccountWatchSummary, testTag: String) {
+    val colors = WzTheme.colors
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 12.dp).testTag(testTag)) {
+        Text(
+            text = MarketCopy.watchImportSourceSummary(
+                source.coinCount,
+                MarketCopy.watchImportNames(source.displayNames),
+            ),
+            color = colors.ink,
+            style = WzTheme.typography.body,
+        )
     }
 }
 
