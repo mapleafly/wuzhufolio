@@ -56,6 +56,7 @@ import com.wuzhufolio.domain.settings.PrecisionPreset
 import com.wuzhufolio.domain.settings.ThemeMode
 import com.wuzhufolio.ui.i18n.I18n
 import com.wuzhufolio.ui.i18n.WzFormat
+import com.wuzhufolio.ui.regression.FilmDemoData
 import com.wuzhufolio.ui.regression.VisualRegression
 import com.wuzhufolio.ui.theme.WuzhuTheme
 import java.math.BigDecimal
@@ -248,15 +249,10 @@ class PortfolioPagesUiTest {
     }
 
     /**
-     * 影片专用行集（P7 宣传动画）：与 `threeRows()` 数值一致，但 **USDT 不是异常币**——
-     * 异常/无行情会在仪表盘顶部渲染两条 ⚠️ 横幅，在宣传片里像数据错误。
+     * 三行夹具（含 1 枚「无行情 + 异常」USDT）：供排序/占比/标注等断言使用。
+     * （影片素材原用的 `filmRows()` 手写黄金数值夹具已随开放项 #8 删除——素材改由产品示例数据集
+     * `FilmDemoData` 驱动。）
      */
-    private fun filmRows(): List<PortfolioRow> = listOf(
-        row("bitcoin", "BTC", "Bitcoin", "0.5", "40000", "50000", realized = "4915"),
-        row("ethereum", "ETH", "Ethereum", "4", "2000", "1800", realized = "-100"),
-        row("tether", "USDT", "Tether", "1000", "1", "1"),
-    )
-
     private fun threeRows(): List<PortfolioRow> = listOf(
         row("bitcoin", "BTC", "Bitcoin", "0.5", "40000", "50000", realized = "4915"),
         row("ethereum", "ETH", "Ethereum", "4", "2000", "1800", realized = "-100"),
@@ -725,34 +721,23 @@ class PortfolioPagesUiTest {
         // P7 宣传动画素材：**整窗**渲染（MainShell + 页面槽，2× 密度 → 2480×1640）。
         // 必须整窗：模板的图版合成按「含侧边栏/顶栏的应用窗口」几何设计，单页渲染会导致图版叠加压字
         // （2026-09-30 验片发现，见 docs/release/promo/README.md「0.2.0 迭代状态」）。
+        //
+        // **数据来源（全面评审开放项 #8，2026-10-11）**：不再用手写黄金数值夹具（原 `filmRows()` +
+        // 手写 `PortfolioMetrics`），改为由**产品示例数据集**（`DemoPortfolio`，B 迭代 B1 · `D46`）
+        // 经既有 domain 引擎推导——指标与行见 `FilmDemoData` 类头（含「示例价 = 数据集最后成交价、
+        // 非行情数据」口径，与「素材须随 0.3.0 出片一并重生成」边界）。
+        // 时间基准 = `Instant.now()`（AGENTS.md §7.3-8：示例数据集时间轴相对加载时刻平移，不得硬编码）。
+        val now = Instant.now()
         VisualRegression.captureFilmAsset("dashboard-light.png", "main-shell") {
             MainShell(
                 viewModel = ShellViewModel(ThemeMode.LIGHT, PnlColorScheme.GREEN_UP, ShellPage.DASHBOARD),
                 accountName = "Alex",
                 dashboardPageContent = { name ->
-                    // 影片用填充数据：指标来自交易重放，夹具无交易 ⇒ 默认全 0（宣传片里显得空）。
-                    // 这里给一组**与资产表自洽**的黄金用例数值：BTC 0.5@40k→50k（+5,000）、
-                    // ETH 4@2k→1.8k（−800）、USDT 1,000（异常币，按 D29 不计入净值）。
                     DashboardPage(
                         portfolioService = FakePortfolio(
-                            filmRows(),
-                            change24h = TwentyFourHour.Result(BigDecimal("501.60"), BigDecimal("0.42"), 0, 0, false),
-                            metricsOverride = PortfolioMetrics(
-                                netValueFiat = BigDecimal("32200"),
-                                availableCashFiat = BigDecimal("0"),
-                                investedNetFiat = BigDecimal("28000"),
-                                cumulativeDepositsFiat = BigDecimal("28000"),
-                                cumulativeWithdrawalsFiat = BigDecimal.ZERO,
-                                totalReturnFiat = BigDecimal("4200"),
-                                roiPercent = BigDecimal("15.00"),
-                                realizedPnlFiat = BigDecimal("4815"),
-                                unrealizedPnlFiat = BigDecimal("4200"),
-                                totalCostFiat = BigDecimal("28000"),
-                                holdings = emptyMap(),
-                                missingPricedCoins = emptyList(),
-                                estimated = false,
-                                anomalousExcludedFiat = BigDecimal.ZERO,
-                            ),
+                            rows = FilmDemoData.rows(now),
+                            change24h = FilmDemoData.change24h(),
+                            metricsOverride = FilmDemoData.metrics(now),
                         ),
                         refreshService = FakeRefresh(),
                         generalSettings = FakeGeneralSettings(),
@@ -767,7 +752,13 @@ class PortfolioPagesUiTest {
                 accountName = "Alex",
                 assetsPageContent = { onOpenCoin ->
                     AssetsPage(
-                        portfolioService = FakePortfolio(filmRows()),
+                        // 资产列表页顶部三张卡（净值 / 24h / ROI）读同一快照指标 ⇒ 亦须给引擎算出的指标，
+                        // 否则卡片会显示 $0.00（0.2.0 素材即如此，本次一并修正）
+                        portfolioService = FakePortfolio(
+                            rows = FilmDemoData.rows(now),
+                            change24h = FilmDemoData.change24h(),
+                            metricsOverride = FilmDemoData.metrics(now),
+                        ),
                         refreshService = FakeRefresh(),
                         generalSettings = FakeGeneralSettings(),
                         onOpenCoin = onOpenCoin,

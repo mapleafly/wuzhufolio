@@ -30,6 +30,7 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import kotlin.test.assertEquals
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import com.wuzhufolio.ui.regression.FilmDemoData
 import com.wuzhufolio.ui.regression.VisualRegression
 import com.wuzhufolio.domain.settings.PnlColorScheme
 import com.wuzhufolio.ui.shell.MainShell
@@ -248,13 +249,39 @@ class MarketWatchPageUiTest {
 
     @Test
     fun `film asset - market watch page for the promo video`() {
-        // P7 影片素材：整窗渲染（模板图版按「含侧边栏/顶栏的窗口」几何设计）
+        // P7 影片素材：整窗渲染（模板图版按「含侧边栏/顶栏的窗口」几何设计）。
+        //
+        // **数据来源（全面评审开放项 #8，2026-10-11）**：自选清单 = 产品示例数据集（`DemoPortfolio`，
+        // B 迭代 B1 · `D46`）的示例币种（默认种子 + D35「成交币自动入自选」两腿），报价 = 示例价
+        // （数据集最后成交价；非行情数据 ⇒ 数据源/更新两列无值）——见 `FilmDemoData` 类头。
         VisualRegression.captureFilmAsset("quotes-light.png", "main-shell") {
             MainShell(
                 viewModel = ShellViewModel(ThemeMode.LIGHT, PnlColorScheme.GREEN_UP, ShellPage.QUOTES),
-                watchPageContent = { MarketWatchPage(FakeWatch(), FakeQuotes(), FakeRefresh(), FakeSettings()) },
+                watchPageContent = { MarketWatchPage(FilmWatch(), FilmQuotes(), FakeRefresh(), FakeSettings()) },
             )
         }
+    }
+
+    /** 影片素材用自选服务：清单 = 示例数据集的示例币种（`FilmDemoData.watchCoins`）。 */
+    private class FilmWatch : MarketWatchService {
+        /** 加载示例数据即写入自选（D35 成交币自动入自选）⇒ 非默认种子态。 */
+        override suspend fun hasCustomList(): Boolean = true
+
+        override suspend fun watchCoins(): List<CatalogCoin> = FilmDemoData.watchCoins
+
+        override suspend fun addCoin(cgId: String) = Unit
+
+        override suspend fun addCoins(cgIds: Collection<String>) = Unit
+
+        override suspend fun removeCoin(cgId: String) = Unit
+
+        override suspend fun searchCandidates(query: String, limit: Int): List<CatalogCoin> = emptyList()
+    }
+
+    /** 影片素材用报价服务：示例价（数据集最后成交价；无行情来源，故 source/at 为 null）。 */
+    private class FilmQuotes : MarketQuotesService {
+        override suspend fun quotesFor(coins: List<CatalogCoin>, fiat: String): List<WatchQuoteRow> =
+            FilmDemoData.watchQuotes(fiat)
     }
 }
 

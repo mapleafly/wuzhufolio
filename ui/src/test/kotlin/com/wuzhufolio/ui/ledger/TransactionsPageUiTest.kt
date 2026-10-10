@@ -38,6 +38,7 @@ import java.time.format.DateTimeFormatter
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import com.wuzhufolio.ui.regression.FilmDemoData
 import com.wuzhufolio.ui.regression.VisualRegression
 import com.wuzhufolio.domain.settings.PnlColorScheme
 import com.wuzhufolio.ui.shell.MainShell
@@ -541,11 +542,17 @@ class TransactionsPageUiTest {
     }
     @Test
     fun `film asset - transactions page for the promo video`() {
-        // P7 影片素材：整窗渲染（模板图版按「含侧边栏/顶栏的窗口」几何设计）
+        // P7 影片素材：整窗渲染（模板图版按「含侧边栏/顶栏的窗口」几何设计）。
+        //
+        // **数据来源（全面评审开放项 #8，2026-10-11）**：交易行 = 产品示例数据集（`DemoPortfolio`，
+        // B 迭代 B1 · `D46`）的 4 笔交易（3 买 + 1 卖），卖出行已实现盈亏由引擎逐笔推导
+        // （`FilmDemoData.transactions`，行序 = 运行期列表默认的交易时间降序）——见该类头。
+        // 时间基准 = `Instant.now()`（AGENTS.md §7.3-8：示例数据集时间轴相对加载时刻平移）。
+        val ledger = FakeLedgerService().apply { rows.addAll(FilmDemoData.transactions(Instant.now())) }
         VisualRegression.captureFilmAsset("transactions-light.png", "main-shell") {
             MainShell(
                 viewModel = ShellViewModel(ThemeMode.LIGHT, PnlColorScheme.GREEN_UP, ShellPage.TRANSACTIONS),
-                transactionsPageContent = { TransactionsPage(FakeLedgerService(), { null }, { null }) },
+                transactionsPageContent = { TransactionsPage(ledger, { null }, { null }) },
             )
         }
     }

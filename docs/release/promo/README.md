@@ -74,12 +74,38 @@ WUZHUFOLIO_FILM_ASSETS=1 ./gradlew :ui:test --tests "*film asset*" --console=pla
 > 历史说明：0.1.0 版素材取自 P1 原型（工具 `tools/capture-ui.mjs`，**已随 D42 原型退役转为历史归档**）；
 > 0.2.0 起素材真源 = 真实应用整窗 2× 离屏渲染。
 
+## 素材数据来源（2026-10-11，开放项 #8）
+
+4 张 UI 素材（`dashboard-light` / `portfolio-light` / `quotes-light` / `transactions-light`）的**数值真源**
+已由「测试内手写的黄金数值夹具」改为**产品自身的示例数据集**——即影片里看到的界面 = 用户点「加载示例数据」
+（B 迭代 **B1** · `D46`）后看到的界面。实现落在测试侧共享助手
+`ui/src/test/kotlin/com/wuzhufolio/ui/regression/FilmDemoData.kt`：从 `DemoPortfolio` 出发经**既有 domain 引擎**
+（`ReplayEngine` 全量重放 + `PortfolioCalculator`）推导指标 / 币种行 / 交易行 / 自选清单，
+**素材内不手写任何金额**（唯一固化的表是币种**身份** ticker → cg_id，与 `DemoPortfolioTest` 同源；
+新增示例币种时助手会 fail-fast 提示补表）。
+
+| 口径 | 取值 |
+|------|------|
+| **示例价格** | **数据集自身最后成交价**（BTC 60,000 / ETH 3,000 / SOL 150；计价腿 USDT 按 `PortfolioCalculator.ANCHORED_COIN_IDS` 的 1:1 锚定 = 1.0）。**示例价格 = 数据集最后成交价，非行情数据，故影片画面不随行情变化**——素材因此可确定性重渲（不依赖网络、不随行情快照漂移） |
+| 24h 盈亏 | 数据集不含 24h 前价 ⇒ 交引擎 `TwentyFourHour.compute` 空输入 ⇒ 覆盖 0/M、金额与百分比为 null（卡片显示 "--"）。**不臆造** 24h 前价（那等于宣称行情覆盖） |
+| 行情页报价 | 自选清单 = 示例币种（默认种子 + D35「成交币自动入自选」两腿）；示例价没有行情快照行 ⇒ **数据源列「无行情」、更新列 "--"**（与运行期「无快照行即无来源」口径一致） |
+| 交易行 | 数据集 4 笔（3 买 + 1 卖），行序 = 运行期列表默认的**交易时间降序**（首行 = BTC/USDT 卖出）；卖出行已实现盈亏由引擎逐笔推导（**+1,983.00**，口径同 M7 `SellRealizedTracer`，但由引擎产出） |
+| 素材画面 | 仪表盘净值 109,952.50 / ROI +9.95% / 已实现 +1,983.00；资产列表顶部三卡不再为 `$0.00`（0.2.0 素材的已知缺陷，随本项修正） |
+
+> **⚠️ 素材与影片必须一并重生成（0.3.0 发布准备）**：仓库内 `assets/ui/` 下的 4 张 PNG **仍是 0.2.0 版**，
+> 与**已发布的 0.2.0 影片一一对应**（`D47`/`F6` 口径：发布素材 ↔ 发布影片必须一一对应）。本次只让
+> **代码侧就绪**——**不得单独替换** `assets/ui/` 素材；须在 0.3.0 出片时按下方「复现管线」三步
+> **一并**重生成素材与影片（`tools/render-0.2.0.sh` 步骤 0 已开启素材写回门控）。
+> 另：`storyboard.md` 的 S7 锚点仍写首行「BTC/USDT 卖出 **+$4,915.00**」（0.2.0 期的黄金数值口径），
+> 0.3.0 出片时须按新素材数值（**+1,983.00**）同步；本次**不改** `storyboard.md`（它记录的是 0.2.0 期分镜）。
+
 ## 设计约束（方向 A）
 
 - **色板只用产品真实 design token**：纸底 `#EDE8DF` · 面 `#FFFFFF` · 墨 `#1E2A24` · 次级墨 `#5A635C` · 黄铜 `#B08A3E` · 盈 `#2E7D5B` · 亏 `#A8453F`。
 - **字体**：正文 Noto Sans SC / Display Noto Serif SC / 数字 JetBrains Mono（取自 `ui/src/main/resources/fonts/`，OFL-1.1）。
 - **画面主角是真实界面**：UI 一律取自**真实应用整窗 2× 离屏渲染**（`VisualRegression.captureFilmAsset`，
-  2480×1640；见上「素材写回门控」）——**不手画 UI**，数值与 PRD 附录 A 黄金用例一致。
+  2480×1640；见上「素材写回门控」）——**不手画 UI**，数值由**产品自身的示例数据集**（`DemoPortfolio`）
+  经既有引擎推导（见上「素材数据来源」，开放项 #8）。
   （0.1.0 版曾取自 P1 原型 `docs/design/prototype/wuzhufolio-light.html`；该原型已按 **D42** 退役，工具
   `tools/capture-ui.mjs` 转为历史归档。）
 - **一条连续的运动叙事**：hero element（那扇应用窗口）全程在场，段与段之间靠位移/缩放/翻页接续，**无整页 opacity 切换**。
