@@ -2,7 +2,9 @@
 /**
  * P7 产品宣传动画 · UI 素材采集（§1.a 资产协议：用真实 UI，不手画界面）
  *
- * 素材真源 = docs/design/prototype/wuzhufolio-light.html（P1 唯一原型真源，P4/P5 的 UI 视觉基准）。
+ * 素材真源 = docs/design/prototype/wuzhufolio-light.html（**历史工具**，用于 0.1.0 版影片；该原型已按 D42 退役）。
+ * 0.2.0 起素材改由**真实应用整窗离屏渲染**采集（`ui` 模块 `VisualRegression.captureFilmAsset`），
+ * 见 `docs/release/promo/README.md`「0.2.0 迭代状态」节。
  * 本机（WSL2 Ubuntu）无 CJK 系统字体（`fc-list :lang=zh` 为空），直接截图会出豆腐块 ——
  * 故注入随包内嵌的 Noto Sans SC / Noto Serif SC / JetBrains Mono（OFL-1.1，ui/src/main/resources/fonts），
  * 与真实应用（WzFonts.kt：正文 Noto Sans SC / Display Noto Serif SC / 数字 JetBrains Mono）一致。

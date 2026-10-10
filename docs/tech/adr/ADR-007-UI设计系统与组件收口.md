@@ -5,8 +5,8 @@
 > **级别**：**C2**（命中 `AGENTS.md §8.1` 红线 3「改已通过模块的行为（返工级）」与设计基线变更）
 > **来源**：0.1.1 发布后人工反馈「界面笨拙，各个界面组件都像手工制作，没有总体风格和特点」→
 > 调研报告 [`docs/tech/UI框架与组件统一调研.md`](UI框架与组件统一调研.md)（16 候选硬数据对比）
-> **关联**：`AGENTS.md §7.3`（GUI 共性约束）· `docs/design/design-tokens.md`·`prototype/wuzhufolio-light.html`（视觉基准）·
-> `docs/dev/decisions/D33-响应式与组件统一.md`· `docs/dev/0.1.1-使用反馈.md`（DEF-54/55/56）· task-breakdown **M14 / T14.1–T14.6**
+> **关联**：`AGENTS.md §7.3`（GUI 共性约束）· `docs/design/design-tokens.md`·~~`prototype/wuzhufolio-light.html`（视觉基准）~~（**已按 D42 退役**；现行基准 = `design-tokens.md` + `docs/design/baseline/*.png`）·
+> `docs/dev/decisions/D33-响应式与组件统一.md`· `docs/dev/0.1.1-使用反馈.md`（DEF-54/55/56）· task-breakdown **M14 / T14.1–T14.11**
 
 ---
 
@@ -104,8 +104,8 @@ JetBrains Runtime 可用 `-Pcompose.reload.jbr.autoProvisioningEnabled=true` 自
 | 代码（组件） | `ui/components/*`（11 个）、各页面调用点（含 `gallery/`） | 分批替换，逐批回归 |
 | 代码（开发页） | `ui/gallery/M3FrameworkSection.kt`（新增） | 「官方 vs 自绘」并排对照，供电人工目视拍板 |
 | 构建 | `gradle/libs.versions.toml`、`build.gradle.kts`、`app/build.gradle.kts` | Hot Reload 接入 |
-| 设计侧 | `design-tokens.md`（新增 §4.5 映射表、§4.6 spacing/motion）· `interaction.md`（日期时间选择器交互与异常态）· `ia.md`（新增选择器弹层）· `prototype/wuzhufolio-light.html`（视觉基准，**显式延期**到组件层替换完成后同步） | 见 §4 |
-| 技术侧 | 本 ADR · `task-breakdown.md`（**M14 / T14.1–T14.6**）· `docs/tech/dependency-licenses.md`（Hot Reload 为 Apache-2.0，无需新增第三方依赖条目） | — |
+| 设计侧 | `design-tokens.md`（新增 §4.5 映射表、§4.6 spacing/motion）· `interaction.md`（日期时间选择器交互与异常态）· `ia.md`（无页面增删 ➖）· `prototype/wuzhufolio-light.html` —— **已按 D42 改为退役（不再同步）**：基准换成 `design-tokens.md` + `docs/design/baseline/*.png` | 见 §4 与 **D42** |
+| 技术侧 | 本 ADR · `task-breakdown.md`（**M14 / T14.1–T14.11**）· `docs/tech/dependency-licenses.md`（Hot Reload 为 Apache-2.0，无需新增第三方依赖条目） | — |
 | 测试侧 | `ThemeMappingTest`/`AmountSanitizerTest`/`M3FrameworkSectionUiTest`（新增）· `ContrastTest`（扩展到全量 role）· 各页 UI 测试（替换组件时同步） | — |
 | 发布侧 | `CHANGELOG.md`（**0.2.0** 节）· `user-guide.md`（日期时间选择器、数值输入口径） | 版本口径见 §5 |
 
@@ -153,5 +153,5 @@ JetBrains Runtime 可用 `-Pcompose.reload.jbr.autoProvisioningEnabled=true` 自
 **待办（按人工「先大后小」排序）**：
 1. **T14.3 组件层替换**（`WzButton`/`WzTextField`/`WzSelect` + `WzModal` 遮罩修复 → 一并关闭 DEF-56）；
 2. **T14.4 日期时间选择器组件**（→ 关闭 DEF-55）与**数值输入接入 `AmountSanitizer`**（→ 关闭 DEF-54，9 个解析点）；
-3. **T14.5 逐页视觉回归**（三档分辨率 × 双主题 + 键盘/IME 强制验收）；
-4. **T14.5 原型与文档同步**（`prototype/wuzhufolio-light.html`、`design-tokens`、`interaction`、`ia`）。
+3. **T14.5 逐页视觉回归** ✅（24 张自动渲染与断言 + 键盘/IME 强制验收；**人工观感走查回执待补**，见全面评审 F2）；
+4. ~~**T14.5 原型与文档同步**~~ → ✅ **已按 D42 取代**：原型退役（不再同步），视觉基准改为 `design-tokens.md` + `design/baseline/*.png`；`interaction` 已回写、`ia` 无页面增删。

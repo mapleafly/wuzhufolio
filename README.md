@@ -7,7 +7,8 @@
 - **加密**：SQLCipher 整库加密 + 分层密钥（DEK/KEK）+ AES-256-GCM + Argon2id（M1 起，ADR-002）。
 - **开源**：AGPL-3.0（决策 D1），GitHub Releases 分发。
 
-> 当前阶段：**P8 迭代 —— v0.1.0 / v0.1.1 已发布**；**0.2.0（里程碑 M14：Material 3 界面体系统一 + 使用反馈收口）已完成开发与发布准备**，待 P6 复测与 P7 批准发布。
+> 当前阶段：**P8 迭代 —— v0.1.0 / v0.1.1 / v0.2.0 均已发布**（v0.2.0 = 里程碑 M14：Material 3 界面体系统一 + 使用反馈收口，2026-09-30）；
+> **下一迭代 = 桌面端体验深化（人工 2026-10-10 拍板）**。
 > 技术栈 Kotlin + Compose Desktop（ADR-001）。
 > 需求基线见 `docs/prd/`，技术方案见 `docs/tech/`，流水线与状态看板见 `AGENTS.md` / `docs/dev/STATUS.md`。
 
@@ -54,11 +55,13 @@ domain/   纯 Kotlin 领域（日志脱敏器、设置枚举；M4 计算引擎�
 docs/     PRD / 设计 / 技术方案 / 状态看板（见 AGENTS.md 目录约定）
 ```
 
-## M0 已验证口径
+## 质量与验证口径
 
-- `./gradlew build` 绿：21 项测试全过（脱敏 / 迁移幂等 / hello 链路 / 双主题对比度 WCAG AA / 主壳 UI）。
+- 全量回归（`./gradlew clean build detekt`）：**788 用例 / 784 执行 / 0 失败 / 0 错误 / 4 跳过**
+  （4 条 = env 门控 live 网络冒烟）+ **detekt 0**（`maxIssues=0`）+ 编译警告 0。
+- 硬约束结构守护：`data` 模块 `SecurityGuardTest`（出站主机白名单 / 禁明文 http / 禁遥测依赖 / 禁网络日志 appender / 数据目录单源）。
 - hello 链路：空界面启动 → 迁移建库 → 读设置 → 打一条脱敏日志（`~/.wuzhufolio/logs/wuzhufolio.log`）。
-- UI 基座：侧边栏五页空壳 + 「组件走查（DEV）」页，顶栏 ☾/☀ 切换明/暗主题即时重渲染。
+- 当前状态与阶段门以 `docs/dev/STATUS.md` 为唯一真源；独立复跑记录见 `docs/dev/项目全面评审报告.md`（2026-10-10）。
 - 依赖许可证清单与 AGPL-3.0 兼容核验：`docs/tech/dependency-licenses.md`。
 
 ## 许可
