@@ -27,6 +27,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.wuzhufolio.domain.backup.BackupService
 import com.wuzhufolio.domain.backup.CsvExportKind
+import com.wuzhufolio.domain.exchange.ApiKeySyncResult
 import com.wuzhufolio.domain.exchange.ExchangeSyncService
 import com.wuzhufolio.domain.ledger.FeeRuleService
 import com.wuzhufolio.domain.market.MarketSettingsService
@@ -89,6 +90,10 @@ fun SettingsPage(
     marketSettingsService: MarketSettingsService,
     marketRefreshService: MarketRefreshService,
     syncService: ExchangeSyncService,
+    /** **B4（D44）**：API 管理页「立即同步（全部密钥）」执行体（组合根注入经调度器路径）。 */
+    apiSyncAllGated: suspend () -> List<ApiKeySyncResult> = { syncService.syncNow(null) },
+    /** **B4（D44）**：API 管理页同步入口的会话门禁判定（未登录 → 「请先登录」）。 */
+    apiHasSession: () -> Boolean = { true },
     feeRuleService: FeeRuleService,
     diagnosticsService: DiagnosticsService,
     logAccess: LogAccess,
@@ -455,7 +460,12 @@ fun SettingsPage(
 
                 // ---- API 管理 ----
                 SettingsGroup(title = SettingsCopy.GROUP_API, testTag = "group-api") {
-                    ApiManagementSection(service = syncService, modifier = Modifier.fillMaxWidth())
+                    ApiManagementSection(
+                        service = syncService,
+                        modifier = Modifier.fillMaxWidth(),
+                        syncAllGated = apiSyncAllGated,
+                        hasSession = apiHasSession,
+                    )
                 }
 
                 // ---- 数据管理 ----

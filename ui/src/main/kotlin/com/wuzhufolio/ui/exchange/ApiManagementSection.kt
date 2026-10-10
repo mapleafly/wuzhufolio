@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.wuzhufolio.domain.exchange.ApiKeyInfo
 import com.wuzhufolio.domain.exchange.ApiKeyInput
+import com.wuzhufolio.domain.exchange.ApiKeySyncResult
 import com.wuzhufolio.domain.exchange.ExchangeSyncService
 import com.wuzhufolio.domain.exchange.SyncLogRow
 import com.wuzhufolio.domain.exchange.SyncStatus
@@ -44,8 +45,12 @@ import java.time.Instant
 fun ApiManagementSection(
     service: ExchangeSyncService,
     modifier: Modifier = Modifier,
+    /** **B4（D44）**：页面级同步执行体（组合根注入**经调度器**路径；默认 = 直连服务，供独立预览/测试）。 */
+    syncAllGated: suspend () -> List<ApiKeySyncResult> = { service.syncNow(null) },
+    /** **B4（D44）**：会话门禁判定（未登录 → 「请先登录」；默认 = 已登录）。 */
+    hasSession: () -> Boolean = { true },
 ) {
-    val vm = remember { ApiManagementViewModel(service) }
+    val vm = remember { ApiManagementViewModel(service, syncAllGated, hasSession) }
     DisposableEffect(vm) { onDispose { vm.dispose() } }
     val state by vm.state.collectAsState()
     val colors = WzTheme.colors

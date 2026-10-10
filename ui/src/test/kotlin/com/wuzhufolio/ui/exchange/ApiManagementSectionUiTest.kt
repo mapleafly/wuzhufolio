@@ -285,4 +285,67 @@ class ApiManagementSectionUiTest {
         waitUntil(timeoutMillis = 2_000) { textCount(ApiCopy.ERR_UPDATE_CREDS_PAIR) >= 1 }
         assertEquals(null, svc.updatedId, "只填其一应被拒绝，不触达服务")
     }
+
+    // ---- B4（D44，2026-10-10）：设置页同步入口纳入统一会话门禁（守护测试） ----
+
+    @Test
+    fun `locked session blocks page-level sync and shows login required`() = runComposeUiTest {
+        val svc = FakeSyncService().apply {
+            keys.add(ApiKeyInfo(7L, 1L, "主号", "BINANCE", Instant.now(), "OK", true))
+        }
+        var gatedCalled = false
+        setContent {
+            ApiManagementSection(
+                svc,
+                syncAllGated = { gatedCalled = true; emptyList() },
+                hasSession = { false },
+            )
+        }
+        waitUntil(timeoutMillis = 2_000) { textCount("主号") >= 1 }
+        onNodeWithTag("api-sync-all").performClick()
+        waitUntil(timeoutMillis = 2_000) { textCount(ApiCopy.LOGIN_REQUIRED) >= 1 }
+        assertTrue(!gatedCalled, "会话锁定不得进入执行体（调度器路径不得触达）")
+        assertTrue(svc.syncNowIds.isEmpty(), "会话锁定不得调用服务层同步")
+    }
+
+    @Test
+    fun `locked session blocks row-level sync and shows login required`() = runComposeUiTest {
+        val svc = FakeSyncService().apply {
+            keys.add(ApiKeyInfo(7L, 1L, "主号", "BINANCE", Instant.now(), "OK", true))
+        }
+        setContent { ApiManagementSection(svc, hasSession = { false }) }
+        waitUntil(timeoutMillis = 2_000) { textCount("主号") >= 1 }
+        onNodeWithTag("api-key-sync-7").performClick()
+        waitUntil(timeoutMillis = 2_000) { textCount(ApiCopy.LOGIN_REQUIRED) >= 1 }
+        assertTrue(svc.syncNowIds.isEmpty(), "会话锁定不得调用服务层同步（行级入口）")
+    }
+
+    @Test
+    fun `unlocked session routes page-level sync through the injected gated executor`() = runComposeUiTest {
+        val svc = FakeSyncService().apply {
+            keys.add(ApiKeyInfo(7L, 1L, "主号", "BINANCE", Instant.now(), "OK", true))
+        }
+        var gatedCalled = false
+        setContent {
+            ApiManagementSection(
+                svc,
+                syncAllGated = {
+                    gatedCalled = true
+                    listOf(
+                        ApiKeySyncResult(
+                            apiKeyId = 7L, apiKeyName = "主号", status = SyncStatus.OK,
+                            newTrades = 3, duplicatesSkipped = 0, unresolvedSkipped = 0,
+                            partial = false, queuedSymbols = 0, error = null,
+                            message = "同步成功 · 新增 3", at = Instant.now(),
+                        ),
+                    )
+                },
+                hasSession = { true },
+            )
+        }
+        waitUntil(timeoutMillis = 2_000) { textCount("主号") >= 1 }
+        onNodeWithTag("api-sync-all").performClick()
+        waitUntil(timeoutMillis = 2_000) { gatedCalled }
+        assertTrue(svc.syncNowIds.isEmpty(), "页面级同步必须走注入的执行体（唯一门禁路径），不得直连服务")
+    }
 }

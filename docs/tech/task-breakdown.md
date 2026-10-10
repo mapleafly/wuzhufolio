@@ -28,6 +28,7 @@
 | M12 UI 整合收尾 | T12.1–T12.4 | 主壳整合/聚合页（仪表盘/资产/币种详情）/a11y/i18n | M2–M11 |
 | M13 发布准备 | T13.1–T13.2 | 安全自查/签名公证打包 | M12 |
 | **M14 UI 体系统一（0.2.0）** | **T14.1–T14.11** | 主题层全量映射 / Hot Reload / 组件层收口（含 DEF-56）/ 日期时间选择器（DEF-55）+ 数值输入（DEF-54）/ 逐页视觉回归与基准同步 / 0.2.0 发布准备；**追加：T14.7 M3 全面对齐 · T14.8 Linux SNI 托盘 · T14.9/T14.11 会话门禁 · T14.10 自选账户级** | M12、**ADR-007**、**D38**、D39–D43 |
+| **M15 B 迭代（桌面端体验深化）** | **T15.1 …（逐项随决策档追加）** | **T15.1 设置页同步入口统一会话门禁（D44，已实施）** · B2 多账户可见性 · B1 演示数据/首次引导 · B5 工程项 · B3 自选跨账户导入（C2，mini 闭环） | M12、M14、**D44**（B1/B2/B3/B5 任务号随各自决策档登记） |
 
 ## 2. 依赖图
 
@@ -338,6 +339,16 @@ flowchart LR
   顶栏「立即同步」由直连用例层改为经调度器执行（`TopBarSyncViewModel` 构造改执行体，组合根注入 `{ scheduler.syncNow() }`）⇒ 三条入口共用唯一门禁。
   **验收**：未登录点托盘同步**不出现**「正在同步…」、提示「请先登录」✓；日志 `tray sync ignored | session locked` 且无同步调用 ✓；
   已登录行为不变 ✓；既有数据层「无会话跳过同步」用例继续守护 ✓；新增 `TrayActionGateTest` 锁定/放行两态 ✓。
+
+- **T15.1 设置页「API 管理」同步入口统一会话门禁（B4 / D44，C1）** ✅ **已完成（2026-10-10）**
+  内容：页面级「立即同步（全部密钥）」改经**组合根注入的调度器路径**（`runtime.scheduler.syncNow()`，与托盘/顶栏同一门禁）；
+  行级「立即同步」保持走 `ExchangeSyncService`（调度器无单 key 路径）但在**入口前置判定**会话；
+  新增 `exchangeStrings.loginRequired`（zh/en，经 `ApiCopy.LOGIN_REQUIRED` 消费）；
+  `ApiManagementSection` / `SettingsPage` 透传 `syncAllGated` / `hasSession`（带默认值 ⇒ 独立预览与既有 UI 测试零改动）；
+  `Main.kt` 注入 `{ runtime.scheduler.syncNow() }` 与 `{ runtime.session.sessions.get() != null }`。
+  **验收**：会话锁定时执行体与服务层**均零调用** + toast「请先登录后再同步交易」（页面级/行级各一条守护用例）✓；
+  解锁后页面级**必走注入执行体**且不直连服务（守护用例）✓；`:ui:test` 该类 **15 例 0 失败** ✓；全量 build + detekt 见 `M15.md §3`。
+  **回溯**：PRD 故事 4.3 / 统一异常处理；`AGENTS.md §1.1-5`；**D40 / D43**；`interaction.md §1.6`。
 
 ## 4. 里程碑验收门槛
 

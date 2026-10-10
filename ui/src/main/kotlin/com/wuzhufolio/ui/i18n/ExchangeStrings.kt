@@ -42,6 +42,9 @@ interface ExchangeStrings {
     val syncing: String
     val syncAllButton: String
     val syncAllEmpty: String
+
+    /** **B4（D44）**：未登录（会话锁定）时的手动同步入口提示（与托盘/顶栏「请先登录」同口径）。 */
+    val loginRequired: String
     val emptyHint: String
 
     /** 页面级「立即同步（全部密钥）」部分失败汇总（`+` 拼接 → 函数）。 */
@@ -164,6 +167,7 @@ object ExchangeStringsZh : ExchangeStrings {
     override val syncing = "同步中…"
     override val syncAllButton = "立即同步（全部密钥）"
     override val syncAllEmpty = "尚未添加 API 密钥：请先添加只读密钥，再执行同步"
+    override val loginRequired = "请先登录后再同步交易"
     override val emptyHint = "尚未添加 API 密钥 · 添加后每个密钥行内提供「立即同步」，也可用下方「立即同步（全部密钥）」"
     override fun syncAllPartial(failed: Int, newTrades: Int) =
         "同步完成（部分失败 " + failed + " 个密钥）· 新增 " + newTrades
@@ -235,6 +239,7 @@ object ExchangeStringsEn : ExchangeStrings {
     override val syncing = "Syncing…"
     override val syncAllButton = "Sync now (all keys)"
     override val syncAllEmpty = "No API key yet: add a read-only key first, then sync"
+    override val loginRequired = "Please sign in before syncing trades"
     override val emptyHint =
         "No API key yet · once added, each key row offers “Sync now”; you can also use “Sync now (all keys)” below"
     override fun syncAllPartial(failed: Int, newTrades: Int) =

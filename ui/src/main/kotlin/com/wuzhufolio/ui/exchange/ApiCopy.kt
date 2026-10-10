@@ -37,6 +37,9 @@ object ApiCopy {
     val SYNC_ALL_BUTTON: String get() = exchangeStrings.syncAllButton
     val SYNC_ALL_EMPTY: String get() = exchangeStrings.syncAllEmpty
 
+    /** **B4（D44）**：未登录时的手动同步入口提示（与托盘/顶栏「请先登录」同口径）。 */
+    val LOGIN_REQUIRED: String get() = exchangeStrings.loginRequired
+
     /** 顶栏手动同步汇总（全部成功）。 */
     fun syncAllDone(keys: Int, newTrades: Int): String = exchangeStrings.syncAllDone(keys, newTrades)
 

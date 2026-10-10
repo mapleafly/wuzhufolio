@@ -184,6 +184,9 @@ internal fun MainWindowContent(
                 marketSettingsService = runtime.marketSettingsService,
                 marketRefreshService = runtime.marketRefreshService,
                 syncService = runtime.exchangeSyncService,
+                // B4（D44）：设置页 API 管理的手动同步与托盘/顶栏共用唯一会话门禁（调度器路径 + 入口前置判定）
+                apiSyncAllGated = { runtime.scheduler.syncNow() },
+                apiHasSession = { runtime.session.sessions.get() != null },
                 feeRuleService = runtime.feeRuleService,
                 diagnosticsService = runtime.diagnosticsService,
                 logAccess = runtime.logAccess,

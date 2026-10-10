@@ -43,9 +43,19 @@ data class ApiManagementUiState(
  * API 管理 VM（T6.4 · 契约 = ExchangeSyncService）：列表/最近同步记录/间隔档位加载；
  * 添加（测试请求 → 保存即首次同步）/移除/单 key 立即同步；状态经 UI 状态流，明文 Key 只驻留输入框。
  * （API 同步间隔行随 M10 归位设置页「行情与同步」分组——本 VM 不再持有间隔状态。）
+ *
+ * **B4（D44，2026-10-10）**：本页两个手动同步入口纳入**统一会话门禁**——页面级走组合根注入的
+ * **调度器路径**（与托盘/顶栏同一条），行级在**入口前置判定**会话；未登录只提示「请先登录」，
+ * 不进入执行体/服务层（调度器无会话时返回空列表，会被误读为「没有可同步的密钥」，与 D43 同因）。
  */
 @Suppress("TooManyFunctions", "SwallowedException", "CyclomaticComplexMethod") // 保存路由（新增/编辑）+ 异常映射（脱敏口径），复杂度来自分支固有
-class ApiManagementViewModel(private val service: ExchangeSyncService) : ViewModel() {
+class ApiManagementViewModel(
+    private val service: ExchangeSyncService,
+    /** **B4（D44）**：页面级「立即同步（全部密钥）」执行体（组合根注入经调度器的路径）。 */
+    private val syncAllGated: suspend () -> List<ApiKeySyncResult> = { service.syncNow(null) },
+    /** **B4（D44）**：会话门禁判定（未登录 → 「请先登录」，不触达执行体与服务层）。 */
+    private val hasSession: () -> Boolean = { true },
+) : ViewModel() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -167,6 +177,11 @@ class ApiManagementViewModel(private val service: ExchangeSyncService) : ViewMod
 
     fun syncNow(key: ApiKeyInfo) {
         if (_state.value.syncingKeyId != null || _state.value.syncingAll) return
+        // B4（D44）：入口前置判定——未登录只提示原因，不进入服务层
+        if (!hasSession()) {
+            toast(WzToastKind.Failure, ApiCopy.LOGIN_REQUIRED)
+            return
+        }
         _state.update { it.copy(syncingKeyId = key.id) }
         scope.launch {
             try {
@@ -183,18 +198,26 @@ class ApiManagementViewModel(private val service: ExchangeSyncService) : ViewMod
 
     /**
      * 页面级手动同步（PRD 故事 4.3「提供手动同步按钮」；2026-09-08 走查补口）。
-     * 无密钥 -> 提示引导；有密钥 -> 同步全部（syncNow(null)），汇总新增/失败计数。
+     * 无密钥 -> 提示引导；有密钥 -> 经**注入的执行体**（B4/D44：调度器路径，唯一会话门禁）同步全部，
+     * 汇总新增/失败计数。
      */
     fun syncAll() {
-        if (_state.value.keys.isEmpty()) {
-            toast(WzToastKind.Failure, ApiCopy.SYNC_ALL_EMPTY)
+        // B4（D44）：入口前置判定（会话 → 密钥；与托盘/顶栏同口径）。调度器路径无会话时返回空列表，
+        // 若不加此判定会被误读为「没有可同步的密钥」；合并为单次出口以守住 detekt ReturnCount。
+        val gateMessage = when {
+            !hasSession() -> ApiCopy.LOGIN_REQUIRED
+            _state.value.keys.isEmpty() -> ApiCopy.SYNC_ALL_EMPTY
+            else -> null
+        }
+        if (gateMessage != null) {
+            toast(WzToastKind.Failure, gateMessage)
             return
         }
         if (_state.value.syncingAll || _state.value.syncingKeyId != null) return
         _state.update { it.copy(syncingAll = true) }
         scope.launch {
             try {
-                val results = service.syncNow(null)
+                val results = syncAllGated()
                 val newTrades = results.sumOf { it.newTrades }
                 val failed = results.count { it.status == SyncStatus.FAILED }
                 val message = if (failed > 0) {
