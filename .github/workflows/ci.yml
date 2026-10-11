@@ -52,6 +52,12 @@ jobs:
           dir=ui/build/visual-regression
           count=$(find "$dir" -name '*.png' 2>/dev/null | wc -l | tr -d ' ')
           echo "VISUAL_REGRESSION_PNGS=${count:-0}（预期 24 = 4 页面 × 2 主题 × 3 尺寸）"
+          # C0（2026-10-12，四线独立复核 P2-5）：**断言 24 张**——此前只打印不校验，
+          # 用例被 --tests 过滤或渲染失败时会静默降数而 job 仍绿（视觉回归形同虚设）。
+          if [ "${count:-0}" -ne 24 ]; then
+            echo "::error::视觉回归产物应为 24 张（4 页面 × 2 主题 × 3 尺寸），实际 ${count:-0} 张"
+            exit 1
+          fi
           shopt -s nullglob
           reports=("$dir"/diff-*.md)
           if [ ${#reports[@]} -eq 0 ]; then

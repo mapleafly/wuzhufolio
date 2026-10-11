@@ -30,5 +30,9 @@ object ExchangeConfig {
     /** 时间戳偏差补偿开关：-1021 首次重试使用服务器时间偏移。 */
     const val MAX_TIMESTAMP_RETRY = 1
 
-    const val USER_AGENT = "WuZhuFolio/0.1.0"
+    /**
+     * HTTP User-Agent：**刻意不带版本号**——避免每次发版都要改常量
+     * （既有实现 `"WuZhuFolio/0.1.0"` 曾在 0.1.0 后滞留，与当前版本号脱节）。
+     */
+    const val USER_AGENT = "WuZhuFolio"
 }

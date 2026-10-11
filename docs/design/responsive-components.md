@@ -46,7 +46,7 @@
 |------|------|------|
 | `WzCard` | 统一卡片容器 | surface 底 + 1px 边 + 10dp 圆角 + 16/14dp 内边距（`compact` 时 12/10dp） |
 | `WzCardLabel` | 卡片标签 | 11sp、`ink2`、单行 |
-| `WzMetric` | **关键指标数字** | **单行 + 自动缩字号**（1.0→0.9→0.82→0.74→0.68），仍放不下才省略号；**绝不换行**；字号取 `metricPrimary`（27sp，一级）/ `metricSecondary`（21sp，次级）——两级比值 ≈1.29（DEF-39，对齐原型） |
+| `WzMetric` | **关键指标数字** | **单行 + 自动缩字号**（1.0→0.9→0.82→0.74→0.68），仍放不下才省略号；**绝不换行**；字号取 `metricPrimary`（27sp，一级）/ `metricSecondary`（21sp，次级）——两级比值 ≈1.29（DEF-39，对齐原型；**该原型已按 D42 退役，现行视觉基准 = `design-tokens.md` + `docs/design/baseline/*.png`**） |
 | `SingleLineText` | 列表/图例单行文本 | 单行 + 省略号 + 截断时悬停全值 |
 | `rowDivider` | 列表单元线 | 1px `line` |
 

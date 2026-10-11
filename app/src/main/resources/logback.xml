@@ -13,9 +13,16 @@
     <conversionRule conversionWord="m"
                     class="com.wuzhufolio.app.logging.RedactingMessageConverter"/>
 
+    <!-- C0（2026-10-12，四线独立复核 P2-3）：异常堆栈与消息**同一脱敏漏斗**。
+         原 pattern 不含 %ex，logback 会自动追加堆栈，而该路径不经上面的 %msg 转换器 ⇒ 堆栈中的
+         密钥/令牌会绕过脱敏落盘（实测当时仅 2 处传 Throwable 且不载凭据，属结构性旁路）。
+         现显式写 %ex 并绑定 RedactingThrowableConverter（对已遮蔽文本幂等）。 -->
+    <conversionRule conversionWord="ex"
+                    class="com.wuzhufolio.app.logging.RedactingThrowableConverter"/>
+
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{24} - %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{24} - %msg%n%ex</pattern>
         </encoder>
     </appender>
 
@@ -28,7 +35,7 @@
             <totalSizeCap>100MB</totalSizeCap>
         </rollingPolicy>
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{24} - %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{24} - %msg%n%ex</pattern>
         </encoder>
     </appender>
 

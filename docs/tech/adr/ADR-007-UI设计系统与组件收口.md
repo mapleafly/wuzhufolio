@@ -7,6 +7,8 @@
 > 调研报告 [`docs/tech/UI框架与组件统一调研.md`](UI框架与组件统一调研.md)（16 候选硬数据对比）
 > **关联**：`AGENTS.md §7.3`（GUI 共性约束）· `docs/design/design-tokens.md`·~~`prototype/wuzhufolio-light.html`（视觉基准）~~（**已按 D42 退役**；现行基准 = `design-tokens.md` + `docs/design/baseline/*.png`）·
 > `docs/dev/decisions/D33-响应式与组件统一.md`· `docs/dev/0.1.1-使用反馈.md`（DEF-54/55/56）· task-breakdown **M14 / T14.1–T14.11**
+> **五段结构说明（C0，2026-10-12）**：本 ADR 的「**选项**」与「**理由**」**内嵌于 §2.1「三条候选路线（调研报告 §6 详列）与取舍」**
+> （路线 A/B/C + 判定列即选项与理由），**不另设独立两节**；五段对应 = §1 背景与问题 · §2.1 选项/理由 · §2 决策 · §6 风险与缓解。
 
 ---
 
@@ -57,8 +59,8 @@
   **不得回落到 M3 默认紫**——由 `ThemeMappingTest` 守护。
 - **Typography 全量**（`theme/TypographyMapping.kt`）：M3 的 15 个槽位按语义就近映射到产品层级，
   正文维持 **14sp**（桌面密度，而非 M3 默认 16sp）。
-- **Shapes 全量**（`theme/Shapes.kt`）：全应用圆角收敛为 5 档（4/7/10/14/20dp），
-  与既有控件（7dp）与容器（10dp）口径一致。
+- **Shapes 全量**（`theme/Shapes.kt`）：全应用圆角收敛为 5 档（**4/8/12/16/28dp**，M3 阶梯；D38 前为自建 4/7/10/14/20dp），
+  与 M3 组件（按钮 8dp / 卡片 12dp / 对话框 28dp）**同一套阶梯**。
 - **M3 不提供的两类 token 必须自建**（这是本决策里最容易被低估的一半）：
   - `WzSpacing`（`theme/Spacing.kt`）：2/4/6/8/12/16/20/24/32dp 阶梯；
   - `WzMotion`（`theme/Motion.kt`）：120/200/320ms + 三条曲线（标准/减速/强调）。

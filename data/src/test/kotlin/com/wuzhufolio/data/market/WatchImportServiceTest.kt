@@ -391,4 +391,44 @@ class WatchImportServiceTest {
             assertEquals(0, e.funds().size)
         }
     }
+
+    // ---- D48 口径锁定（C0，2026-10-12；四线独立复核 P1）----
+
+    /**
+     * **Reject 分支沿用 D41 认领语义**（口径锁定，非「零写入」保证）。
+     *
+     * `planImport` 在判定结果**之前**取目标基线（`watch.currentStoredIdsOrNull()`），而该调用经
+     * `readStoredIds` → `claimLegacyIfFirst`，在「当前账户尚无自选行」时会做 **D41 一次性认领**
+     * （把旧全局清单写进当前账户行 + 置位全局 `watch.migrated`）。⇒ **Reject 分支不保证「零写入」**：
+     * 被写入的只有**当前账户自己的**旧全局清单与迁移标记（与首访自选页完全同源），
+     * **不写来源账户、不涉其它表、无跨账户泄露**。
+     *
+     * 本用例锁定该**已文档化**语义（不变量措辞见 `WatchImportService` KDoc 与 `D48 §2`）：
+     * 若将来把执行顺序改为「先校验来源、再触碰目标自选状态」，本用例会红——届时须同步改口径与用例。
+     */
+    @Test
+    fun `reject path follows the documented D41 claim semantics on the target account`() = runBlocking {
+        LedgerTestEnv().use { e ->
+            // 旧全局清单（D41 迁移前的历史行）；来源账户**显式清空** ⇒ 结果必为 NoSource
+            e.settings.putGlobal(MarketWatchService.SETTINGS_KEY, """["bitcoin"]""")
+            val source = e.login("account-source")
+            e.settings.putAccount(source.account.id, MarketWatchService.SETTINGS_KEY, "[]")
+            val target = e.login("account-target")
+            assertNull(storedRow(e, target.account.id), "前置：目标账户尚无自选行")
+            assertNull(e.settings.getGlobal("watch.migrated"), "前置：全局迁移标记未置位")
+
+            val result = importer(e, watch(e)).importFrom(source.account.id)
+
+            assertTrue(result is WatchImportResult.NoSource, "来源显式清空 ⇒ NoSource（不导入任何币）")
+            // 已文档化语义：目标侧 D41 认领被触发（与首访自选页同源，仅写**当前账户**）
+            assertEquals(
+                listOf("bitcoin"),
+                decode(storedRow(e, target.account.id)!!),
+                "Reject 分支沿用 D41 认领：目标行由旧全局清单物化（仅当前账户）",
+            )
+            assertEquals("1", e.settings.getGlobal("watch.migrated"), "认领会置位全局迁移标记")
+            // 来源账户一字不改（不变量 3）
+            assertEquals("[]", storedRow(e, source.account.id), "来源账户行逐字节不变")
+        }
+    }
 }

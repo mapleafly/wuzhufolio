@@ -8,9 +8,10 @@ package com.wuzhufolio.domain.market
  * **五条不变量（任何实现都不得违反；由 `data` 模块 `WatchImportServiceTest` 与 `ui` 模块
  * `WatchImportUiTest` 守护）**：
  *
- * 1. **仅复制自选清单本身**：唯一被读取与写入的数据 = **账户级** settings 行
+ * 1. **仅复制自选清单本身**：唯一**写入**的数据 = **账户级** settings 行
  *    `settings(account_id, key='watch.coins')`（JSON 数组 `[cg_id]`，D41）。
- *    **绝不**读写交易、资金流水、API 密钥、账户资料、行情快照等任何其它表/行；
+ *    **只读**另涉 `accounts.username`（来源/目标展示名）与 `coins` 目录表（symbol 解析）；
+ *    **绝不**读写交易、资金流水、API 密钥、行情快照等任何其它表/行（账户资料仅读 `username`）；
  * 2. **必须显式**：由用户**选择来源账户 + 二次确认**（确认前展示将导入的币种数量/列表摘要）触发；
  *    **不提供**隐式跨账户可见，**不提供**「全部账户聚合视图」——后者会实质改变 `§1.1-5` 的
  *    「账户数据互相隔离」语义，需另立决策（不在本项范围，见 `D48 §1.2`）；
@@ -18,11 +19,17 @@ package com.wuzhufolio.domain.market
  *    一次性认领——认领会写来源账户）；
  * 4. **异常 / 空 / 重复都是类型化结果且零写入**：未登录、来源账户不存在、来源为空、全量重复
  *    ⇒ [WatchImportResult.Failed] / [WatchImportResult.NoSource] / [WatchImportResult.AlreadyComplete]，
- *    **不写任何行**（`AlreadyComplete` 为**幂等**结果）；写入失败 ⇒ [WatchImportResult.Failed]
+ *    **不写自选清单本身**（`AlreadyComplete` 为**幂等**结果）；写入失败 ⇒ [WatchImportResult.Failed]
  *    （[WatchImportFailReason.WRITE_FAILED]），同样不留下部分写入；
  * 5. **账户级作用域**由既有 `ActiveSessionStore` 保证（未登录 ⇒ 无当前账户可写、摘要为空列表）；
  *    **不新增表、不改 `.cpro` 格式**——`watch.coins` 本就在账户级 settings 行内（D41），
  *    该行随账户级 settings 进入 `.cpro`（ADR-005 §3）⇒ **零 schema 变更、零备份格式变更**。
+ *
+ * **口径澄清（2026-10-12，仅收窄措辞，不改行为）**：
+ * - 本契约**并非**「唯一读写 settings 行」：**只读**另涉 `accounts.username`（展示名）与 `coins` 目录表（symbol）；
+ * - 目标侧**沿用 D41 认领语义**（`currentStoredIdsOrNull()` → `readStoredIds` → `claimLegacyIfFirst`）⇒
+ *   **当前账户尚无自选行时，Reject 分支亦可能物化当前账户行 + 全局 `watch.migrated`**（认领副作用，
+ *   不是自选清单的部分写入）；**来源账户不受影响**（来源侧裸读、不触发认领）。
  *
  * **与 D41 的关系**：D41 定「自选为账户级、账户之间互不可见」；本契约是其**显式一次性复制的例外补充**——
  * 「用户显式选择 + 二次确认的一次性复制」**不等于**「账户间隐式可见」，隔离语义不变（论证见 `D48 §4`）。

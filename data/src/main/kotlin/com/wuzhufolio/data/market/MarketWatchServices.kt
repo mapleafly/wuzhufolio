@@ -92,7 +92,8 @@ class SettingsMarketWatchService(
      * **D48（B3）新增**：当前账户自选的**原始存储序**（经 D41 的一次性认领；**未写入过 = null**）。
      *
      * 仅供同模块的跨账户导入用例取「合并基线」——与行情页读取路径**完全同源**（认领/解码口径一致），
-     * 故导入不会绕过 D41 语义。**只读**，不改动任何行。
+     * 故导入不会绕过 D41 语义。**不写自选清单本身**；但**并非严格只读**：内部经 [readStoredIds] →
+     * [claimLegacyIfFirst]，**当前账户尚无自选行时会物化当前账户行 + 全局 `watch.migrated`**（D41 认领语义）。
      */
     internal fun currentStoredIdsOrNull(): List<String>? = currentAccountId()?.let(::readStoredIds)
 

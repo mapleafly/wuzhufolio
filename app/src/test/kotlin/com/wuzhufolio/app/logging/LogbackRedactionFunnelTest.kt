@@ -65,4 +65,54 @@ class LogbackRedactionFunnelTest {
             }
         }
     }
+
+    /**
+     * C0（2026-10-12，四线独立复核 P2-3）：**异常堆栈**也必须经同一脱敏漏斗。
+     *
+     * 原实现：pattern 不含 `%ex`，logback 自动追加堆栈且不经 `%msg` 转换器 ⇒ 堆栈里的密钥/令牌会明文落盘。
+     * 本用例以「异常消息里带密钥」构造事件，断言已配置 pattern 的输出既**不含**密钥、又**保留**异常本体
+     * （避免用「整段丢弃堆栈」的方式假装脱敏）。
+     */
+    @Test
+    fun `configured logback pattern routes exception stacks through the redactor`() {
+        val logDir = Files.createTempDirectory("wuzhufolio-logback-funnel-ex")
+        val previous = System.getProperty("wuzhufolio.logdir")
+        System.setProperty("wuzhufolio.logdir", logDir.toString())
+        val context = LoggerContext()
+        try {
+            val configurator = JoranConfigurator()
+            configurator.context = context
+            context.reset()
+            configurator.doConfigure(javaClass.getResource("/logback.xml"))
+
+            val root: Logger = context.getLogger(Logger.ROOT_LOGGER_NAME)
+            val appender = root.getAppender("FILE")
+            assertNotNull(appender, "logback.xml 应配置 FILE appender")
+            val encoder = (appender as OutputStreamAppender<ILoggingEvent>).encoder as PatternLayoutEncoder
+
+            val secret = "CG-DEMO-0123456789abcdef0123456789abcdef"
+            val failure = IllegalStateException("sync failed | market.coingecko_key=" + secret)
+            val event = LoggingEvent(
+                "test",
+                context.getLogger("funnel-ex"),
+                Level.ERROR,
+                "refresh failed",
+                failure,
+                null,
+            )
+            val rendered = String(encoder.encode(event), Charsets.UTF_8)
+            assertFalse(
+                rendered.contains(secret),
+                "异常堆栈必须与消息同一脱敏漏斗（%ex 覆盖）——实际输出：$rendered",
+            )
+            assertTrue(rendered.contains("IllegalStateException"), "异常本体保留（仅遮蔽敏感值）：$rendered")
+        } finally {
+            context.stop()
+            if (previous == null) {
+                System.clearProperty("wuzhufolio.logdir")
+            } else {
+                System.setProperty("wuzhufolio.logdir", previous)
+            }
+        }
+    }
 }

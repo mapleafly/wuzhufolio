@@ -20,8 +20,10 @@ import org.slf4j.LoggerFactory
  *
  * 口径与五条不变量见 [WatchImportService] 的 KDoc。实现要点：
  *
- * - **只碰一行**：唯一读写的数据 = **账户级** settings 行 `settings(account_id, key='watch.coins')`
- *   （[MarketWatchService.SETTINGS_KEY]）——交易/资金流水/API 密钥/账户资料/快照一概不涉
+ * - **唯一写入 = 一行**：**写入**的数据仅 = **账户级** settings 行 `settings(account_id, key='watch.coins')`
+ *   （[MarketWatchService.SETTINGS_KEY]）——交易/资金流水/API 密钥/行情快照一概不涉；
+ *   **只读**另涉 `accounts.username`（摘要展示名）与 `coins` 目录表（symbol 解析），
+ *   且目标侧沿用 D41 认领语义（当前账户尚无自选行时会物化该账户行 + 全局 `watch.migrated`）
  *   （**零 schema 变更、零新增表、零新增 settings 键、零 `.cpro` 格式变更**）；
  * - **来源侧刻意裸读**（[readSourceIds]）：**不走** `SettingsMarketWatchService.readStoredIds` ——
  *   后者会触发 **D41 的旧全局清单一次性认领**（复制旧全局行到来源账户 + 置位全局 `watch.migrated`），

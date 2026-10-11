@@ -32,7 +32,7 @@ export JAVA_HOME=/path/to/jdk-17        # 或 jdk-21，两者均可
 > 说明：`.mise.toml` 只保留 `java = "temurin-17"`，是**给用 mise 的人的便利配置**，项目不要求必须用它。
 > Gradle 曾以 mise 临时安装用于首次生成 Wrapper，生成后即按口径移除——日常开发一律用 `./gradlew`，不装全局 gradle。
 > **JDK 选型边界（2026-09-24 核验）**：① 必须 **≥17**（低于 17 无法编译）；② 用 JDK 21 跑 Gradle 已实测通过
-> （本机 JDK 21 全量 `./gradlew build` 绿：722 用例 / 718 执行 0 失败 / 4 跳过）；③ `jpackage` 的随包运行时由
+> （本机 JDK 21 全量 `./gradlew build` 绿：**836 用例 / 832 执行 0 失败 / 4 跳过**——**当前口径**，2026-10-10 B3 完成后复跑；原记 `722 / 718` 为 2026-09-24 核验时点快照）；③ `jpackage` 的随包运行时由
 > **执行构建的那个 JDK** 生成（模块集显式列出，`jdk.accessibility` 在 17/21 均存在）；④ 官方发布产物一律由 **CI（Temurin 17）**
 > 产出，用别的 JDK 自编译不保证与 `SHA256SUMS` 清单一致。
 
@@ -43,7 +43,7 @@ export JAVA_HOME=/path/to/jdk-17        # 或 jdk-21，两者均可
 - [ ] `java -version` 显示 **17.0.x 或 21.0.x**（Temurin 为发布基线；其他发行版同样可用）
 - [ ] 用 mise 的话：`mise ls` 输出含 `java temurin-17`（**可选项**，未用 mise 时跳过）
 - [ ] `./gradlew build` 通过（全量用例 0 失败 + detekt 零问题）
-- [ ] `./gradlew :app:run` 启动 GUI，日志出现 `hello-chain ok | schema_version=2 | ... | market_api_key=****`（脱敏）
+- [ ] `./gradlew :app:run` 启动 GUI，日志出现 `hello-chain ok | schema_version=12 | ... | market_api_key=****`（脱敏）
 - [ ] 主壳可见侧边栏六页（含 D21 行情页）；顶栏 ☾/☀ 切换主题即时重渲染
       （**组件走查页仅在开发构建开启，默认不可见**——见 DEF-47）
 

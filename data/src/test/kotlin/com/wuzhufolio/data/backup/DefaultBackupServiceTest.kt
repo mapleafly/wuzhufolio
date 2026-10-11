@@ -30,6 +30,7 @@ import com.wuzhufolio.domain.backup.CsvExportKind
 import com.wuzhufolio.domain.backup.RestoreMode
 import com.wuzhufolio.domain.catalog.CatalogCoin
 import com.wuzhufolio.domain.catalog.CoinDirectoryEntry
+import com.wuzhufolio.domain.demo.DemoData
 import com.wuzhufolio.domain.engine.Side
 import com.wuzhufolio.domain.security.CryptoService
 import java.math.BigDecimal
@@ -649,6 +650,44 @@ class DefaultBackupServiceTest {
             val holdingsText = Files.readString(holdingsCsv)
             assertTrue(holdingsText.contains("btc") || holdingsText.contains("BTC"))
             assertTrue(!holdingsText.contains("AKIA-TEST-KEY"))
+        }
+    }
+
+    // ---- B1 / D46 守护：示例数据标记（`notes` 行首 `[示例] `）随 `.cpro` 原样往返 ----
+
+    @Test
+    fun `demo data note marker survives the cpro roundtrip`() = runBlocking {
+        newEnv().use { env ->
+            env.login("alice")
+            val alice = env.sessions.get() ?: error("login first")
+            val usdt = env.coin("USDT")
+            val demoNotes = DemoData.note("示例增资")
+            env.fundsRepo.insert(
+                NewFundFlowRow(
+                    accountId = alice.account.id,
+                    kind = com.wuzhufolio.domain.engine.FlowKind.DEPOSIT,
+                    amount = BigDecimal("1000"),
+                    baseAmount = BigDecimal("1000"),
+                    currency = "USDT",
+                    coinId = usdt.id.toInt(),
+                    time = Instant.parse("2025-03-01T00:00:00Z"),
+                    sourceDest = "示例数据",
+                    notes = demoNotes,
+                    priceStatus = "OK",
+                ),
+            )
+            val file = env.cproPath("demo-note.cpro")
+            val password = "Backup-Pass-1".toCharArray()
+            val summary = env.service.exportBackup(file, password)
+            assertEquals(1, summary.counts.capitalFlows, "仅一条带示例标记的资金行")
+
+            // 跨账户恢复：标记必须随 notes 原样往返（`data-model.md` §2.5/§2.6 的声明）
+            val bob = env.login("bob")
+            env.service.restoreBackup(file, password, RestoreMode.MERGE)
+
+            val restored = env.ledgerRead.listFlowsFull(bob.account.id).single()
+            assertEquals(demoNotes, restored.notes, "示例标记随 notes 经 .cpro 原样往返")
+            assertTrue(DemoData.isDemoNote(restored.notes), "恢复后仍可被 DemoData.isDemoNote 识别为示例行")
         }
     }
 }
