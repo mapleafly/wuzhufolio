@@ -17,7 +17,7 @@
 | 发布渠道 | GitHub Releases（`https://github.com/mapleafly/wuzhufolio/releases`）；**不内置检查更新**（PRD §12） |
 | 支持平台（**本轮发布范围**） | **Windows 10/11 x64** · **Linux x64**（deb / rpm / AppImage / 便携）—— **人工拍板（2026-09-22）：只发布 Windows 与 Linux 两个平台**（维护者可在本机实测验收）；**macOS 版本轮不发布**，待签名证书采购与真机实测就绪后随后续版本提供。**0.3.0 沿用同一范围**（macOS 仍不进 Release） |
 | 运行时分发 | jpackage 捆绑 jlink 裁剪私有 JRE，**用户无需安装 Java**（ADR-006 §1.1） |
-| 质量基线 | **0.3.0（2026-10-12 实测）：839 用例 / 835 执行 / 0 失败 / 0 错误 / 4 跳过 + detekt 0**（app 58 · data 325 · domain 227 · ui 229）；**P0/P1 缺陷 = 0**；安全清单五条硬约束逐条通过（0.3.0 复跑见 `security-checklist.md §0.2`）。**0.1.0 期 P6 记录 = 718 用例（710 执行 + 8 跳过）**，已不作为本轮判据 |
+| 质量基线 | **0.3.0（2026-10-12 实测）：840 用例 / 836 执行 / 0 失败 / 0 错误 / 4 跳过 + detekt 0**（app 58 · data 325 · domain 227 · ui 230）；**P0/P1 缺陷 = 0**；安全清单五条硬约束逐条通过（0.3.0 复跑见 `security-checklist.md §0.2`）。**0.1.0 期 P6 记录 = 718 用例（710 执行 + 8 跳过）**，已不作为本轮判据 |
 | 有效需求 | **PRD V2.0 + Δ{D21, D24, D25, D26, D27, D28, D29, D30, D31, D32, D33, D34, D35, D36, D37, D38 修订 D37, D39, D40, D41, D42, D43, D44, D45, D46, D47, D48 修订 D41}**（逐字对齐 `docs/dev/增量台账.md` 表头） |
 
 ### 1.1 发布物清单（本阶段 P7 交付）
@@ -109,8 +109,8 @@ b28faf0bbf0df73e358f725ebd3121982a2b44c319f3cf1b0aea81df90193eea  WuZhuFolio-por
   **D48**（自选跨账户显式导入，**C2**，`§8.3` mini 闭环）；
 - **版本号 = `0.3.0`（minor）**：人工 **2026-10-11** 拍板；理由 = 含新功能（示例数据、跨账户导入、多账户可见性），
   与「`0.1.x` = 维护线（patch）· `0.2.0` = 视觉/交互基线迭代（minor）」既有口径一致；
-- **当前状态**：五项**实施完成 + CI 全绿**（**839 用例 / 835 执行 / 0 失败 / 0 错误 / 4 跳过 + detekt 0**，2026-10-12 实测；
-  app 58 · data 325 · domain 227 · ui 229；见 `M15.md §3`）；
+- **当前状态**：五项**实施完成 + CI 全绿**（**840 用例 / 836 执行 / 0 失败 / 0 错误 / 4 跳过 + detekt 0**，2026-10-12 实测；
+  app 58 · data 325 · domain 227 · ui 230；见 `M15.md §3`）；
 - **发布准备（2026-10-12 已完成）**：`appVersion` = **0.3.0** ✅ · `CHANGELOG.md` 增 **`[0.3.0] - 2026-10-12`** ✅ ·
   `user-guide.md`（0.3.0 / v1.3）✅ · `release-notes-0.3.0.md` ✅ · `rollback.md §4.1.2`（0.3.0 → 0.2.0 降级口径）✅ ·
   `security-checklist.md §0.2`（0.3.0 复跑）✅ · 正式用例目录与人工走查清单（`test-cases.md` / `manual-test-guide.md §22`）✅ ·
@@ -156,7 +156,7 @@ b28faf0bbf0df73e358f725ebd3121982a2b44c319f3cf1b0aea81df90193eea  WuZhuFolio-por
 
 ### 3.2 质量与安全（P6 结论复用，改动即失效）
 
-- [ ] `./gradlew clean build detekt --no-build-cache` → **839 用例 / 835 执行 / 0 失败 / 0 错误 / 4 跳过 + detekt 0 + 警告 0**（2026-10-12 实测；**0.1.0 期 P6 的 718 记录不再作为本轮判据**）。
+- [ ] `./gradlew clean build detekt --no-build-cache` → **840 用例 / 836 执行 / 0 失败 / 0 错误 / 4 跳过 + detekt 0 + 警告 0**（2026-10-12 实测；**0.1.0 期 P6 的 718 记录不再作为本轮判据**）。
       > ⚠️ 判定：**P6 之后任何代码改动都必须重跑本项**；纯文档改动不需要。
 - [ ] 安全清单复跑：`./gradlew :data:test --tests "com.wuzhufolio.data.security.*"`（§1.1 五条硬约束守护）。
 - [ ] 出站白名单实证（TC-MAN-09，本次 P7 已在本机 Ubuntu 实跑，证据见 §7.3）。
@@ -180,8 +180,8 @@ b28faf0bbf0df73e358f725ebd3121982a2b44c319f3cf1b0aea81df90193eea  WuZhuFolio-por
 - [ ] 用户指南含两条强制提示：**安装/解压路径请用纯英文**、**备份文件密码强度 = 凭证保护强度**。
 - [ ] 隐私声明已写明：不收集任何数据；出站仅三白名单主机；行情请求仅发送币种标识、不含金额与交易数量。
 - [ ] 产品宣传动画已出片（MP4/GIF）并归档 `docs/release/promo/`。
-  - **0.3.0 状态**：✅ **已出片（2026-10-12 重出）**——`wuzhufolio-promo-30s.mp4`（1920×1080 · 30.000 s · 60 fps · AAC 48 kHz 立体声 · 15.4 MB）
-    + `.gif`（**6.77 MB**）。方向 A 沿用；素材 = 真实应用**整窗** 2× 离屏渲染（数值真源 = **产品示例数据集**）；色板 = 产品真实 **M3 token**；
+  - **0.3.0 状态**：✅ **已出片（2026-10-12 重出）**——`wuzhufolio-promo-30s.mp4`（1920×1080 · 30.000 s · 60 fps · AAC 48 kHz 立体声 · 15.36 MB）
+    + `.gif`（**6.70 MB**）。方向 A 沿用；素材 = 真实应用**整窗** 2× 离屏渲染（数值真源 = **产品示例数据集**）；色板 = 产品真实 **M3 token**；
     一键脚本 `tools/render-0.2.0.sh` / `tools/mix-0.2.0.sh`；抽帧验片通过（含一次「单页素材导致压字」的拦截与修正，留痕见 promo README）。
 - [x] 应用图标为正式资产：`app/icons/wuzhufolio.{png,ico,icns}` 已接入三平台 `iconFile`（生成器 `scripts/generate-icons.mjs`，与托盘图标同一枚标记）；托盘图标由同一标记在运行期程序化绘制（设计如此，非占位）。
 
@@ -327,7 +327,7 @@ gh release view v0.1.0 --web                # 人工复核附件与说明后，�
 | ④ | 签名/公证合规实证 + Linux 包 GPG 签名 + 证书采购 | **Linux 包 GPG 签名脚本已交付并实测**（签名 → 校验 → 篡改检测全通，**保留为可选零成本增强、尚未启用**）；**Windows 不签名**（不采购 OV/EV，也不申请 SignPath Foundation）；**macOS 不提供发行包**（用户自行编译） | **人工拍板（2026-09-22）：预算 0 元、Windows 不签名、macOS 仅源码、不做 Microsoft Store** —— 决策依据与复评条件见 `certificate-procurement.md §0` |
 | ⑤ | 托盘正式图标与打包图标、jlink 裁剪、字体子集化 | **图标 ✅ 已定稿并接入打包**：`scripts/generate-icons.mjs` 由**与托盘图标同源的几何**（accent `#1F5A48` + 纸色 `#F6F4EF` 折线，design-tokens §2.1）生成 `app/icons/wuzhufolio.{png,ico,icns}`，已接入 jpackage 三平台 `iconFile`；**jlink 裁剪**：建议 **P8 评估**；**字体子集化**：**建议不做**（用户可输入任意 CJK，子集化会造成缺字） | 本表 + `signing-notarization.md §5`；**✅ 已拍板（2026-09-22）：按建议**「⑤ 的两项优化维持现状」（见 §9 决策与批准表「携带项 ⑤」行） |
 | ⑥ | 发布产物 SHA256 / CHANGELOG / 用户指南 | ✅ CHANGELOG 与用户指南已交付；SHA256 清单模板与命令见 §5；**正式 SHA256 由 CI 产物生成** | 本目录四份文档 |
-| ⑦ | **产品宣传动画（P7 必做项）** | ✅ **已出片**：方向 = **A · 账簿 The Ledger**（2026-09-22 人工拍板，Gate 见 `promo/direction-approved.md`）；`storyboard.md`（11 镜分镜卡）→ `wuzhufolio-promo.html` → 逐帧 seek 渲染 1800 帧 → BGM + 14 SFX cue → **`wuzhufolio-promo-30s.mp4`**（1920×1080 · 30.00 s · 60 fps · H.264 + AAC 立体声）+ **`wuzhufolio-promo-30s.gif`**（560×315 · 12 fps · **6.77 MB**） | `docs/release/promo/`（含 `README.md` 复现管线）。**注：已在 2026-10-12 按 0.3.0 素材重出**（15.4 MB / GIF 6.77 MB；见 §7.1-⑥） |
+| ⑦ | **产品宣传动画（P7 必做项）** | ✅ **已出片**：方向 = **A · 账簿 The Ledger**（2026-09-22 人工拍板，Gate 见 `promo/direction-approved.md`）；`storyboard.md`（11 镜分镜卡）→ `wuzhufolio-promo.html` → 逐帧 seek 渲染 1800 帧 → BGM + 14 SFX cue → **`wuzhufolio-promo-30s.mp4`**（1920×1080 · 30.00 s · 60 fps · H.264 + AAC 立体声）+ **`wuzhufolio-promo-30s.gif`**（560×315 · 12 fps · **6.70 MB**） | `docs/release/promo/`（含 `README.md` 复现管线）。**注：已在 2026-10-12 按 0.3.0 素材重出**（15.36 MB / GIF 6.70 MB；见 §7.1-⑥） |
 
 ### 7.1 0.3.0 携带项复核（2026-10-12，B 迭代发布前）
 
@@ -340,7 +340,7 @@ gh release view v0.1.0 --web                # 人工复核附件与说明后，�
 | ③ | **视觉回归 / MSI 冒烟「转阻断」** | 视觉回归**基线比对** = 报告型不阻断（**产物计数已断言**）；**MSI 冒烟 = 阻断式**（Windows 打包作业内，已稳定通过） | 视觉回归转阻断需先按平台积累基线（评审 §7.3 开放项） |
 | ④ | **Windows 密钥文件权限** | 平台边界：NTFS 无 `0600` 等价物，靠用户目录 ACL | **建议在 `user-guide.md` 显式提示**（评审第四条线开放风险 3，**待人工定级**） |
 | ⑤ | **rpm 产物** | 仅 CI 产出、未人工安装验证 | 与 §7-①③ 同口径：随真机补测 |
-| ⑥ | **出片与素材重生成** | ✅ **已完成（2026-10-12，Windows 原生链）**：1800/1800 帧 · 734 s · 成片含 AAC 48 kHz 立体声 · 30.000 s；素材（4 张）与影片**同会话一并生成** | `promo/README.md`「Windows 原生出片链」；`storyboard.md` S5/S7 数值已同步；**DEF-61** 已修（门控进任务输入 + 开启时禁用缓存）。⚠️ 成片含已登记展示缺陷 **DEF-62**（`++1,983.00` 双加号，待人工定级；若修需重出片） |
+| ⑥ | **出片与素材重生成** | ✅ **已完成（2026-10-12，Windows 原生链）**：1800/1800 帧 · 710 s · 成片含 AAC 48 kHz 立体声 · 30.000 s；素材（4 张）与影片**同会话一并生成** | `promo/README.md`「Windows 原生出片链」；`storyboard.md` S5/S7 数值已同步；**DEF-61** 已修（门控进任务输入 + 开启时禁用缓存）；**DEF-62** 已修（交易表正收益单元格双加号）⇒ 成片**已按修复后**素材重出 |
 
 ---
 

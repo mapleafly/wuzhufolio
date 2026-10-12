@@ -233,8 +233,11 @@ class TransactionsPageUiTest {
         setContent { TransactionsPage(svc, { null }, { null }) }
         waitUntil(timeoutMillis = 2_000) { textCount("BTC/USDT") >= 1 }
         onNodeWithTag("tx-row-2").assertIsDisplayed()
-        // 卖出行显示已实现盈亏 +150（setScale(2) 展示为 +150.00，子串匹配）
-        waitUntil(timeoutMillis = 2_000) { textCount("+150", substring = true) >= 1 }
+        // 卖出行显示已实现盈亏 +150.00 —— **精确匹配整个文本节点**（DEF-62，2026-10-12）：
+        // 原先用子串匹配（`textCount("+150", substring = true)`），而 `++150.00` **同样包含** `+150` ⇒
+        // 掩盖了「正收益单元格符号重复」缺陷（本文件 `textCount` 默认 `substring = true`，务必显式关掉）。
+        waitUntil(timeoutMillis = 2_000) { textCount("+150.00", substring = false) >= 1 }
+        assertEquals(0, textCount("++", substring = true), "已实现盈亏正收益不得出现双加号（DEF-62）")
         // 勾选 -> 删除交易 -> 确认框 -> 确认
         onNodeWithTag("tx-check-1").performClick()
         onNodeWithTag("tx-delete-batch").performClick()
@@ -244,6 +247,25 @@ class TransactionsPageUiTest {
         }
         onNodeWithTag("tx-delete-confirm-btn", useUnmergedTree = true).performClick()
         waitUntil(timeoutMillis = 2_000) { svc.deletedIds == listOf(1L) }
+    }
+
+    /**
+     * **DEF-62 回归（C0，2026-10-12）**：交易表「已实现盈亏」单元格必须是**单符号**——正收益 `+1,983.00`、
+     * 负收益 `-1,200.50`，且全表**不得出现 `++`**。
+     *
+     * 原实现 `text = (if (positive) "+" else "") + WzFormat.signedAmount(realized)` 重复加了前缀
+     * （`signedAmount` 自身已带符号）⇒ 正收益渲染成 `++1,983.00`；旧断言用子串匹配故未拦住。
+     */
+    @Test
+    fun realizedPnlCellShowsExactlyOneSign() = runComposeUiTest {
+        val svc = FakeLedgerService().apply {
+            rows.add(row(1L, pair = "BTC/USDT", side = Side.SELL, realized = BigDecimal("1983")))
+            rows.add(row(2L, pair = "ETH/USDT", side = Side.SELL, realized = BigDecimal("-1200.5")))
+        }
+        setContent { TransactionsPage(svc, { null }, { null }) }
+        waitUntil(timeoutMillis = 2_000) { textCount("+1,983.00", substring = false) >= 1 }
+        waitUntil(timeoutMillis = 2_000) { textCount("-1,200.50", substring = false) >= 1 }
+        assertEquals(0, textCount("++", substring = true), "正收益单元格不得出现双加号（DEF-62）")
     }
 
     @Test

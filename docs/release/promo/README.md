@@ -12,8 +12,8 @@
 
 | 文件 | 说明 |
 |------|------|
-| `wuzhufolio-promo-30s.mp4` | **成品（0.3.0 版，2026-10-12 重出）**：1920×1080 · 30.00 s · **60 fps** · H.264 · **AAC 48 kHz 立体声**（15.4 MB） |
-| `wuzhufolio-promo-30s.gif` | 派生 GIF：560×315 · 12 fps · 96 色 palette 优化（**6.77 MB**） |
+| `wuzhufolio-promo-30s.mp4` | **成品（0.3.0 版，2026-10-12 重出）**：1920×1080 · 30.00 s · **60 fps** · H.264 · **AAC 48 kHz 立体声**（15.36 MB） |
+| `wuzhufolio-promo-30s.gif` | 派生 GIF：560×315 · 12 fps · 96 色 palette 优化（**6.70 MB**） |
 | `wuzhufolio-promo.html` | 动画源码（自包含单文件，真实 UI 截图 base64 内联） |
 | `storyboard.md` | **分镜卡**（11 镜 · hero element · 能量骨架 · hold/rest 预算 · 镜头预算 · 12 项音频 cue · 逐帧复核清单） |
 | `boards/direction-{a,b,c}.png` | 三方向方向板（A 中标；B/C 归档备用） |
@@ -32,7 +32,7 @@
 | UI 素材 → 真实应用 2× 离屏渲染（`ui` 模块 `VisualRegression.captureFilmAsset`，2480×1640） | ⚠️ **几何不匹配，已回退** |
 | 渲染器可移植性（skill 无 node_modules / 无 Playwright 自带 Chromium 时回退**系统 Chrome**；ffmpeg 用静态构建） | ✅ 已加固（`tools/render-promo-seek.mjs`） |
 | 一键复现脚本 | ✅ `tools/render-0.2.0.sh`（重建→自检→渲染）+ `tools/mix-0.2.0.sh`（BGM+14 SFX→MP4+GIF） |
-| 出片 | ✅ **已出片（2026-10-12，0.3.0 重出）**：`wuzhufolio-promo-30s.mp4`（15.4 MB · 60 fps · AAC 立体声 · 30.000 s）+ `.gif`（**6.77 MB**）；抽帧核验通过（S5 t=10.5 s 净值 / S7 t=15.5 s 已实现盈亏，与 `storyboard.md` 同步值一致） |
+| 出片 | ✅ **已出片（2026-10-12，0.3.0 重出）**：`wuzhufolio-promo-30s.mp4`（15.36 MB · 60 fps · AAC 立体声 · 30.000 s）+ `.gif`（**6.70 MB**）；抽帧核验通过（S5 t=10.5 s 净值 / S7 t=15.5 s 已实现盈亏，与 `storyboard.md` 同步值一致） |
 
 ### 过程留痕：素材几何与模板合成不匹配（**2026-09-30 验片发现 → 已修正**）
 
@@ -150,8 +150,8 @@ NODE_PATH=.agents/skills/huashu-design/node_modules \
 ## 0.3.0 出片（2026-10-12 · ✅ 已完成，Windows 原生链）
 
 **结论**：**已出片**——`assets/ui/` 4 张素材、`wuzhufolio-promo.html`、`wuzhufolio-promo-30s.mp4`
-（**15.4 MB** · 1920×1080 · 60 fps · H.264 + **AAC 48 kHz 立体声** · **30.000 s**）与
-`wuzhufolio-promo-30s.gif`（**6.77 MB** · 560×315 · 12 fps · 96 色）**同会话一并重生成**
+（**15.36 MB** · 1920×1080 · 60 fps · H.264 + **AAC 48 kHz 立体声** · **30.000 s**）与
+`wuzhufolio-promo-30s.gif`（**6.70 MB** · 560×315 · 12 fps · 96 色）**同会话一并重生成**
 （满足 D47/F6「发布素材 ↔ 发布影片一一对应」）。过程中暴露并修复 **DEF-61**。
 
 **本次已完成的实证（步骤 0）**：`WUZHUFOLIO_FILM_ASSETS=1` + 3 个测试类（`PortfolioPagesUiTest` /
@@ -186,7 +186,7 @@ node docs/release/promo/tools/render-promo-seek.mjs docs/release/promo/wuzhufoli
 pwsh -File docs/release/promo/tools/mix-0.3.0.ps1 -Silent "$env:TEMP\promo-silent.mp4"      # 步骤 5+6 混音 + GIF
 ```
 **实测**：`--check` → 三字体 loaded / 无豆腐块 / **pageerror 0**（唯一 console 错误 = `/favicon.ico` 404，无害）；
-渲染 **1800/1800 帧 · 734 s**（`browser = C:/Program Files/Google/Chrome/Application/chrome.exe`）；
+渲染 **1800/1800 帧 · 710 s**（`browser = C:/Program Files/Google/Chrome/Application/chrome.exe`）；
 混音 15 路（1 BGM + 14 SFX）→ 成片含 `Audio: aac, 48000 Hz, 2 ch`、时长 **30.000 s**。
 
 **两条已知约束（务必遵守）**
@@ -198,7 +198,8 @@ pwsh -File docs/release/promo/tools/mix-0.3.0.ps1 -Silent "$env:TEMP\promo-silen
 > **Linux 分支**（原文档化管线）仍可用：`bash docs/release/promo/tools/render-0.3.0.sh`（含前置自检与修复命令）。
 
 **已同步的数值**：`storyboard.md` 的 S5 净值锚点（`$120,464.77` → **`$109,952.50`**）与 S7 已实现盈亏
-（`+$4,915.00` → **`+$1,983.00`**），以及 GIF 体积口径（6.3 MB → **6.77 MB**，见 `release-plan.md §7-⑦`）。
+（`+$4,915.00` → **`+$1,983.00`**），以及 GIF 体积口径（6.3 MB → **6.70 MB**，见 `release-plan.md §7-⑦`）。
 
-> ⚠️ **成片内含一处已登记的展示缺陷**：S7 特写镜头里交易表「已实现盈亏」单元格显示 **`++1,983.00`**（双加号）——
-> 见 `defects.md` **DEF-62**（正收益单元格符号重复，**待人工定级**）；若修，则该素材与影片需**同会话重出片**。
+> ✅ **成片已按 DEF-62 修复后的界面重出（2026-10-12）**：交易表「已实现盈亏」正收益单元格此前显示 `++1,983.00`（双加号），
+> 经人工裁决「C0 修 + 补用例 + 重出片」修复（`defects.md` **DEF-62**），**素材与影片同会话重生成**，
+> 本目录内的 4 张素材 / HTML / MP4 / GIF 均为**修复后版本**。

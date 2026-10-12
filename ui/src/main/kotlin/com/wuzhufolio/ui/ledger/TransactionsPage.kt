@@ -482,8 +482,10 @@ private fun TxRow(
         if (row.side == Side.SELL && realized != null) {
             val positive = realized.signum() >= 0
             Text(
-                text = (if (positive) "+" else "") +
-                    WzFormat.signedAmount(realized),
+                // DEF-62（C0，2026-10-12）：**不得**再自行加前缀——`WzFormat.signedAmount` 自身已带符号
+                // （`sign(value) + fixed(abs)`，正数 ⇒ `+`），叠加会渲染成 `++1,983.00`。
+                // `positive` 仅用于取色（gain/loss），不再参与文案。
+                text = WzFormat.signedAmount(realized),
                 color = if (positive) colors.gain else colors.loss,
                 style = WzTheme.typography.body,
                 modifier = tableCell(table, 9),

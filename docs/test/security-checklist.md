@@ -64,7 +64,7 @@
 
 **自动化证据（0.3.0 · 2026-10-12，Lead 独立复核）**：
 `./gradlew clean build detekt --no-build-cache` → **BUILD SUCCESSFUL（33/33 任务真实执行）** + **detekt 0** + 编译警告 0；
-用例聚合 **839 用例 / 835 执行 / 0 失败 / 0 错误 / 4 跳过**（app 58 · data 325 · domain 227 · ui 229；4 条跳过 = env 门控 live 网络冒烟）。
+用例聚合 **840 用例 / 836 执行 / 0 失败 / 0 错误 / 4 跳过**（app 58 · data 325 · domain 227 · ui 230；4 条跳过 = env 门控 live 网络冒烟）。
 较 0.2.0（785）**+54**；较 B 迭代前基线 836 **+3** = 示例标记 `.cpro` 往返守护 1 · D48 认领口径锁定 1 · 异常堆栈脱敏守护 1。
 B 迭代功能守护：示例数据 **11**（domain 5 + data 6）· 跨账户导入 **21**（data 12 + ui 9）· 会话门禁 **3** · 多账户可见性 **3** · 视觉回归比对 **5**。
 
@@ -355,7 +355,7 @@ WZF_LIVE_SMOKE=1 https_proxy=http://127.0.0.1:8899 ./gradlew --no-daemon :data:t
 ```bash
 export JAVA_HOME=$(mise where java)
 
-# 1) 全量构建 + 静检（期望：839 用例 = 835 执行 0 失败 0 错误 + 4 跳过，detekt 0，编译警告 0；口径见 §0.2）
+# 1) 全量构建 + 静检（期望：840 用例 = 836 执行 0 失败 0 错误 + 4 跳过，detekt 0，编译警告 0；口径见 §0.2）
 ./gradlew clean build detekt --no-build-cache
 
 # 2) 硬约束结构守护（§1/§2/§4/§5）
