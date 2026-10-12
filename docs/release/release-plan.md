@@ -266,6 +266,41 @@ dpkg-deb --fsys-tarfile <deb> | tar -xO ./opt/*/lib/*.desktop | grep -E '^(Icon|
 > `WuZhuFolio-portable-*-x64.*`）；tag 说明改为「**B 迭代 · 桌面端体验深化（M15）**」；
 > **本轮仍不签名、macOS 不进 Release**（§9）。
 
+#### 5.0 0.3.0 直接执行块（已代入版本号与实际产物名；**人工批准后逐条粘贴**）
+
+```bash
+# 0) 前置：§3 清单全部勾选（含 §3.4 素材/影片一致）；CI 六作业全绿；工作树干净
+git checkout main && git pull --ff-only
+git status --porcelain                     # 必须为空
+grep 'val appVersion' app/build.gradle.kts # 必须是 0.3.0
+
+# 1) 打标签（附注标签，写明版本与依据）
+git tag -a v0.3.0 -m "WuZhuFolio 0.3.0 —— B 迭代 · 桌面端体验深化（M15）"
+git push origin v0.3.0
+
+# 2) 取 CI 产物（Windows / Linux；macOS 不进 Release）并生成校验清单
+sha256sum WuZhuFolio-0.3.0.msi WuZhuFolio-0.3.0.exe WuZhuFolio-portable-windows-x64.zip \
+          wuzhufolio_0.3.0-1_amd64.deb wuzhufolio-0.3.0-1.x86_64.rpm \
+          wuzhufolio-0.3.0-x86_64.AppImage WuZhuFolio-portable-linux-x64.tar.gz \
+          > SHA256SUMS
+
+# 3) 建 Release（**draft**；人工复核附件与说明后点 Publish）
+gh release create v0.3.0 --title "WuZhuFolio 0.3.0" --draft \
+  --notes-file docs/release/release-notes-0.3.0.md \
+  WuZhuFolio-0.3.0.msi WuZhuFolio-0.3.0.exe WuZhuFolio-portable-windows-x64.zip \
+  wuzhufolio_0.3.0-1_amd64.deb wuzhufolio-0.3.0-1.x86_64.rpm \
+  wuzhufolio-0.3.0-x86_64.AppImage WuZhuFolio-portable-linux-x64.tar.gz \
+  SHA256SUMS
+gh release view v0.3.0 --web                # 人工复核后点 Publish
+
+# 4) 发布后验证（§6 口径）：真实下载代表产物 → 校验 → 核对附件清单
+gh release download v0.3.0 -p SHA256SUMS -p 'wuzhufolio_0.3.0-1_amd64.deb' -D /tmp/v030
+cd /tmp/v030 && sha256sum -c --ignore-missing SHA256SUMS    # 期望：OK
+ls                                  # 期望：7 产物 + SHA256SUMS，无 macOS 构件、无调试产物
+```
+
+> 以下为 **0.1.0 的历史实例**（保留作发布留痕），**执行 0.3.0 请用上面的 §5.0 直接执行块**。
+
 ```bash
 # 0) 前置：§3 清单全部勾选；CI package job 三平台全绿且产物已签名
 git checkout main && git pull --ff-only
