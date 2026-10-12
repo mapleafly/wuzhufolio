@@ -46,6 +46,34 @@
 
 ---
 
+## 0.2 0.3.0 复跑（2026-10-12，B 迭代后）
+
+> **范围**：B 迭代（**D44 / D45 / D46 / D47 / D48**）与 F1 第二波 C0 清扫（`docs/dev/项目全面评审报告.md §10.6`）之后，
+> 对本清单**五条硬约束逐条复跑**；基线 = 0.3.0 候选版（0.2.0 之后未发布，见评审 §10.1「`v0.2.0..HEAD` = 44 文件」）。
+> **本轮变化面**：D44 设置页同步入口会话门禁 · D45 多账户可见性 · D46 示例数据 · D47 B5 工程项 · D48 自选跨账户**显式**导入（C2）；
+> **schema 与 `.cpro` 格式零变更**（仍 **schema 12**；D41 账户级自选语义保持；D46/D48 **零 schema、零新增 settings 键**）；
+> **加密边界零变更**；测试侧新增「异常堆栈进脱敏漏斗」。判定口径同 §0.1（✅ 通过 / ➖ 保留）。
+
+| # | 硬约束 | **0.3.0 复跑结论** | 本轮证据（可复核） |
+|---|--------|-------------------|-------------------|
+| 1 | 数据本地化 | ✅ **通过** | 全仓 http(s) 字面量仅 **3 个白名单业务主机**：`data/.../market/MarketConfig.kt:22`（`api.coingecko.com`）· `:27`（`pro-api.coinmarketcap.com`）· `data/.../exchange/ExchangeConfig.kt:11`（`api.binance.com`）；另 `ui/.../market/MarketCopy.kt:44-45` 为**注册文档链接**，经 `Desktop.browse` **交系统浏览器**（不携带数据、非应用出站请求）；`SystemProxyDetector.kt:92` 的 PROBE_URI 亦在白名单内（评审 §10.2-①）。**B 迭代新增通路均在本地**：D44 未登录时**不进入同步路径**（零外联）、D46 示例数据**完全本地生成、不联网**、D48 只读写本库 settings 行 ⇒ **白名单未扩张**；`SecurityGuardTest::all outbound http hosts stay inside the allow list` 复跑绿 |
+| 2 | 零遥测 | ✅ **通过** | 遥测关键词主源码 grep **0 命中**（命中项仅 i18n 文案 / `SecurityGuardTest` 禁用词表 / docs）；依赖面 `gradle/libs.versions.toml` 全表 + 模块直连坐标（评审 §10.2-②，**26 项口径**）**无分析/崩溃上报 SDK**；无「检查更新」端点（无 Sparkle/WinSparkle/appcast/update4j）；机器断言复跑绿：`SecurityGuardTest::no telemetry analytics or crash reporting dependency is declared`、`::logging has no network appenders` |
+| 3 | 密钥与加密 | ✅ **通过（新增一处更严）** | AES-256-GCM（`domain/.../security/AesGcm.kt:14-47`：AES/GCM/NoPadding · 96-bit nonce · 16B tag · AAD）；Argon2id（`Argon2Kdf.kt:20-42`；`KdfParams` 低于 OWASP 基线**拒绝装载**）；`KekVerify.kt:11-28`（仅 `SHA-256(KEK‖"verify")` + `MessageDigest.isEqual` **常量时间**）；行情 Key 走**设备密钥**、**不进 `.cpro`**（`DeviceSecretCipher.kt:14-43`）；备份密码**独立**（D24：不回填、禁空）⇒ 本轮**未触及**加密、密钥派生与凭据存储。**本轮更严项**：**异常堆栈进同一脱敏漏斗**——新增 `app/.../logging/RedactingThrowableConverter.kt` + `logback.xml:25/:38` 显式 `%ex`（消除 logback「自动追加堆栈」旁路），守护用例 `LogbackRedactionFunnelTest::configured logback pattern routes exception stacks through the redactor`（断言堆栈内密钥/令牌同样被遮蔽）；D44/D46/D48 均不涉密、**零加密边界变更** |
+| 4 | 两类独立 API | ✅ **通过** | 行情与交易所仍是**两个独立 client 实例**（`data/.../market/MarketHttp.kt:55-66` / `data/.../exchange/BinanceAdapter.kt:295-306`），互不引用、Key 头分离；`ApiIsolationGuardTest` 2 例复跑绿（`market and exchange clients are distinct instances` / `clients never share a mutable proxy selector by construction`）；D44 只是把设置页同步入口收敛到**入口前置会话门禁**（与托盘/顶栏/后台同源），**未改两类 API 的结构、凭据与错误模型** |
+| 5 | 多账户隔离 + `.cpro` | ✅ **通过（更严）** | ① 账户级仓库查询**均带 `account_id`**（`SettingsRepository.kt:29-54` 账户行/全局行显式分离；`ApiKeysTable.kt:69-181` 全部查询带 `accountId eq`）；② **D48 跨账户导入的八项不变量与守护用例**逐条复核见 **§5.4**（默认互不可见 / 仅显式动作 / 只复制自选 / 单向且来源**一字不改** / 不触发来源 D41 认领 / 四类拒绝态类型化 / 无聚合视图 / 零 schema）；③ `.cpro` **AAD = 头部字节**（`CproCodec.kt:59-60/145`），`BackupBoundaryGuardTest` 锁「**行情 Key / 账户行 / coins 目录 / 全局设置行绝不入备份**」（3 例复跑绿）；④ D46/D48 **零 schema、零新增 settings 键**（`SettingsKeyNamespaceGuardTest` 无需扩表即复跑绿） |
+
+**自动化证据（0.3.0 · 2026-10-12，Lead 独立复核）**：
+`./gradlew clean build detekt --no-build-cache` → **BUILD SUCCESSFUL（33/33 任务真实执行）** + **detekt 0** + 编译警告 0；
+用例聚合 **839 用例 / 835 执行 / 0 失败 / 0 错误 / 4 跳过**（app 58 · data 325 · domain 227 · ui 229；4 条跳过 = env 门控 live 网络冒烟）。
+较 0.2.0（785）**+54**；较 B 迭代前基线 836 **+3** = 示例标记 `.cpro` 往返守护 1 · D48 认领口径锁定 1 · 异常堆栈脱敏守护 1。
+B 迭代功能守护：示例数据 **11**（domain 5 + data 6）· 跨账户导入 **21**（data 12 + ui 9）· 会话门禁 **3** · 多账户可见性 **3** · 视觉回归比对 **5**。
+
+**结论**：五条硬约束**全部通过**；**③ / ⑤ 两条较 0.2.0 更严**（新增异常堆栈脱敏漏斗；D48 跨账户通路逐条不变量复核），
+**① 维持 0.2.0 的最严口径**（未登录零外联），② / ④ 与 0.2.0 一致，**无新增安全悬空项**。D48 是 `§1.1-5` 的**显式例外补充**——
+「用户显式选择 + 二次确认的一次性复制」**不等于**「账户间隐式可见」（论证见 §5.4 与 `D48 §4`）。
+
+---
+
 ## 1. 硬约束 1：数据本地化
 
 > PRD §1.1-1：交易记录、API 密钥、资金流水只存用户设备本地，禁止任何云端上传/传输。
@@ -327,7 +355,7 @@ WZF_LIVE_SMOKE=1 https_proxy=http://127.0.0.1:8899 ./gradlew --no-daemon :data:t
 ```bash
 export JAVA_HOME=$(mise where java)
 
-# 1) 全量构建 + 静检（期望：718 用例 = 710 执行 0 失败 + 8 跳过，detekt 0，编译警告 0）
+# 1) 全量构建 + 静检（期望：839 用例 = 835 执行 0 失败 0 错误 + 4 跳过，detekt 0，编译警告 0；口径见 §0.2）
 ./gradlew clean build detekt --no-build-cache
 
 # 2) 硬约束结构守护（§1/§2/§4/§5）
@@ -335,6 +363,14 @@ export JAVA_HOME=$(mise where java)
                      --tests "com.wuzhufolio.data.security.ApiIsolationGuardTest" \
                      --tests "com.wuzhufolio.data.backup.BackupBoundaryGuardTest" \
                      --tests "com.wuzhufolio.data.settings.SettingsKeyNamespaceGuardTest"
+
+# 2b) B 迭代新增守护（§0.2 / §5.4：跨账户导入不变量 · 示例数据 · 会话门禁 · 脱敏漏斗）
+./gradlew :data:test --tests "com.wuzhufolio.data.market.WatchImportServiceTest" \
+                     --tests "com.wuzhufolio.data.demo.DefaultDemoDataServiceTest"
+./gradlew :ui:test   --tests "com.wuzhufolio.ui.market.WatchImportUiTest" \
+                     --tests "com.wuzhufolio.ui.ledger.DemoDataUiTest" \
+                     --tests "com.wuzhufolio.ui.exchange.ApiManagementSectionUiTest"
+./gradlew :app:test  --tests "com.wuzhufolio.app.logging.LogbackRedactionFunnelTest"
 
 # 3) 加密与脱敏守护
 ./gradlew :domain:test --tests "com.wuzhufolio.domain.security.*" \

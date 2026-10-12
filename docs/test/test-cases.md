@@ -29,6 +29,8 @@
 - `TC-SEC-<nn>`：P6 安全与隐私专项（对应 `security-checklist.md` 五条硬约束）。
 - `TC-MAN-<nn>`：人工门用例（🔵）。
 - `TC-X-2.5-4`（P6 新增）：DEF-04 专项用例。
+- `TC-D<决策号>-<条目号>`（**0.3.0 新增**）：B 迭代增量决策用例，**D44–D48** 各文件一一对应（`docs/dev/decisions/D*.md`）→ **§9**。
+- `TC-DEF-<nn>-<n>`（**0.3.0 新增**）：缺陷回归**守护**用例（**DEF-58 时间敏感断言 / DEF-59 慢机等待 / DEF-60 门禁缓存路径**各 1 条）→ **§9.6**。
 
 ### 0.3 用例来源说明（逐条对应，无遗漏）
 
@@ -43,7 +45,13 @@
 | PRD 附录 A 黄金用例 1–12 | §5 | 12 |
 | `AGENTS.md §1.1` 五条硬约束 + P6 新增抓包与大载荷内存曲线 | §6 | 16 |
 | 人工门（托盘/读屏/真实 Key/目标机/GUI 全流程/便携版） | §7 | 11 |
-| **合计** | | **300** |
+| **0.3.0 / B 迭代新增**（**D44–D48** · 全面评审 §10 · **DEF-58/59/60**） | **§9** | **24** |
+| **合计** | | **324** |
+
+> **本批来源（2026-10-12 补，0.3.0 发布准备）**：全面评审判定 **P1 第 3 条**——「B 迭代新功能未进正式用例目录与人工走查清单」
+> （`项目全面评审报告.md §10.3`，证据指向本节「合计 300」）⇒ 本次按 **D44–D48 决策档 + `M15.md §3` 验收清单（实测）** 补 **§9** 共 **24 条**：
+> D44 设置页同步门禁 2 · D45 多账户可见性 2 · D46 示例数据 5 · D48 跨账户导入 6 · D47 B5 工程项 6 · DEF-58/59/60 守护各 1；
+> 人工走查项另见 **`manual-test-guide.md §22`（0.3.0 发布前必办）**，不占用 §7 的 TC-MAN 编号。
 
 ### 0.4 结论摘要表
 
@@ -56,7 +64,8 @@
 | §5 附录 A 黄金用例 | 12 | 12 | 0 | 0 | 0 |
 | §6 安全与隐私专项 | 16 | 14 | 0 | 0 | 2 |
 | §7 人工门用例 | 11 | 0 | 0 | 0 | 11 |
-| **合计** | **299** | **190** | **87** | **6** | **16** |
+| §9 B 迭代新增（0.3.0 · D44–D48 / DEF-58–60） | 24 | 22 | 2 | 0 | 0 |
+| **合计** | **323** | **212** | **89** | **6** | **16** |
 
 > **结论**：计算口径（黄金用例 1–12）与安全硬约束自动化面**全部 ✅**；需补强的三处集中在
 > ①表单/列表的 UI 逐项断言（🟡 补 Compose UI）、②异常态与加载态呈现（🟡/⬜）、③需真人真机的 16 条人工门用例（🔵，§7）。
@@ -753,6 +762,72 @@
 
 ---
 
+## §9 B 迭代新增用例（0.3.0 准备 · D44–D48 / DEF-58–60）
+
+> **来源（2026-10-12 补）**：全面评审判定 P1「B 迭代新功能未进正式用例目录与人工走查清单」（`docs/dev/项目全面评审报告.md §10.3`，
+> 证据指向 §0.3「合计 300」）⇒ 本批 **24 条**按 **`docs/dev/decisions/D44`–`D48` 决策档正文 + `docs/dev/modules/M15.md §3` 验收清单（实测记录）** 编写，
+> 逐条对应真实测试函数名；**不改写任何既有判定**，既有 §1–§8 编号不变。
+> **状态口径**：本批以 `M15.md §3` 的实跑记录与 `D47 §6` / `defects.md` DEF-58–60 为据；🟡 = 口径已落地但**线上/条文生效性待实跑**。
+> **人工走查**：B1–B4 的真人真机走查见 **`manual-test-guide.md §22`**（**0.3.0 发布前必办**），按 `§7.0` 惯例单独留痕，不占用 §7 的 TC-MAN 编号。
+> **自动化基线**：`./gradlew clean build detekt --no-build-cache` → BUILD SUCCESSFUL（33/33 任务真实执行）+ detekt 0；
+> 聚合 **839 用例 / 835 执行 / 0 失败 / 0 错误 / 4 跳过**（app 58 · data 325 · domain 227 · ui 229；2026-10-12）。
+
+### 9.1 设置页同步门禁（D44 · T15.1）
+
+| 用例 ID | 需求锚点 | 验收要点 | 步骤/前置（简） | 期望结果 | 自动化映射（file::testFun）或执行方式 | 状态 |
+|---|---|---|---|---|---|---|
+| TC-D44-1 | `D44 §2`（设置页「API 管理」同步入口统一会话门禁）· 追溯 D40/D43 三条入口 | 未登录（会话锁定）时页面级与行级「立即同步」**只提示、不进入同步路径** | 清空会话 → 设置 → API 管理 → 点页面级「立即同步」；再点某条 Key 的行级同步 | toast「请先登录后再同步交易」；**执行体与服务层均零调用**（锁定时不发起任何请求） | `[UI]exchange/ApiManagementSectionUiTest.kt::locked session blocks page-level sync and shows login required`、`::locked session blocks row-level sync and shows login required`；文案 `ApiCopy.LOGIN_REQUIRED`（zh/en 双档） | ✅ |
+| TC-D44-2 | `D44 §2-3/4`（已登录行为完全不变） | 已登录时同步行为与门禁前**逐字一致**（全量同步 + 汇总 toast），且**走注入的门禁执行体** | 有会话 + 至少 1 个 Key → 点页面级「立即同步」 | 每个 Key 都被同步并 toast 汇总；不出现「请先登录」文案；不走直连服务 | `[UI]exchange/ApiManagementSectionUiTest.kt::unlocked session routes page-level sync through the injected gated executor`、`::sync all with keys syncs every key and toasts summary` | ✅ |
+
+### 9.2 多账户可见性（D45 · T15.2）
+
+| 用例 ID | 需求锚点 | 验收要点 | 步骤/前置（简） | 期望结果 | 自动化映射（file::testFun）或执行方式 | 状态 |
+|---|---|---|---|---|---|---|
+| TC-D45-1 | `D45 §2-1`（顶栏常驻账户标识）· `ia.md §1`/`§2.17` | 任意页面顶栏可见「账户 · <当前账户名>」；账户名为空时**不渲染**（不留空标签） | 登录 → 逐页切换（看板/资产/交易/资金/行情/设置）看顶栏；再以空账户名渲染一次 | 每页顶栏均显示「账户 · X」（`topbar-account`）；无账户名时该标识不存在 | `[UI]ShellUiTest.kt::top bar shows current account name`、`::top bar account chip hidden when account name absent` | ✅ |
+| TC-D45-2 | `D45 §2-2`（切换确认显示「当前 → 目标」） | 切换弹窗标注「当前账户：X」；切换后顶栏与页面数据同步刷新 | 账户菜单 → 切换账户，看弹窗首行；完成一次真实切换 | 弹窗显示「当前账户：Alex」（`switch-current`）；切换成功后顶栏为新账户名、页面数据按新账户刷新 | `[UI]auth/AuthFlowUiTest.kt::account menu switch requires password and logout roundtrip works`（含 `waitForText("当前账户：Alex")`） | ✅ |
+
+### 9.3 示例数据与首次引导（D46 · T15.3）
+
+| 用例 ID | 需求锚点 | 验收要点 | 步骤/前置（简） | 期望结果 | 自动化映射（file::testFun）或执行方式 | 状态 |
+|---|---|---|---|---|---|---|
+| TC-D46-1 | `D46 §2.2`（加载口径：幂等 + 拒绝） | **仅空账户**可加载示例数据；已加载幂等；非空**拒绝且一条不写**；未登录类型化失败 | 空账户点「加载示例数据」→ 再点一次；另在已有真实记录的账户点；再在无会话时点 | 空账户 `Loaded(4, 1)`（1 增资 + 3 买 + 1 卖）；再次点击 `AlreadyLoaded` 且行数不变；有真实记录 ⇒ `Rejected(ACCOUNT_NOT_EMPTY)` **零写入**；无会话 ⇒ `Failed(NO_SESSION)` | `[D]demo/DefaultDemoDataServiceTest.kt::loadWritesSelfConsistentDatasetAndIsIdempotent`、`::loadIsRejectedOnAccountWithRealRecordsAndWritesNothing`、`::loadWithoutSessionIsTypedFailureAndReadsAreSafe`；`[DOM]demo/DemoPortfolioTest.kt::dataset replays strictly with expected holdings and realized pnl` | ✅ |
+| TC-D46-2 | `D46 §2.1`（唯一识别依据 = `notes` 行首 `[示例] `）/`§2.4` | 示例行带 `[示例] ` 前缀；界面有显式标识条（zh/en 双档，**en 档不引 CJK 字面量**） | 加载示例数据 → 看交易列表备注列与命令区标识条（`tx-demo-banner`/`tx-demo-badge`）；切 en 复看 | 每笔示例行 `notes` 均以 `[示例] ` 开头（`DemoData.MARKER`）；标识条含「示例数据」徽标 + 清除入口；en 档由 i18n 提供且无 CJK | `[DOM]demo/DemoPortfolioTest.kt::every note carries the demo marker and times are strictly ascending`；`[UI]ledger/DemoDataUiTest.kt::clickingLoadRunsInjectedServiceAndShowsLoadedRows`；`[UI]i18n/I18nCatalogTest.kt::english catalogue never contains cjk characters` | ✅ |
+| TC-D46-3 | `D46 §2.3`/`§2.4`（清除 = 破坏性动作 → 二次确认） | 清除需二次确认；**确认前零服务调用**；遮罩/Esc 不误触 | 点「清除示例数据」→ 看确认弹窗（`tx-demo-clear-confirm`）→ 先 Esc / 点遮罩 → 再点确认 | 弹窗出现且**确认前 `clearCalls == 0`**；Esc 与遮罩只关窗、不清除；确认后调用一次 | `[UI]ledger/DemoDataUiTest.kt::clearRequiresConfirmationAndCallsInjectedService`；共性约束 `AGENTS.md §7.3-1/5/7` | ✅ |
+| TC-D46-4 | `D46 §2.3`（只删标记行 + 顺序 + 部分清除边界） | 清除只删示例行、**真实数据一条不删**；清除后归零；依赖示例增资时保留该行并给「部分清除」提示 | 空账户加载 → 清除 → 看三页计数；另造「真实记录依赖示例增资」场景再清除 | 清除后交易与资金列表归零、标识条消失；真实记录原样保留；部分清除时 `clear()` 返回已删条数、保留该增资行，标识条与提示仍在；账户间互不影响 | `[D]demo/DefaultDemoDataServiceTest.kt::clearRemovesOnlyMarkedRowsAndKeepsRealRecords`、`::clearKeepsDemoDepositWhenRealRecordsDependOnIt`、`::accountsAreIsolated`；`[UI]ledger/DemoDataUiTest.kt::partialClearKeepsBannerAndWarnsAboutDependency` | ✅ |
+| TC-D46-5 | `D46 §2.1`（数据集内容与账本口径） | 加载后看板/资金/交易**立即有数**，账本口径正确（与行情无关的量为硬判据） | 空账户加载 → 依次看看板、资金流水、交易列表 | 持仓 USDT 40,952.5 · BTC 0.8 · ETH 5 · SOL 40；累计增资 100,000；卖出已实现 **+1,983.00**；交易列表 4 行（时间降序，首行 = BTC/USDT 卖出）、资金列表 1 行；净值/ROI 随行情口径（影片素材演示口径为净值 109,952.50 / ROI +9.95%，按**数据集最后成交价**计价，见 `promo/README.md` 口径表） | `[DOM]demo/DemoPortfolioTest.kt::dataset replays strictly with expected holdings and realized pnl`、`::dataset shape is one deposit plus three buys and one sell over three coins`、`::all amounts are positive big decimals and sell never exceeds bought quantity`；`[D]demo/DefaultDemoDataServiceTest.kt::loadWritesSelfConsistentDatasetAndIsIdempotent` | ✅ |
+
+### 9.4 自选清单跨账户显式导入（D48 · C2 · T15.5）
+
+| 用例 ID | 需求锚点 | 验收要点 | 步骤/前置（简） | 期望结果 | 自动化映射（file::testFun）或执行方式 | 状态 |
+|---|---|---|---|---|---|---|
+| TC-D48-1 | `D48 §2`（入口位置与显隐）· `ia.md §2.19` | 行情页入口「从其它账户导入…」**仅在存在其它账户时**渲染；无其它账户/未登录/未注入服务**不渲染** | 三种前置各进一次行情页看命令区（`watch-toolbar`） | 有其它账户 ⇒ 入口可见（`watch-import-open`）；无其它账户、未登录、未注入服务 ⇒ 不渲染，页面行为与改造前一致 | `[UI]market/WatchImportUiTest.kt::entry is visible when other accounts exist`、`::entry is hidden when there are no other accounts`、`::entry is hidden when the import service is not injected` | ✅ |
+| TC-D48-2 | `D48 §1.1-2`/`§3.1`（来源列表**不含当前账户** + 只读摘要） | 来源列表**不含当前账户**；摘要只读、id 升序、展示名同序同长、**不物化任何行** | 打开导入弹层看来源列表；对比账户清单；无会话时再开一次 | 列表仅含其它账户（每行 = 账户名 + 自选数量与币种摘要）；**当前账户不出现**；无会话 ⇒ 列表为空 | `[D]market/WatchImportServiceTest.kt::list other accounts returns read only summaries and leaves the source untouched`、`::list other accounts is empty without a session` | ✅ |
+| TC-D48-3 | `D48 §1.1-2`/`§2`（必须**显式**：选来源 + 二次确认；确认前零调用） | 未选来源不进确认步；确认步显示摘要（来源账户 + 数量 + 币种列表）；**确认前零导入调用** | 打开弹层直接点「下一步」→ 选来源 → 看确认步 → 点「确认导入」 | 未选来源时「下一步」不推进；**二次确认前 `importCalls == 0`**；确认步显示来源账户名/数量/币种列表；确认后 `importCalls == 1` 且 `lastSourceId` = 所选来源；Esc 关窗且零导入 | `[UI]market/WatchImportUiTest.kt::import requires an explicit source selection and a second confirmation`、`::escape closes the import modal without importing` | ✅ |
+| TC-D48-4 | `D48 §1.1-1/3`（只复制自选 + 单向 + 来源一字不改） | 导入后**来源账户自选未变**（逐字节）且不触发其 D41 认领；其它表零变化 | 账户 A（有自选）→ 账户 B 导入 A → **切回 A 看自选**；核对两侧交易/资金/密钥行数与全局设置键 | 来源 `watch.coins` 行**逐字节相等**、全局 `watch.migrated` 仍为 `NULL`；来源与第三方账户的交易/资金/API 密钥行数与内容不变；**唯一写入 = 当前账户 `watch.coins` 一行** | `[D]market/WatchImportServiceTest.kt::import writes only the current account and keeps every other account row byte identical`、`::import does not claim the legacy global list for the source account`、`::import copies only the watch list and leaves every other table untouched`、`::import touches exactly one settings key and no other table` | ✅ |
+| TC-D48-5 | `D48 §1.1-4`/`§2`（四类拒绝态逐态文案 + 零写入）· `interaction.md §1.9` | 未登录 / 来源不存在 / 来源为空 / 全量重复 ⇒ 类型化结果 + 可操作文案 + **零写入**（D41 认领口径见 `D48 §1.1` C0 注） | 分别构造四种前置各导入一次 | 未登录 ⇒ 「请先登录后再导入自选」（`Failed(NO_SESSION)`）；来源不存在（含把自己当来源）⇒ `SOURCE_NOT_FOUND`；来源为空 ⇒ `NoSource`；全量重复 ⇒ `AlreadyComplete`；四态均**不写自选清单本身**；目标侧无自选行时沿用 **D41 认领**（可能物化当前账户行 + `watch.migrated`，**来源仍一字不改**） | `[D]market/WatchImportServiceTest.kt::import without a session is a typed failure and writes nothing`、`::import with no other account reports source not found and writes nothing`、`::import from an empty source writes nothing`、`::reject path follows the documented D41 claim semantics on the target account`；`[UI]market/WatchImportUiTest.kt::missing session result asks the user to sign in`、`::empty source result is reported` | ✅ |
+| TC-D48-6 | `D48 §3.1`/`§3.2`（幂等 + 保序去重 + 归一） | 全量重复 ⇒ **幂等**（两次调用行不变）；部分重复 ⇒ 去重保序追加；异常载荷先归一 | 同一来源导入两次；再造部分重复与含空白/重复项的载荷 | 第二次 `AlreadyComplete`、行**逐字节不变**；部分重复 ⇒ `Imported(added=2, skipped=2)` 且按来源序追加、既有排列不打乱；载荷 `["tether"," bitcoin ","bitcoin",""]` 归一为 `[tether, bitcoin]`（摘要与导入同口径） | `[D]market/WatchImportServiceTest.kt::import of an already complete list is idempotent and writes nothing`、`::partial duplicate import appends only the missing coins in source order`、`::source payload with blanks and duplicates is normalized before import`；`[UI]market/WatchImportUiTest.kt::imported result reports added and skipped counts`、`::already complete result is reported as a no-op` | ✅ |
+
+### 9.5 工程门禁与规约（D47 · B5 六子项 · T15.4）
+
+| 用例 ID | 需求锚点 | 验收要点 | 步骤/前置（简） | 期望结果 | 自动化映射（file::testFun）或执行方式 | 状态 |
+|---|---|---|---|---|---|---|
+| TC-D47-1 | `D47 §2.1①`（视觉回归进 CI + 计数断言） | CI 由既有 `./gradlew test` 真实渲染 **24 张**（4 页面 × 2 主题 × 3 尺寸）并**断言计数**，产物归档 | 全量 `test` 后看 `ui/build/visual-regression/`；CI 看「视觉回归摘要」步骤 | 24 张 PNG 齐备（`VISUAL_REGRESSION_PNGS=24`）；CI 断言 `count == 24`，否则 `::error` 失败；artifact `visual-regression-<os>` 归档 | `.github/workflows/ci.yml:44-78` + `ui/build.gradle.kts`（视觉回归用例）；`[UI]regression/VisualDiffTest.kt` 5 例 | ✅ |
+| TC-D47-2 | `D47 §2.1`（比对能力 + **报告型不阻断**） | 基线比对显式成状态、**从不抛异常、不改测试结论** | 跑 `VisualDiffTest`；看 `diff-<page>.md` 报告 | 状态 `MATCH`/`DIFF`/`NO_BASELINE`/`SIZE_MISMATCH`（缺基线、尺寸不符**如实计入、不缩放不猜测**）；报告覆盖式写入；**不阻断**构建（转阻断前置三条见 `D47 §2.1`） | `[UI]regression/VisualDiffTest.kt::相同图像判为 MATCH 且差异为零`、`::单像素漂移按最大通道差与占比如实计数`、`::容差内抖动不算差异`、`::尺寸不符与缺基线都显式成状态而不猜测`、`::report 覆盖式写 diff 报告且缺基线如实计入` | ✅ |
+| TC-D47-3 | `D47 §2.2②`（打包产物冒烟收敛门禁） | app-image 常规 ASCII 路径**阻断式**；非 ASCII 与辅助技术变体保持**信息性**；MSI 维持**观察期** | 看 CI 打包冒烟步骤的 `continue-on-error` 与日志串 | 常规路径失败 ⇒ job 失败（已移除 `continue-on-error`）；变体只打 `PACKAGED_LAUNCH_SMOKE_<LABEL>`；MSI 保留 `continue-on-error`（转阻断前置见 `D47 §2.2`） | `.github/workflows/ci.yml`（口径见 `D47 §2.2`）；**线上生效性待 CI 实跑**（`M15.md §3` 已如实登记） | 🟡 |
+| TC-D47-4 | `D47 §2.5⑤`（素材写回门控 · F6） | 默认全量构建**不改写仓库素材**；仅 env/`-P` 开启才写回；可一键回滚 | 默认全量 `clean build detekt` 后查 `git status --porcelain -- docs/release/promo/assets`；再分别以 `WUZHUFOLIO_FILM_ASSETS=1` 与 `-Pwuzhufolio.filmAssets=true` 复跑 | 默认 **空**（素材落 `ui/build/promo-assets/`）；两种开启方式各得 **4 个 `M`**；`git checkout -- docs/release/promo/assets/ui` 后复查为空 | `M15.md §3`（T15.4⑤ 双向实测）；仓库素材仍是 0.2.0 版，**不得单独替换**，随 0.3.0 出片一并重生成（`promo/README.md`） | ✅ |
+| TC-D47-5 | `D47 §2.3③`/`§2.4④`（埋点卫生 + 收尾轮状态对齐 checklist） | 两条规约在库且**收尾轮逐项打勾**：临时埋点「加入即标注 + 收尾轮清理留痕」；收尾 checklist 九项 | 查 `AGENTS.md §7.3-9` 与 `§3.1` 条文；查 `M15.md §3` 收尾轮勾选记录 | `§7.3-9` 与 `§3.1` 条文在库；`M15.md §3` 记载「已清理 0 处 / 剩余 0 处」与两轮 checklist 逐项 ✅ | `AGENTS.md §7.3-9`、`AGENTS.md §3.1`；`docs/dev/modules/M15.md §3` | ✅ |
+| TC-D47-6 | `D47 §2.6⑥`（时间敏感断言规范 = **DEF-58** 预防） | 时间敏感断言必须相对当前时刻构造或注入 `Clock`；纯展示断言可用固定时间但须注明 | 查 `AGENTS.md §7.3-8` 条文；grep ui 测试的绝对时间基准与 `FundDateRange` 用法 | `§7.3-8` 在库；币种详情时间筛选用例以 `Instant.now()` 为基准构造相对时间（`now−1 天` / `now−200 天`）；全 ui 测试无「绝对基准 × 真实时钟」混用 | `AGENTS.md §7.3-8`；`[UI]portfolio/PortfolioPagesUiTest.kt::coin detail filters transactions by time range`；详见 **TC-DEF-58-1** | ✅ |
+
+### 9.6 测试健壮性缺陷守护（DEF-58 / DEF-59 / DEF-60）
+
+| 用例 ID | 需求锚点 | 验收要点 | 步骤/前置（简） | 期望结果 | 自动化映射（file::testFun）或执行方式 | 状态 |
+|---|---|---|---|---|---|---|
+| TC-DEF-58-1 | `defects.md` **DEF-58**（C0 · 测试缺陷）· `AGENTS.md §7.3-8` | 时间敏感用例不再因「NOW + 窗口宽度」到期而**永久失败** | 以任意当前时刻跑 `:ui:test` 的币种详情时间筛选用例（含边界日） | 用例基准 = 相对当前时刻（近期落「近 30 天」、远期落「更早」档），断言与档位序不变 ⇒ **任意时刻均绿**（修复前自 `2026-10-10T07:24Z` 起必红） | `[UI]portfolio/PortfolioPagesUiTest.kt::coin detail filters transactions by time range`（`now−1 天` / `now−200 天`）；同类排查已 grep 全 ui 测试，**无第二个时间炸弹** | ✅ |
+| TC-DEF-59-1 | `defects.md` **DEF-59**（C0 · 测试缺陷） | 慢机 CI 下 UI 等待不再因超时过短偶发红：等待默认 **≥10 s**，且**点击前先等目标节点就位** | 慢机/高负载下跑 `AuthFlowUiTest`（登录 → 切换账户 → 改密 → 再登录 → 登出五段） | 等待助手默认超时 15000 ms（**只放宽容忍度、不改断言语义**）；登出点击前显式 `waitFor("acct-logout")`；用例 6 例 0 失败 | `[UI]auth/AuthFlowUiTest.kt::account menu switch requires password and logout roundtrip works`；**规约化待观察**——写入 `AGENTS.md §7.3` 属 `defects.md` DEF-59 预防行的**建议项，当前尚未入条文** | 🟡 |
+| TC-DEF-60-1 | `defects.md` **DEF-60**（C0 · 配置缺陷）· `D47 §2.1①` | 视觉回归计数门禁在**构建缓存命中**路径不再误报；归档不再为空 | 纯文档提交（测试输入未变）触发 CI，或本地 `--build-cache` 命中后跑门禁步骤 | 视觉回归目录已**声明为 `Test` 任务输出** ⇒ 缓存命中时**连同产物一起恢复**；计数 24 成立、归档非空；失败分支自带诊断输出 | `ui/build.gradle.kts`（`outputs.dir(...)`）+ `.github/workflows/ci.yml`；**CI 实证已闭环**（缓存命中路径，`STATUS.md` CI 留痕） | ✅ |
+
+---
+
 ## 需求回溯
 
 | 需求锚点 | 对应用例段 | 覆盖结论 |
@@ -776,6 +851,13 @@
 | D26 负持仓成本口径 | §4.8 TC-X-2.8-4 | ✅ |
 | D27/D28 1:1 锚定与白名单 | §1.3 TC-A2.2-3、§1.7 TC-A6.1-4、§4.8 | ✅（`d27DepositTradeAndMetricsStayAtParDespiteMarketSnapshot`、`default cash whitelist is usdt only and anchor set is fixed to usdt`） |
 | D29 负持仓不计入净值 | §4.8 | ✅（含仪表盘显式提示） |
+| **D44** 设置页同步入口统一会话门禁 | §9.1 | ✅（未登录零调用 + 已登录行为不变，2 条） |
+| **D45** 多账户可见性（顶栏账户名 + 切换确认） | §9.2 | ✅（2 条；`ShellUiTest` +2、`AuthFlowUiTest` 断言 +1） |
+| **D46** 示例数据与首次引导 | §9.3 | ✅（5 条：仅空账户 / `[示例]` 标记 / 二次确认 / 清除归零 / 账本口径） |
+| **D47** B5 工程项（CI 门禁与规约固化） | §9.5 | ✅ 4 条 + 🟡 1 条（打包冒烟线上生效性待 CI 实跑；素材写回门控双向实测） |
+| **D48** 自选清单跨账户**显式**导入（C2，mini 闭环 `§8.3`） | §9.4 | ✅（6 条：入口显隐 / 来源不含当前账户 / 二次确认摘要 / 来源一字不改 / 四类拒绝态 / 幂等保序）；安全侧复核见 `security-checklist.md §5.4` |
+| **DEF-58 / DEF-59 / DEF-60** 测试与门禁健壮性 | §9.6 | ✅ 2 条 + 🟡 1 条（DEF-59 规约化待观察） |
+| **B 迭代人工走查**（B1–B4） | `manual-test-guide.md §22` 🔵 | **待人工**（人工 2026-10-11 暂缓；`M15.md §3` 相应项**未勾选**）⇒ **0.3.0 发布前必办** |
 
 ---
 
@@ -785,7 +867,7 @@
 > **执行顺序建议**：1 → 2 → 3 → 4（可选真实网络）→ 5（GUI）→ 6（域基准）→ §7 人工门。
 
 ```bash
-# 1) 全量构建 + 静态检查（P6 主门槛；测试总数以本次运行为准，历史上限为 636）
+# 1) 全量构建 + 静态检查（P6 主门槛；测试总数以本次运行为准——当前口径见 §9 抬头：839 用例 / 835 执行 / 0 失败 / 0 错误 / 4 跳过 + detekt 0）
 ./gradlew clean build detekt --no-build-cache
 
 # 2) 聚焦各模块（按需复跑；--tests 支持通配）
@@ -807,6 +889,18 @@
                        --tests "com.wuzhufolio.ui.settings.*" \
                        --tests "com.wuzhufolio.ui.shell.*" \
                        --tests "com.wuzhufolio.ui.auth.*"             # Compose 离屏 UI 全量走查
+
+# 2b) B 迭代新增守护（§9：D44/D46/D47/D48 + DEF-58/60）
+./gradlew :data:test --tests "com.wuzhufolio.data.market.WatchImportServiceTest" \
+                     --tests "com.wuzhufolio.data.demo.DefaultDemoDataServiceTest" \
+                     --tests "com.wuzhufolio.data.backup.DefaultBackupServiceTest"
+./gradlew :ui:test   --tests "com.wuzhufolio.ui.market.WatchImportUiTest" \
+                     --tests "com.wuzhufolio.ui.ledger.DemoDataUiTest" \
+                     --tests "com.wuzhufolio.ui.exchange.ApiManagementSectionUiTest" \
+                     --tests "com.wuzhufolio.ui.regression.VisualDiffTest" \
+                     --tests "com.wuzhufolio.ui.portfolio.PortfolioPagesUiTest"   # 含 DEF-58 时间敏感用例
+./gradlew :app:test  --tests "com.wuzhufolio.app.logging.LogbackRedactionFunnelTest"
+#   视觉回归产物：ui/build/visual-regression/（24 张 PNG + diff-*.md；CI 计数断言见 §9.5 TC-D47-1）
 
 # 3) 集成联调（真实组合根）：核心旅程 / 异常态 / 交易所回环
 ./gradlew :app:test --tests "com.wuzhufolio.app.integration.*"

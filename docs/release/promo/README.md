@@ -144,3 +144,32 @@ NODE_PATH=.agents/skills/huashu-design/node_modules \
 
 **GIF 参数**：`fps=12,scale=560:-1:flags=lanczos,hqdn3d=1.5:1.5:6:6,palettegen=max_colors=96:stats_mode=diff`
 → `paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle`（本片文字密集，960 px/15 fps 会到 37 MB，故收敛到 560 px）。
+
+---
+
+## 0.3.0 出片状态与阻塞记录（2026-10-12）
+
+**结论：⏳ 未出片**——素材已能重生成并**已视觉验证**，但**本机出片链不可用**，故按「素材 ↔ 影片一一对应」约束
+**已把素材回滚**到与已发布影片一致的 0.2.0 版（仓库当前状态 = 0.2.0 素材 + 0.2.0 影片，一致）。
+
+**本次已完成的实证（步骤 0）**：`WUZHUFOLIO_FILM_ASSETS=1` + 3 个测试类（`PortfolioPagesUiTest` /
+`MarketWatchPageUiTest` / `TransactionsPageUiTest`）→ **恰好 4 张**素材被更新（其余 8 张逐字节不变，git 视角 4 文件）；
+新素材**视觉核验通过**：仪表盘 **$109,952.50 / ROI +9.95% / 累计已实现 +$1,983.00**，资产分布
+BTC 48,000 / USDT 40,952.50 / ETH 15,000 / SOL 6,000，且顶栏显示 **「账户 · Alex」**（D45 新功能本身已入画）。
+
+**阻塞（2026-10-12 实测）**：步骤 1 之后需要 node + playwright(chromium) + ffmpeg + python3。
+本机 **WSL2 Ubuntu 24.04 内 node / npm / ffmpeg 均已不在**（上次出片后环境未保留；`~/.cache/ms-playwright` 里的
+`chromium-1234` / `ffmpeg-1011` 仍在，但宿主二进制缺失）；**WSL 无免密 sudo** ⇒ 无法就地安装；
+**Docker 守护未运行** ⇒ 无法用 playwright 官方镜像；Windows 侧虽有 node v22 + python，但
+`render-promo-seek.mjs` 按 **Linux 路径**解析浏览器缓存，跨平台需改脚本（未做，避免擅改 P7 资产链）。
+
+**恢复出片的两条路径（任选其一，约 20 分钟）**：
+1. **WSL/Linux（推荐，走文档化管线）**：在 WSL 内
+   `sudo apt-get install -y nodejs npm ffmpeg python3` → `cd .agents/skills/huashu-design && npm ci &&
+   npx playwright install chromium` → 然后执行一键脚本 **`bash docs/release/promo/tools/render-0.3.0.sh`**
+   （该脚本已内置步骤 0 素材门控、前置自检、六个步骤；`--check` 自检会先验证无 pageerror / 字体豆腐块 / NaN）。
+2. **Windows 原生**：需 `npm i playwright` + Windows 版 ffmpeg，并**修改 `render-promo-seek.mjs` 的浏览器解析**
+   （`~/.cache/ms-playwright` → `%LOCALAPPDATA%\ms-playwright`）——属资产链改动，**建议先人工定级**再做。
+
+**出片后必须同步的数值**：`storyboard.md` 的 S7 数字（已实现 **+1,983.00**，0.2.0 成片为 +4,915）；
+`release-plan.md §7.1-⑥` 与 `§1.4` 的出片状态；GIF 体积口径（`release-plan.md §7-⑦` 记录的 6.3 MB 需按新成片更新）。
