@@ -19,6 +19,7 @@
  *   --check  只做页面自检（pageerror / console error / 字体 / 豆腐块 / NaN），不渲染
  */
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -59,23 +60,41 @@ const BASE = process.env.WZ_BASE || 'http://127.0.0.1:8791';
 const PORT = parseInt(process.env.WZ_PORT || '8791');
 
 const TOTAL = Math.round(FPS * DURATION);
-const REL = path.relative(REPO, path.resolve(HTML));
+// C0（2026-10-12，跨平台化）：HTTP URL 必须用 `/` 分隔——Windows 下 `path.relative` 返回 `\`，直接拼进 URL
+// 会让静态服务器（`python -m http.server`）解析不到文件。此处统一归一为 POSIX 分隔符。
+const REL = path.relative(REPO, path.resolve(HTML)).split(path.sep).join('/');
 const PAGE_URL = `${BASE}/${REL}`;
 const OUT = arg('out', path.resolve(HTML).replace(/\.html$/, '.mp4'));
 const TMP = path.join(path.dirname(path.resolve(HTML)), '.seek-tmp-' + Date.now() + '-' + process.pid);
 
 function findChromium() {
-  const cache = path.join(process.env.HOME ?? '', '.cache/ms-playwright');
+  // C0（2026-10-12，跨平台化）：原实现只认 Linux（`$HOME/.cache/ms-playwright` 与 `/usr/bin/chromium*`），
+  // 在 Windows 上必然解析失败、`chromium.launch({executablePath: undefined})` 直接抛错。现按平台给候选：
+  // ① playwright 缓存（Linux `chrome-linux*/chrome` · Windows `chrome-win*/chrome.exe`，两个根：
+  //    `$HOME/.cache/ms-playwright` 与 `%LOCALAPPDATA%\ms-playwright`）；
+  // ② 系统已装的 Chromium 内核浏览器（Linux chromium/google-chrome · Windows Chrome / Edge——
+  //    渲染结果与 playwright 自带 chromium 等价，且**免下载**）。
+  const home = process.env.HOME ?? os.homedir();
   const c = [];
-  if (fs.existsSync(cache)) {
+  const cacheRoots = [
+    path.join(home, '.cache/ms-playwright'),
+    process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'ms-playwright') : '',
+  ].filter(Boolean);
+  for (const cache of cacheRoots) {
+    if (!fs.existsSync(cache)) continue;
     for (const d of fs.readdirSync(cache))
-      for (const r of ['chrome-linux64/chrome', 'chrome-linux/chrome'])
+      for (const r of ['chrome-linux64/chrome', 'chrome-linux/chrome',
+                       'chrome-win64/chrome.exe', 'chrome-win/chrome.exe'])
         if (fs.existsSync(path.join(cache, d, r))) c.push(path.join(cache, d, r));
   }
   // 2026-09-30：回退到**系统已装的 Chrome/Chromium**（免下载浏览器，渲染结果等价）
   for (const sys of [
     '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable',
     '/usr/bin/chromium', '/usr/bin/chromium-browser', '/snap/bin/chromium',
+    'C:/Program Files/Google/Chrome/Application/chrome.exe',
+    'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+    'C:/Program Files/Microsoft/Edge/Application/msedge.exe',
+    'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
   ]) {
     if (fs.existsSync(sys)) c.push(sys);
   }
@@ -86,7 +105,15 @@ const raf = (page, n) => page.evaluate(c => new Promise(res => {
   let i = 0; const s = () => { i++; i >= c ? res() : requestAnimationFrame(s); }; requestAnimationFrame(s);
 }), n);
 
-const browser = await chromium.launch({ executablePath: findChromium() });
+// C0（2026-10-12）：找不到可用浏览器时**快速失败并给出可执行修复**（原实现会把 undefined 传给 launch，报错难读）。
+const CHROMIUM_EXE = findChromium();
+if (!CHROMIUM_EXE) {
+  console.error('✗ 未找到可用 Chromium/Chrome/Edge（候选见 findChromium）：'
+    + '请装 playwright（`npx playwright install chromium`）或系统 Chrome/Edge，或设 HOME/LOCALAPPDATA 指向已有缓存');
+  process.exit(2);
+}
+console.log('· browser = ' + CHROMIUM_EXE);
+const browser = await chromium.launch({ executablePath: CHROMIUM_EXE });
 const ctx = await browser.newContext({ viewport: { width: WIDTH, height: HEIGHT }, deviceScaleFactor: 1 });
 await ctx.addInitScript(() => { window.__recording = true; window.__seekRender = true; });
 

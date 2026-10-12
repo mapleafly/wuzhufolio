@@ -173,8 +173,14 @@
   `manual-test-guide.md §22`（B 迭代人工走查清单）
   ⑤ 用户侧：`user-guide.md`（0.3.0 / v1.3 + 升级须知）· `release-notes-0.3.0.md`（新建）· `rollback.md §4.1.2`（0.3.0 → 0.2.0 降级口径）。
   **放行前置（未完成项）**：**人工 GUI 走查**（`manual-test-guide.md §22`；2026-10-11 人工暂缓 ⇒ **发布前必办**）·
-  **出片与素材重生成**（`assets/ui/` 4 张素材 + `wuzhufolio-promo-30s.{mp4,gif}` **一并**重生成；`storyboard.md` S7 数值随新素材同步）·
+  **出片与素材重生成 ✅ 已完成（2026-10-12，Windows 原生链）**——`playwright-core` + 系统 Chrome + BtbN ffmpeg：
+  **1800/1800 帧 · 734 s**，成片 `wuzhufolio-promo-30s.mp4`（**15.4 MB** · 60 fps · **AAC 48 kHz 立体声** · **30.000 s**）
+  + `.gif`（**6.77 MB**），与 4 张素材 / `wuzhufolio-promo.html` **同会话一并重生成**（`storyboard.md` S5/S7 数值已同步为
+  `$109,952.50` / `+$1,983.00`）；其间暴露并修复 **DEF-61**（素材写回门控未进任务输入 ⇒ 构建缓存命中时静默不写回）·
   **人工批准发布**（`release-plan.md §9`）。**本版仍不签名、macOS 不发布**。
+  **⚠️ 新增登记缺陷（待人工定级）**：**DEF-62**——交易表「已实现盈亏」正收益单元格显示 **`++1,983.00`**（`TransactionsPage.kt:485-486`
+  冗余符号前缀，`WzFormat.signedAmount` 自身已带符号）；该缺陷**已进入 0.3.0 成片 S7 特写镜头**（该镜头锚点即此单元格），
+  **若修则素材与影片需同会话重出片**（约 15 分钟）。
 - **当前状态（2026-09-25 更新）**：🎉 **0.1.1 已发布**（[GitHub Release v0.1.1](https://github.com/mapleafly/wuzhufolio/releases/tag/v0.1.1)，
   提交 `d0991a6`，tag `v0.1.1`，8 附件 + `SHA256SUMS`，发布后校验通过）——**P7 收尾完成，等待人工决定是否进入 P8（复盘与下一迭代范围）**。
   人工原话（2026-09-25）：「**托盘功能通过，windows走查通过**」→ D36 §6 B1–B8 与 D35 §6 A1–A7 的可人工判定部分全部通过，

@@ -12,8 +12,8 @@
 
 | 文件 | 说明 |
 |------|------|
-| `wuzhufolio-promo-30s.mp4` | **成品（0.2.0 版）**：1920×1080 · 30.00 s · **60 fps** · H.264 · **AAC 48 kHz 立体声**（15.5 MB） |
-| `wuzhufolio-promo-30s.gif` | 派生 GIF：560×315 · 12 fps · 96 色 palette 优化（6.3 MB） |
+| `wuzhufolio-promo-30s.mp4` | **成品（0.3.0 版，2026-10-12 重出）**：1920×1080 · 30.00 s · **60 fps** · H.264 · **AAC 48 kHz 立体声**（15.4 MB） |
+| `wuzhufolio-promo-30s.gif` | 派生 GIF：560×315 · 12 fps · 96 色 palette 优化（**6.77 MB**） |
 | `wuzhufolio-promo.html` | 动画源码（自包含单文件，真实 UI 截图 base64 内联） |
 | `storyboard.md` | **分镜卡**（11 镜 · hero element · 能量骨架 · hold/rest 预算 · 镜头预算 · 12 项音频 cue · 逐帧复核清单） |
 | `boards/direction-{a,b,c}.png` | 三方向方向板（A 中标；B/C 归档备用） |
@@ -32,7 +32,7 @@
 | UI 素材 → 真实应用 2× 离屏渲染（`ui` 模块 `VisualRegression.captureFilmAsset`，2480×1640） | ⚠️ **几何不匹配，已回退** |
 | 渲染器可移植性（skill 无 node_modules / 无 Playwright 自带 Chromium 时回退**系统 Chrome**；ffmpeg 用静态构建） | ✅ 已加固（`tools/render-promo-seek.mjs`） |
 | 一键复现脚本 | ✅ `tools/render-0.2.0.sh`（重建→自检→渲染）+ `tools/mix-0.2.0.sh`（BGM+14 SFX→MP4+GIF） |
-| 出片 | ✅ **已出片**：`wuzhufolio-promo-30s.mp4`（15.5 MB · 60 fps · AAC 立体声 · 30.00 s）+ `.gif`（6.3 MB）；抽帧验片通过（2.5 / 6.5 / 10 / 13.5 / 23 s） |
+| 出片 | ✅ **已出片（2026-10-12，0.3.0 重出）**：`wuzhufolio-promo-30s.mp4`（15.4 MB · 60 fps · AAC 立体声 · 30.000 s）+ `.gif`（**6.77 MB**）；抽帧核验通过（S5 t=10.5 s 净值 / S7 t=15.5 s 已实现盈亏，与 `storyboard.md` 同步值一致） |
 
 ### 过程留痕：素材几何与模板合成不匹配（**2026-09-30 验片发现 → 已修正**）
 
@@ -45,7 +45,7 @@
 - **修正结果**：改用 `MainShell` + 页面槽采**整窗**素材后，构图恢复正常（同一帧位对比 0.1.0 成片：构图风格一致）；
   期间还修掉两处：素材密度参数（`runSkikoComposeUiTest` 的 `size` 是**像素**，需 2480×1640 + density 2 才得 2× 图）、
   影片夹具（仪表盘指标来自交易重放，需 `metricsOverride` 填充，且避免异常币 ⚠️ 横幅出现在宣传片里）。
-- **当前仓库状态**：✅ 影片产物与素材均为 **0.2.0 版**（真实 M3 界面 + M3 色板）。
+- **当前仓库状态**：✅ 影片产物与素材均为 **0.3.0 版**（真实 M3 界面 + M3 色板 + **产品示例数据集数值**；2026-10-12 重出）。
 
 ## 素材写回门控（B5⑤，2026-10-10 · 全面评审 F6）
 
@@ -92,10 +92,10 @@ WUZHUFOLIO_FILM_ASSETS=1 ./gradlew :ui:test --tests "*film asset*" --console=pla
 | 交易行 | 数据集 4 笔（3 买 + 1 卖），行序 = 运行期列表默认的**交易时间降序**（首行 = BTC/USDT 卖出）；卖出行已实现盈亏由引擎逐笔推导（**+1,983.00**，口径同 M7 `SellRealizedTracer`，但由引擎产出） |
 | 素材画面 | 仪表盘净值 109,952.50 / ROI +9.95% / 已实现 +1,983.00；资产列表顶部三卡不再为 `$0.00`（0.2.0 素材的已知缺陷，随本项修正） |
 
-> **⚠️ 素材与影片必须一并重生成（0.3.0 发布准备）**：仓库内 `assets/ui/` 下的 4 张 PNG **仍是 0.2.0 版**，
-> 与**已发布的 0.2.0 影片一一对应**（`D47`/`F6` 口径：发布素材 ↔ 发布影片必须一一对应）。本次只让
-> **代码侧就绪**——**不得单独替换** `assets/ui/` 素材；须在 0.3.0 出片时按下方「复现管线」三步
-> **一并**重生成素材与影片（`tools/render-0.2.0.sh` 步骤 0 已开启素材写回门控）。
+> **✅ 素材与影片已一并重生成（2026-10-12，0.3.0）**：`assets/ui/` 的 4 张 PNG、`wuzhufolio-promo.html`、
+> `wuzhufolio-promo-30s.mp4` 与 `.gif` **同一会话生成**（满足 `D47`/`F6` 口径：发布素材 ↔ 发布影片一一对应）。
+> 原约束（**不得单独替换**素材）**依然适用**：任何单独改动素材都必须连同影片一并重出（见下「Windows 原生出片链」）；
+> `storyboard.md` 的 S5/S7 锚点数值已同步为 **`$109,952.50`** / **`+$1,983.00`**。
 > 另：`storyboard.md` 的 S7 锚点仍写首行「BTC/USDT 卖出 **+$4,915.00**」（0.2.0 期的黄金数值口径），
 > 0.3.0 出片时须按新素材数值（**+1,983.00**）同步；本次**不改** `storyboard.md`（它记录的是 0.2.0 期分镜）。
 
@@ -147,29 +147,58 @@ NODE_PATH=.agents/skills/huashu-design/node_modules \
 
 ---
 
-## 0.3.0 出片状态与阻塞记录（2026-10-12）
+## 0.3.0 出片（2026-10-12 · ✅ 已完成，Windows 原生链）
 
-**结论：⏳ 未出片**——素材已能重生成并**已视觉验证**，但**本机出片链不可用**，故按「素材 ↔ 影片一一对应」约束
-**已把素材回滚**到与已发布影片一致的 0.2.0 版（仓库当前状态 = 0.2.0 素材 + 0.2.0 影片，一致）。
+**结论**：**已出片**——`assets/ui/` 4 张素材、`wuzhufolio-promo.html`、`wuzhufolio-promo-30s.mp4`
+（**15.4 MB** · 1920×1080 · 60 fps · H.264 + **AAC 48 kHz 立体声** · **30.000 s**）与
+`wuzhufolio-promo-30s.gif`（**6.77 MB** · 560×315 · 12 fps · 96 色）**同会话一并重生成**
+（满足 D47/F6「发布素材 ↔ 发布影片一一对应」）。过程中暴露并修复 **DEF-61**。
 
 **本次已完成的实证（步骤 0）**：`WUZHUFOLIO_FILM_ASSETS=1` + 3 个测试类（`PortfolioPagesUiTest` /
 `MarketWatchPageUiTest` / `TransactionsPageUiTest`）→ **恰好 4 张**素材被更新（其余 8 张逐字节不变，git 视角 4 文件）；
 新素材**视觉核验通过**：仪表盘 **$109,952.50 / ROI +9.95% / 累计已实现 +$1,983.00**，资产分布
 BTC 48,000 / USDT 40,952.50 / ETH 15,000 / SOL 6,000，且顶栏显示 **「账户 · Alex」**（D45 新功能本身已入画）。
 
-**阻塞（2026-10-12 实测）**：步骤 1 之后需要 node + playwright(chromium) + ffmpeg + python3。
-本机 **WSL2 Ubuntu 24.04 内 node / npm / ffmpeg 均已不在**（上次出片后环境未保留；`~/.cache/ms-playwright` 里的
-`chromium-1234` / `ffmpeg-1011` 仍在，但宿主二进制缺失）；**WSL 无免密 sudo** ⇒ 无法就地安装；
-**Docker 守护未运行** ⇒ 无法用 playwright 官方镜像；Windows 侧虽有 node v22 + python，但
-`render-promo-seek.mjs` 按 **Linux 路径**解析浏览器缓存，跨平台需改脚本（未做，避免擅改 P7 资产链）。
+### Windows 原生出片链（2026-10-12 实测可用 · C0 工装适配）
 
-**恢复出片的两条路径（任选其一，约 20 分钟）**：
-1. **WSL/Linux（推荐，走文档化管线）**：在 WSL 内
-   `sudo apt-get install -y nodejs npm ffmpeg python3` → `cd .agents/skills/huashu-design && npm ci &&
-   npx playwright install chromium` → 然后执行一键脚本 **`bash docs/release/promo/tools/render-0.3.0.sh`**
-   （该脚本已内置步骤 0 素材门控、前置自检、六个步骤；`--check` 自检会先验证无 pageerror / 字体豆腐块 / NaN）。
-2. **Windows 原生**：需 `npm i playwright` + Windows 版 ffmpeg，并**修改 `render-promo-seek.mjs` 的浏览器解析**
-   （`~/.cache/ms-playwright` → `%LOCALAPPDATA%\ms-playwright`）——属资产链改动，**建议先人工定级**再做。
+> 背景：本机 **WSL2 内 node / npm / ffmpeg 均已不在**（上次出片后环境未保留；`~/.cache/ms-playwright` 的
+> `chromium-1234` / `ffmpeg-1011` 仍在但宿主二进制缺失）、**WSL 无免密 sudo**、**Docker 守护未运行** ⇒
+> 改用 **Windows 原生链**（不改影片内容与叙事，仅把「浏览器解析 + 运行环境」跨平台化）。
 
-**出片后必须同步的数值**：`storyboard.md` 的 S7 数字（已实现 **+1,983.00**，0.2.0 成片为 +4,915）；
-`release-plan.md §7.1-⑥` 与 `§1.4` 的出片状态；GIF 体积口径（`release-plan.md §7-⑦` 记录的 6.3 MB 需按新成片更新）。
+**前置（一次性）**
+1. `node`（实测 v22）+ `python3`（字体经 HTTP 供给）+ `ffmpeg`/`ffprobe` 在 PATH
+   （本机用 BtbN 静态构建解包到 `%TEMP%\promo-tools\ffmpeg-master-latest-win64-gpl\bin`；下载需 `curl --ssl-no-revoke`，
+   否则本机会因**吊销检查**失败）；
+2. `npm i playwright-core`（装到**仓库外**如 `%TEMP%\promo-tools`，设 `NODE_PATH`）——
+   **无需下载 Chromium**：脚本会回退到**系统 Chrome / Edge**（`findChromium()` 已跨平台化）。
+
+**执行（六步，与 bash 版同构）**
+```powershell
+$env:NODE_PATH = "$env:TEMP\promo-tools\node_modules"      # playwright-core
+$env:WUZHUFOLIO_FILM_ASSETS = '1'                          # 步骤 0 素材写回门控（DEF-61 起纳入任务输入）
+.\gradlew.bat :ui:test --tests "*PortfolioPagesUiTest*" --tests "*MarketWatchPageUiTest*" --tests "*TransactionsPageUiTest*"
+node docs/release/promo/tools/build-promo.mjs              # 步骤 1 素材 → base64 自包含 HTML
+python -m http.server 8791 --bind 127.0.0.1                # 步骤 2 字体供给（仓库根启动）
+node docs/release/promo/tools/render-promo-seek.mjs docs/release/promo/wuzhufolio-promo.html `
+     --duration=30 --fps=60 --width=1920 --height=1080 --check     # 步骤 3 自检（pageerror/字体/豆腐块/NaN）
+node docs/release/promo/tools/render-promo-seek.mjs docs/release/promo/wuzhufolio-promo.html `
+     --duration=30 --fps=60 --width=1920 --height=1080 --out="$env:TEMP\promo-silent.mp4"   # 步骤 4 渲染
+pwsh -File docs/release/promo/tools/mix-0.3.0.ps1 -Silent "$env:TEMP\promo-silent.mp4"      # 步骤 5+6 混音 + GIF
+```
+**实测**：`--check` → 三字体 loaded / 无豆腐块 / **pageerror 0**（唯一 console 错误 = `/favicon.ico` 404，无害）；
+渲染 **1800/1800 帧 · 734 s**（`browser = C:/Program Files/Google/Chrome/Application/chrome.exe`）；
+混音 15 路（1 BGM + 14 SFX）→ 成片含 `Audio: aac, 48000 Hz, 2 ch`、时长 **30.000 s**。
+
+**两条已知约束（务必遵守）**
+1. **素材与影片必须同会话生成**：D46 示例数据用 `clock()` 生成 **now 相对日期**，故 `transactions-light` 截图
+   **随出片日期变化**（实测两次出片哈希不同）——**不得跨日混用素材与影片**；
+2. **门控必须真跑**：`-Pwuzhufolio.filmAssets=true` 或环境变量 `WUZHUFOLIO_FILM_ASSETS=1` 均会触发写回，
+   且 `DEF-61` 起门控值进任务输入、开启时禁用缓存（否则 `:ui:test` 命中缓存会静默不写回）。
+
+> **Linux 分支**（原文档化管线）仍可用：`bash docs/release/promo/tools/render-0.3.0.sh`（含前置自检与修复命令）。
+
+**已同步的数值**：`storyboard.md` 的 S5 净值锚点（`$120,464.77` → **`$109,952.50`**）与 S7 已实现盈亏
+（`+$4,915.00` → **`+$1,983.00`**），以及 GIF 体积口径（6.3 MB → **6.77 MB**，见 `release-plan.md §7-⑦`）。
+
+> ⚠️ **成片内含一处已登记的展示缺陷**：S7 特写镜头里交易表「已实现盈亏」单元格显示 **`++1,983.00`**（双加号）——
+> 见 `defects.md` **DEF-62**（正收益单元格符号重复，**待人工定级**）；若修，则该素材与影片需**同会话重出片**。

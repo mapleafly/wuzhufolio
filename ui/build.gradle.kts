@@ -27,7 +27,20 @@ tasks.withType<Test>().configureEach {
     // 该目录为空：CI 的视觉回归归档为空，且「24 张」计数断言误报失败（实测 run `38188785360` 三平台全红）。
     // 声明为输出后，缓存命中会**连同产物一起恢复**（缓存条目里含 PNG），归档与计数断言在两种路径下都成立。
     outputs.dir(layout.buildDirectory.dir("visual-regression")).withPropertyName("visualRegressionArtifacts")
-    providers.gradleProperty("wuzhufolio.filmAssets").orNull?.let {
-        systemProperty("wuzhufolio.filmAssets", it)
+    // **DEF-61 修复**（C0，2026-10-12）：素材写回门控必须参与**任务输入**（构建缓存键）——
+    // 原实现只读 `-P` 属性、不看环境变量，且门控值不是任务输入 ⇒ `:ui:test` 命中构建缓存时**不执行**，
+    // 仓库素材（`docs/release/promo/assets/ui/`）**静默不更新**（实测：`cleanTest :ui:test` 仍 `FROM-CACHE`，
+    // 出片链读到旧素材，且 D47/F6「素材 ↔ 影片一一对应」被破坏）。现在：① 门控值同时取自 `-P` 与环境变量，
+    // 并声明为任务输入；② 门控**开启**时禁用缓存与最新性检查——写回仓库是**副作用**，不属于声明输出，
+    // 不能被缓存条目代表，故出片时必须真实执行。
+    val filmAssetsGate = providers.gradleProperty("wuzhufolio.filmAssets").orNull
+        ?: providers.environmentVariable("WUZHUFOLIO_FILM_ASSETS").orNull
+    inputs.property("filmAssetsGate", filmAssetsGate ?: "off")
+    if (filmAssetsGate != null) {
+        systemProperty("wuzhufolio.filmAssets", filmAssetsGate)
+    }
+    if (filmAssetsGate != null && filmAssetsGate != "false" && filmAssetsGate != "0") {
+        outputs.upToDateWhen { false }
+        outputs.cacheIf { false }
     }
 }
