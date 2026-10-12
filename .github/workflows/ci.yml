@@ -55,6 +55,10 @@ jobs:
           # C0（2026-10-12，四线独立复核 P2-5）：**断言 24 张**——此前只打印不校验，
           # 用例被 --tests 过滤或渲染失败时会静默降数而 job 仍绿（视觉回归形同虚设）。
           if [ "${count:-0}" -ne 24 ]; then
+            echo "::group::视觉回归产物诊断"
+            echo "dir=$dir"; ls -la "$dir" 2>&1 || true
+            echo "（若 :ui:test 为 FROM-CACHE，产物应由缓存恢复——见 ui/build.gradle.kts 的 outputs.dir 声明）"
+            echo "::endgroup::"
             echo "::error::视觉回归产物应为 24 张（4 页面 × 2 主题 × 3 尺寸），实际 ${count:-0} 张"
             exit 1
           fi
