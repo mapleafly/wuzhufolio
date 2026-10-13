@@ -118,7 +118,7 @@ b28faf0bbf0df73e358f725ebd3121982a2b44c319f3cf1b0aea81df90193eea  WuZhuFolio-por
   **出片与素材重生成** ✅ **已完成（2026-10-12，Windows 原生链）**：4 张素材 + `wuzhufolio-promo-30s.{mp4,gif}` + HTML **同会话重生成**（见 `promo/README.md`）；
 - **放行前置**：**人工 GUI 走查**（2026-10-11 人工「暂不走查，先继续其它工作」⇒ **发布前必办**，清单见
   `manual-test-guide.md §22`）· **人工批准发布**（§9）· 出片产物与 `storyboard.md` 数值同步。
-  - **✅ 发布完成（2026-10-13）**：① 人工 GUI 走查 **B1/B2/B4 完全通过**（Windows 打包版 0.3.0 修复版；首轮暴露的 DEF-63/64 已 C0 修复并复验）· ② 人工批准发布 · ③ tag **0.3.0** 已推 · ④ 产物 **7 件 + SHA256SUMS**（取自 CI run 38364147657）· ⑤ **Release 已 Publish**（2026-10-13T13:06:36Z · latest=true · https://github.com/mapleafly/wuzhufolio/releases/tag/v0.3.0）· ⑥ **发布后验证**：真实下载代表产物 sha256sum -c **3/3 OK**（msi 1c7f9d6e… · 便携 zip 4ca908cb… · deb  e1307bf…），附件 8 件、无 macOS/调试产物。
+  - **✅ 发布完成（2026-10-13）**：① 人工 GUI 走查 **B1/B2/B4 完全通过**（Windows 打包版 0.3.0 修复版；首轮暴露的 DEF-63/64 已 C0 修复并复验）· ② 人工批准发布 · ③ tag **0.3.0** 已推 · ④ 产物 **7 件 + SHA256SUMS**（取自 CI run 38364147657）· ⑤ **Release 已 Publish**（2026-10-13T13:06:36Z · latest=true · https://github.com/mapleafly/wuzhufolio/releases/tag/v0.3.0）· ⑥ **发布后验证**：真实下载代表产物 sha256sum -c **3/3 OK**（msi 1c7f9d6e… · 便携 zip 4ca908cb… · deb  e1307bf…），附件 8 件、无 macOS/调试产物。 **发布后真机补测清单 = `manual-test-guide.md §23`**（从 Release 下载正式产物测：校验和 / 安装 / SmartScreen / 托盘 / 开机自启 / B1·B2·B4 / `.cpro` 往返 / 卸载残留 / 降级演练 / 日志脱敏 / 零遥测抽查；结果回填 §23.5 表 + `STATUS.md`）。
 
 ---
 
