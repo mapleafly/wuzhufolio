@@ -347,7 +347,7 @@
   **B3（原 T15.5 / D48）已于 2026-10-13 按人工走查裁决「完全移除」净删除（`D49`）** ⇒ **B 迭代有效交付 = 四项**：
   **B4（D44）· B2（D45）· B1（D46）· B5（D47）** ⇒ **B 迭代实现完成，停在人工门**
   （收尾轮状态对齐 checklist 已按 `AGENTS.md §3.1` 逐项打勾，见 [`M15.md §3`](modules/M15.md)；`D49` 后已就该项回扫）。
-**全量 clean 复跑（2026-10-13，人工关闭走查实例后）**：`clean build detekt --no-build-cache` → **BUILD SUCCESSFUL（33/33 真实执行）+ detekt 0**；聚合 **820 / 816 执行 / 0 失败 / 0 错误 / 4 跳过**（app 59 · data 312 · domain 227 · ui 222）——与 D49 移除后的记录口径**逐项一致**。**修复版 Windows 包已重建**（含 DEF-63/DEF-64 修复 + D48 已移除）：`WuZhuFolio-0.3.0.msi`（137.6 MB · sha256 `B921A355…`）· `WuZhuFolio-portable-windows-x64.zip`（137.4 MB · sha256 `E4675D5D…`）· app-image（exe 版本 0.3.0）。
+**全量 clean 复跑（2026-10-13，人工关闭走查实例后）**：`clean build detekt --no-build-cache` → **BUILD SUCCESSFUL（33/33 真实执行）+ detekt 0**；聚合 **820 / 816 执行 / 0 失败 / 0 错误 / 4 跳过**（app 59 · data 312 · domain 227 · ui 222）——与 D49 移除后的记录口径**逐项一致**。**修复版 Windows 包已重建**（含 DEF-63/DEF-64 修复 + D48 已移除）：`WuZhuFolio-0.3.0.msi`（137.6 MB · sha256 `B921A355…`）· `WuZhuFolio-portable-windows-x64.zip`（137.4 MB · sha256 `E4675D5D…`）· app-image（exe 版本 0.3.0）。 **CI 留痕**：`f4c7f8d`（`D49` 净删除）→ run **`38344360358` = ✅ success**（6 作业：3 测试 + 3 打包 ⇒ 删除未破坏任何平台打包链）。
   **B4 ✅ 已完成（首项）**：设置页「API 管理」同步入口纳入**统一会话门禁**——
   页面级改经调度器路径（与托盘/顶栏同一门禁）、行级入口前置判定；未登录只提示「请先登录后再同步交易」；
   **决策档 [`D44`](decisions/D44-设置页同步入口统一会话门禁.md)** + 台账/索引 + `T15.1` + `interaction.md §1.6` + 模块记录
