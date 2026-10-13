@@ -267,6 +267,7 @@ dpkg-deb --fsys-tarfile <deb> | tar -xO ./opt/*/lib/*.desktop | grep -E '^(Icon|
 > `wuzhufolio_0.3.0-1_amd64.deb` / `wuzhufolio-0.3.0-1.x86_64.rpm` / `wuzhufolio-0.3.0-x86_64.AppImage` /
 > `WuZhuFolio-portable-*-x64.*`）；tag 说明改为「**B 迭代 · 桌面端体验深化（M15）**」；
 > **本轮仍不签名、macOS 不进 Release**（§9）。
+**本轮仍不签名、macOS 不进 Release**（§9）。**（2026-10-13 人工在 0.3.0 发布前复核，维持该口径 ⇒ 0.3.0 附件 = Windows/Linux 8 件，不含 macOS；依据与重估条件见 certificate-procurement.md §0 2026-10-13 复核注。）**
 
 #### 5.0 0.3.0 直接执行块（已代入版本号与实际产物名；**人工批准后逐条粘贴**）
 
