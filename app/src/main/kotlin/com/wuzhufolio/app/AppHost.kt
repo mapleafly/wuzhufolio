@@ -89,7 +89,7 @@ fun ApplicationScope.AppHost(runtime: AppBootstrap.Runtime, onExit: () -> Unit) 
     var windowVisible by remember { mutableStateOf(true) }
     // DEF-50：主窗口句柄（用于「打开主界面」时置前；Compose 的 WindowState 只管可见/最小化，不改 Z 序）
     var mainWindow by remember { mutableStateOf<ComposeWindow?>(null) }
-    // DEF-49：可见反馈（Linux 用应用内提示窗；Win/mac 走原生气泡）
+    // DEF-49 / **DEF-64**：可见反馈（Linux **与 Windows** 用应用内提示窗；macOS 走原生气泡）
     var notice by remember { mutableStateOf<DesktopNotice?>(null) }
     var noticeSeq by remember { mutableStateOf(0) }
     val inAppToast = remember { NoticeDelivery.useInAppToast() }
@@ -226,7 +226,8 @@ fun ApplicationScope.AppHost(runtime: AppBootstrap.Runtime, onExit: () -> Unit) 
     LaunchedEffect(effectiveVisible) { runtime.scheduler.setWindowVisible(effectiveVisible) }
 
     // 调度事件 → 桌面通知（开关关闭/托盘不可用 = 只留日志，不打扰）
-    // DEF-49：Linux 下 AWT 气泡无承载（GNOME/SNI 代理）→ 改投应用内提示窗；Win/mac 保持原生气泡。
+    // DEF-49 / **DEF-64**：Linux 下 AWT 气泡无承载（GNOME/SNI 代理）→ 应用内提示窗；Windows 同理
+    // （DEF-64 实测：托盘手动动作的提示原先在非 Linux 平台**根本没有投递**，连原生气泡也没走）；macOS 保持原生气泡。
     LaunchedEffect(runtime, traySupported, inAppToast) {
         runtime.scheduler.events.collect { event ->
             runtime.logger.debug("scheduler event: " + event.javaClass.simpleName)
@@ -263,7 +264,7 @@ fun ApplicationScope.AppHost(runtime: AppBootstrap.Runtime, onExit: () -> Unit) 
         )
     }
 
-    // DEF-49：应用内提示窗（Linux 通知通道；自动消失，不抢焦点）
+    // DEF-49 / **DEF-64**：应用内提示窗（Linux + Windows 通知通道；独立窗口、托盘驻留态亦可见；自动消失，不抢焦点）
     if (inAppToast) {
         val current = notice
         if (current != null) {

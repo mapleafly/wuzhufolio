@@ -15,6 +15,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -169,35 +170,44 @@ fun AuthGate(
                 GateStage.FORGOT -> ForgotPage(onBack = vm::goLogin)
                 GateStage.SHELL -> {
                     val session = state.session
-                    if (session != null && shellViewModel != null) {
-                        MainShell(
-                            viewModel = shellViewModel,
-                            accountName = session.account.username,
-                            language = language,
-                            accountArea = {
-                                AccountChip(
-                                    username = session.account.username,
-                                    onClick = vm::openAccountMenu,
-                                )
-                            },
-                            settingsPageContent = settingsPageContent,
-                            watchPageContent = watchPageContent,
-                            dashboardPageContent = dashboardPageContent,
-                            assetsPageContent = assetsPageContent,
-                            coinDetailPageContent = coinDetailPageContent,
-                            transactionsPageContent = transactionsPageContent,
-                            fundsPageContent = fundsPageContent,
-                            onManualSync = onManualSync,
-                            manualSyncing = manualSyncing,
-                            manualSyncToast = manualSyncToast,
-                            onManualSyncToastDismiss = onManualSyncToastDismiss,
-                            onRefreshQuotes = onRefreshQuotes,
-                            refreshQuotesBusy = refreshQuotesBusy,
-                            refreshQuotesToast = refreshQuotesToast,
-                            onRefreshQuotesToastDismiss = onRefreshQuotesToastDismiss,
-                            proxyStatus = proxyStatus,
-                            shellStatus = shellStatus,
-                        )
+                    // **DEF-63 修复（C0，2026-10-13；人工走查 §22.3 暴露）**：主壳**整棵子树**按 `sessionKey` 重建。
+                    //
+                    // 背景：shell VM 本就按 `remember(sessionKey)` 重建（导航随之重置到仪表盘，`:111`），但
+                    // **页内** `remember { }`（`DashboardPage` 的 `PortfolioViewModel`、`AssetsPage` 同款）不会
+                    // 随之重置——若切账户时该页**已在组合树中**（= 切换前正停在仪表盘），其 VM 与已加载数据被
+                    // 保留 ⇒ **仍显示上一账户的数值**（副标题已是新账户名，形成跨账户显示串账）。
+                    // 用 `key(sessionKey)` 包住子树：切账户即整树重建，与「切账户即重置导航到仪表盘」的设计口径一致。
+                    key(sessionKey) {
+                        if (session != null && shellViewModel != null) {
+                            MainShell(
+                                viewModel = shellViewModel,
+                                accountName = session.account.username,
+                                language = language,
+                                accountArea = {
+                                    AccountChip(
+                                        username = session.account.username,
+                                        onClick = vm::openAccountMenu,
+                                    )
+                                },
+                                settingsPageContent = settingsPageContent,
+                                watchPageContent = watchPageContent,
+                                dashboardPageContent = dashboardPageContent,
+                                assetsPageContent = assetsPageContent,
+                                coinDetailPageContent = coinDetailPageContent,
+                                transactionsPageContent = transactionsPageContent,
+                                fundsPageContent = fundsPageContent,
+                                onManualSync = onManualSync,
+                                manualSyncing = manualSyncing,
+                                manualSyncToast = manualSyncToast,
+                                onManualSyncToastDismiss = onManualSyncToastDismiss,
+                                onRefreshQuotes = onRefreshQuotes,
+                                refreshQuotesBusy = refreshQuotesBusy,
+                                refreshQuotesToast = refreshQuotesToast,
+                                onRefreshQuotesToastDismiss = onRefreshQuotesToastDismiss,
+                                proxyStatus = proxyStatus,
+                                shellStatus = shellStatus,
+                            )
+                        }
                     }
                 }
             }

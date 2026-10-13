@@ -1,5 +1,10 @@
 package com.wuzhufolio.ui.auth
 
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
@@ -16,6 +21,7 @@ import com.wuzhufolio.domain.settings.PnlColorScheme
 import com.wuzhufolio.domain.settings.ThemeMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * M2 T2.5 登录链路 UI 冒烟（假服务 + 离屏渲染）：首启创建 → 风险确认硬门控 → 向导 → 稍后进主壳 →
@@ -27,6 +33,7 @@ class AuthFlowUiTest {
     private fun ComposeUiTest.setGate(
         service: FakeAuthService,
         onSessionActive: ((Int) -> Unit)? = null,
+        dashboardPageContent: (@Composable (String) -> Unit)? = null,
     ) {
         setContent {
             AuthGate(
@@ -35,6 +42,7 @@ class AuthFlowUiTest {
                 pnlScheme = PnlColorScheme.GREEN_UP,
                 usernameEnumEnabled = { true },
                 onSessionActive = onSessionActive,
+                dashboardPageContent = dashboardPageContent,
             )
         }
     }
@@ -187,4 +195,47 @@ class AuthFlowUiTest {
         waitFor("login-title")
         onNodeWithTag("lg-btn").assertIsDisplayed()
    }
+
+    /**
+     * **DEF-63 回归（C0，2026-10-13；人工走查 §22.3 暴露）**：切账户后**主壳子树必须重建**——
+     * 页内 `remember` 状态（仪表盘 VM 即此类）不得跨账户残留。
+     *
+     * 缺陷：shell VM 按 `remember(sessionKey)` 重建（导航随之重置到仪表盘），但**页内** `remember { }`
+     * 不跟着重置：若切账户前**已停在仪表盘**，该页 VM 与已加载数据被保留 ⇒ 显示的是**上一账户**的数值
+     * （副标题已是新账户名 ⇒ 跨账户显示串账）。
+     *
+     * 探针 = 页内 `remember` 分配到的实例号：子树重建则实例号递增（1 → 2），未重建则始终为 1。
+     */
+    @Test
+    fun `switching account rebuilds the shell subtree so page state cannot leak`() = runComposeUiTest {
+        val service = FakeAuthService(listOf("Alex" to "password1A", "Family" to "password2B"))
+        var instances = 0
+        setGate(
+            service = service,
+            dashboardPageContent = { name ->
+                val instance = remember { ++instances }
+                Text("dash:$name#$instance", modifier = Modifier.testTag("dash-probe"))
+            },
+        )
+        waitFor("login-title")
+        onNodeWithTag("lg-pw").performTextInput("password1A")
+        onNodeWithTag("lg-btn").performClick()
+        waitFor("main-shell")
+        waitForText("dash:Alex#1")
+
+        // 切到 Family（严格模式：需输入该账户密码）
+        onNodeWithTag("acct-chip").performClick()
+        waitFor("acct-menu")
+        onNodeWithTag("acct-item-2", useUnmergedTree = true).performClick()
+        waitFor("switch-modal")
+        onNodeWithTag("switch-pw", useUnmergedTree = true).performTextInput("password2B")
+        onNodeWithTag("switch-confirm", useUnmergedTree = true).performClick()
+
+        // DEF-63：整树重建 ⇒ 实例号递增、账户名换新；且**不得**再残留上一账户的实例
+        waitForText("dash:Family#2")
+        assertTrue(
+            onAllNodesWithText("dash:Alex#1", useUnmergedTree = true).fetchSemanticsNodes().isEmpty(),
+            "切账户后不得残留上一账户的仪表盘实例（DEF-63）",
+        )
+    }
 }
