@@ -375,6 +375,14 @@ interface SettingsService {
 > 此前仅在模块记录声明「已补录」而本文未回写——属文档回写缺口，非契约行为不一致）；比对结论与
 > 差异清单见 `docs/test/integration-report.md` §3。
 
+> 🗑 **已废止（2026-10-13，`D49`）——原 D48 补录（自选跨账户导入 · B 迭代 B3，2026-10-10，
+> 决策 `docs/dev/decisions/D48-自选跨账户导入（C2）.md`）**：
+> 该契约（`WatchImportService`）与全部相关实现、装配、UI、文案、测试**已随 `D49` 净删除**
+> （人工走查裁决「完全移除」；原因：来源列表逐账户直出币种摘要 ⇒ 实质暴露其它账户的交易品种）。
+> **现行契约面无任何跨账户自选接口**：`MarketWatchService`（`D41` 账户级）即自选的**全部**读写面，
+> **账户之间严格互不可见**（`§1.1-5`）。**零 schema / 零新增 settings 键 / 零 `.cpro` 变更**依旧成立。
+> 以下为历史原文（不代表当前有效契约）：
+
 > **D48 补录（自选跨账户导入 · B 迭代 B3，2026-10-10，决策 `docs/dev/decisions/D48-自选跨账户导入（C2）.md`）**：
 > **新增**独立契约 `WatchImportService`（domain/market，**未改任何既有接口签名**）——
 > `listOtherAccounts(): List<AccountWatchSummary>`（**只读**：其它账户 + 其自选数量/币种摘要；

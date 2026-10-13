@@ -29,7 +29,8 @@
 - `TC-SEC-<nn>`：P6 安全与隐私专项（对应 `security-checklist.md` 五条硬约束）。
 - `TC-MAN-<nn>`：人工门用例（🔵）。
 - `TC-X-2.5-4`（P6 新增）：DEF-04 专项用例。
-- `TC-D<决策号>-<条目号>`（**0.3.0 新增**）：B 迭代增量决策用例，**D44–D48** 各文件一一对应（`docs/dev/decisions/D*.md`）→ **§9**。
+- `TC-D<决策号>-<条目号>`（**0.3.0 新增**）：B 迭代增量决策用例，**D44–D47** 各文件一一对应（`docs/dev/decisions/D*.md`）→ **§9**
+  （**D48 六条已随 `D49` 删除**，见 §9.4 废止注）。
 - `TC-DEF-<nn>-<n>`（**0.3.0 新增**）：缺陷回归**守护**用例（**DEF-58 时间敏感断言 / DEF-59 慢机等待 / DEF-60 门禁缓存路径**各 1 条）→ **§9.6**。
 
 ### 0.3 用例来源说明（逐条对应，无遗漏）
@@ -45,13 +46,15 @@
 | PRD 附录 A 黄金用例 1–12 | §5 | 12 |
 | `AGENTS.md §1.1` 五条硬约束 + P6 新增抓包与大载荷内存曲线 | §6 | 16 |
 | 人工门（托盘/读屏/真实 Key/目标机/GUI 全流程/便携版） | §7 | 11 |
-| **0.3.0 / B 迭代新增**（**D44–D48** · 全面评审 §10 · **DEF-58/59/60**） | **§9** | **24** |
-| **合计** | | **324** |
+| **0.3.0 / B 迭代新增**（**D44–D47** · 全面评审 §10 · **DEF-58/59/60**；~~D48~~ 已随 **D49** 删除，−6） | **§9** | **18** |
+| **合计** | | **318** |
 
 > **本批来源（2026-10-12 补，0.3.0 发布准备）**：全面评审判定 **P1 第 3 条**——「B 迭代新功能未进正式用例目录与人工走查清单」
-> （`项目全面评审报告.md §10.3`，证据指向本节「合计 300」）⇒ 本次按 **D44–D48 决策档 + `M15.md §3` 验收清单（实测）** 补 **§9** 共 **24 条**：
-> D44 设置页同步门禁 2 · D45 多账户可见性 2 · D46 示例数据 5 · D48 跨账户导入 6 · D47 B5 工程项 6 · DEF-58/59/60 守护各 1；
+> （`项目全面评审报告.md §10.3`，证据指向本节「合计 300」）⇒ 本次按 **D44–D47 决策档 + `M15.md §3` 验收清单（实测）** 补 **§9** 共 **18 条**：
+> D44 设置页同步门禁 2 · D45 多账户可见性 2 · D46 示例数据 5 · D47 B5 工程项 6 · DEF-58/59/60 守护各 1；
 > 人工走查项另见 **`manual-test-guide.md §22`（0.3.0 发布前必办）**，不占用 §7 的 TC-MAN 编号。
+> **（2026-10-13，`D49`）**：原 `D48 跨账户导入 6` 条已随功能**净删除**（人工走查裁决「完全移除」，见 §9.4）⇒ §9 由 **24 → 18**、
+> 全量合计由 **324 → 318**；`§0.4` 摘要表同步（B 迭代新增 24 → 18、合计 323 → 317）。
 
 ### 0.4 结论摘要表
 
@@ -64,8 +67,8 @@
 | §5 附录 A 黄金用例 | 12 | 12 | 0 | 0 | 0 |
 | §6 安全与隐私专项 | 16 | 14 | 0 | 0 | 2 |
 | §7 人工门用例 | 11 | 0 | 0 | 0 | 11 |
-| §9 B 迭代新增（0.3.0 · D44–D48 / DEF-58–60） | 24 | 22 | 2 | 0 | 0 |
-| **合计** | **323** | **212** | **89** | **6** | **16** |
+| §9 B 迭代新增（0.3.0 · D44–D47 / DEF-58–60；~~D48~~ 已随 **D49** 删除） | 18 | 16 | 2 | 0 | 0 |
+| **合计** | **317** | **206** | **89** | **6** | **16** |
 
 > **结论**：计算口径（黄金用例 1–12）与安全硬约束自动化面**全部 ✅**；需补强的三处集中在
 > ①表单/列表的 UI 逐项断言（🟡 补 Compose UI）、②异常态与加载态呈现（🟡/⬜）、③需真人真机的 16 条人工门用例（🔵，§7）。
@@ -762,15 +765,18 @@
 
 ---
 
-## §9 B 迭代新增用例（0.3.0 准备 · D44–D48 / DEF-58–60）
+## §9 B 迭代新增用例（0.3.0 准备 · D44–D47 / DEF-58–60；~~D48~~ 已随 **D49** 删除）
 
 > **来源（2026-10-12 补）**：全面评审判定 P1「B 迭代新功能未进正式用例目录与人工走查清单」（`docs/dev/项目全面评审报告.md §10.3`，
-> 证据指向 §0.3「合计 300」）⇒ 本批 **24 条**按 **`docs/dev/decisions/D44`–`D48` 决策档正文 + `docs/dev/modules/M15.md §3` 验收清单（实测记录）** 编写，
+> 证据指向 §0.3「合计 300」）⇒ 本批 **18 条**按 **`docs/dev/decisions/D44`–`D47` 决策档正文 + `docs/dev/modules/M15.md §3` 验收清单（实测记录）** 编写，
 > 逐条对应真实测试函数名；**不改写任何既有判定**，既有 §1–§8 编号不变。
+> **（2026-10-13，`D49`）**：原 **§9.4「自选清单跨账户显式导入（D48）6 条」已删除**（人工走查裁决「完全移除」，
+> 连同 `WatchImportServiceTest` / `WatchImportUiTest` 两个测试文件一并下线）；§9 由 24 → **18**，全量合计 324 → **318**（`§0.4` 摘要表 317）。
 > **状态口径**：本批以 `M15.md §3` 的实跑记录与 `D47 §6` / `defects.md` DEF-58–60 为据；🟡 = 口径已落地但**线上/条文生效性待实跑**。
-> **人工走查**：B1–B4 的真人真机走查见 **`manual-test-guide.md §22`**（**0.3.0 发布前必办**），按 `§7.0` 惯例单独留痕，不占用 §7 的 TC-MAN 编号。
-> **自动化基线**：`./gradlew clean build detekt --no-build-cache` → BUILD SUCCESSFUL（33/33 任务真实执行）+ detekt 0；
-> 聚合 **840 用例 / 836 执行 / 0 失败 / 0 错误 / 4 跳过**（app 58 · data 325 · domain 227 · ui 230；2026-10-12）。
+> **人工走查**：B1/B2/B4 的真人真机走查见 **`manual-test-guide.md §22`**（**0.3.0 发布前必办**；原 B3 项已随 `D49` 删除），
+> 按 `§7.0` 惯例单独留痕，不占用 §7 的 TC-MAN 编号。
+> **自动化基线**：`./gradlew build detekt --no-build-cache` → BUILD SUCCESSFUL + detekt 0；
+> 聚合用例口径见 `docs/dev/modules/M15.md §3`（**820 用例 / 816 执行**：840（DEF-62 后）**+2**（DEF-63/64 新增用例）**−22**（`D49` 净删除：data 13 + ui 9）= **820**）。
 
 ### 9.1 设置页同步门禁（D44 · T15.1）
 
@@ -796,16 +802,15 @@
 | TC-D46-4 | `D46 §2.3`（只删标记行 + 顺序 + 部分清除边界） | 清除只删示例行、**真实数据一条不删**；清除后归零；依赖示例增资时保留该行并给「部分清除」提示 | 空账户加载 → 清除 → 看三页计数；另造「真实记录依赖示例增资」场景再清除 | 清除后交易与资金列表归零、标识条消失；真实记录原样保留；部分清除时 `clear()` 返回已删条数、保留该增资行，标识条与提示仍在；账户间互不影响 | `[D]demo/DefaultDemoDataServiceTest.kt::clearRemovesOnlyMarkedRowsAndKeepsRealRecords`、`::clearKeepsDemoDepositWhenRealRecordsDependOnIt`、`::accountsAreIsolated`；`[UI]ledger/DemoDataUiTest.kt::partialClearKeepsBannerAndWarnsAboutDependency` | ✅ |
 | TC-D46-5 | `D46 §2.1`（数据集内容与账本口径） | 加载后看板/资金/交易**立即有数**，账本口径正确（与行情无关的量为硬判据） | 空账户加载 → 依次看看板、资金流水、交易列表 | 持仓 USDT 40,952.5 · BTC 0.8 · ETH 5 · SOL 40；累计增资 100,000；卖出已实现 **+1,983.00**；交易列表 4 行（时间降序，首行 = BTC/USDT 卖出）、资金列表 1 行；净值/ROI 随行情口径（影片素材演示口径为净值 109,952.50 / ROI +9.95%，按**数据集最后成交价**计价，见 `promo/README.md` 口径表） | `[DOM]demo/DemoPortfolioTest.kt::dataset replays strictly with expected holdings and realized pnl`、`::dataset shape is one deposit plus three buys and one sell over three coins`、`::all amounts are positive big decimals and sell never exceeds bought quantity`；`[D]demo/DefaultDemoDataServiceTest.kt::loadWritesSelfConsistentDatasetAndIsIdempotent` | ✅ |
 
-### 9.4 自选清单跨账户显式导入（D48 · C2 · T15.5）
+### 9.4 自选清单跨账户显式导入（D48 · C2 · T15.5）—— 🗑 **已废止（D49，2026-10-13）**
 
-| 用例 ID | 需求锚点 | 验收要点 | 步骤/前置（简） | 期望结果 | 自动化映射（file::testFun）或执行方式 | 状态 |
-|---|---|---|---|---|---|---|
-| TC-D48-1 | `D48 §2`（入口位置与显隐）· `ia.md §2.19` | 行情页入口「从其它账户导入…」**仅在存在其它账户时**渲染；无其它账户/未登录/未注入服务**不渲染** | 三种前置各进一次行情页看命令区（`watch-toolbar`） | 有其它账户 ⇒ 入口可见（`watch-import-open`）；无其它账户、未登录、未注入服务 ⇒ 不渲染，页面行为与改造前一致 | `[UI]market/WatchImportUiTest.kt::entry is visible when other accounts exist`、`::entry is hidden when there are no other accounts`、`::entry is hidden when the import service is not injected` | ✅ |
-| TC-D48-2 | `D48 §1.1-2`/`§3.1`（来源列表**不含当前账户** + 只读摘要） | 来源列表**不含当前账户**；摘要只读、id 升序、展示名同序同长、**不物化任何行** | 打开导入弹层看来源列表；对比账户清单；无会话时再开一次 | 列表仅含其它账户（每行 = 账户名 + 自选数量与币种摘要）；**当前账户不出现**；无会话 ⇒ 列表为空 | `[D]market/WatchImportServiceTest.kt::list other accounts returns read only summaries and leaves the source untouched`、`::list other accounts is empty without a session` | ✅ |
-| TC-D48-3 | `D48 §1.1-2`/`§2`（必须**显式**：选来源 + 二次确认；确认前零调用） | 未选来源不进确认步；确认步显示摘要（来源账户 + 数量 + 币种列表）；**确认前零导入调用** | 打开弹层直接点「下一步」→ 选来源 → 看确认步 → 点「确认导入」 | 未选来源时「下一步」不推进；**二次确认前 `importCalls == 0`**；确认步显示来源账户名/数量/币种列表；确认后 `importCalls == 1` 且 `lastSourceId` = 所选来源；Esc 关窗且零导入 | `[UI]market/WatchImportUiTest.kt::import requires an explicit source selection and a second confirmation`、`::escape closes the import modal without importing` | ✅ |
-| TC-D48-4 | `D48 §1.1-1/3`（只复制自选 + 单向 + 来源一字不改） | 导入后**来源账户自选未变**（逐字节）且不触发其 D41 认领；其它表零变化 | 账户 A（有自选）→ 账户 B 导入 A → **切回 A 看自选**；核对两侧交易/资金/密钥行数与全局设置键 | 来源 `watch.coins` 行**逐字节相等**、全局 `watch.migrated` 仍为 `NULL`；来源与第三方账户的交易/资金/API 密钥行数与内容不变；**唯一写入 = 当前账户 `watch.coins` 一行** | `[D]market/WatchImportServiceTest.kt::import writes only the current account and keeps every other account row byte identical`、`::import does not claim the legacy global list for the source account`、`::import copies only the watch list and leaves every other table untouched`、`::import touches exactly one settings key and no other table` | ✅ |
-| TC-D48-5 | `D48 §1.1-4`/`§2`（四类拒绝态逐态文案 + 零写入）· `interaction.md §1.9` | 未登录 / 来源不存在 / 来源为空 / 全量重复 ⇒ 类型化结果 + 可操作文案 + **零写入**（D41 认领口径见 `D48 §1.1` C0 注） | 分别构造四种前置各导入一次 | 未登录 ⇒ 「请先登录后再导入自选」（`Failed(NO_SESSION)`）；来源不存在（含把自己当来源）⇒ `SOURCE_NOT_FOUND`；来源为空 ⇒ `NoSource`；全量重复 ⇒ `AlreadyComplete`；四态均**不写自选清单本身**；目标侧无自选行时沿用 **D41 认领**（可能物化当前账户行 + `watch.migrated`，**来源仍一字不改**） | `[D]market/WatchImportServiceTest.kt::import without a session is a typed failure and writes nothing`、`::import with no other account reports source not found and writes nothing`、`::import from an empty source writes nothing`、`::reject path follows the documented D41 claim semantics on the target account`；`[UI]market/WatchImportUiTest.kt::missing session result asks the user to sign in`、`::empty source result is reported` | ✅ |
-| TC-D48-6 | `D48 §3.1`/`§3.2`（幂等 + 保序去重 + 归一） | 全量重复 ⇒ **幂等**（两次调用行不变）；部分重复 ⇒ 去重保序追加；异常载荷先归一 | 同一来源导入两次；再造部分重复与含空白/重复项的载荷 | 第二次 `AlreadyComplete`、行**逐字节不变**；部分重复 ⇒ `Imported(added=2, skipped=2)` 且按来源序追加、既有排列不打乱；载荷 `["tether"," bitcoin ","bitcoin",""]` 归一为 `[tether, bitcoin]`（摘要与导入同口径） | `[D]market/WatchImportServiceTest.kt::import of an already complete list is idempotent and writes nothing`、`::partial duplicate import appends only the missing coins in source order`、`::source payload with blanks and duplicates is normalized before import`；`[UI]market/WatchImportUiTest.kt::imported result reports added and skipped counts`、`::already complete result is reported as a no-op` | ✅ |
+> **本节 6 条用例已随功能一并删除**——人工 **2026-10-13** 走查 `manual-test-guide.md §22.4`（B3）裁决 **A. 完全移除**
+> （`D49`，`amends D48`）。原因：来源列表对**每个其它账户**直出币种摘要（「3 个币种：BTC、ETH、USDT」，
+> `MarketStrings.kt:151-152` `watchImportSourceSummary`）⇒ 实质暴露其它账户的**交易品种**。
+> **现行口径**：`§1.1-5` 回到严格口径——**账户之间严格互不可见，不提供任何跨账户自选通路**。
+> 原 6 条（`TC-D48-1` … `TC-D48-6`：入口显隐 / 来源不含当前账户 / 二次确认摘要 / 来源一字不改 / 四类拒绝态 / 幂等保序）
+> 与其自动化映射（`WatchImportServiceTest` / `WatchImportUiTest`）**同批删除**；历史用例卡原文见
+> `docs/dev/decisions/D48-自选跨账户导入（C2）.md`（已加废止标注，原文保留）。
 
 ### 9.5 工程门禁与规约（D47 · B5 六子项 · T15.4）
 
@@ -855,9 +860,9 @@
 | **D45** 多账户可见性（顶栏账户名 + 切换确认） | §9.2 | ✅（2 条；`ShellUiTest` +2、`AuthFlowUiTest` 断言 +1） |
 | **D46** 示例数据与首次引导 | §9.3 | ✅（5 条：仅空账户 / `[示例]` 标记 / 二次确认 / 清除归零 / 账本口径） |
 | **D47** B5 工程项（CI 门禁与规约固化） | §9.5 | ✅ 4 条 + 🟡 1 条（打包冒烟线上生效性待 CI 实跑；素材写回门控双向实测） |
-| **D48** 自选清单跨账户**显式**导入（C2，mini 闭环 `§8.3`） | §9.4 | ✅（6 条：入口显隐 / 来源不含当前账户 / 二次确认摘要 / 来源一字不改 / 四类拒绝态 / 幂等保序）；安全侧复核见 `security-checklist.md §5.4` |
+| **D48** 自选清单跨账户**显式**导入（C2，mini 闭环 `§8.3`） | §9.4 | 🗑 **已废止（D49，2026-10-13）**——人工走查裁决「完全移除」；原 6 条用例与功能、契约、实现、文案、守护测试**同批净删除**；安全侧复核（原 `security-checklist.md §5.4`）同步下线 |
 | **DEF-58 / DEF-59 / DEF-60** 测试与门禁健壮性 | §9.6 | ✅ 2 条 + 🟡 1 条（DEF-59 规约化待观察） |
-| **B 迭代人工走查**（B1–B4） | `manual-test-guide.md §22` 🔵 | **待人工**（人工 2026-10-11 暂缓；`M15.md §3` 相应项**未勾选**）⇒ **0.3.0 发布前必办** |
+| **B 迭代人工走查**（B1/B2/B4；原 B3 已随 `D49` 删除） | `manual-test-guide.md §22` 🔵 | **待人工**（人工 2026-10-11 暂缓；`M15.md §3` 相应项**未勾选**）⇒ **0.3.0 发布前必办** |
 
 ---
 
@@ -867,7 +872,8 @@
 > **执行顺序建议**：1 → 2 → 3 → 4（可选真实网络）→ 5（GUI）→ 6（域基准）→ §7 人工门。
 
 ```bash
-# 1) 全量构建 + 静态检查（P6 主门槛；测试总数以本次运行为准——当前口径见 §9 抬头：840 用例 / 836 执行 / 0 失败 / 0 错误 / 4 跳过 + detekt 0）
+# 1) 全量构建 + 静态检查（P6 主门槛；测试总数以本次运行为准——当前口径见 §9 抬头：820 用例 / 816 执行 / 0 失败 / 0 错误 / 4 跳过 + detekt 0）
+#    注：人工走查用的便携版实例可能占用 app/build ⇒ 此时去掉 clean 走增量（.\\gradlew.bat build detekt --no-build-cache）
 ./gradlew clean build detekt --no-build-cache
 
 # 2) 聚焦各模块（按需复跑；--tests 支持通配）
@@ -890,12 +896,10 @@
                        --tests "com.wuzhufolio.ui.shell.*" \
                        --tests "com.wuzhufolio.ui.auth.*"             # Compose 离屏 UI 全量走查
 
-# 2b) B 迭代新增守护（§9：D44/D46/D47/D48 + DEF-58/60）
-./gradlew :data:test --tests "com.wuzhufolio.data.market.WatchImportServiceTest" \
-                     --tests "com.wuzhufolio.data.demo.DefaultDemoDataServiceTest" \
+# 2b) B 迭代新增守护（§9：D44/D46/D47 + DEF-58/60；~~D48~~ 已随 D49 删除）
+./gradlew :data:test --tests "com.wuzhufolio.data.demo.DefaultDemoDataServiceTest" \
                      --tests "com.wuzhufolio.data.backup.DefaultBackupServiceTest"
-./gradlew :ui:test   --tests "com.wuzhufolio.ui.market.WatchImportUiTest" \
-                     --tests "com.wuzhufolio.ui.ledger.DemoDataUiTest" \
+./gradlew :ui:test   --tests "com.wuzhufolio.ui.ledger.DemoDataUiTest" \
                      --tests "com.wuzhufolio.ui.exchange.ApiManagementSectionUiTest" \
                      --tests "com.wuzhufolio.ui.regression.VisualDiffTest" \
                      --tests "com.wuzhufolio.ui.portfolio.PortfolioPagesUiTest"   # 含 DEF-58 时间敏感用例

@@ -217,8 +217,6 @@ internal fun MainWindowContent(
                 quotesService = runtime.marketQuotesService,
                 refreshService = runtime.marketRefreshService,
                 settingsService = runtime.marketSettingsService,
-                // B3（D48）：自选跨账户显式导入（仅存在其它账户时渲染入口；只写当前账户）
-                importService = runtime.watchImportService,
             )
         },
         // M12 T12.1：聚合页（仪表盘 / 资产列表 / 币种详情）
