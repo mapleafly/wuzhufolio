@@ -13,8 +13,8 @@
 |---|---|---|---|
 | **① 应用内提示窗** `IN_APP_TOAST` | `DesktopToastWindow`（Compose 独立窗口，右下角、无边框、置顶、**不抢焦点**、3.2 s 自动消失） | 无平台通知 API | 三平台一致；**托盘驻留态亦可见**；`DEF-49`（Linux 实机）+ `DEF-64`（Windows 打包版实机）已验证 |
 | **② 原生系统气泡** `NATIVE_BALLOON` | `AwtTrayHost.notify` → AWT `TrayIcon.displayMessage` | 平台托盘/通知中心 | **Linux 无承载**（`DEF-49`）；macOS 走通知中心（未签名应用可靠性未知）⇒ **仅作未支持平台的兜底** |
-| **③ 窗口内 toast** | `WzToast`（主窗口内容层） | 主窗口可见 | `Main.kt` 顶栏两条 |
-| **④ 页内文案 / 弹层** | 静态文案、`WzModal` 弹层 | 主窗口可见 | 设置页行级提示、启动安全提示 |
+| **③ 窗口内 toast** `WINDOW_TOAST` | `WzToast` / `WzToastHost`（主窗口内容层） | 主窗口可见 | 顶栏同步 / 刷新（`MainShell.kt:212` 单槽位 ⇒ 二者**互斥**）· 密钥区行级提示（`ApiManagementSection.kt:105`） |
+| **④ 页内文案 / 弹层** `IN_PAGE_TEXT` | 静态文案、`WzModal` 弹层、状态位 | 主窗口可见 | 启动安全提示（弹层）· 代理状态（状态位） |
 
 **投递路由（单一判定点）**：`AppHost.showNotice(next, scene)`（`AppHost.kt:98-108`）——
 按「平台 × `scene`」取 `NoticeDelivery.channelsFor(...)`（**恒非空**）：已发布平台族 → ①；未支持平台 → ② 兜底。
@@ -32,7 +32,7 @@
 | **S4** | **后台调度事件**（同步完成 / 备份提醒） | **①** | **①** | **①** | `AppHost` `:231-241` + `NoticePolicy.noticeFor`（`DesktopBehavior.kt:46-59`） |
 | **S5** | **顶栏手动同步 toast** | **③** | **③** | **③** | `Main.kt:141`（`syncViewModel.toast`） |
 | **S6** | **顶栏行情刷新 toast** | **③** | **③** | **③** | `Main.kt:143`（`refreshViewModel.toast`） |
-| **S7** | **设置页行级同步提示**（「请先登录后再同步交易」） | **④** | **④** | **④** | `ui/.../ExchangeStrings.kt:170`（zh）/ `:242`（en）· `ui/.../ApiCopy.kt:41` |
+| **S7** | **设置页（密钥区）行级同步提示**（「请先登录后再同步交易」） | **③** | **③** | **③** | `ui/.../exchange/ApiManagementViewModel.kt:182`（单条「立即同步」）/ `:208`（页面级「全部同步」门禁）→ `ApiCopy.LOGIN_REQUIRED`（`ApiCopy.kt:41` ← `ExchangeStrings.kt:170` zh / `:242` en）；**渲染 = `ApiManagementSection.kt:105`（`WzToastHost`）** ⁽ᴿ²⁾ |
 | **S8** | **启动安全提示**（钥匙串/密钥文件异常） | **④**（弹层） | **④** | **④** | `AppBootstrap.kt:783` → `Main.kt:173` → `AuthGate.kt:255-263` |
 | **S9** | **代理状态提示** | **④**（状态位） | **④** | **④** | `AppHost.kt:104` → `AuthGate.kt:83-84 / :207` |
 | **S10** | **托盘不可用降级**（无提示、只记日志） | **—**（设计） | **—**（设计） | **—**（设计） | `AppHost.kt:235`（`if (!traySupported) return@collect`） |
@@ -40,8 +40,18 @@
 
 ⁽ᴿ¹⁾ 三个平台同格同通道：**由 `AppHost.kt:268-280` 组合 `DesktopToastWindow` 渲染**（见 §2 锚点表）。
 
+⁽ᴿ²⁾ **口径勘误（`T16.2`，2026-10-14）**：S7 初版记为 **④** 页内文案；经代码取证实为
+`toast(WzToastKind.Failure, …)` → **`WzToastHost`** ⇒ **③ 窗口内 toast**。该偏差由守护用例
+`window scene rows document the same channel as the model`（**逐行按平台列精确计数**）钉死——
+「文档写一套、代码走另一套」不再可能通过。
+
 **读法**：S1–S4 走 §0 的**单一投递判定点**（故三平台同列）；S5–S9 是**主窗口内容**（窗口可见才可见，
 与平台无关，但**驻留托盘时不可见**——需提示用户时优先用 ①）；S10 是**有意静默**（托盘不可用时不该弹气泡）。
+
+**声明式登记（`T16.2`，2026-10-14）**：`S1`–`S9` 已在 `NoticeDelivery.NoticeScene` **逐个登记**——每个枚举值带
+`docIds`（与上表行号一一对应）与 `platformRouted`（区分「按平台路由」与「窗口内固定通道」），由
+`NoticeDeliveryMatrixTest` **逐格断言**，含**文档 ↔ 模型不漂移**：本表缺行、或通道字形与模型不符，即红灯。
+`S10` / `S11` **有意不建模**（前者设计如此、后者非运行时通道），但**必须保留在表中**（守护用例同样断言其存在）。
 
 ## 2. 锚点表（「由谁渲染」）
 
@@ -52,8 +62,9 @@
 | **路由（唯一判定点）** | `AppHost.kt:98-108`（`showNotice`）→ `NoticeDelivery.channelsFor(scene, os)`（`tray/NoticeDelivery.kt`） | 已发布平台 → ①；未支持平台 → ② 兜底（`trayHost?.notify`）。**任何平台都不得空投递** |
 | 渲染（① ） | `AppHost.kt:268-280` → `tray/DesktopToastWindow.kt:33-71` → `ui/.../tray/TrayNoticeCard.kt:39`（文案/配色）· 时长 `TRAY_NOTICE_VISIBLE_MS = 3200 ms`（`:77`） | 独立窗口：`undecorated` / `alwaysOnTop` / `focusable = false` / `BottomEnd`；`noticeKey`（序号）变化即重新计时 |
 | 渲染（② ） | `tray/AwtTrayHost.kt:97-106`（`notify` → `displayMessage`；托盘未注册时静默忽略） | 仅兜底路径使用；`DEF-49` 已证 Linux 无承载 |
-| 渲染（③ ） | `Main.kt:141` / `:143` → `:269-276` → `AuthGate.kt:75-81` → `MainShell`（`WzToast`） | 主窗口内容层 |
-| 渲染（④ ） | `AuthGate.kt:255-263`（启动提示弹层）· `ExchangeStrings.kt:170` / `:242`（行级文案）· `AuthGate.kt:207`（代理状态） | 主窗口内容层 |
+| 渲染（③ ） | 顶栏：`Main.kt:141` / `:143` → `:269-276` → `AuthGate.kt:75-81` → **`MainShell.kt:212`**（单槽位 `manualSyncToast ?: refreshQuotesToast ?: toast` ⇒ **S5 / S6 互斥**）· 密钥区：**`ApiManagementSection.kt:105`**（`WzToastHost(toast = state.toast, …)`） | 主窗口内容层 |
+| 渲染（④ ） | `AuthGate.kt:255-263`（启动提示弹层）· `AuthGate.kt:207` → `WzStatusBar.kt:75`（`proxyTooltip`，代理状态位） | 主窗口内容层 |
+| **声明式登记（`T16.2`）** | `app/.../tray/NoticeDelivery.kt`：`NoticeChannel`（①②③④）· `NoticeScene`（**S1–S9**，各带 `docIds` / `platformRouted`）· `channelsFor(scene, os)`（**恒非空**；S1–S4 按平台路由、S5–S9 固定通道） | 本表的**可执行部分**；`AppHost.showNotice` 仅服务 S1–S4 |
 | 守护用例 | `app/src/test/.../tray/NoticeDeliveryMatrixTest.kt`（矩阵不变量）· `NoticeDeliveryTest.kt`（平台→主通道基础映射）· `DesktopNoticeTextTest.kt`（文案与截断） | 运行：`.\gradlew.bat :app:test --tests "*Notice*" --no-build-cache --console=plain` |
 
 ## 3. 变更流程（**强制**，`§7.3-13①`）
@@ -63,7 +74,10 @@
    （现口径两种场景同路由，该不变量有用例守护：`both scenes resolve identically…`）；
 3. **任一格出现「设了状态但没人渲染」⇒ 按缺陷处理**（`§7.3-13②`），不得作为已知限制放行；
 4. 新增平台进入发布范围（如 `D51` 的 macOS）⇒ 必须**逐格复验**并在 §4 更新缺口状态；
-5. 真机可见性一律以 `manual-test-guide.md §23`（发布后真机补测）为准——**单测只能验代码路径**。
+5. 真机可见性一律以 `manual-test-guide.md §23`（发布后真机补测）为准——**单测只能验代码路径**；
+6. 新增/改动场景 ⇒ **必须**在 `NoticeDelivery.NoticeScene` 登记（含 `docIds`）并同步 `NoticeDeliveryMatrixTest`
+   的期望表与上表 —— **文档漏行、通道字形不符都会红灯**（`matrix document declares every modeled scene` ·
+   `window scene rows document the same channel as the model`）。
 
 ## 4. 已知缺口与残差风险
 
@@ -75,6 +89,8 @@
 | **G4** | ② 在 Linux 无承载（`DEF-49`） | ℹ️ 既知；当前**仅兜底路径**使用，已发布平台不走 ② |
 | **G5** | 托盘不可用时 S1–S4 全部只记日志（`AppHost.kt:235`） | ℹ️ **设计如此**（不该给不存在的托盘弹提示）；登记为观察项：用户可能不知情 ⇒ 由用户指南说明 |
 | **G6** | S5–S9 在主窗口不可见（最小化到托盘时） | ℹ️ 既知；需要「驻留时也可见」的反馈请用 ①（`§7.3-13` 变更流程第 2 步） |
+| **G7** | **S5 / S6 共用同一 toast 槽位**（`MainShell.kt:212` 的 `manualSyncToast ?: refreshQuotesToast ?: toast`）⇒ 手动同步与行情刷新**同时**发生时只显示其一（先到先显示） | ℹ️ 既知（`T16.2` 登记）；如需并列显示须改主壳顶栏布局（**超出 `T16.2`「不改交互行为」范围**，留待后续决策） |
+| **G8** | 示例数据加载的未登录提示（`LedgerStrings.kt:451` `DemoFailReason.NO_SESSION`）**未纳入矩阵**（本轮 S1–S9 已定稿，新增场景需走变更流程第 6 步） | ℹ️ 登记；如需纳入，按变更流程补行 + `NoticeScene` 登记 + 守护用例 |
 
 ## 5. 相关文档
 
