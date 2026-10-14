@@ -41,7 +41,9 @@
 ./gradlew :app:packageDistributionForCurrentOS
 ```
 
-> **macOS 用户**：本项目**不发布 macOS 发行包**（商店外分发需要 Developer ID 签名与 Apple 公证，当前不采购证书）。
+> **macOS 用户**：**自 `0.4.0` 起提供官方包**（`WuZhuFolio-1.0.0.dmg` / `.pkg` / `WuZhuFolio-portable-macos-arm64.zip`）——
+> **仅 Apple Silicon（arm64）** · **未签名 · 未公证**（首次打开需**右键「打开」**放行，见 `user-guide.md §10.11`）· **未经真机验证**（维护者无 macOS 设备）。
+> **Intel 机型**或希望自行构建者，仍可源码自编译（见下）。
 > 需要 macOS 版请自行编译：`brew install --cask temurin@17` → `git clone` → `./gradlew :app:packageDmg`；
 > 自编译产物未签名/未公证，首次打开需**右键 → 「打开」**放行。完整步骤见 `docs/release/user-guide.md` §3 ②。
 

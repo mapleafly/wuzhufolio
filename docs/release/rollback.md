@@ -70,7 +70,16 @@ git push origin v0.1.1
 
 ---
 
-## 4. R2：数据层面的恢复（用户侧，最关键的一节）
+## 4. R2：数据层面的恢复（用户侧，最关键的一节）#### 撤下 macOS 资产（Release 附件级 · `D51`，自 0.4.0 起）
+
+当 macOS 包出现**用户可复现**的阻断问题（且维护者无真机无法定位）时，按**资产级**回滚，**不动 tag、不动代码**：
+
+1. `gh release view v<版本> --json assets` 核对当前附件；
+2. `gh release delete-asset v<版本> <macOS 资产名> --yes` **逐个**删除三件（`WuZhuFolio-1.0.0.dmg` / `.pkg` / `WuZhuFolio-portable-macos-arm64.zip`）；
+3. 编辑 Release 说明：在 macOS 段落加一行「**macOS 包因 <原因> 已暂时撤下，待修复后重新提供；Windows / Linux 包不受影响**」；
+4. `SHA256SUMS` **重新生成并替换**（去掉已撤下的三行），避免用户校验失败；
+5. 已在本地安装的用户：**无需处理**（App 仍可运行）；如需回退，卸载 App 即可（用户数据在 `~/.wuzhufolio`，按设计保留）；
+6. 修复后随 **patch 版本**（如 `0.4.1`）重新发布，并在 `CHANGELOG` 注明「恢复 macOS 包 + 修复点」。
 
 ### 4.1 升级前的自保动作（写进用户指南的推荐做法）
 

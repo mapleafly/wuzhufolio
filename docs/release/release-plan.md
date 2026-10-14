@@ -138,7 +138,7 @@ b28faf0bbf0df73e358f725ebd3121982a2b44c319f3cf1b0aea81df90193eea  WuZhuFolio-por
 | Windows | MSI（主） | `WuZhuFolio-0.1.0.msi` |
 | Windows | EXE（备） | `WuZhuFolio-0.1.0.exe` |
 | Windows | 便携版 | `WuZhuFolio-portable-windows-x64.zip` |
-| macOS | ~~DMG / PKG / 便携版~~ | **⛔ 本轮不发布**（证书与真机实测就绪后随 0.1.x 提供；CI 仍会产出未签名 macOS 构件，但**不进 Release**） |
+| macOS | **DMG / PKG / 便携版 zip** | ✅ **自 `0.4.0` 起发布**（`D51`，2026-10-14）：`WuZhuFolio-1.0.0.dmg` · `WuZhuFolio-1.0.0.pkg` · `WuZhuFolio-portable-macos-arm64.zip` —— **仅 arm64（Apple Silicon）** · **未签名 · 未公证**（需右键「打开」放行）· **无真机验证**（人工知悉并接受）。**注**：macOS 文件名用 bundle 版本 `1.0.0`（Apple 规定 `CFBundleVersion` 首段非 0），与同批 `0.x.0` 产物**版本号不一致**，Release 说明须保留一句 |
 | Linux | DEB | `wuzhufolio_0.1.0-1_amd64.deb`（jpackage 小写包名） |
 | Linux | RPM | `wuzhufolio-0.1.0-1.x86_64.rpm` |
 | Linux | AppImage | `wuzhufolio-0.1.0-x86_64.AppImage` |
@@ -167,7 +167,7 @@ b28faf0bbf0df73e358f725ebd3121982a2b44c319f3cf1b0aea81df90193eea  WuZhuFolio-por
 
 ### 3.3 签名/公证（合规硬门槛，PRD §12）
 
-- [ ] **macOS：本轮不发布 → 本项不适用**。证书采购与公证流程见 `certificate-procurement.md §4` 与 `signing-notarization.md §2`，待启动 macOS 发布时执行。
+- [ ] **macOS（自 `0.4.0` 起为必办项，`D51`）**：① 产物齐全 `WuZhuFolio-1.0.0.dmg` / `.pkg` / `-portable-macos-arm64.zip` ② **未签名状态如实声明**（Release 说明 + `user-guide` 均含「右键打开」指引）③ **架构口径**（arm64-only 或按 `D51 §2.4` 增 Intel）已定稿并写入三处文档 ④ **不得**出现「已在 macOS 验证」表述。签名/公证流程见 `certificate-procurement.md §4` 与 `signing-notarization.md §2`（本轮**不办证**，链路占位保留）。
 - [x] **Windows：不签名**（人工拍板 2026-09-22「windows 不签名」，预算 0 元）→ 发布说明与用户指南已显式标注「未签名」并给出 SmartScreen 放行步骤（`user-guide.md §10.9`）；决策依据与复评条件见 `certificate-procurement.md §0`。
 - [x] **Linux：GPG 签名脚本已交付并实测**（`scripts/sign-linux-artifacts.sh`）；0.1.0 首次发布可先出未签名包 + SHA256SUMS，GPG 密钥生成后在 0.1.1 起对 Linux 产物签名。
 - [ ] Windows：OV/EV 代码签名证书签名 msi/exe（含时间戳） → 见 §3。
@@ -268,7 +268,9 @@ dpkg-deb --fsys-tarfile <deb> | tar -xO ./opt/*/lib/*.desktop | grep -E '^(Icon|
 > `wuzhufolio_0.3.0-1_amd64.deb` / `wuzhufolio-0.3.0-1.x86_64.rpm` / `wuzhufolio-0.3.0-x86_64.AppImage` /
 > `WuZhuFolio-portable-*-x64.*`）；tag 说明改为「**B 迭代 · 桌面端体验深化（M15）**」；
 > **本轮仍不签名、macOS 不进 Release**（§9）。
-**本轮仍不签名、macOS 不进 Release**（§9）。**（2026-10-13 人工在 0.3.0 发布前复核，维持该口径 ⇒ 0.3.0 附件 = Windows/Linux 8 件，不含 macOS；依据与重估条件见 certificate-procurement.md §0 2026-10-13 复核注。）**
+> **0.4.0 追加（`D51`，2026-10-14）**：Release 附件**新增 macOS 三件** —— `WuZhuFolio-1.0.0.dmg` · `WuZhuFolio-1.0.0.pkg` · `WuZhuFolio-portable-macos-arm64.zip`（**arm64-only · 未签名 · 未公证 · 无真机验证**）。执行 0.4.0 发布时：① 在下方命令块的 `sha256sum` 与 `gh release create` 列表**加入这三件**；② Release 说明保留「macOS 版本号为 `1.0.0`（bundle 口径）」与「未签名需右键打开」两句；③ 其余步骤（前置自检 / draft → Publish / 发布后校验）**不变**。
+**本轮仍不签名、macOS 不进 Release**（§9）。
+> **0.4.0 追加（`D51`，2026-10-14）**：Release 附件**新增 macOS 三件** —— `WuZhuFolio-1.0.0.dmg` · `WuZhuFolio-1.0.0.pkg` · `WuZhuFolio-portable-macos-arm64.zip`（**arm64-only · 未签名 · 未公证 · 无真机验证**）。执行 0.4.0 发布时：① 在下方命令块的 `sha256sum` 与 `gh release create` 列表**加入这三件**；② Release 说明保留「macOS 版本号为 `1.0.0`（bundle 口径）」与「未签名需右键打开」两句；③ 其余步骤（前置自检 / draft → Publish / 发布后校验）**不变**。**（2026-10-13 人工在 0.3.0 发布前复核，维持该口径 ⇒ 0.3.0 附件 = Windows/Linux 8 件，不含 macOS；依据与重估条件见 certificate-procurement.md §0 2026-10-13 复核注。）**
 
 #### 5.0 0.3.0 直接执行块（已代入版本号与实际产物名；**人工批准后逐条粘贴**）
 
@@ -402,7 +404,8 @@ gh release view v0.1.0 --web                # 人工复核附件与说明后，�
 
 > **人工门结论（2026-09-22）：✅ 已批准发布**
 >
-> **补记（2026-10-14）**：本表「**携带项 ①③ 的 Linux 托盘与开机自启补测 —— 放在发布后、从 GitHub Release 下载真机测试**」一项**已闭环** —— 0.3.0 发布后按 `manual-test-guide.md §23` 在真机（**Windows + Ubuntu**）测完，**✅ 全部通过**（结果见 §23.5 与 `STATUS.md`）。。原话要点：「批准发布：**只发布 windows 版和 ubuntu 类适用的版本**（这两个我可以本机测试，其他暂时还不能测试发布版本），其他按照建议进行。」
+> **补记（2026-10-14）**：本表「**携带项 ①③ 的 Linux 托盘与开机自启补测 —— 放在发布后、从 GitHub Release 下载真机测试**」一项**已闭环** —— 0.3.0 发布后按 `manual-test-guide.md §23` 在真机（**Windows + Ubuntu**）测完，**✅ 全部通过**（结果见 §23.5 与 `STATUS.md`）。
+> **补记 ②（2026-10-14，`D51`）**：本表「**macOS 本轮不发布**」及「只发 Windows + Linux」的**范围口径已反转** —— 自 **0.4.0** 起 **macOS 产物进 Release**（**不办证、不签名、不公证**；**无真机验证**，人工知悉并接受）。原始裁决行保留作历史留痕；变更理由与影响面见 `D51-macOS进发布范围（C1，反转2026-09-22与2026-10-13口径）.md`。。原话要点：「批准发布：**只发布 windows 版和 ubuntu 类适用的版本**（这两个我可以本机测试，其他暂时还不能测试发布版本），其他按照建议进行。」
 
 | 项 | Agent 建议 | 人工裁决 |
 |----|-----------|----------|
