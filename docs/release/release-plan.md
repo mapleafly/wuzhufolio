@@ -118,7 +118,7 @@ b28faf0bbf0df73e358f725ebd3121982a2b44c319f3cf1b0aea81df90193eea  WuZhuFolio-por
   **出片与素材重生成** ✅ **已完成（2026-10-12，Windows 原生链）**：4 张素材 + `wuzhufolio-promo-30s.{mp4,gif}` + HTML **同会话重生成**（见 `promo/README.md`）；
 - **放行前置**：**人工 GUI 走查**（2026-10-11 人工「暂不走查，先继续其它工作」⇒ **发布前必办**，清单见
   `manual-test-guide.md §22`）· **人工批准发布**（§9）· 出片产物与 `storyboard.md` 数值同步。
-  - **✅ 发布完成（2026-10-13）**：① 人工 GUI 走查 **B1/B2/B4 完全通过**（Windows 打包版 0.3.0 修复版；首轮暴露的 DEF-63/64 已 C0 修复并复验）· ② 人工批准发布 · ③ tag **0.3.0** 已推 · ④ 产物 **7 件 + SHA256SUMS**（取自 CI run 38364147657）· ⑤ **Release 已 Publish**（2026-10-13T13:06:36Z · latest=true · https://github.com/mapleafly/wuzhufolio/releases/tag/v0.3.0）· ⑥ **发布后验证**：真实下载代表产物 sha256sum -c **3/3 OK**（msi 1c7f9d6e… · 便携 zip 4ca908cb… · deb  e1307bf…），附件 8 件、无 macOS/调试产物。 **发布后真机补测清单 = `manual-test-guide.md §23`**（从 Release 下载正式产物测：校验和 / 安装 / SmartScreen / 托盘 / 开机自启 / B1·B2·B4 / `.cpro` 往返 / 卸载残留 / 降级演练 / 日志脱敏 / 零遥测抽查；结果回填 §23.5 表 + `STATUS.md`）。
+  - **✅ 发布完成（2026-10-13）**：① 人工 GUI 走查 **B1/B2/B4 完全通过**（Windows 打包版 0.3.0 修复版；首轮暴露的 DEF-63/64 已 C0 修复并复验）· ② 人工批准发布 · ③ tag **0.3.0** 已推 · ④ 产物 **7 件 + SHA256SUMS**（取自 CI run 38364147657）· ⑤ **Release 已 Publish**（2026-10-13T13:06:36Z · latest=true · https://github.com/mapleafly/wuzhufolio/releases/tag/v0.3.0）· ⑥ **发布后验证**：真实下载代表产物 sha256sum -c **3/3 OK**（msi 1c7f9d6e… · 便携 zip 4ca908cb… · deb  e1307bf…），附件 8 件、无 macOS/调试产物。 **发布后真机补测（2026-10-14）= ✅ 全部通过**（Windows + Ubuntu，从 Release 下载的正式产物）· **发布后真机补测清单 = `manual-test-guide.md §23`**（从 Release 下载正式产物测：校验和 / 安装 / SmartScreen / 托盘 / 开机自启 / B1·B2·B4 / `.cpro` 往返 / 卸载残留 / 降级演练 / 日志脱敏 / 零遥测抽查；结果回填 §23.5 表 + `STATUS.md`）。
 
 ---
 
@@ -400,7 +400,9 @@ gh release view v0.1.0 --web                # 人工复核附件与说明后，�
 
 ## 9. 决策与批准（人工门）
 
-> **人工门结论（2026-09-22）：✅ 已批准发布**。原话要点：「批准发布：**只发布 windows 版和 ubuntu 类适用的版本**（这两个我可以本机测试，其他暂时还不能测试发布版本），其他按照建议进行。」
+> **人工门结论（2026-09-22）：✅ 已批准发布**
+>
+> **补记（2026-10-14）**：本表「**携带项 ①③ 的 Linux 托盘与开机自启补测 —— 放在发布后、从 GitHub Release 下载真机测试**」一项**已闭环** —— 0.3.0 发布后按 `manual-test-guide.md §23` 在真机（**Windows + Ubuntu**）测完，**✅ 全部通过**（结果见 §23.5 与 `STATUS.md`）。。原话要点：「批准发布：**只发布 windows 版和 ubuntu 类适用的版本**（这两个我可以本机测试，其他暂时还不能测试发布版本），其他按照建议进行。」
 
 | 项 | Agent 建议 | 人工裁决 |
 |----|-----------|----------|
