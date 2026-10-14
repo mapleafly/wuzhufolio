@@ -25,9 +25,11 @@ import com.wuzhufolio.app.tray.DesktopNoticeText
 import com.wuzhufolio.app.tray.DesktopToastWindow
 import com.wuzhufolio.app.tray.linux.StatusNotifierService
 import com.wuzhufolio.ui.tray.trayLabels
+import com.wuzhufolio.app.tray.NoticeChannel
 import com.wuzhufolio.app.tray.NoticeDelivery
 import com.wuzhufolio.app.tray.NoticeLevel
 import com.wuzhufolio.app.tray.NoticePolicy
+import com.wuzhufolio.app.tray.NoticeScene
 import com.wuzhufolio.app.tray.TrayIcon
 import com.wuzhufolio.app.tray.TrayActionGate
 import com.wuzhufolio.app.tray.TrayMenuActions
@@ -89,16 +91,26 @@ fun ApplicationScope.AppHost(runtime: AppBootstrap.Runtime, onExit: () -> Unit) 
     var windowVisible by remember { mutableStateOf(true) }
     // DEF-50：主窗口句柄（用于「打开主界面」时置前；Compose 的 WindowState 只管可见/最小化，不改 Z 序）
     var mainWindow by remember { mutableStateOf<ComposeWindow?>(null) }
-    // DEF-49 / **DEF-64**：可见反馈（Linux **与 Windows** 用应用内提示窗；macOS 走原生气泡）
+    // DEF-49 / DEF-64 / **T16.1**：可见反馈口径见 `docs/design/desktop-notifications.md`
+    // （三平台统一走应用内提示窗；未列出的平台由原生气泡兜底 ⇒ **任何平台都不得静默不投递**）。
     var notice by remember { mutableStateOf<DesktopNotice?>(null) }
     var noticeSeq by remember { mutableStateOf(0) }
     val inAppToast = remember { NoticeDelivery.useInAppToast() }
 
-    /** 显示一条通知（托盘手动动作与后台事件共用；null 忽略）。 */
-    fun showNotice(next: DesktopNotice?) {
+    /**
+     * 显示一条通知（托盘手动动作与后台事件共用；null 忽略）。
+     *
+     * **T16.1（`§7.3-13`）**：投递路由**只在此处**判定——按「平台 × `scene`」取通道集合
+     * （[NoticeDelivery.channelsFor]，恒非空）；非应用内提示窗平台在此**补原生气泡兜底**，
+     * 避免「设了状态但没人渲染」——`DEF-64` 即此类缺口（Win/mac 的托盘提示曾全部被静默丢弃）。
+     */
+    fun showNotice(next: DesktopNotice?, scene: NoticeScene) {
         if (next == null) return
         notice = next
         noticeSeq++
+        if (NoticeChannel.NATIVE_BALLOON in NoticeDelivery.channelsFor(scene)) {
+            trayHost?.notify(next.title, next.message, error = next.level == NoticeLevel.ERROR)
+        }
     }
 
     val proxyStatus by runtime.proxyRuntime.status.collectAsState()
@@ -125,17 +137,17 @@ fun ApplicationScope.AppHost(runtime: AppBootstrap.Runtime, onExit: () -> Unit) 
         // 与「立即刷新行情」同口径：入口先判，只提示「请先登录」，不进入任何同步路径。
         TrayActionGate.lockedNotice(runtime.session.sessions.get() != null, "同步交易数据")?.let {
             runtime.logger.info("tray sync ignored | session locked")
-            showNotice(it)
+            showNotice(it, NoticeScene.TRAY_MANUAL_ACTION)
             return
         }
-        showNotice(DesktopNoticeText.manualSyncStarted())
+        showNotice(DesktopNoticeText.manualSyncStarted(), NoticeScene.TRAY_MANUAL_ACTION)
         scope.launch {
             val results = runCatching { runtime.scheduler.syncNow() }
             val done = results.fold(
                 onSuccess = { DesktopNoticeText.syncFinished(it) ?: DesktopNoticeText.manualSyncNoKeys() },
                 onFailure = { DesktopNoticeText.manualActionFailed("同步交易数据", it) },
             )
-            showNotice(done)
+            showNotice(done, NoticeScene.TRAY_MANUAL_ACTION)
         }
     }
 
@@ -144,16 +156,16 @@ fun ApplicationScope.AppHost(runtime: AppBootstrap.Runtime, onExit: () -> Unit) 
         // D40（2026-09-29 人工拍板 C2）：登录前不发行情刷新请求——只提示，不联网。
         TrayActionGate.lockedNotice(runtime.session.sessions.get() != null, "刷新行情")?.let {
             runtime.logger.info("tray refresh ignored | session locked")
-            showNotice(it)
+            showNotice(it, NoticeScene.TRAY_MANUAL_ACTION)
             return
         }
-        showNotice(DesktopNoticeText.manualRefreshStarted())
+        showNotice(DesktopNoticeText.manualRefreshStarted(), NoticeScene.TRAY_MANUAL_ACTION)
         scope.launch {
             val done = runCatching { runtime.scheduler.refreshMarketNow(manual = true) }.fold(
                 onSuccess = { DesktopNoticeText.manualRefreshFinished(it.refreshedCoins, it.error?.toString()) },
                 onFailure = { DesktopNoticeText.manualActionFailed("刷新行情", it) },
             )
-            showNotice(done)
+            showNotice(done, NoticeScene.TRAY_MANUAL_ACTION)
         }
     }
 
@@ -226,18 +238,14 @@ fun ApplicationScope.AppHost(runtime: AppBootstrap.Runtime, onExit: () -> Unit) 
     LaunchedEffect(effectiveVisible) { runtime.scheduler.setWindowVisible(effectiveVisible) }
 
     // 调度事件 → 桌面通知（开关关闭/托盘不可用 = 只留日志，不打扰）
-    // DEF-49 / **DEF-64**：Linux 下 AWT 气泡无承载（GNOME/SNI 代理）→ 应用内提示窗；Windows 同理
-    // （DEF-64 实测：托盘手动动作的提示原先在非 Linux 平台**根本没有投递**，连原生气泡也没走）；macOS 保持原生气泡。
+    // **T16.1**：路由**统一在 `showNotice` 内判定**（应用内提示窗优先、否则原生气泡兜底）——
+    // 此前本处自带 if/else 分支、与托盘手动动作的路径不一致，正是 `DEF-64` 缺口的成因。
     LaunchedEffect(runtime, traySupported, inAppToast) {
         runtime.scheduler.events.collect { event ->
             runtime.logger.debug("scheduler event: " + event.javaClass.simpleName)
             val next = noticeFor(event, runtime) ?: return@collect
             if (!traySupported) return@collect
-            if (inAppToast) {
-                showNotice(next)
-            } else {
-                trayHost?.notify(next.title, next.message, error = next.level == NoticeLevel.ERROR)
-            }
+            showNotice(next, NoticeScene.SCHEDULER_EVENT)
         }
     }
 
@@ -264,7 +272,7 @@ fun ApplicationScope.AppHost(runtime: AppBootstrap.Runtime, onExit: () -> Unit) 
         )
     }
 
-    // DEF-49 / **DEF-64**：应用内提示窗（Linux + Windows 通知通道；独立窗口、托盘驻留态亦可见；自动消失，不抢焦点）
+    // DEF-49 / DEF-64 / **T16.1**：应用内提示窗（**三平台主通道**；独立窗口、托盘驻留态亦可见；自动消失，不抢焦点）
     if (inAppToast) {
         val current = notice
         if (current != null) {
