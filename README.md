@@ -59,7 +59,7 @@ docs/     PRD / 设计 / 技术方案 / 状态看板（见 AGENTS.md 目录约�
 
 ## 质量与验证口径
 
-- 全量回归（`./gradlew build detekt`）：**820 用例 / 816 执行 / 0 失败 / 0 错误 / 4 跳过**
+- 全量回归（`./gradlew build detekt`）：**836 用例 / 832 执行 / 0 失败 / 0 错误 / 4 跳过**（app 71 · data 312 · domain 227 · ui 226）
   （app 59 · data 312 · domain 227 · ui 222；4 条 = env 门控 live 网络冒烟）+ **detekt 0**（`maxIssues=0`）+ 编译警告 0
   （口径随每次改动回填，以 `build/test-results` 聚合实测为准；见 `AGENTS.md §3.1` 收尾轮状态对齐 checklist）。
 - 视觉回归（4 页面 × 2 主题 × 3 尺寸 = **24 张**）随 `./gradlew test` 渲染到 `ui/build/visual-regression/`，
