@@ -269,9 +269,49 @@ dpkg-deb --fsys-tarfile <deb> | tar -xO ./opt/*/lib/*.desktop | grep -E '^(Icon|
 > `WuZhuFolio-portable-*-x64.*`）；tag 说明改为「**B 迭代 · 桌面端体验深化（M15）**」；
 > **本轮仍不签名、macOS 不进 Release**（§9）。
 > **0.4.0 追加（`D51`，2026-10-14）**：Release 附件**新增 macOS 三件** —— `WuZhuFolio-1.0.0.dmg` · `WuZhuFolio-1.0.0.pkg` · `WuZhuFolio-portable-macos-arm64.zip`（**arm64-only · 未签名 · 未公证 · 无真机验证**）。执行 0.4.0 发布时：① 在下方命令块的 `sha256sum` 与 `gh release create` 列表**加入这三件**；② Release 说明保留「macOS 版本号为 `1.0.0`（bundle 口径）」与「未签名需右键打开」两句；③ 其余步骤（前置自检 / draft → Publish / 发布后校验）**不变**。
-**本轮仍不签名、macOS 不进 Release**（§9）。
-> **0.4.0 追加（`D51`，2026-10-14）**：Release 附件**新增 macOS 三件** —— `WuZhuFolio-1.0.0.dmg` · `WuZhuFolio-1.0.0.pkg` · `WuZhuFolio-portable-macos-arm64.zip`（**arm64-only · 未签名 · 未公证 · 无真机验证**）。执行 0.4.0 发布时：① 在下方命令块的 `sha256sum` 与 `gh release create` 列表**加入这三件**；② Release 说明保留「macOS 版本号为 `1.0.0`（bundle 口径）」与「未签名需右键打开」两句；③ 其余步骤（前置自检 / draft → Publish / 发布后校验）**不变**。**（2026-10-13 人工在 0.3.0 发布前复核，维持该口径 ⇒ 0.3.0 附件 = Windows/Linux 8 件，不含 macOS；依据与重估条件见 certificate-procurement.md §0 2026-10-13 复核注。）**
+> **（2026-10-13 人工在 0.3.0 发布前复核：维持「macOS 不进 Release」口径 ⇒ 0.3.0 附件 = Windows/Linux 8 件、不含 macOS；依据与重估条件见 `certificate-procurement.md §0` 2026-10-13 复核注。）**
 
+#### 5.1 0.4.0 直接执行块（**含 macOS 三件 ⇒ Release 附件 11 件**；人工批准后逐条粘贴）
+
+> **与 §5.0 的差别**：`0.4.0` 起 **macOS 进发布范围**（`D51`，2026-10-14 人工裁决：**不办证、但发**）。
+> **命名坑（务必照抄）**：macOS 的 `dmg`/`pkg` 文件名版本段是 **`1.0.0`**（Apple `CFBundleVersion` 首段非 0，与 `appVersion` **解耦**），
+> 不是 `0.4.0`；`portable` 名为 **`WuZhuFolio-portable-macos-arm64.zip`**（**arm64 / Apple Silicon only**）。
+
+```bash
+# 0) 前置：§3 清单全部勾选；CI 六作业全绿；工作树干净；版本号 = 0.4.0
+git checkout main && git pull --ff-only
+git status --porcelain                     # 必须为空
+grep 'val appVersion' app/build.gradle.kts # 必须是 0.4.0
+
+# 1) 打标签（附注标签，写明版本与依据）
+git tag -a v0.4.0 -m "WuZhuFolio 0.4.0 —— 通知/反馈体系统一 + 工程债固化（M16；macOS 首次进发布范围）"
+git push origin v0.4.0
+
+# 2) 取 CI 产物（Windows 3 + Linux 4 + macOS 3 = 10 件）并生成校验清单
+sha256sum WuZhuFolio-0.4.0.msi WuZhuFolio-0.4.0.exe WuZhuFolio-portable-windows-x64.zip \
+          wuzhufolio_0.4.0-1_amd64.deb wuzhufolio-0.4.0-1.x86_64.rpm \
+          wuzhufolio-0.4.0-x86_64.AppImage WuZhuFolio-portable-linux-x64.tar.gz \
+          WuZhuFolio-1.0.0.dmg WuZhuFolio-1.0.0.pkg WuZhuFolio-portable-macos-arm64.zip \
+          > SHA256SUMS
+
+# 3) 建 Release（**draft**；人工复核附件与说明后点 Publish）
+gh release create v0.4.0 --title "WuZhuFolio 0.4.0" --draft \
+  --notes-file docs/release/release-notes-0.4.0.md \
+  WuZhuFolio-0.4.0.msi WuZhuFolio-0.4.0.exe WuZhuFolio-portable-windows-x64.zip \
+  wuzhufolio_0.4.0-1_amd64.deb wuzhufolio-0.4.0-1.x86_64.rpm \
+  wuzhufolio-0.4.0-x86_64.AppImage WuZhuFolio-portable-linux-x64.tar.gz \
+  WuZhuFolio-1.0.0.dmg WuZhuFolio-1.0.0.pkg WuZhuFolio-portable-macos-arm64.zip \
+  SHA256SUMS
+gh release view v0.4.0 --web                # 人工复核后点 Publish
+
+# 4) 发布后验证（附件应为 11 件 = 10 产物 + SHA256SUMS；抽验三平台各一件）
+gh release download v0.4.0 -p SHA256SUMS -p 'WuZhuFolio-1.0.0.dmg' -p 'wuzhufolio_0.4.0-1_amd64.deb' -D /tmp/v040
+cd /tmp/v040 && sha256sum -c --ignore-missing SHA256SUMS   # 期望：OK
+```
+
+> **macOS 附件口径（`D51`）**：`WuZhuFolio-1.0.0.dmg` · `WuZhuFolio-1.0.0.pkg` · `WuZhuFolio-portable-macos-arm64.zip` ——
+> **arm64（Apple Silicon）only** · **未签名 · 未公证**（首次打开需右键「打开」放行，见 `user-guide.md §10.11`）· **无真机验证**（欢迎用户反馈）。
+> Release 说明**必须保留这三句标注**；若出现用户可复现的阻断问题，按 `rollback.md`「撤下 macOS 资产」做**资产级回滚**（不动 tag、不动代码）。
 #### 5.0 0.3.0 直接执行块（已代入版本号与实际产物名；**人工批准后逐条粘贴**）
 
 ```bash

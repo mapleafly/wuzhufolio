@@ -25,12 +25,16 @@ import org.slf4j.LoggerFactory
  * `COALESCE(account_id,'')` 唯一索引；`.cpro` 备份**已覆盖账户级 settings**（ADR-005 §3）⇒
  * **零 schema 变更、零备份格式变更**，而账户隔离与排序语义（JSON 数组保序）完全达成。
  *
- * **迁移（升级用户）**：旧全局行 `watch.coins` 无法归属账户 ⇒ 由**升级后首个访问自选的账户一次性"认领"**
- * （复制为该账户的自选）并写入全局标记 `watch.migrated=1`；旧行保留只读，便于回溯。幂等：标记置位后不再认领。
+ * **历史迁移已废止（`D52`，2026-10-14 人工裁决，`amends D41`）**：旧全局行 `watch.coins` 无法归属账户，
+ * 原先由「升级后**首个**访问自选的账户一次性认领」——该**自动跨账户搬运**与 `§1.1-5` 严格互不可见冲突
+ * （且多账户下**归属不可判定**：旧清单未必属于第一个访问者），故**不再认领**。
+ * 旧全局行**保留在库、只读、不展示、不参与读取**；D41 的**认领标记键**（历史键名见
+ * SettingsKeyNamespaceGuardTest.historicalGlobalKeys）**不再写入**（旧值保留、不清理）。
+ * 升级用户的**账户级自选为空时按默认种子**展示 ⇒ 升级须知须提示「旧自选需在行情页重新添加」。
  *
  * 目录解析在每次读取时进行（缺行跳过）；目录行顺序 = 存储序。
  */
-@Suppress("TooManyFunctions") // 契约方法 + 账户/迁移/解析私有助手；拆分反而降低可读性
+@Suppress("TooManyFunctions") // 契约方法 + 账户/解析私有助手；拆分反而降低可读性
 class SettingsMarketWatchService(
     private val settings: SettingsRepository,
     private val catalog: CoinCatalog,
@@ -88,26 +92,14 @@ class SettingsMarketWatchService(
     /** 当前账户 id（未登录 = null ⇒ 自选不可见、不可写）。 */
     private fun currentAccountId(): Int? = sessions.get()?.account?.id
 
-    /** 读取账户自选；升级用户首访时先做一次性认领（见类头注「迁移」）。 */
-    private fun readStoredIds(accountId: Int): List<String>? {
-        val existing = settings.getAccount(accountId, MarketWatchService.SETTINGS_KEY)
-        if (existing == null) claimLegacyIfFirst(accountId)
-        return settings.getAccount(accountId, MarketWatchService.SETTINGS_KEY)?.let(::decode)
-    }
-
     /**
-     * 旧全局清单的一次性认领（D41 §3.2）：仅当全局标记未置位、且当前账户尚无自选时执行；
-     * 认领后置位 `watch.migrated`（全局行保留只读，不再参与展示）。
+     * 读取账户自选。
+     *
+     * **不做任何迁移/认领**（`D52`）：旧全局行 `watch.coins` 保留在库但**不参与读取**，
+     * 因此账户级行缺失即返回 `null`（调用方按**默认种子**处理）。
      */
-    private fun claimLegacyIfFirst(accountId: Int) {
-        if (settings.getGlobal(MIGRATED_KEY) != null) return
-        val legacy = settings.getGlobal(MarketWatchService.SETTINGS_KEY)
-        if (legacy != null) {
-            settings.putAccount(accountId, MarketWatchService.SETTINGS_KEY, legacy)
-            logger.info("watch list claimed from legacy global row | account={}", accountId)
-        }
-        settings.putGlobal(MIGRATED_KEY, "1")
-    }
+    private fun readStoredIds(accountId: Int): List<String>? =
+        settings.getAccount(accountId, MarketWatchService.SETTINGS_KEY)?.let(::decode)
 
     private fun decode(raw: String): List<String>? =
         runCatching { json.decodeFromString<List<String>>(raw) }.getOrElse {
@@ -150,6 +142,3 @@ class SnapshotMarketQuotesService(
         return out
     }
 }
-
-/** D41 迁移标记（全局行）：置位后不再做旧全局清单的一次性认领。 */
-private const val MIGRATED_KEY = "watch.migrated"

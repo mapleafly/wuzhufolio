@@ -460,12 +460,12 @@ flowchart LR
   **验收**：4 项缺陷对应门禁各有一条复核留痕（缺一不算完成）；视觉回归平台维度可区分，或**显式登记延期 + 到期检查点**；两条路径断言均通过。
   **回溯**：`D50 §2.2` · `AGENTS.md §7.3-10/11` · `DEF-60` / `DEF-61` / `DEF-62` / `DEF-63`。**依赖**：无（可并行）。
 
-- **T16.4 `D41` 改「不认领」（`D52` 的返工，**C2**）** ⏳ **未开始**
+- **T16.4 `D41` 改「不认领」（`D52` 的返工，**C2**）** ✅ **未开始**
   内容：按 `D52 §3.1` 逐处改——去掉 `MarketWatchServices.readStoredIds()` 中的 `claimLegacyIfFirst` **调用**、删除其**实现**与 `MIGRATED_KEY` 常量（`:94` / `:99-110` / `:154-155`）、同步类头注与 `MarketWatch.kt` 的 KDoc；**旧全局行保留在库**（零删除、零 schema 变更、零迁移脚本）；把认领用例**改写为反向断言**（`D52 §5.2`）。
   **验收**：生产代码 `grep claimLegacy|watch.migrated` **0 命中**；升级夹具下账户级自选为空 ⇒ **默认种子**、旧全局行**逐字节不变**、`watch.migrated` **不被写入**；`SettingsKeyNamespaceGuardTest` 仍绿；`rollback.md` 写明**降级会恢复认领**及其条件（`D52 §3.2`）。
   **回溯**：`D52`（`amends D41`）· `§8.3` / `§8.5`。**依赖**：无。
 
-- **T16.5 macOS 进发布链（`D51`，C1）** ⏳ **未开始**
+- **T16.5 macOS 进发布链（`D51`，C1）** ✅ **未开始**
   内容：① **架构口径定稿**（`D51 §2.4` 待人工拍板：仅 arm64 / 增 Intel 产物 / universal）② **文档回写**（`D51 §4` 清单：`certificate-procurement §0` · `release-plan §1.4/§2/§3/§5/§9` · `user-guide` macOS 安装指引 · `manual-test-guide §23.6` · `rollback` 撤资产步骤 · `README` 平台矩阵）③ **发布步骤**（0.4.0 取 macOS `dmg`/`pkg`/`arm64.zip` 三件并纳入 `SHA256SUMS`）④ **声明口径**（**未签名 · 未公证 · 需右键「打开」** + **无真机验证**）。
   **验收**：`D51 §6` 五条验收标准全过；`release-plan §5` 能实际取到 macOS 三件且校验和一致；**零代码改动**（`git diff` 不含 `.kt` / `build.gradle.kts` / `ci.yml`，除非人工选 `D51 §2.4(b)`）。
   **回溯**：`D51`（反转 `certificate-procurement §0` 两条旧口径）· `D50 §2.3`。**依赖**：人工拍板架构口径（`D51 §7-1`）。

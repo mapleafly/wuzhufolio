@@ -49,6 +49,8 @@
   
   **T16.1 ✅ 完成（2026-10-14）**：闭环 **DEF-65**（macOS 上托盘手动动作提示完全不投递 = DEF-64 同型第三处，人工裁决登记）；交付 docs/design/desktop-notifications.md（11 场景 × 3 平台 × 4 通道 + 缺口 G1–G6）· NoticeDeliveryMatrixTest（6 例，TDD 红→绿）· NoticeDelivery 声明式通道模型（channelsFor 恒非空）· AppHost 单一投递判定点；用例 **820 → 827**（app 59→66）；CI 67258a2 → 38518688721 ✅。**T16.2 范围（人工裁决）= 收窄为「扩到窗口内通道」**（S5–S9 声明式登记 + 守护，不改交互）。
   **T16.2 ✅ 完成（2026-10-14，收窄版）**：S5–S9 声明式登记（NoticeScene.docIds / platformRouted）+ 守护 **6 → 11 例**；**勘误：S7 通道由「④ 页内文案」更正为「③ 窗口内 toast」**（代码取证 ApiManagementViewModel.kt:182/:208）；**反向验证（Lead 补做）**= 篡改文档 ⇒ 用例 RED（NoticeDeliveryMatrixTest.kt:244）→ 字节级还原 ⇒ GREEN；用例 **827 → 832**（app 66→71）。
+  **T16.4 ✅ 完成（2026-10-14，C2 返工）**：D41 改「不认领」——删调用 + 实现 + MIGRATED_KEY（生产代码 0 残留）；认领用例**反写**为「不认领」（断言含账户级行 null / 标记不被写入 / 旧全局行逐字节不变）；SettingsKeyNamespaceGuardTest **新增 historicalGlobalKeys** 豁免腐化检查（删除写入点后守卫如实变红 ⇒ 按语义修正而非放宽断言）；文档回写 7 处（interaction / ia / data-model / user-guide §3.5.0 / CHANGELOG [0.4.0] / rollback §4.1.3 / 新建 release-notes-0.4.0 草稿）。
+  **T16.5 ✅ 完成（2026-10-14）**：`release-plan.md` 新增 **§5.1 0.4.0 直接执行块**（macOS 三件入清单 ⇒ Release 附件 **11 件**；写明 dmg/pkg 版本段为 `1.0.0` 与 arm64-only 两个命名坑；标注未签名·未公证·无真机验证）；**CI 核查 = 无需改 CI**（`-native` 上传 `path:` 已含 dmg/pkg/portable-zip）；`rollback.md` 的「撤下 macOS 资产」**修正为 §3.1 独立小节**（原畸形标题粘在 §4 标题行末）；顺带修掉 `release-plan` 中 `D51` 注的**重复段落**。
   **执行顺序**：`T16.1` 投递矩阵 + 守护用例（无依赖，先行）→ `T16.2` 通道统一决策入口（依赖 T16.1）· `T16.3` 工程债固化（并行）· `T16.4` `D41` 改不认领（C2 返工，独立）· `T16.5` macOS 进发布链（独立，口径已定）。
   **人工门** = 各任务验收 + 0.4.0 发布前的 P6 / P7 门。**CI 留痕**：`df14d9f`（P2 规划，15 文件 +498/−13）→ run **`38509532870` = ✅ success**。
   **`T16.1` ✅ 已完成（2026-10-14，Agent 执行）**：

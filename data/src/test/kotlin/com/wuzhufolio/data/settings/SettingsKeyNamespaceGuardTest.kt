@@ -31,8 +31,9 @@ class SettingsKeyNamespaceGuardTest {
         "display.precision", "login.username.enum", "cash.coins", "small.threshold", "network.proxy.enabled",
         "market.coingecko_key", "market.cmc_key", "market.refresh_minutes", "market.quota",
         "market.directory.last", "sync.interval_minutes",
-        // D41：`watch.migrated` = 旧全局自选清单的一次性认领标记（全局）；
-        // `watch.coins` 已改为**账户级**，但迁移期仍需**只读**旧全局行 ⇒ 两侧同时登记（见 legacyGlobalKeys）
+        // **`D52`（2026-10-14，修订 `D41`）**：`watch.migrated` 为**历史键**——0.4.0 起**不再写入**，
+        // 仅可能因旧 `.cpro` 恢复而存在；`watch.coins` 已为**账户级**，同名旧全局行属**历史遗留数据**
+        // （保留在库、**只读、不展示、不参与读取**）⇒ 两侧同时登记；`watch.migrated` / 全局侧 `watch.coins` 现已**停止写入** ⇒ 登记到 **historicalGlobalKeys**（豁免腐化检查，见该集合注释）
         "watch.migrated", "watch.coins",
         "tray.minimize_on_close", "autostart.enabled", "tray.sync_notification", "backup.reminder",
     )
@@ -41,11 +42,30 @@ class SettingsKeyNamespaceGuardTest {
     private val accountKeys = setOf("backup.last_at", "restore.last_at", "watch.coins")
 
     /**
-     * **历史全局键**（受控例外，2026-09-29 D41）：键已改为账户级，但升级迁移需要**只读**旧全局行
-     * （首个登录账户一次性认领，见 `D41 §3.2`）。这类键允许同时出现在全局与账户级两侧，
-     * 前提是：**全局侧只允许读、不得再写**，且必须在此登记（新增须走 `§8` 变更控制）。
+     * **历史全局键**（受控例外；2026-09-29 `D41` 设立，**2026-10-14 `D52` 修订**）：键已改为账户级，
+     * 旧全局行 `watch.coins` 为**历史遗留数据**——保留在库、**只读、不展示、不参与读取**，
+     * 且**不再被任何账户自动认领**（`D41 §3.2` 的一次性认领机制已废止）；`watch.migrated` 亦为历史键
+     * （**不再写入**，仅可能因旧 `.cpro` 恢复而存在）。
+     *
+     * 这类键允许同时出现在全局与账户级两侧，前提是：**全局侧只读、不得再写**，且必须在此登记
+     * （新增须走 `§8` 变更控制）；如将来需要清理历史行，**另立决策**（`D52 §7-4`，不在本轮）。
      */
     private val legacyGlobalKeys = setOf("watch.coins")
+
+    /**
+     * **历史键**（**2026-10-14 `D52` 设立**）：曾经写入、**现已停止写入**、但**可能仍存在于既有数据库**中
+     * （或被旧 `.cpro` 恢复回来）的键。它们**不应再出现在生产代码里**——这正是移除的目的——因此豁免
+     * 「登记表腐化」检查（[every scanned key is registered and every registered key still exists] 的
+     * `(globalKeys - scan.global)` 一项），但**仍保留在 [globalKeys] 登记**，以便读者追溯键的来历。
+     *
+     * - `watch.migrated`：`D41 §3.2` 的一次性认领标记；`D52`（2026-10-14）废止认领后**不再写入**，
+     *   旧值**保留不清理**（`D52 §3.2`「不清理历史 `watch.migrated` 值」）；
+     * - `watch.coins`：**全局侧**同属历史遗留（账户级侧仍为生产键）——`D52` 后**不再有任何全局侧访问**
+     *   （既有的唯一全局读取点 = 认领实现，已删除）⇒ 同样豁免腐化检查。
+     *
+     * 新增历史键须走 `§8` 变更控制并在注释写明**废止决策号**；如将来需要清理历史行，**另立决策**（`D52 §7-4`）。
+     */
+    private val historicalGlobalKeys = setOf("watch.migrated", "watch.coins")
 
     /**
      * 已知的动态键调用点（该行键不可解析，但键在别处以字面量出现，已由其他规则收进集合）：
@@ -237,8 +257,9 @@ class SettingsKeyNamespaceGuardTest {
             "源码里出现了未登记的账户级键（请在 accountKeys 登记表补一行）：${scan.account - accountKeys}",
         )
         assertTrue(
-            (globalKeys - scan.global).isEmpty(),
-            "登记表里的全局键在源码中已找不到（登记表腐化）：${globalKeys - scan.global}",
+            (globalKeys - historicalGlobalKeys - scan.global).isEmpty(),
+            "登记表里的全局键在源码中已找不到（登记表腐化）：${globalKeys - historicalGlobalKeys - scan.global}" +
+                "（若确为「已停止写入但可能仍在库中」的历史键，请登记到 historicalGlobalKeys 并注明废止决策号）",
         )
         assertTrue(
             (accountKeys - scan.account).isEmpty(),

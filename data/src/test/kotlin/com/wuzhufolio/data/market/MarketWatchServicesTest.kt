@@ -187,8 +187,17 @@ class MarketWatchServicesTest {
         }
     }
 
+    /**
+     * **`D52`（2026-10-14，`C2`，修订 `D41`）：升级后不再自动认领旧全局清单**。
+     *
+     * 原 `D41 §3.2` 行为 = 「升级后**首个**访问自选的账户一次性认领旧全局行，并置位全局标记 `watch.migrated`」。
+     * 该机制属**自动跨账户搬运**：与 `§1.1-5` 严格互不可见冲突，且多账户下**归属不可判定**
+     * （旧清单未必属于第一个访问者）⇒ 经人工裁决改为**不认领**（`D52`）。
+     *
+     * 本用例由原「认领」用例**反写**而来（同一夹具、反转期望；`§8.5`「改写不删测」）。
+     */
     @Test
-    fun `legacy global watch list is claimed once by first account`() = runBlocking {
+    fun `legacy global watch list is NOT claimed by any account`() = runBlocking {
         MarketTestEnv().use { env ->
             // 模拟升级前的老数据：全局行 + 无迁移标记
             env.settings.putGlobal(
@@ -196,16 +205,27 @@ class MarketWatchServicesTest {
                 """["bitcoin","ethereum"]""",
             )
 
+            // 首个账户：**不认领** ⇒ 默认种子（旧清单不得出现在该账户自选里）
             val first = SettingsMarketWatchService(env.settings, env.catalog, env.sessionStore(1))
-            assertEquals(listOf("bitcoin", "ethereum"), first.watchCoins().map { it.cgId }, "首个账户认领旧全局清单")
-            assertTrue(first.hasCustomList())
+            assertEquals(listOf("tether"), first.watchCoins().map { it.cgId }, "首个账户不得认领旧全局清单（D52）")
+            assertFalse(first.hasCustomList(), "未认领 ⇒ 账户级自选保持未写入态")
+            assertNull(
+                env.settings.getAccount(1, MarketWatchService.SETTINGS_KEY),
+                "不得把旧全局行复制进账户级行",
+            )
 
-            // 第二个账户不再认领（标记已置位）⇒ 用默认种子
+            // 第二个账户：同样**不认领**（行为不再依赖任何标记）
             val second = SettingsMarketWatchService(env.settings, env.catalog, env.sessionStore(2))
-            assertEquals(listOf("tether"), second.watchCoins().map { it.cgId })
-            assertEquals("1", env.settings.getGlobal("watch.migrated"), "迁移标记应置位")
-            // 旧全局行保留只读（便于回溯），不再参与展示
-            assertEquals("""["bitcoin","ethereum"]""", env.settings.getGlobal(MarketWatchService.SETTINGS_KEY))
+            assertEquals(listOf("tether"), second.watchCoins().map { it.cgId }, "第二个账户同样不认领")
+            assertNull(env.settings.getAccount(2, MarketWatchService.SETTINGS_KEY))
+
+            // 标记**不被写入**；旧全局行**逐字节不变**（保留在库、只读、不展示）
+            assertNull(env.settings.getGlobal("watch.migrated"), "迁移标记不得再被写入（D52）")
+            assertEquals(
+                """["bitcoin","ethereum"]""",
+                env.settings.getGlobal(MarketWatchService.SETTINGS_KEY),
+                "旧全局行必须逐字节不变（零删除、零改写）",
+            )
         }
     }
 

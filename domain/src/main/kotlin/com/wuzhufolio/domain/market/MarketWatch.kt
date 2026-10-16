@@ -15,7 +15,8 @@ import java.time.Instant
  * 已写入（可为空数组）→ 按存储返回。币展示信息（symbol/name）每次经 coins 目录解析——目录缺行显示时跳过
  * （解析期清理，不静默改写存储；目录恢复后重新出现）。
  *
- * 升级迁移：旧全局行 `watch.coins` 由**首个访问自选的账户一次性认领**（`D41 §3.2`）。
+ * 升级迁移（**`D52` 已废止**）：旧全局行 `watch.coins` **不再被任何账户自动认领**——旧数据保留在库、
+ * 只读、不展示、不参与读取；账户级自选未写入时按**默认种子**展示（升级须知提示「需在行情页重新添加」）。
  */
 interface MarketWatchService {
 
@@ -46,8 +47,9 @@ interface MarketWatchService {
 
     companion object {
         /**
-         * 自选存储键。**D41 起为账户级行**（`account_id` 非空）；同名的**历史全局行**仅在迁移期被
-         * 一次性认领时**只读**（见 `D41 §3.2` 与 `SettingsKeyNamespaceGuardTest.legacyGlobalKeys`）。
+         * 自选存储键。**D41 起为账户级行**（`account_id` 非空）；同名的**历史全局行**为**历史遗留**：
+         * 保留在库、**只读、不展示、不参与读取**，且**不再被自动认领**（`D52` 修订 `D41`；
+         * 见 `SettingsKeyNamespaceGuardTest.legacyGlobalKeys`）。
          */
         const val SETTINGS_KEY = "watch.coins"
     }
