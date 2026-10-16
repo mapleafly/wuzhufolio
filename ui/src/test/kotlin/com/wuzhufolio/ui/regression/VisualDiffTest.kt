@@ -5,6 +5,7 @@ import java.io.File
 import javax.imageio.ImageIO
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -121,5 +122,74 @@ class VisualDiffTest {
         assertTrue(text.contains("有基线 1/2 张"), text)
         assertTrue(text.contains("报告型"), text)
         assertTrue(text.contains("漂移量级"), text)
+    }
+
+    // --- T16.3（2026-10-16）：按平台基线 + 分级判定 ------------------------------------------------
+
+    @Test
+    fun `平台判定先于 Windows 且不吃 Darwin 的 win 子串`() {
+        assertEquals("win", VisualDiff.platformId("Windows 11"))
+        assertEquals("win", VisualDiff.platformId("Windows 10"))
+        assertEquals("linux", VisualDiff.platformId("Linux"))
+        // macOS 内核名 Darwin 含子串 "win" ⇒ 必须先判 mac，且 Windows 判据用 "windows"
+        assertEquals("mac", VisualDiff.platformId("Mac OS X"))
+        assertEquals("mac", VisualDiff.platformId("Darwin"))
+        assertNull(VisualDiff.platformId("FreeBSD"))
+    }
+
+    @Test
+    fun `分级阈值精确锁定（同平台噪声放行 跨平台量级阻断）`() {
+        fun row(status: String, diffPixels: Int?, total: Int = 10_000) = VisualDiff.Row(
+            name = "probe.png",
+            status = status,
+            maxChannelDiff = 40,
+            meanAbsDiff = 1.0,
+            diffPixels = diffPixels,
+            strongPixels = 0,
+            totalPixels = total,
+        )
+
+        // 放行区：≤ 0.05%（PLATFORM_NOISE_RATIO，含边界）
+        assertEquals(VisualDiff.Verdict.WITHIN_NOISE, VisualDiff.verdict(row("DIFF", 5)))
+        // 报告区：> 0.05% 且 ≤ 0.5%（BLOCKING_RATIO，含边界）
+        assertEquals(VisualDiff.Verdict.REVIEW, VisualDiff.verdict(row("DIFF", 6)))
+        assertEquals(VisualDiff.Verdict.REVIEW, VisualDiff.verdict(row("DIFF", 50)))
+        // 阻断区：> 0.5%
+        assertEquals(VisualDiff.Verdict.BLOCKING, VisualDiff.verdict(row("DIFF", 51)))
+        assertEquals(VisualDiff.Verdict.BLOCKING, VisualDiff.verdict(row("DIFF", 1_000)))
+        // 非 DIFF 状态各自成判定，绝不落入阈值比较
+        assertEquals(VisualDiff.Verdict.MATCH, VisualDiff.verdict(row("MATCH", 0)))
+        assertEquals(VisualDiff.Verdict.NO_BASELINE, VisualDiff.verdict(row("NO_BASELINE", null)))
+        assertEquals(VisualDiff.Verdict.SIZE_MISMATCH, VisualDiff.verdict(row("SIZE_MISMATCH", null)))
+        assertEquals(VisualDiff.Verdict.UNREADABLE, VisualDiff.verdict(row("UNREADABLE", null)))
+    }
+
+    @Test
+    fun `阻断开关打开时超阈值抛 AssertionError 关闭时只报告`() {
+        val dir = File("build/tmp/visual-diff-test/blocking").apply { mkdirs() }
+        val baselines = File(dir, "baseline").apply { mkdirs() }
+        // 8x8 全黑基线 vs 全白渲染 ⇒ 100% 差异像素（远超 BLOCKING_RATIO）
+        write(baselines, "probe.png", solid(8, 8, 0xFF000000.toInt()))
+        val files = listOf(write(dir, "probe.png", solid(8, 8, 0xFFFFFFFF.toInt())))
+
+        // 关闭阻断：与 D47 口径一致，只写报告、不抛
+        VisualDiff.report("off", files, dir, baselines, blocking = false)
+        val offReport = File(dir, "diff-off.md").readText()
+        assertTrue(offReport.contains("| probe.png | DIFF | BLOCKING |"), offReport)
+        assertTrue(offReport.contains("阻断 1 张"), offReport)
+
+        // 打开阻断：必须抛，且报文指明最差图与刷新步骤
+        val error = assertFailsWith<AssertionError> {
+            VisualDiff.report("on", files, dir, baselines, blocking = true)
+        }
+        assertTrue(error.message!!.contains("视觉回归阻断"), error.message!!)
+        assertTrue(error.message!!.contains("probe.png"), error.message!!)
+        assertTrue(error.message!!.contains("visual-baseline.md §4"), error.message!!)
+    }
+
+    @Test
+    fun `平台基线未入库时不启用阻断（退回报告型）`() {
+        // 未知平台 ⇒ 无平台基线目录 ⇒ 不阻断
+        assertNull(VisualDiff.platformBaselineDir("FreeBSD"))
     }
 }
