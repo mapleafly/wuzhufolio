@@ -833,6 +833,57 @@
 
 ---
 
+## §10 0.4.0 新增用例（`M16` · `T16.1`–`T16.5` · 2026-10-20）
+
+> **来源**：`M16` 五个任务 + `D50`/`D51`/`D52` 决策档正文；逐条对应**真实测试函数名**或可复核命令。
+> **不改写任何既有判定**：既有 §1–§9 编号与合计不变（§9 = 318 条）。
+> **执行证据**：全量 **836 用例 / 832 执行 / 0 失败 / 0 错误 / 4 跳过**（app 71 · data 312 · domain 227 · ui 226）+ detekt 0；
+> CI `68c8886` → run `38852313533` ✅（三平台）。**人工走查**见 `manual-test-guide.md §24`。
+
+### §10.1 通知 / 反馈投递矩阵（`T16.1` / `T16.2`）
+
+| 编号 | 用例 | 预期结果 | 自动化（真实函数名） |
+|---|---|---|---|
+| 0.4.0-01 | 矩阵每个（场景 × 平台）单元格**恰有一条**投递通道 | `assertEquals(1, size)`（**禁** `>0` 宽松判定） | ✅ `NoticeDeliveryMatrixTest.every matrix cell has exactly one delivery channel` |
+| 0.4.0-02 | **已发布三平台族**（Linux / Windows / macOS）的**按平台路由场景**统一走应用内提示窗 | 三族均解析为 `IN_APP_TOAST` | ✅ `…shipped platforms deliver platform-routed scenes through the in-app toast` |
+| 0.4.0-03 | **未知平台**（如 FreeBSD）退回**原生气泡兜底**，不得空投递 | 解析为 `NATIVE_BALLOON` | ✅ `…unknown platforms fall back to the native balloon on platform-routed scenes` |
+| 0.4.0-04 | 路由模式**互斥**（同一平台同一场景不得既走应用内窗又走气泡） | 两两互斥断言 | ✅ `…routing modes are mutually exclusive per platform` |
+| 0.4.0-05 | **窗口内通道**（S5–S9）**与平台无关**，且通道类型与矩阵文档**精确一致** | 期望值逐场景精确比对 | ✅ `…window scenes are platform independent` · `…window scenes resolve to the documented channel exactly` |
+| 0.4.0-06 | **文档 ↔ 模型不漂移**：矩阵文档主表的场景行与模型 `docIds` 一一对应 | 集合相等；文档改一行即红 | ✅ `…window scene rows document the same channel as the model` |
+| 0.4.0-07 | 矩阵文档声明**全部**已建模场景；每个通道类型至少被一处使用（防死枚举） | 双向断言 | ✅ `…matrix document declares every modeled scene` · `…every channel type is reachable from at least one matrix cell` |
+| 0.4.0-08 | **`DEF-65` 回归**：macOS 上托盘手动动作（门禁/开始/结果）**必须**经应用内提示窗投递 | macOS 分支非空且为应用内窗 | ✅ 同上矩阵用例的 macOS 分支（修前为 **RED**，见 `defects.md DEF-65`） |
+
+### §10.2 `D41` 改「不认领」（`T16.4` / `D52`）
+
+| 编号 | 用例 | 预期结果 | 自动化 |
+|---|---|---|---|
+| 0.4.0-09 | 升级后**首账户访问行情页**：旧全局自选**不得**被认领 | 账户级行 = `null` · `hasCustomList()==false` · 行=默认种子 | ✅ `MarketWatchServicesTest.legacy global watch list is NOT claimed by any account` |
+| 0.4.0-10 | **旧全局行仍在库中**且**逐字节不变**（只读、不展示） | 行内容与升级前一致 | ✅ 同上（夹具含旧全局行比对） |
+| 0.4.0-11 | 认领标记 **`watch.migrated` 不再被写入** | 标记 = `null` | ✅ 同上 + `SettingsKeyNamespaceGuardTest`（历史键受控登记） |
+| 0.4.0-12 | **降级回 0.3.0 会恢复认领**（口径已在 `rollback.md §4.1.3` 写明） | 文档口径一致（非自动化断言） | 🟡 文档级（人工走查 §24.3 复核） |
+
+### §10.3 视觉回归按平台基线（`T16.3`）
+
+| 编号 | 用例 | 预期结果 | 自动化 |
+|---|---|---|---|
+| 0.4.0-13 | 平台判定：`Mac OS X`/`Darwin` 归 macOS；`Windows*` 归 win；`Linux` 归 linux；**`Darwin` 不得被判成 Windows** | 精确平台 id | ✅ `VisualDiffTest`（平台判定 + `Darwin` 反例） |
+| 0.4.0-14 | 分级判定**边界逐点**：`0` / `=0.05%` / `0.05%~0.5%` / `=0.5%` / `>0.5%` | `MATCH` / `WITHIN_NOISE` / `REVIEW` / `REVIEW` / `BLOCKING` | ✅ `VisualDiffTest`（阈值边界逐点） |
+| 0.4.0-15 | **阻断开关双向**：`blockingEnabled=true` 时 `BLOCKING` 抛断言失败；`false` 时仅报告 | 双向断言 | ✅ `VisualDiffTest`（阻断开关双向） |
+| 0.4.0-16 | **未知平台 / 无基线 / 显式 override** ⇒ 退回报告型（不阻断） | `blockingEnabled=false` | ✅ `VisualDiffTest`（未知平台不阻断） |
+
+### §10.4 文档改写纪律（`T16.3` / `scripts/doc-edit.ps1`）
+
+| 编号 | 用例 | 预期结果 | 自动化/命令 |
+|---|---|---|---|
+| 0.4.0-17 | 锚点命中 **0 处**或 **≠ `-AllowCount`** ⇒ **拒绝改写**、文件哈希不变、退出码 **2** | `REFUSE` + 未写入 | ✅ 脚本自测（8 类） |
+| 0.4.0-18 | 锚点含**日期**（疑似证据行）⇒ 默认**拒改**；加 `-Force` 才放行（`§3.1-8`） | `REFUSE` → `-Force` 后 `OK` | ✅ 脚本自测 |
+| 0.4.0-19 | 白名单外文件 ⇒ 拒绝；「替换文本 = 原文」⇒ 拒绝 | 退出码 **2** | ✅ 脚本自测 |
+| 0.4.0-20 | 正常改写 ⇒ `replaced=N verified=true` + 哈希变更（**写入后回读复核**） | `OK` + 回读一致 | ✅ 脚本自测 + 本轮 dogfooding 19 处全绿 |
+
+> **合计**：本批 **20 条**（🟡 1 条为文档级口径）。全量门：**836 / 832 执行 / 0 失败 / 0 错误 / 4 跳过**。
+
+---
+
 ## 需求回溯
 
 | 需求锚点 | 对应用例段 | 覆盖结论 |

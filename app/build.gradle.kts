@@ -26,7 +26,7 @@ val packagingFormats: List<TargetFormat> = when {
 }
 
 /** 应用版本单一真源（M13 T13.2）：同时注入 jpackage packageVersion 与运行期 BuildInfo.VERSION。 */
-val appVersion = "0.3.0"
+val appVersion = "0.4.0"
 
 /**
  * 开发期 UI 开关（DEF-47，2026-09-24 人工拍板「方案甲：加构建期开关」）。
